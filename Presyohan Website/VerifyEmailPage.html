@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presyohan - Verify Email</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="VerifyEmailPage.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-logo">
+            <img src="logo-placeholder.png" alt="Presyohan Logo">
+            <h2><span class="presyo">presyo</span><span class="han">han?</span></h2>
+        </div>
+        <nav class="header-nav">
+            <a href="#">Home</a>
+            <a href="#">About</a>
+            <a href="#">Contact</a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="wrapper">
+        <div class="left-section">
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="logo-placeholder.png" alt="Presyohan Logo">
+                </div>
+                <h1>
+                    <span class="presyo">presyo</span><span class="han">han?</span>
+                </h1>
+                <p>Find the best prices in one place!</p>
+            </div>
+        </div>
+
+        <div class="right-section">
+            <div class="verify-container">
+                <div class="verify-icon">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="#ff8c00" stroke-width="2"/>
+                        <path d="M12 6v6l4 2" stroke="#ff8c00" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+
+                <h2>Verify your email</h2>
+                <p class="verify-message">
+                    We've sent a 6 digit code to <span class="email">callejhuan@gmail.com</span>
+                </p>
+
+                <div class="code-inputs">
+                    <input type="text" class="code-input" maxlength="1" id="code1" oninput="moveToNext(this, 'code2')">
+                    <input type="text" class="code-input" maxlength="1" id="code2" oninput="moveToNext(this, 'code3')">
+                    <input type="text" class="code-input" maxlength="1" id="code3" oninput="moveToNext(this, 'code4')">
+                    <input type="text" class="code-input" maxlength="1" id="code4" oninput="moveToNext(this, 'code5')">
+                    <input type="text" class="code-input" maxlength="1" id="code5" oninput="moveToNext(this, 'code6')">
+                    <input type="text" class="code-input" maxlength="1" id="code6" oninput="handleLastInput()">
+                </div>
+
+                <p class="resend-link">
+                    Don't get the code? <a href="#" onclick="resendCode(); return false;">Click to resend</a>
+                </p>
+
+                <button class="verify-btn" onclick="verifyCode()">Verify</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>About Presyohan</h3>
+                <p>Your trusted platform for finding the best prices in one place. Compare, save, and shop smarter.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <a href="#">Home</a>
+                <a href="#">About Us</a>
+                <a href="#">Features</a>
+                <a href="#">Contact</a>
+            </div>
+            <div class="footer-section">
+                <h3>Support</h3>
+                <a href="#">Help Center</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">FAQ</a>
+            </div>
+            <div class="footer-section">
+                <h3>Contact Us</h3>
+                <p>Email: support@presyohan.com</p>
+                <p>Phone: +63 123 456 7890</p>
+                <p>Location: Cebu City, Philippines</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Presyohan. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Auto-move to next input
+        function moveToNext(current, nextFieldId) {
+            if (current.value.length === 1) {
+                const nextField = document.getElementById(nextFieldId);
+                if (nextField) {
+                    nextField.focus();
+                }
+            }
+        }
+
+        // Handle last input
+        function handleLastInput() {
+            // Optional: Auto-submit when all fields are filled
+            const allFilled = Array.from(document.querySelectorAll('.code-input'))
+                .every(input => input.value.length === 1);
+            
+            if (allFilled) {
+                console.log('All code fields filled!');
+            }
+        }
+
+        // Verify code function
+        function verifyCode() {
+            const code = Array.from(document.querySelectorAll('.code-input'))
+                .map(input => input.value)
+                .join('');
+            
+            if (code.length === 6) {
+                alert(`Verifying code: ${code}`);
+                // Add your verification logic here
+            } else {
+                alert('Please enter the complete 6-digit code');
+            }
+        }
+
+        // Resend code function
+        function resendCode() {
+            alert('A new verification code has been sent to your email!');
+            // Add your resend logic here
+        }
+
+        // Allow backspace to move to previous field
+        document.querySelectorAll('.code-input').forEach((input, index, inputs) => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !input.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
