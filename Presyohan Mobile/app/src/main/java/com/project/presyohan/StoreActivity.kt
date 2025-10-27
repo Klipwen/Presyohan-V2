@@ -12,7 +12,6 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.navigation.NavigationView
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.project.presyohan.adapter.Store
 import com.project.presyohan.adapter.StoreAdapter
@@ -25,7 +24,6 @@ import kotlinx.serialization.Serializable
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navigationView: NavigationView
@@ -96,27 +94,21 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
 
         val notifDot = findViewById<View>(R.id.notifDot)
-        val userIdNotif = FirebaseAuth.getInstance().currentUser?.uid
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
         if (notifDot != null && userIdNotif != null) {
-            try {
-                FirebaseFirestore.getInstance()
-                    .collection("users").document(userIdNotif)
-                    .collection("notifications")
-                    .whereEqualTo("status", "Pending")
-                    .whereEqualTo("unread", true)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            notifDot.visibility = View.GONE
-                            android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                            android.util.Log.e("FirestoreNotif", "Error: ", error)
-                            return@addSnapshotListener
-                        }
-                        notifDot.visibility = if (snapshot != null && !snapshot.isEmpty) View.VISIBLE else View.GONE
-                    }
-            } catch (e: Exception) {
-                notifDot.visibility = View.GONE
-                android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                android.util.Log.e("FirestoreNotif", "Exception: ", e)
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest["notifications"].select {
+                        eq("recipient_user_id", userIdNotif)
+                        eq("unread", true)
+                        eq("status", "Pending")
+                        limit(1)
+                    }.decodeList<com.project.presyohan.HomeActivity.NotificationRow>()
+                    notifDot.visibility = if (rows.isNotEmpty()) View.VISIBLE else View.GONE
+                } catch (e: Exception) {
+                    notifDot.visibility = View.GONE
+                    android.util.Log.e("SupabaseNotif", "Error loading notif badge", e)
+                }
             }
         }
     }
@@ -398,7 +390,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun showStoreMenu(store: Store, anchor: View) {
-        val userId = auth.currentUser?.uid
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         if (userId != null) {
             db.collection("stores").document(store.id)
                 .collection("members").get().addOnSuccessListener { membersSnapshot ->
@@ -588,7 +580,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to leave this store? You will lose access to its products."
             confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
             confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                val userId = auth.currentUser?.uid
+                val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
                 if (userId != null) {
                     db.collection("users").document(userId)
                         .update("stores", com.google.firebase.firestore.FieldValue.arrayRemove(store.id))

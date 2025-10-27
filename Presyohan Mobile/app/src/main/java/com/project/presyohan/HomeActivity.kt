@@ -10,8 +10,7 @@ import com.project.presyohan.adapter.ProductAdapter
 import  android.widget.TextView
 import android.view.View
 import android.widget.ImageView
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+// Firebase Firestore removed for product/listener and header; using Supabase instead
 import android.widget.Spinner
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -32,6 +31,10 @@ class HomeActivity : AppCompatActivity() {
     private val supabase: SupabaseClient
         get() = SupabaseProvider.client
 
+    private var selectedCategory: String? = null
+    private var currentQuery: String = ""
+    private var reloadProductsFn: (() -> Unit)? = null
+
     @Serializable
     data class StoreMember(val store_id: String, val user_id: String, val role: String)
 
@@ -48,6 +51,12 @@ class HomeActivity : AppCompatActivity() {
 
     @Serializable
     data class CategoryRow(val id: String, val store_id: String, val name: String)
+
+    @Serializable
+    data class StoreRow(val id: String, val name: String, val branch: String? = null, val type: String? = null)
+
+    @Serializable
+    data class NotificationRow(val id: String, val recipient_user_id: String, val unread: Boolean = true, val status: String? = null)
     private lateinit var googleSignInClient: GoogleSignInClient
     private val REQUEST_EDIT_ITEM = 1001
     private val REQUEST_ADD_ITEM = 1002
@@ -66,7 +75,7 @@ class HomeActivity : AppCompatActivity() {
         val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
         val navigationView = findViewById<com.google.android.material.navigation.NavigationView>(R.id.navigationView)
         val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        // Firestore db removed; using Supabase for data reads
         val menuIcon = findViewById<android.widget.ImageView>(R.id.menuIcon)
         menuIcon.setOnClickListener {
             drawerLayout.open()
@@ -126,9 +135,20 @@ class HomeActivity : AppCompatActivity() {
         }
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         if (storeId != null) {
-            db.collection("stores").document(storeId).get().addOnSuccessListener { doc ->
-                val branch = doc.getString("branch") ?: ""
-                storeBranchText.text = branch
+            lifecycleScope.launch {
+                try {
+                    val rows = supabase.postgrest["stores"].select {
+                        eq("id", storeId)
+                        limit(1)
+                    }.decodeList<StoreRow>()
+                    val row = rows.firstOrNull()
+                    // Prefer live name from DB if present
+                    storeText.text = row?.name ?: (storeName ?: "Store")
+                    storeBranchText.text = row?.branch ?: ""
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeActivity", "Store header load failed", e)
+                    storeBranchText.text = ""
+                }
             }
         } else {
             storeBranchText.text = ""
@@ -182,8 +202,7 @@ class HomeActivity : AppCompatActivity() {
         }
 
 
-        var selectedCategory: String? = null
-        var currentQuery: String = ""
+        // selectedCategory & currentQuery are class-level, used across callbacks
 
         // Update search logic to combine with category filter
         fun filterAndDisplayProducts(showMessageIfEmpty: Boolean = false) {
@@ -207,28 +226,52 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        // Use Firestore snapshot listener for real-time updates
-        if (storeId != null) {
-            FirebaseFirestore.getInstance()
-                .collection("stores").document(storeId)
-                .collection("products")
-                .addSnapshotListener { result, error ->
-                    if (error != null) return@addSnapshotListener
-                    products.clear()
-                    if (result != null) {
-                        for (doc in result) {
-                            val id = doc.id
-                            val name = doc.getString("name") ?: ""
-                            val description = doc.getString("description") ?: ""
-                            val price = doc.getDouble("price") ?: 0.0
-                            val volume = doc.getString("units") ?: ""
-                            val category = doc.getString("category") ?: ""
-                            products.add(com.project.presyohan.adapter.Product(id, name, description, price, volume, category))
+        // Supabase-driven product loading with server-side filters
+        fun loadProductsFromSupabase() {
+            val sId = storeId ?: return
+            lifecycleScope.launch {
+                try {
+                    val query = currentQuery
+                    val category = selectedCategory
+                    val rows = supabase.postgrest["products"].select {
+                        eq("store_id", sId)
+                        if (!category.isNullOrBlank() && category != "PRICELIST") {
+                            eq("category", category)
                         }
+                        if (!query.isNullOrBlank()) {
+                            // Match name/description/units
+                            or {
+                                ilike("name", "%${query}%")
+                                ilike("description", "%${query}%")
+                                ilike("units", "%${query}%")
+                            }
+                        }
+                    }.decodeList<ProductRow>()
+                    products.clear()
+                    for (row in rows) {
+                        products.add(
+                            com.project.presyohan.adapter.Product(
+                                row.id,
+                                row.name,
+                                row.description ?: "",
+                                row.price,
+                                row.units ?: "",
+                                row.category ?: ""
+                            )
+                        )
                     }
                     adapter.updateProducts(products)
                     filterAndDisplayProducts()
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeActivity", "Products load failed", e)
                 }
+            }
+        }
+
+        // Initial load
+        if (storeId != null) {
+            reloadProductsFn = { loadProductsFromSupabase() }
+            loadProductsFromSupabase()
         }
 
         val searchEditText = findViewById<android.widget.EditText>(R.id.searchEditText)
@@ -236,7 +279,8 @@ class HomeActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentQuery = s.toString().trim().lowercase()
-                filterAndDisplayProducts()
+                // Re-query Supabase on search update
+                loadProductsFromSupabase()
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
@@ -265,7 +309,8 @@ class HomeActivity : AppCompatActivity() {
                 selectedCategory = categories[position]
                 categoryLabel.text = categories[position].uppercase()
                 recyclerView.layoutManager = GridLayoutManager(this@HomeActivity, 2)
-                filterAndDisplayProducts()
+                // Re-query Supabase on category change
+                loadProductsFromSupabase()
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
         }
@@ -336,27 +381,22 @@ class HomeActivity : AppCompatActivity() {
         }
 
         val notifDot = findViewById<View>(R.id.notifDot)
-        val userIdNotif = FirebaseAuth.getInstance().currentUser?.uid
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
         if (notifDot != null && userIdNotif != null) {
-            try {
-                com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    .collection("users").document(userIdNotif)
-                    .collection("notifications")
-                    .whereEqualTo("status", "Pending")
-                    .whereEqualTo("unread", true)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            notifDot.visibility = View.GONE
-                            android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                            android.util.Log.e("FirestoreNotif", "Error: ", error)
-                            return@addSnapshotListener
-                        }
-                        notifDot.visibility = if (snapshot != null && !snapshot.isEmpty) View.VISIBLE else View.GONE
-                    }
-            } catch (e: Exception) {
-                notifDot.visibility = View.GONE
-                android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                android.util.Log.e("FirestoreNotif", "Exception: ", e)
+            lifecycleScope.launch {
+                try {
+                    val pending = supabase.postgrest["notifications"].select {
+                        eq("recipient_user_id", userIdNotif)
+                        eq("unread", true)
+                        // If you store lowercase statuses, use 'pending'
+                        // eq("status", "pending")
+                        limit(1)
+                    }.decodeList<NotificationRow>()
+                    notifDot.visibility = if (pending.isNotEmpty()) View.VISIBLE else View.GONE
+                } catch (e: Exception) {
+                    notifDot.visibility = View.GONE
+                    android.util.Log.e("HomeActivity", "Notif badge load failed", e)
+                }
             }
         }
     }
@@ -372,6 +412,8 @@ class HomeActivity : AppCompatActivity() {
             prefs.putString("last_store_name", storeName)
         }
         prefs.apply()
+        // Refresh products and notification badge when returning to this screen
+        reloadProductsFn?.invoke()
     }
 
     override fun onBackPressed() {
@@ -475,5 +517,4 @@ class HomeActivity : AppCompatActivity() {
             // No need to manually reload, snapshot listener will update
         }
     }
-}
 }

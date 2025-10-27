@@ -6,7 +6,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.Toast
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import android.widget.ArrayAdapter
 import android.widget.AdapterView
@@ -83,13 +82,12 @@ class CreateStoreActivity : Activity() {
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
         val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        if (userId != null) {
-            db.collection("users").document(userId).get().addOnSuccessListener { doc ->
-                userNameText.text = doc.getString("name") ?: "User"
-                userEmailText.text = doc.getString("email") ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: ""
-            }
+        val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
+        userEmailText.text = supaUser?.email ?: ""
+        userNameText.text = "User"
+        androidx.lifecycle.lifecycleScope.launch {
+            val name = SupabaseAuthService.getDisplayName() ?: "User"
+            userNameText.text = name
         }
 
         val storeNameEditText = findViewById<EditText>(R.id.inputItemName)
@@ -156,8 +154,7 @@ class CreateStoreActivity : Activity() {
                 return@setOnClickListener
             }
             val db = FirebaseFirestore.getInstance()
-            val auth = FirebaseAuth.getInstance()
-            val userId = auth.currentUser?.uid ?: return@setOnClickListener
+            val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@setOnClickListener
             val storeData = hashMapOf(
                 "name" to name,
                 "branch" to branch,
@@ -184,4 +181,4 @@ class CreateStoreActivity : Activity() {
             }
         }
     }
-} 
+}

@@ -6,7 +6,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.android.material.navigation.NavigationView
 import android.widget.TextView
@@ -20,7 +19,6 @@ class JoinStoreActivity : AppCompatActivity() {
     private lateinit var joinButton: Button
 
     private val db = FirebaseFirestore.getInstance()
-    private val currentUser = FirebaseAuth.getInstance().currentUser
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,8 +81,9 @@ class JoinStoreActivity : AppCompatActivity() {
                     }
 
                     // Check if user is already a member
+                    val supaUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
                     db.collection("stores").document(storeId).collection("members")
-                        .document(currentUser!!.uid).get()
+                        .document(supaUserId ?: "").get()
                         .addOnSuccessListener { docSnapshot ->
                             if (docSnapshot.exists()) {
                                 Toast.makeText(this, "You're already a member of this store.", Toast.LENGTH_SHORT).show()
@@ -101,7 +100,7 @@ class JoinStoreActivity : AppCompatActivity() {
                                 db.collection("users").document(ownerUid)
                                     .collection("notifications")
                                     .whereEqualTo("type", "Join Request")
-                                    .whereEqualTo("senderId", currentUser.uid)
+                                    .whereEqualTo("senderId", supaUserId)
                                     .whereEqualTo("storeName", storeDoc.getString("name") ?: "Store")
                                     .whereEqualTo("status", "Pending")
                                     .get()
@@ -111,11 +110,12 @@ class JoinStoreActivity : AppCompatActivity() {
                                             return@addOnSuccessListener
                                         }
                                         // Send join request notification to owner
+                                        val senderNameOrEmail = SupabaseProvider.client.auth.currentUserOrNull()?.email ?: "User"
                                         val notif = hashMapOf(
                                             "type" to "Join Request",
                                             "status" to "Pending",
-                                            "sender" to (currentUser.displayName ?: currentUser.email ?: "User"),
-                                            "senderId" to currentUser.uid,
+                                            "sender" to senderNameOrEmail,
+                                            "senderId" to supaUserId,
                                             "storeName" to (storeDoc.getString("name") ?: "Store"),
                                             "role" to null,
                                             "timestamp" to System.currentTimeMillis(),

@@ -8,7 +8,6 @@ import android.view.View
 import android.widget.ImageView
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.navigation.NavigationView
-import com.google.firebase.auth.FirebaseAuth
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -17,7 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.project.presyohan.Notification
-import com.project.presyohan.NotificationAdapter
+import com.project.presyohan.adapter.NotificationAdapter
 import androidx.recyclerview.widget.ItemTouchHelper
 import android.app.Dialog
 import android.widget.Button
@@ -110,7 +109,7 @@ class NotificationActivity : AppCompatActivity() {
                 }
                 view.findViewById<Button>(R.id.btnDelete).setOnClickListener {
                     // Delete from Firestore
-                    val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                    val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
                     if (userId != null) {
                         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                         db.collection("users").document(userId)
@@ -135,7 +134,7 @@ class NotificationActivity : AppCompatActivity() {
         })
         itemTouchHelper.attachToRecyclerView(recyclerView)
 
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         // Set real user name and email in navigation drawer header (Supabase)
         val navigationViewHeader = findViewById<com.google.android.material.navigation.NavigationView>(R.id.navigationView)
@@ -209,7 +208,7 @@ class NotificationActivity : AppCompatActivity() {
             showManageJoinRequestDialog(notification)
             return
         }
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val docIndex = notifications.indexOf(notification)
         if (docIndex == -1) return
@@ -239,11 +238,13 @@ class NotificationActivity : AppCompatActivity() {
                             val senderNotif = hashMapOf(
                                 "type" to "Store Invitation",
                                 "status" to "Accepted",
-                                "sender" to com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.displayName.orEmpty(),
+                                "sender" to ((SupabaseProvider.client.auth.currentUserOrNull()?.userMetadata?.get("name") as? String)
+                                    ?: (SupabaseProvider.client.auth.currentUserOrNull()?.email ?: "")),
                                 "senderId" to userId,
                                 "storeName" to notification.storeName,
                                 "timestamp" to System.currentTimeMillis(),
-                                "message" to "${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.displayName.orEmpty()} accepted your invitation to join ${notification.storeName}."
+                                "message" to "${((SupabaseProvider.client.auth.currentUserOrNull()?.userMetadata?.get("name") as? String)
+                                    ?: (SupabaseProvider.client.auth.currentUserOrNull()?.email ?: ""))} accepted your invitation to join ${notification.storeName}."
                             )
                             db.collection("users").document(senderId)
                                 .collection("notifications")
@@ -270,12 +271,13 @@ class NotificationActivity : AppCompatActivity() {
             // Notify requester of rejection
             val db = FirebaseFirestore.getInstance()
             val userId = notification.senderId ?: return
-            val ownerId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+            val ownerId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
             val storeName = notification.storeName ?: "Store"
             val requesterNotif = hashMapOf(
                 "type" to "Join Request",
                 "status" to "Declined",
-                "sender" to (FirebaseAuth.getInstance().currentUser?.displayName ?: ""),
+                "sender" to ((SupabaseProvider.client.auth.currentUserOrNull()?.userMetadata?.get("name") as? String)
+                    ?: (SupabaseProvider.client.auth.currentUserOrNull()?.email ?: "")),
                 "senderId" to ownerId,
                 "storeName" to storeName,
                 "role" to null,
@@ -294,7 +296,7 @@ class NotificationActivity : AppCompatActivity() {
             }
             return
         }
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val docIndex = notifications.indexOf(notification)
         if (docIndex == -1) return
@@ -311,11 +313,13 @@ class NotificationActivity : AppCompatActivity() {
                             val senderNotif = hashMapOf(
                                 "type" to "Store Invitation",
                                 "status" to "Declined",
-                                "sender" to com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.displayName.orEmpty(),
+                                "sender" to ((SupabaseProvider.client.auth.currentUserOrNull()?.userMetadata?.get("name") as? String)
+                                    ?: (SupabaseProvider.client.auth.currentUserOrNull()?.email ?: "")),
                                 "senderId" to userId,
                                 "storeName" to notification.storeName,
                                 "timestamp" to System.currentTimeMillis(),
-                                "message" to "${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.displayName.orEmpty()} declined your invitation to join ${notification.storeName}."
+                                "message" to "${((SupabaseProvider.client.auth.currentUserOrNull()?.userMetadata?.get("name") as? String)
+                                    ?: (SupabaseProvider.client.auth.currentUserOrNull()?.email ?: ""))} declined your invitation to join ${notification.storeName}."
                             )
                             db.collection("users").document(senderId)
                                 .collection("notifications")
@@ -341,7 +345,7 @@ class NotificationActivity : AppCompatActivity() {
         // Open HomeActivity for the store referenced in the notification
         val storeName = notification.storeName ?: return
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
         db.collection("stores").whereEqualTo("name", storeName).get()
             .addOnSuccessListener { storeSnapshot ->
                 if (!storeSnapshot.isEmpty) {
@@ -407,7 +411,7 @@ class NotificationActivity : AppCompatActivity() {
                             db.collection("users").document(userId)
                                 .update("stores", com.google.firebase.firestore.FieldValue.arrayUnion(storeId))
                             // Update notification status to Accepted for owner
-                            val ownerId = FirebaseAuth.getInstance().currentUser?.uid ?: return@addOnSuccessListener
+                            val ownerId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@addOnSuccessListener
                             val docIndex = notifications.indexOf(notification)
                             if (docIndex != -1) {
                                 val docId = notificationDocIds[docIndex]
@@ -419,7 +423,8 @@ class NotificationActivity : AppCompatActivity() {
                             val requesterNotif = hashMapOf(
                                 "type" to "Join Request",
                                 "status" to "Accepted",
-                                "sender" to (FirebaseAuth.getInstance().currentUser?.displayName ?: ""),
+                                "sender" to ((SupabaseProvider.client.auth.currentUserOrNull()?.userMetadata?.get("name") as? String)
+                                    ?: (SupabaseProvider.client.auth.currentUserOrNull()?.email ?: "")),
                                 "senderId" to ownerId,
                                 "storeName" to notification.storeName,
                                 "role" to selectedRole,

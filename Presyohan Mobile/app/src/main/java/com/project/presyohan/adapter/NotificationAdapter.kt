@@ -1,11 +1,13 @@
-package com.project.presyohan
+package com.project.presyohan.adapter
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.FirebaseAuth
+import com.project.presyohan.R
+import com.project.presyohan.Notification
+import com.project.presyohan.SupabaseProvider
 
 class NotificationAdapter(
     private val notifications: List<Notification>,
@@ -75,7 +77,7 @@ class NotificationAdapter(
             dividerTypeStatus.visibility = View.GONE
             dotSeparator.visibility = View.GONE
 
-            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+            val currentUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
 
             when (notification.status) {
                 "Pending" -> {
