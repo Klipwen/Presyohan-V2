@@ -1,0 +1,347 @@
+* {
+  box-sizing: border-box;
+}
+
+ .verify-page-root {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  flex-direction: column;
+ }
+
+/* Keep header white on this page */
+.verify-page-root header {
+    background: white;
+    padding: 15px 50px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.verify-page-root .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.verify-page-root .header-logo img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.verify-page-root .header-logo h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.verify-page-root .header-logo .presyo {
+    color: #ff8c00;
+}
+
+.verify-page-root .header-logo .han {
+    color: #00a8cc;
+}
+
+.verify-page-root .header-nav a {
+    text-decoration: none;
+    color: #666;
+    margin-left: 30px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.verify-page-root .header-nav a:hover {
+    color: #ff8c00;
+}
+
+
+/* Two-column layout */
+.wrapper {
+  display: flex;
+  flex: 1;
+}
+
+.left-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  padding-left: 220px;
+  padding-right: 220px;
+  min-height: 780px;
+  color: #fff;
+  text-align: center;
+}
+
+.brand {
+  text-align: center;
+}
+
+.logo-container {
+  width: 120px;
+  height: 120px;
+  background: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 30px;
+  overflow: hidden;
+}
+
+.logo-container img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+}
+
+.brand h1 {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  font-weight: 700;
+}
+
+.brand h1 .presyo {
+  color: #fff;
+}
+
+.brand h1 .han {
+  color: #00a8cc;
+}
+
+.brand p {
+  font-size: 1.1rem;
+}
+
+right-section {
+    flex: 1;
+    margin: 10px;
+    background: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60px;
+    position: relative;
+    border-radius: 0 100px 0 100px;
+}
+
+.verify-container {
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+}
+
+.verify-icon {
+    width: 80px;
+    height: 80px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.verify-icon svg {
+    width: 45px;
+    height: 45px;
+}
+
+h2 {
+    color: #ff8c00;
+    font-size: 2rem;
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+.verify-message {
+    color: #666;
+    font-size: 0.95rem;
+    margin-bottom: 40px;
+    line-height: 1.6;
+}
+
+.verify-message .email {
+    color: #00bcd4;
+    font-weight: 600;
+}
+
+.code-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.code-input {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #e8e8e8;
+    border-radius: 15px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.code-input:focus {
+    border-color: #ff8c00;
+    box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.1);
+}
+
+.resend-link {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 30px;
+}
+
+.resend-link a {
+    color: #00bcd4;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.resend-link a:hover {
+    text-decoration: underline;
+}
+
+/* Button styled like link for React resend with countdown */
+.resend-link .link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #00bcd4;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.resend-link .link-button:hover {
+  text-decoration: underline;
+}
+
+.resend-link .link-button:disabled {
+  color: #999;
+  cursor: default;
+  text-decoration: none;
+  pointer-events: none;
+}
+
+.verify-btn {
+    width: 100%;
+    max-width: 300px;
+    padding: 15px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+    color: white;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(255, 140, 0, 0.3);
+}
+
+.verify-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 140, 0, 0.4);
+}
+
+/* Mobile design: turn header orange on verify page */
+@media (max-width: 768px) {
+  .verify-page-root header {
+    background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+    padding: 15px 20px;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .verify-page-root .header-nav {
+    display: flex;
+    gap: 46px; /* adjust this value to increase/decrease spacing */
+    align-items: center;
+    justify-content: center; /* center nav under the logo on mobile */
+  }
+
+  .verify-page-root .header-logo {
+    display: none;
+  }
+
+  .verify-page-root .header-nav a {
+    color: white;
+    margin: 0;
+    display: inline-block;
+    padding: 6px 4px; /* optional: increase tap/click area on mobile */
+  }
+
+  .verify-page-root .wrapper {
+    flex-direction: column;
+  }
+
+  .left-section {
+    /* Keeping this responsive for mobile */
+    min-height: 45vh;
+    padding: 40px 20px;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  .right-section {
+    padding: 40px 30px;
+    border-radius: 0 100px 0 0;
+    margin-top: -50px;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .logo-container {
+    width: 100px;
+    height: 100px;
+  }
+
+  .brand h1 {
+    font-size: 2.5rem;
+  }
+
+  .code-inputs {
+    gap: 10px;
+  }
+
+  .code-input {
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  footer {
+    padding: 30px 20px;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    gap: 30px;
+  }
+}
+/* Right section layout for React verify page */
+.verify-page-root .right-section {
+  flex: 1;
+  margin: 10px;
+  background: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
+  position: relative;
+  border-radius: 0 100px 0 100px;
+}

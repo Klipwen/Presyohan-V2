@@ -5,7 +5,7 @@
     font-family: 'Poppins', sans-serif;
 }
 
-body {
+.login-page-root {
     min-height: 100vh;
     background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
     display: flex;
@@ -13,7 +13,7 @@ body {
 }
 
 /* Header */
-header {
+.login-page-root header {
     background: white;
     padding: 15px 50px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -22,32 +22,32 @@ header {
     align-items: center;
 }
 
-.header-logo {
+.login-page-root .header-logo {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.header-logo img {
+.login-page-root .header-logo img {
     width: 40px;
     height: 40px;
     object-fit: contain;
 }
 
-.header-logo h2 {
+.login-page-root .header-logo h2 {
     font-size: 1.5rem;
     font-weight: 700;
 }
 
-.header-logo .presyo {
+.login-page-root .header-logo .presyo {
     color: #ff8c00;
 }
 
-.header-logo .han {
+.login-page-root .header-logo .han {
     color: #00a8cc;
 }
 
-.header-nav a {
+.login-page-root .header-nav a {
     text-decoration: none;
     color: #666;
     margin-left: 30px;
@@ -55,18 +55,19 @@ header {
     transition: color 0.3s ease;
 }
 
-.header-nav a:hover {
+.login-page-root .header-nav a:hover {
     color: #ff8c00;
 }
 
+
 /* Main Wrapper */
-.wrapper {
+.login-page-root .wrapper {
     display: flex;
     flex: 1;
 }
 
 /* Left Section (Branding) */
-.left-section {
+.login-page-root .left-section {
     flex: 1;
     display: flex;
     justify-content: center;
@@ -78,13 +79,13 @@ padding-right: 220px;
     position: relative;
 }
 
-.brand {
+.login-page-root .brand {
     text-align: center;
     z-index: 1;
     color: white;
 }
 
-.logo-container {
+.login-page-root .logo-container {
     width: 120px;
     height: 120px;
     background: white;
@@ -96,32 +97,32 @@ padding-right: 220px;
     overflow: hidden;
 }
 
-.logo-container img {
+.login-page-root .logo-container img {
     width: 80%;
     height: 80%;
     object-fit: contain;
 }
 
-.brand h1 {
+.login-page-root .brand h1 {
     font-size: 3rem;
     margin-bottom: 15px;
     font-weight: 700;
 }
 
-.brand h1 .presyo {
+.login-page-root .brand h1 .presyo {
     color: white;
 }
 
-.brand h1 .han {
+.login-page-root .brand h1 .han {
     color: #00a8cc;
 }
 
-.brand p {
+.login-page-root .brand p {
     font-size: 1.1rem;
 }
 
 /* Right Section (Auth Forms) */
-.right-section {
+.login-page-root .right-section {
     flex: 1;
     margin: 10px;
     background: white;
@@ -133,19 +134,19 @@ padding-right: 220px;
     border-radius: 0 100px 0 100px; /* Decorative border-radius */
 }
 
-.auth-container {
+.login-page-root .auth-container {
     width: 100%;
     max-width: 520px;
 }
 
-.tabs {
+.login-page-root .tabs {
     display: flex;
     gap: 40px;
     margin-bottom: 40px;
     justify-content: center;
 }
 
-.tab {
+.login-page-root .tab {
     padding: 10px 0;
     background: none;
     border: none;
@@ -157,26 +158,26 @@ padding-right: 220px;
     transition: all 0.3s ease;
 }
 
-.tab.active {
+.login-page-root .tab.active {
     color: #ff8c00;
     border-bottom-color: #ff8c00;
 }
 
-.form-container {
+.login-page-root .form-container {
     display: none;
 }
 
-.form-container.active {
+.login-page-root .form-container.active {
     display: block;
 }
 
-form {
+.login-page-root form {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-input {
+.login-page-root input {
     width: 100%;
     padding: 15px 20px;
     border: 2px solid #e8e8e8;
@@ -186,15 +187,15 @@ input {
     outline: none;
 }
 
-input::placeholder {
+.login-page-root input::placeholder {
     color: #bbb;
 }
 
-.password-field {
+.login-page-root .password-field {
     position: relative;
 }
 
-.toggle-password {
+.login-page-root .toggle-password {
     position: absolute;
     right: 20px;
     top: 50%;
@@ -206,18 +207,18 @@ input::placeholder {
     opacity: 0.5;
 }
 
-.forgot-password {
+.login-page-root .forgot-password {
     text-align: right;
     margin-top: -10px;
 }
 
-.forgot-password a {
+.login-page-root .forgot-password a {
     color: #00bcd4;
     text-decoration: none;
     font-size: 0.9rem;
 }
 
-.btn {
+.login-page-root .btn {
     width: 100%;
     padding: 15px;
     border: none;
@@ -232,26 +233,26 @@ input::placeholder {
     transition: all 0.3s ease;
 }
 
-.btn:hover {
+.login-page-root .btn:hover {
     opacity: 0.9;
     box-shadow: 0 5px 15px rgba(255, 140, 0, 0.4);
 }
 
-.divider {
+.login-page-root .divider {
     text-align: center;
     margin: 25px 0;
     color: #999;
     font-size: 0.85rem;
 }
 
-.social-login {
+.login-page-root .social-login {
     display: flex;
     justify-content: center;
     gap: 15px;
     margin-bottom: 20px;
 }
 
-.social-btn {
+.login-page-root .social-btn {
     width: 50px;
     height: 50px;
     border-radius: 50%;
@@ -264,40 +265,40 @@ input::placeholder {
     transition: all 0.3s ease;
 }
 
-.social-btn:hover {
+.login-page-root .social-btn:hover {
     border-color: #ff8c00;
     box-shadow: 0 0 10px rgba(255, 140, 0, 0.2);
 }
 
-.social-btn svg {
+.login-page-root .social-btn svg {
     width: 24px;
     height: 24px;
 }
 
-.footer-text {
+.login-page-root .footer-text {
     text-align: center;
     font-size: 0.9rem;
     color: #888;
 }
 
-.footer-text a {
+.login-page-root .footer-text a {
     color: #00bcd4;
     text-decoration: none;
     font-weight: 600;
 }
 
-.footer-text a:hover {
+.login-page-root .footer-text a:hover {
     text-decoration: underline;
 }
 
 /* Footer */
-footer {
+.login-page-root footer {
     background: #2a2a2a;
     color: white;
     padding: 40px 50px;
 }
 
-.footer-content {
+.login-page-root .footer-content {
     display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -306,19 +307,19 @@ footer {
     margin: 0 auto;
 }
 
-.footer-section {
+.login-page-root .footer-section {
     flex: 1;
     min-width: 200px;
 }
 
-.footer-section h3 {
+.login-page-root .footer-section h3 {
     color: #ff8c00;
     margin-bottom: 15px;
     font-size: 1.1rem;
 }
 
-.footer-section p,
-.footer-section a {
+.login-page-root .footer-section p,
+.login-page-root .footer-section a {
     color: #ccc;
     text-decoration: none;
     display: block;
@@ -326,11 +327,11 @@ footer {
     font-size: 0.9rem;
 }
 
-.footer-section a:hover {
+.login-page-root .footer-section a:hover {
     color: #ff8c00;
 }
 
-.footer-bottom {
+.login-page-root .footer-bottom {
     text-align: center;
     padding-top: 30px;
     margin-top: 30px;
@@ -341,40 +342,40 @@ footer {
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
-    header {
-        background: #ffb800;
+    .login-page-root header {
+        background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
         padding: 15px 20px;
         flex-direction: column;
         gap: 15px;
     }
 
-    .header-nav {
+    .login-page-root .header-nav {
         display: flex;
         gap: 46px; /* adjust this value to increase/decrease spacing */
         align-items: center;
         justify-content: center; /* center nav under the logo on mobile */
     }
 
-    .header-logo {
+    .login-page-root .header-logo {
         display: none;
     }
 
-    .header-nav a {
+    .login-page-root .header-nav a {
         color: white;
         margin: 0;
         display: inline-block;
         padding: 6px 4px; /* optional: increase tap/click area on mobile */
     }
-    .wrapper {
+    .login-page-root .wrapper {
         flex-direction: column;
     }
 
-    .left-section {
+    .login-page-root .left-section {
         min-height: 45vh;
         padding: 40px 20px;
     }
 
-    .right-section {
+    .login-page-root .right-section {
         padding: 40px 30px;
         border-radius: 0 100px 0 0;
         margin-top: -50px;
@@ -383,20 +384,20 @@ footer {
         margin-right: 0;
     }
 
-    .logo-container {
+    .login-page-root .logo-container {
         width: 100px;
         height: 100px;
     }
 
-    .brand h1 {
+    .login-page-root .brand h1 {
         font-size: 2.5rem;
     }
 
-    footer {
+    .login-page-root footer {
         padding: 30px 20px;
     }
 
-    .footer-content {
+    .login-page-root .footer-content {
         flex-direction: column;
         gap: 30px;
     }

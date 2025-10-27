@@ -1,8 +1,9 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: inherit;
+  width: 100%;
 }
 
 .logo {
@@ -33,8 +34,8 @@
   }
 }
 
-.card {
-  padding: 2em;
+.card { /* keep for template pages only */
+  padding: 0;
 }
 
 .read-the-docs {
