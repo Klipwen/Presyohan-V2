@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/rounded_bg"
+    android:minWidth="400dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/dialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Join Request"
+        android:textColor="@color/presyo_orange"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/dialogMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="User requested to join your store"
+        android:textColor="@color/presyo_darkblue"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"/>
+
+    <RadioGroup
+        android:id="@+id/roleRadioGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="24dp">
+        <RadioButton
+            android:id="@+id/radioSales"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="View only prices (sales staff)"
+            android:checked="true"
+            android:textColor="@color/presyo_darkblue"/>
+        <RadioButton
+            android:id="@+id/radioManager"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Manage prices (manager)"
+            android:textColor="@color/presyo_darkblue"/>
+    </RadioGroup>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnBack"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:text="Back"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_teal"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:layout_marginEnd="8dp"/>
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnAccept"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:text="Accept"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_orange"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="16sp"/>
+    </LinearLayout>
+</LinearLayout> 

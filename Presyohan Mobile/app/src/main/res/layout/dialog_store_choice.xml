@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/rounded_bg"
+    android:minWidth="400dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/dialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Add Store"
+        android:textColor="#FF9800"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <ImageView
+        android:id="@+id/dialogStoreIcon"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@drawable/icon_store"
+        android:contentDescription="Store Icon"
+        android:layout_marginBottom="20dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnJoinStore"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Join Store"
+            android:textColor="@color/white"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_teal"
+            android:layout_marginEnd="8dp"
+            android:textSize="16sp"
+            android:paddingLeft="0dp"
+            android:paddingRight="0dp"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+        />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCreateStore"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Create Store"
+            android:textColor="@color/white"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_orange"
+            android:layout_marginStart="8dp"
+            android:textSize="16sp"
+            android:paddingLeft="0dp"
+            android:paddingRight="0dp"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+        />
+    </LinearLayout>
+
+</LinearLayout> 

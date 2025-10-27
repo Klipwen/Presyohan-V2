@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="24dp"
+    android:background="@drawable/rounded_bg"
+    android:minWidth="400dp"
+    android:gravity="center"
+    android:elevation="8dp">
+
+    <!-- Title and Icon -->
+    <TextView
+        android:id="@+id/inviteStaffTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Invite Staff"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/presyo_orange"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"/>
+
+    <ImageView
+        android:id="@+id/inviteStaffIcon"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:src="@drawable/icon_invite_staff"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp"
+        android:layout_gravity="center_horizontal"/>
+
+    <!-- Store Code Row -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <!-- Store icon and label -->
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:layout_marginEnd="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Join store code"
+                android:textColor="@color/presyo_teal"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:layout_marginTop="2dp"/>
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/icon_store"/>
+        </LinearLayout>
+
+        <!-- Spacer -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- Code box with copy and generate button -->
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="@android:color/white"
+            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:elevation="2dp"
+            android:layout_marginEnd="4dp"
+            android:backgroundTint="@android:color/white"
+            android:backgroundTintMode="src_in">
+
+            <TextView
+                android:id="@+id/storeCodeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="000000"
+                android:textColor="@color/presyo_orange"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:paddingEnd="16dp"/>
+
+            <ImageView
+                android:id="@+id/btnCopyCode"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/icon_copy"
+                android:layout_marginEnd="8dp"/>
+        </LinearLayout>
+
+        <!-- Generate Button -->
+        <Button
+            android:id="@+id/btnGenerateCode"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="Generate"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:backgroundTint="@color/presyo_teal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"/>
+    </LinearLayout>
+
+    <!-- Email -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Email"
+        android:textColor="@color/presyo_teal"
+        android:textSize="14sp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="2dp" />
+
+    <EditText
+        android:id="@+id/usernameInput"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Input email"
+        android:textColorHint="#B0B0B0"
+        android:textColor="@color/presyo_darkblue"
+        android:background="@drawable/edittext_background"
+        android:padding="14dp"
+        android:textSize="16sp" />
+
+    <!-- Role -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Staff role"
+        android:textColor="@color/presyo_teal"
+        android:textSize="14sp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="2dp" />
+
+    <Spinner
+        android:id="@+id/roleSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/edittext_background"
+        android:textColorHint="@color/edittext_hint"
+        android:textColor="@color/presyo_darkblue"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:spinnerMode="dropdown"
+        android:layout_marginBottom="34dp" />
+
+    <!-- Buttons -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnBack"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_teal"
+            android:text="Back"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnInvite"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_orange"
+            android:text="Invite"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+    </LinearLayout>
+</LinearLayout>

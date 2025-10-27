@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="presyo_teal">#219EBC</color>
+    <color name="presyo_orange">#FB8500</color>
+    <color name="presyo_yellow">#FFD700</color>
+    <color name="presyo_bg">#FFB703</color>
+    <color name="presyo_darkblue">#023047</color>
+    <color name="item_background">#F6FFDD</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="red">#800000</color>
+    <color name="light_gray">#F2F2F2</color>
+    <color name="edittext_hint">#888888</color>
+
+</resources>

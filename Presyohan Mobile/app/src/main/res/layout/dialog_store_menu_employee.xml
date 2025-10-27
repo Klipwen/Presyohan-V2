@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:background="@drawable/rounded_bg"
+    android:elevation="8dp">
+
+    <!-- Store name -->
+    <TextView
+        android:id="@+id/textStoreName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="QSOS"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/presyo_orange"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Access information -->
+    <TextView
+        android:id="@+id/textAccessLevel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="You can only view price on this store"
+        android:textSize="14sp"
+        android:textColor="@color/presyo_darkblue"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:textAlignment="center" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Options row -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center">
+
+        <!-- View Members -->
+        <LinearLayout
+            android:id="@+id/layoutViewMembers"
+            android:orientation="vertical"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/btnViewMembers"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/icon_members"
+                android:contentDescription="View members"
+                android:tint="@color/presyo_orange" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="View Members"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/presyo_orange"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Leave Store -->
+        <LinearLayout
+            android:id="@+id/layoutLeaveStore"
+            android:orientation="vertical"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/btnLeaveStore"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/icon_logout"
+                android:contentDescription="Leave Store"
+                android:tint="@color/red" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Leave Store"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/red"
+                android:gravity="center" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

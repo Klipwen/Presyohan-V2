@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFB703">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- White Bottom Background -->
+        <View
+            android:id="@+id/backgroundOrange"
+            android:layout_width="match_parent"
+            android:layout_height="900dp"
+            android:layout_marginTop="720dp"
+            android:background="@color/white"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.506" />
+
+        <!-- Top Curve -->
+        <View
+            android:id="@+id/topCurve"
+            android:layout_width="match_parent"
+            android:layout_height="400dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="140dp"
+            android:background="@drawable/logo_background_curve"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.502" />
+
+        <!-- Icon -->
+        <ImageView
+            android:id="@+id/iconPresyohan"
+            android:layout_width="200dp"
+            android:layout_height="150dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="60dp"
+            android:rotation="-45"
+            android:src="@drawable/icon_presyohan"
+            android:contentDescription="Logo"
+            app:layout_constraintTop_toTopOf="@+id/topCurve"
+            app:layout_constraintBottom_toBottomOf="@+id/topCurve"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="@+id/topCurve"
+            app:layout_constraintHorizontal_bias="0.505"
+            app:layout_constraintVertical_bias="0.0" />
+
+        <!-- Logo Text -->
+        <ImageView
+            android:id="@+id/txtPresyohan"
+            android:layout_width="200dp"
+            android:layout_height="150dp"
+            android:src="@drawable/text_presyohan"
+            android:contentDescription="Presyohan Text"
+            app:layout_constraintTop_toBottomOf="@+id/iconPresyohan"
+            app:layout_constraintBottom_toTopOf="@+id/backgroundOrange"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="@+id/topCurve"
+            app:layout_constraintHorizontal_bias="0.507" />
+
+        <!-- Input Fields -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:orientation="vertical"
+            app:layout_constraintTop_toBottomOf="@+id/txtPresyohan"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="20dp">
+
+                <TextView
+                    android:id="@+id/txtLogIn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Login"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    tools:ignore="MissingConstraints" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <TextView
+                android:id="@+id/textView2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Your Email"
+                android:textColor="@color/presyo_teal"
+                android:textSize="14sp" />
+
+            <EditText
+                android:id="@+id/inputEmail"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:background="@drawable/edittext_background2"
+                android:inputType="textEmailAddress"
+                android:textColor="@color/presyo_darkblue"
+                android:padding="10dp" />
+
+            <TextView
+                android:id="@+id/textView3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Your Password"
+                android:textColor="@color/presyo_teal"
+                android:textSize="14sp" />
+
+            <EditText
+                android:id="@+id/inputPassword"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:background="@drawable/edittext_background2"
+                android:inputType="textPassword"
+                android:textColor="@color/presyo_darkblue"
+                android:padding="10dp" />
+
+            <!-- Google Sign-In Text Button -->
+            <TextView
+                android:id="@+id/googleSignInText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="Sign in with Google"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="16sp"
+                android:background="@drawable/rounded_button"
+                android:padding="12dp" />
+
+            <TextView
+                android:id="@+id/txtSignUpLink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Don't have an account?"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:layout_gravity="center_horizontal" />
+
+            <Button
+                android:id="@+id/buttonSignUp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/rounded_button"
+                android:backgroundTint="#219EBC"
+                android:text="Sign up"
+                android:textColor="@android:color/white"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/buttonLogin"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/rounded_button"
+                android:backgroundTint="@color/presyo_orange"
+                android:text="Login"
+                android:textColor="@android:color/white"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>

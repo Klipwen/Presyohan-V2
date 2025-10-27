@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/rounded_bg"
+    android:paddingTop="12dp"
+    android:paddingBottom="4dp"
+    android:layout_marginBottom="8dp">
+
+    <TextView
+        android:id="@+id/textCategoryHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="CATEGORY NAME"
+        android:textColor="@color/presyo_orange"
+        android:gravity="center"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textAllCaps="true"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewItems"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:nestedScrollingEnabled="false" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/buttonAddItem"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:backgroundTint="@color/presyo_orange"
+        android:text="Add Item"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"/>
+
+</LinearLayout> 

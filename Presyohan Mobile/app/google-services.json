@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "675158901144",
+    "project_id": "presyohanfirebase",
+    "storage_bucket": "presyohanfirebase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:675158901144:android:c732c8cba23d66b9ed6bed",
+        "android_client_info": {
+          "package_name": "com.project.presyohan"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "675158901144-plhsg1o623g9ddmk3d9bssr40opnhnip.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.project.presyohan",
+            "certificate_hash": "d7153f69f6ce47613b6dc9862e6d92ff51b789c2"
+          }
+        },
+        {
+          "client_id": "675158901144-45vce44qtuk5kmds52g2aekuvhnbgvfu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmqpseVSNtpZGRrxtg1mGTsLOqrzLMH5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "675158901144-45vce44qtuk5kmds52g2aekuvhnbgvfu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

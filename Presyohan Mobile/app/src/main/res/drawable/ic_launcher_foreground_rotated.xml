@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <rotate
+            android:fromDegrees="-45"
+            android:toDegrees="-45">
+            <bitmap
+                android:src="@drawable/icon_presyohan"
+                android:gravity="center" />
+        </rotate>
+    </item>
+</layer-list> 

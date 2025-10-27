@@ -1,0 +1,93 @@
+<!-- res/layout/dialog_store_menu.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:padding="20dp"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:background="@drawable/rounded_bg"
+    android:elevation="8dp">
+
+    <!-- Settings -->
+    <LinearLayout
+        android:id="@+id/layoutSettings"
+        android:orientation="vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:gravity="center"
+        android:layout_gravity="center">
+
+        <ImageView
+            android:id="@+id/btnSettings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/icon_settings"
+            android:contentDescription="Settings"
+            android:tint="@color/presyo_orange" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Settings"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/presyo_orange"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- Invite Staff -->
+    <LinearLayout
+        android:id="@+id/layoutInviteStaff"
+        android:orientation="vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:gravity="center"
+        android:layout_gravity="center">
+
+        <ImageView
+            android:id="@+id/btnInviteStaff"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/icon_invite_staff"
+            android:contentDescription="Invite Staff" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Invite Staff"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/presyo_orange"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- Delete -->
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:gravity="center"
+        android:layout_gravity="center">
+
+        <ImageView
+            android:id="@+id/btnDelete"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/icon_delete"
+            android:contentDescription="Delete" />
+
+        <TextView
+            android:id="@+id/labelDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:text="Delete"
+            android:textColor="#800000"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/rounded_bg"
+    android:padding="16dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp">
+
+    <!-- Header: Type, Status, Timestamp -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/textType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Join Request"
+            android:textColor="@color/presyo_orange"
+            android:textStyle="bold"
+            android:textSize="18sp" />
+
+        <!-- Divider between type and status -->
+        <View
+            android:id="@+id/dividerTypeStatus"
+            android:layout_width="1dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="@color/presyo_darkblue"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/textStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Accepted"
+            android:textColor="@color/presyo_teal"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/textDeclined"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Declined"
+            android:textColor="@color/presyo_orange"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <!-- Dot separator -->
+        <TextView
+            android:id="@+id/dotSeparator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="\u2022"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="14sp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/textTimestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1 hour ago"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="13sp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <!-- Message/Description -->
+    <TextView
+        android:id="@+id/textMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Caliph Juen invited you to join their store, QSOS."
+        android:textColor="@color/presyo_darkblue"
+        android:textSize="15sp"
+        android:layout_marginTop="4dp" />
+
+    <!-- Action Buttons for Pending -->
+    <LinearLayout
+        android:id="@+id/layoutActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/btnReject"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reject"
+            android:textColor="@color/presyo_orange"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:padding="8dp" />
+
+        <TextView
+            android:id="@+id/btnAccept"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Accept"
+            android:textColor="@color/presyo_teal"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- View Store Link for Accepted -->
+    <TextView
+        android:id="@+id/textViewStore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="View store>"
+        android:textColor="@color/presyo_teal"
+        android:textStyle="bold"
+        android:textSize="15sp"
+        android:layout_marginTop="4dp"
+        android:visibility="gone" />
+
+</LinearLayout> 

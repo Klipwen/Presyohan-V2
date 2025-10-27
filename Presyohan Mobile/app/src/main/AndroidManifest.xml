@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.project.presyohan">
+
+    <application
+        android:name=".PresyohanApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Presyohan"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Presyohan">
+        <activity
+            android:name=".AddItemActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ProductAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".HomeActivity"
+            android:exported="true" />
+        <activity
+            android:name=".SignupActivity"
+            android:exported="false" />
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="presyohan" android:host="auth-callback" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".SplashActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".VerifyEmailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".StoreActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.presyohan.presyohanapp.JoinStoreActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CreateStoreActivity"
+            android:exported="false" />
+        <activity
+            android:name=".EditItemActivity"
+            android:exported="false" />
+        <activity
+            android:name=".NotificationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AddMultipleItemsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ManageItemsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ManageStoreActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ManageMembersActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ManageCategoryActivity"
+            android:exported="false" />
+    </application>
+
+</manifest>
