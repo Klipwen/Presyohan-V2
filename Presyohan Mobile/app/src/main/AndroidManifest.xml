@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.project.presyohan">
+    package="com.presyohan.app">
 
     <application
         android:name=".PresyohanApp"
@@ -13,9 +13,6 @@
         android:theme="@style/Theme.Presyohan">
         <activity
             android:name=".AddItemActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ProductAdapter"
             android:exported="false" />
         <activity
             android:name=".HomeActivity"
@@ -49,7 +46,7 @@
             android:name=".StoreActivity"
             android:exported="false" />
         <activity
-            android:name="com.presyohan.presyohanapp.JoinStoreActivity"
+            android:name=".JoinStoreActivity"
             android:exported="false" />
         <activity
             android:name=".CreateStoreActivity"

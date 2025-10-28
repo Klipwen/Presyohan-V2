@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.project.presyohan"
+    namespace = "com.presyohan.app"
     compileSdk = 35
 
     // Supabase keys from gradle.properties
@@ -14,7 +14,7 @@ android {
     val supabaseAnonKey = project.findProperty("SUPABASE_ANON_KEY") as? String ?: ""
 
     defaultConfig {
-        applicationId = "com.project.presyohan"
+        applicationId = "com.presyohan.app"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

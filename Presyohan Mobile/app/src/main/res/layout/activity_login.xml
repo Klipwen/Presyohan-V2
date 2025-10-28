@@ -152,18 +152,18 @@
                 android:gravity="center"
                 android:layout_gravity="center_horizontal" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/buttonSignUp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:background="@drawable/rounded_button"
-                android:backgroundTint="#219EBC"
+                android:backgroundTint="@color/presyo_teal"
                 android:text="Sign up"
                 android:textColor="@android:color/white"
                 android:textStyle="bold" />
 
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/buttonLogin"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

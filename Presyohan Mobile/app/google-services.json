@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:675158901144:android:c732c8cba23d66b9ed6bed",
         "android_client_info": {
-          "package_name": "com.project.presyohan"
+          "package_name": "com.presyohan.app"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "675158901144-plhsg1o623g9ddmk3d9bssr40opnhnip.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.project.presyohan",
+            "package_name": "com.presyohan.app",
             "certificate_hash": "d7153f69f6ce47613b6dc9862e6d92ff51b789c2"
           }
         },
