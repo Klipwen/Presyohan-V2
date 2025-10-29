@@ -4,7 +4,7 @@
     package="com.presyohan.app">
 
     <application
-        android:name=".PresyohanApp"
+        android:name="com.presyohan.app.PresyohanApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Presyohan"
@@ -12,16 +12,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Presyohan">
         <activity
-            android:name=".AddItemActivity"
+            android:name="com.presyohan.app.AddItemActivity"
             android:exported="false" />
         <activity
-            android:name=".HomeActivity"
+            android:name="com.presyohan.app.HomeActivity"
             android:exported="true" />
         <activity
-            android:name=".SignupActivity"
+            android:name="com.presyohan.app.SignupActivity"
             android:exported="false" />
         <activity
-            android:name=".LoginActivity"
+            android:name="com.presyohan.app.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -31,7 +31,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".SplashActivity"
+            android:name="com.presyohan.app.SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -40,13 +40,13 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".VerifyEmailActivity"
+            android:name="com.presyohan.app.VerifyEmailActivity"
             android:exported="false" />
         <activity
-            android:name=".StoreActivity"
+            android:name="com.presyohan.app.StoreActivity"
             android:exported="false" />
         <activity
-            android:name=".JoinStoreActivity"
+            android:name="com.presyohan.app.JoinStoreActivity"
             android:exported="false" />
         <activity
             android:name=".CreateStoreActivity"
