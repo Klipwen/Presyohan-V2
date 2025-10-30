@@ -1,6 +1,7 @@
 import React from 'react';
+import storeIcon from '../../assets/icon_store.png';
 
-export default function StoreCard({ name, location, imageSrc = '/store-icon-placeholder.png', href = '#' }) {
+export default function StoreCard({ name, location, imageSrc = storeIcon, href = '#' }) {
   return (
     <a href={href} className="store-card">
       <div className="store-icon">

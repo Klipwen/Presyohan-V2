@@ -53,7 +53,7 @@ header {
 .header-logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 5px;
 }
 
 .header-logo img {
@@ -182,7 +182,6 @@ header {
 .store-icon {
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
     border-radius: 12px;
     display: flex;
     align-items: center;

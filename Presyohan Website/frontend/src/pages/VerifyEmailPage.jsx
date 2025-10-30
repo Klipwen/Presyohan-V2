@@ -1,16 +1,39 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import '../styles/VerifyEmailPage.css';
+import presyohanLogo from '../assets/presyohan_logo.png';
+import { supabase } from '../config/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 export default function VerifyEmailPage() {
   const inputsRef = useRef([]);
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [feedback, setFeedback] = useState('');
   const [cooldown, setCooldown] = useState(0);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [email, setEmail] = useState('');
+  const [flow, setFlow] = useState('email');
+  const [invalidCode, setInvalidCode] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     inputsRef.current[0]?.focus();
+  }, []);
+
+  useEffect(() => {
+    // Read email and flow from query or localStorage
+    const params = new URLSearchParams(window.location.search);
+    const e = params.get('email') || localStorage.getItem('pendingEmail');
+    const f = params.get('flow') || localStorage.getItem('pendingVerificationType') || 'email';
+    if (e) {
+      setEmail(e);
+      localStorage.setItem('pendingEmail', e);
+    } else {
+      setFeedback('Missing email. Please log in again.');
+    }
+    setFlow(f);
+    localStorage.setItem('pendingVerificationType', f);
   }, []);
 
   useEffect(() => {
@@ -26,6 +49,7 @@ export default function VerifyEmailPage() {
     const next = [...code];
     next[idx] = v;
     setCode(next);
+    if (invalidCode) setInvalidCode(false);
     if (v && idx < inputsRef.current.length - 1) {
       inputsRef.current[idx + 1]?.focus();
     }
@@ -37,22 +61,143 @@ export default function VerifyEmailPage() {
     }
   };
 
-  const verifyCode = (e) => {
+  const verifyCode = async (e) => {
     e.preventDefault();
     const joined = code.join('');
     if (joined.length !== 6) {
       setFeedback('Please enter the 6-digit code.');
+      setInvalidCode(true);
       return;
     }
-    // Placeholder: perform verification via API
-    setFeedback('Code submitted. (Hook up API to verify)');
+    if (!email) {
+      setFeedback('Missing email. Please return to login.');
+      return;
+    }
+    setFeedback('');
+    setIsVerifying(true);
+    try {
+      // Always verify using 'email' type because we request codes via signInWithOtp.
+      const { data, error } = await supabase.auth.verifyOtp({
+        type: 'email',
+        email,
+        token: joined
+      });
+      if (error) {
+        setFeedback(error.message);
+        setIsVerifying(false);
+        return;
+      }
+
+      // After verifyOtp we should have a session. If not, attempt a fallback sign-in.
+      const sessionRes = await supabase.auth.getSession();
+  if (sessionRes?.data?.session) {
+        // If we have a pending name saved from signup, update the user's
+        // profile now that the session exists.
+        const pendingName = localStorage.getItem('pendingName');
+        const pendingPassword = localStorage.getItem('pendingPassword');
+        if (pendingName) {
+          try {
+            await supabase.auth.updateUser({ data: { name: pendingName } });
+            localStorage.removeItem('pendingName');
+          } catch (err) {
+            // Non-fatal: continue to navigate even if update fails.
+            console.warn('Failed to update user name after verify:', err);
+          }
+        }
+        if (pendingPassword) {
+          try {
+            await supabase.auth.updateUser({ password: pendingPassword });
+            localStorage.removeItem('pendingPassword');
+          } catch (err) {
+            console.warn('Failed to set password after verify:', err);
+          }
+        }
+
+        // Persist or update the user's profile in public.app_users.
+        try {
+          const user = sessionRes?.data?.session?.user;
+          if (user) {
+            await supabase
+              .from('app_users')
+              .upsert(
+                {
+                  uid: user.id,
+                  email: user.email,
+                  name: pendingName || user.user_metadata?.name || null,
+                  avatar_url: user.user_metadata?.avatar_url || null
+                },
+                { onConflict: 'uid' }
+              );
+          }
+        } catch (err) {
+          console.warn('Failed to upsert app_users profile:', err);
+        }
+
+        // If we just set a password, verify it by signing out and signing back in.
+        if (pendingPassword) {
+          try {
+            await supabase.auth.signOut();
+            const { data: pwLogin, error: pwErr } = await supabase.auth.signInWithPassword({ email, password: pendingPassword });
+            if (pwErr) {
+              setFeedback(`Password verification failed: ${pwErr.message}`);
+              setIsVerifying(false);
+              return;
+            }
+          } catch (err) {
+            setFeedback(`Password verification error: ${err.message}`);
+            setIsVerifying(false);
+            return;
+          }
+        }
+        navigate('/store', { replace: true });
+        setIsVerifying(false);
+        return;
+      }
+
+      // Small grace period to allow the session to initialize if needed.
+      await new Promise((res) => setTimeout(res, 250));
+      const postVerifySession = await supabase.auth.getSession();
+      if (!postVerifySession?.data?.session) {
+        setFeedback('Verified successfully. If you are not redirected, please try again.');
+      }
+
+      // After fallback signin, update name if present
+      const pendingName2 = localStorage.getItem('pendingName');
+      if (pendingName2) {
+        try {
+          await supabase.auth.updateUser({ data: { name: pendingName2 } });
+          localStorage.removeItem('pendingName');
+        } catch (err) {
+          console.warn('Failed to update user name after fallback signin:', err);
+        }
+      }
+      navigate('/store', { replace: true });
+      setIsVerifying(false);
+    } catch (err) {
+      setFeedback(err.message || String(err));
+      setIsVerifying(false);
+    }
   };
 
-  const resendCode = () => {
+  const resendCode = async () => {
     if (cooldown > 0) return;
-    // Placeholder: call API to resend code
-    setCooldown(30);
-    setFeedback('A new code was sent to your email.');
+    if (!email) {
+      setFeedback('Missing email. Please return to login.');
+      return;
+    }
+    try {
+      // Use signInWithOtp to request a fresh OTP. shouldCreateUser=true for signup flows.
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: flow === 'signup' }
+      });
+      if (error) throw error;
+      // Increase cooldown to reduce rapid resend attempts and give more time.
+      setCooldown(60);
+      setFeedback('A new 6-digit code was sent to your email.');
+    } catch (err) {
+      setFeedback(err.message);
+    }
   };
 
   return (
@@ -62,9 +207,7 @@ export default function VerifyEmailPage() {
       <div className="wrapper">
         <div className="left-section">
           <div className="brand">
-            <div className="logo-container">
-              <img src="/ic_launcher.png" alt="Presyohan Logo" />
-            </div>
+              <img src={presyohanLogo} alt="Presyohan Logo" />
             <h1>
               <span className="presyo">presyo</span><span className="han">han?</span>
             </h1>
@@ -83,22 +226,27 @@ export default function VerifyEmailPage() {
 
             <h2>Verify your email</h2>
             <p className="verify-message">
-              We've sent a 6 digit code to <span className="email">callejhuan@gmail.com</span>
+              {flow === 'signup' ? (
+                <>Enter the 6 digit code we sent to <span className="email">{email || 'your email'}</span> to confirm your account.</>
+              ) : (
+                <>Enter the 6 digit code we sent to <span className="email">{email || 'your email'}</span> to complete login.</>
+              )}
             </p>
 
             <div className="code-inputs">
-              {code.map((digit, idx) => (
-                <input
-                  key={idx}
-                  type="text"
-                  className="code-input"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => onChangeDigit(idx, e.target.value)}
-                  onKeyDown={(e) => onKeyDownDigit(idx, e)}
-                  ref={(el) => (inputsRef.current[idx] = el)}
-                />
-              ))}
+            {code.map((digit, idx) => (
+              <input
+                key={idx}
+                type="text"
+                className={`code-input ${invalidCode ? 'input-error' : ''}`}
+                maxLength={1}
+                value={digit}
+                onChange={(e) => onChangeDigit(idx, e.target.value)}
+                onKeyDown={(e) => onKeyDownDigit(idx, e)}
+                ref={(el) => (inputsRef.current[idx] = el)}
+                aria-invalid={invalidCode}
+              />
+            ))}
             </div>
 
             <p className="resend-link">
@@ -107,15 +255,19 @@ export default function VerifyEmailPage() {
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  resendCode();
+                  if (!isVerifying && cooldown === 0) resendCode();
                 }}
+                aria-disabled={isVerifying || cooldown > 0}
+                style={{ pointerEvents: isVerifying || cooldown > 0 ? 'none' : 'auto', opacity: isVerifying || cooldown > 0 ? 0.6 : 1 }}
               >
-                {cooldown > 0 ? `Resend in ${cooldown}s` : 'Click to resend'}
+                {cooldown > 0 ? `Resend in ${cooldown}s` : (isVerifying ? 'Sending...' : 'Click to resend')}
               </a>
             </p>
 
-            <button className="verify-btn" onClick={verifyCode}>Verify</button>
-            {feedback && <p className="feedback">{feedback}</p>}
+            <button className="verify-btn" onClick={verifyCode} disabled={isVerifying}>
+              {isVerifying ? 'Verifying…' : 'Verify'}
+            </button>
+            {feedback && <p className={`feedback ${invalidCode ? 'error' : 'info'}`}>{feedback}</p>}
           </div>
         </div>
       </div>

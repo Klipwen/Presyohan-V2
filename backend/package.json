@@ -1,0 +1,10 @@
+{
+  "name": "presyohan-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.76.1",
+    "pg": "^8.10.0"
+  }
+}

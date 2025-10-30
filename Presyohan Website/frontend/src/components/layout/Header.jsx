@@ -1,4 +1,6 @@
 import React from 'react';
+import authHeaderLogo from '../../assets/ic_launcher.png';
+import storeHeaderLogo from '../../assets/presyohan_logo.png';
 import { Link } from 'react-router-dom';
 
 // Header with two variants: default (logo + nav) and store (hamburger + logo + icons)
@@ -14,7 +16,7 @@ export default function Header({ variant = 'default', onToggleSideMenu, theme })
             <span></span>
           </button>
           <div className="header-logo">
-            <img src="/logo-placeholder.png" alt="Presyohan Logo" />
+            <img src={storeHeaderLogo} alt="Presyohan Logo" />
             <h2><span className="presyo">presyo</span><span className="han">han?</span></h2>
           </div>
         </div>
@@ -37,7 +39,7 @@ export default function Header({ variant = 'default', onToggleSideMenu, theme })
   return (
     <header>
       <div className="header-logo">
-        <img src="/logo-placeholder.png" alt="Presyohan Logo" />
+        <img src={authHeaderLogo} alt="Presyohan Logo" />
         <h2><span className="presyo">presyo</span><span className="han">han?</span></h2>
       </div>
       <nav className="header-nav">
