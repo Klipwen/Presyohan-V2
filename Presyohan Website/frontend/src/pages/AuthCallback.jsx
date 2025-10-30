@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../config/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,11 +14,11 @@ export default function AuthCallback() {
         return;
       }
       if (session) {
-        navigate('/store', { replace: true });
+  navigate('/stores', { replace: true });
         return;
       }
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session) navigate('/store', { replace: true });
+  if (session) navigate('/stores', { replace: true });
       });
       const timer = setTimeout(() => setStatus('No session found. Please try logging in again.'), 4000);
       return () => {

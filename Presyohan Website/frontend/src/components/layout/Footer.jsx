@@ -12,7 +12,7 @@ export default function Footer() {
         <div className="footer-section">
           <h3>Quick Links</h3>
           <Link to="/login">Login</Link>
-          <Link to="/store">Store</Link>
+          <Link to="/stores">Stores</Link>
           <Link to="/verify-email">Verify Email</Link>
           <a href="#">Contact</a>
         </div>

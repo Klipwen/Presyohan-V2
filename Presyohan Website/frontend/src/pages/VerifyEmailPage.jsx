@@ -149,7 +149,7 @@ export default function VerifyEmailPage() {
             return;
           }
         }
-        navigate('/store', { replace: true });
+        navigate('/stores', { replace: true });
         setIsVerifying(false);
         return;
       }
@@ -171,7 +171,7 @@ export default function VerifyEmailPage() {
           console.warn('Failed to update user name after fallback signin:', err);
         }
       }
-      navigate('/store', { replace: true });
+      navigate('/stores', { replace: true });
       setIsVerifying(false);
     } catch (err) {
       setFeedback(err.message || String(err));

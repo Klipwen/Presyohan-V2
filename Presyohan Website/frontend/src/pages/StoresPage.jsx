@@ -8,7 +8,7 @@ import '../styles/StorePage.css';
 import { supabase } from '../config/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-export default function StorePage() {
+export default function StoresPage() {
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [stores, setStores] = useState([

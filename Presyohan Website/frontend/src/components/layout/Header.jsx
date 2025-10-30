@@ -44,7 +44,7 @@ export default function Header({ variant = 'default', onToggleSideMenu, theme })
       </div>
       <nav className="header-nav">
         <Link to="/login">Login</Link>
-        <Link to="/store">Store</Link>
+        <Link to="/stores">Stores</Link>
         <Link to="/verify-email">Verify Email</Link>
       </nav>
     </header>

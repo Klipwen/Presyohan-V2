@@ -80,7 +80,7 @@ export default function LoginSignupPage() {
       return;
     }
     if (data?.session) {
-      navigate('/store', { replace: true });
+      navigate('/stores', { replace: true });
     }
     setIsSubmittingLogin(false);
   };
