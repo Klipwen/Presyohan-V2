@@ -1,0 +1,75 @@
+/* --- Wrapper for the card and options button --- */
+.store-card-wrapper {
+  position: relative; /* Essential for positioning the options button */
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.store-card-wrapper:hover {
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Make the link take up most of the card area */
+.store-card-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  flex-grow: 1;
+  padding-bottom: 5px; /* Space above the location/options area */
+}
+
+/* --- Options Button --- */
+.store-card-options-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.store-card-options-btn:hover {
+  background: #f0f0f0;
+}
+
+/* --- Existing Styles Adjustments --- */
+
+.store-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.store-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 5px 0 8px 0;
+  text-align: center;
+  color: #333;
+}
+
+.store-location {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #777;
+  margin: 0;
+}
+
+.store-location svg {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+  fill: #00bcd4; /* Map pin color */
+}

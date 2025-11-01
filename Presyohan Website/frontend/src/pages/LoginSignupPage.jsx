@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Header from '../components/layout/Header';
+import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
 import '../styles/LoginSignUpPage.css';
 import presyohanLogo from '../assets/presyohan_logo.png';
@@ -160,7 +160,7 @@ export default function LoginSignupPage() {
 
   return (
       <div className="page-root login-page-root">
-        <Header theme='white' />
+        <AuthHeader theme='white' />
 
         <div className="wrapper">
           <div className="left-section">

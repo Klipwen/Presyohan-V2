@@ -1,0 +1,30 @@
+/* Submenu styles for StoreHeader side-menu */
+.submenu {
+  padding-left: 50px;
+}
+
+.submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 25px;
+  color: #333;
+  text-decoration: none;
+}
+
+.submenu-item:hover {
+  background: #f5f5ff;
+}
+
+.submenu-item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.submenu-toggle-caret {
+  transition: transform 0.2s ease;
+}
+
+.submenu-toggle-caret.expanded {
+  transform: rotate(180deg);
+}

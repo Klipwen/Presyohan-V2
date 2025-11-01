@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AddStore from './AddStore';
 import JoinStore from './JoinStore';
-import '../../styles/StorePage.css';
+// ... existing code ...
 import storeIcon from '../../assets/icon_store.png';
 
 export default function AddStoreModal({ open, onClose, onJoin, onCreate }) {

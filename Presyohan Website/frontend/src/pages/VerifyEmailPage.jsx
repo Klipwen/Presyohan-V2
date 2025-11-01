@@ -1,5 +1,5 @@
 ﻿﻿import React, { useEffect, useRef, useState } from 'react';
-import Header from '../components/layout/Header';
+import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
 import '../styles/VerifyEmailPage.css';
 import presyohanLogo from '../assets/presyohan_logo.png';
@@ -202,7 +202,7 @@ export default function VerifyEmailPage() {
 
   return (
     <div className="page-root verify-page-root">
-      <Header />
+      <AuthHeader />
 
       <div className="wrapper">
         <div className="left-section">

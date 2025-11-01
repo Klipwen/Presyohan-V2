@@ -1,0 +1,15 @@
+/* Responsive visibility for manage items page sections */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none !important;
+  }
+  .mobile-category-select {
+    display: block !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-category-select {
+    display: none !important;
+  }
+}

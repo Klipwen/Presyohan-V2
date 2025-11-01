@@ -8,6 +8,8 @@
   font-family: 'Poppins', sans-serif;
   display: flex;
   flex-direction: column;
+  position: relative; /* allow overlay */
+  overflow: hidden;
  }
 
 /* Keep header white on this page */
@@ -62,6 +64,22 @@
 .wrapper {
   display: flex;
   flex: 1;
+  position: relative; /* scope overlay to content area */
+  overflow: hidden;
+}
+
+/* Subtle grocery background overlay over content area only (not header/footer) */
+.verify-page-root .wrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/background_grocery.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.18; /* low opacity per request */
+  pointer-events: none;
+  z-index: 0;
 }
 
 .left-section {
