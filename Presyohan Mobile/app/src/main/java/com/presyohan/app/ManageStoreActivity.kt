@@ -98,7 +98,7 @@ class ManageStoreActivity : AppCompatActivity() {
             val selectedType = spinnerStoreType.selectedItem?.toString() ?: storeTypes[0]
             val newType = if (selectedType == "Other") inputCustomType.text.toString().trim() else selectedType
             if (newName.isEmpty() || newBranch.isEmpty() || (selectedType == "Other" && newType.isEmpty())) {
-                Toast.makeText(this, "Please fill out all fields.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Complete all fields.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             // Show confirmation dialog
@@ -121,12 +121,12 @@ class ManageStoreActivity : AppCompatActivity() {
                             "type" to newType
                         ))
                         .addOnSuccessListener {
-                            Toast.makeText(this@ManageStoreActivity, "Store updated!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@ManageStoreActivity, "Store updated.", Toast.LENGTH_SHORT).show()
                             dialog.dismiss()
                             finish()
                         }
                         .addOnFailureListener { e ->
-                            Toast.makeText(this@ManageStoreActivity, "Failed to update store: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@ManageStoreActivity, "Unable to update store.", Toast.LENGTH_LONG).show()
                             dialog.dismiss()
                         }
                 }

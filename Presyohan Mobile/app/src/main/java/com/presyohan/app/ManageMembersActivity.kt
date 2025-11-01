@@ -99,12 +99,12 @@ class ManageMembersActivity : AppCompatActivity() {
             db.collection("stores").document(storeId!!).collection("members").document(member.id)
                 .update("role", newRole)
                 .addOnSuccessListener {
-                    Toast.makeText(this, "Role updated!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Role updated.", Toast.LENGTH_SHORT).show()
                     fetchMembers()
                     dialog.dismiss()
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to update role: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Unable to update role.", Toast.LENGTH_LONG).show()
                 }
         }
         dialog.show()

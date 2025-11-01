@@ -29,9 +29,9 @@ class VerifyEmailActivity : Activity() {
             val user = auth.currentUser
             user?.sendEmailVerification()?.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Toast.makeText(this, "Verification email resent!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Verification email resent.", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(this, "Failed to resend verification email.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Unable to resend verification email.", Toast.LENGTH_SHORT).show()
                 }
             }
         }

@@ -1,20 +1,20 @@
 {
   "project_info": {
-    "project_number": "675158901144",
-    "project_id": "presyohanfirebase",
-    "storage_bucket": "presyohanfirebase.firebasestorage.app"
+    "project_number": "1069972300527",
+    "project_id": "presyohan-v2",
+    "storage_bucket": "presyohan-v2.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:675158901144:android:c732c8cba23d66b9ed6bed",
+        "mobilesdk_app_id": "1:1069972300527:android:97cd4d8b1fe8d8976d711a",
         "android_client_info": {
           "package_name": "com.presyohan.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "675158901144-plhsg1o623g9ddmk3d9bssr40opnhnip.apps.googleusercontent.com",
+          "client_id": "1069972300527-g56kqh831imuenshu65234kfjduthmae.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.presyohan.app",
@@ -22,20 +22,20 @@
           }
         },
         {
-          "client_id": "675158901144-45vce44qtuk5kmds52g2aekuvhnbgvfu.apps.googleusercontent.com",
+          "client_id": "1069972300527-ecg6rhqtbilc9jgb70afg3h70oc6dbfo.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBmqpseVSNtpZGRrxtg1mGTsLOqrzLMH5A"
+          "current_key": "AIzaSyBl-RHlxCGMb1rzHZAIb2FQnQafSJT-z0E"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "675158901144-45vce44qtuk5kmds52g2aekuvhnbgvfu.apps.googleusercontent.com",
+              "client_id": "1069972300527-ecg6rhqtbilc9jgb70afg3h70oc6dbfo.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

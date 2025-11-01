@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import android.widget.ImageView
 import com.presyohan.app.NotificationActivity
 import io.github.jan.supabase.auth.auth
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 class JoinStoreActivity : AppCompatActivity() {
@@ -24,7 +23,7 @@ class JoinStoreActivity : AppCompatActivity() {
     private lateinit var joinButton: Button
 
     private val db = FirebaseFirestore.getInstance()
-    private val currentUser get() = FirebaseAuth.getInstance().currentUser
+    // Identity is provided by Supabase session; no FirebaseAuth usage.
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -159,7 +158,7 @@ class JoinStoreActivity : AppCompatActivity() {
                                                         finish()
                                                     }
                                                     .addOnFailureListener {
-                                                        Toast.makeText(this, "Join request sent, but failed to notify you. Please check notifications.", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(this, "Join request sent. Notification delivery failed.", Toast.LENGTH_SHORT).show()
                                                         val intent = android.content.Intent(this, com.presyohan.app.StoreActivity::class.java)
                                                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                                         startActivity(intent)
@@ -167,20 +166,20 @@ class JoinStoreActivity : AppCompatActivity() {
                                                     }
                                             }
                                             .addOnFailureListener {
-                                                Toast.makeText(this, "Failed to send join request. Please try again.", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(this, "Unable to send join request.", Toast.LENGTH_SHORT).show()
                                             }
                                     }
                                     .addOnFailureListener {
-                                        Toast.makeText(this, "Failed to check existing requests. Please try again.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(this, "Unable to check existing requests.", Toast.LENGTH_SHORT).show()
                                     }
                             }
                         }
                         .addOnFailureListener {
-                            Toast.makeText(this, "Something went wrong. Please try again.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Unexpected error.", Toast.LENGTH_SHORT).show()
                         }
                 }
                 .addOnFailureListener {
-                    Toast.makeText(this, "Failed to validate store code. Please try again.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Invalid or expired store code.", Toast.LENGTH_SHORT).show()
                 }
         }
     }

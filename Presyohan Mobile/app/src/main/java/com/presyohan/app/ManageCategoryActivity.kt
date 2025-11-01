@@ -117,7 +117,7 @@ class ManageCategoryActivity : AppCompatActivity() {
                                         }
                                         batch.commit().addOnSuccessListener {
                                             fetchCategories()
-                                            android.widget.Toast.makeText(this, "Category renamed!", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(this, "Category renamed.", android.widget.Toast.LENGTH_SHORT).show()
                                             dialog.dismiss()
                                         }
                                     }
@@ -156,7 +156,7 @@ class ManageCategoryActivity : AppCompatActivity() {
                             batch.delete(docRef)
                             batch.commit().addOnSuccessListener {
                                 fetchCategories()
-                                android.widget.Toast.makeText(this, "Category and all items deleted!", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(this, "Category and items deleted.", android.widget.Toast.LENGTH_SHORT).show()
                                 dialog.dismiss()
                             }
                         }

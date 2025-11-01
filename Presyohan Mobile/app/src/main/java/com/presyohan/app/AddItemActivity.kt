@@ -1,5 +1,6 @@
 package com.presyohan.app
 
+import io.github.jan.supabase.auth.auth
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -142,7 +143,7 @@ class AddItemActivity : AppCompatActivity() {
             val category = spinner.selectedItem?.toString() ?: ""
 
             if (itemName.isEmpty() || priceText.isEmpty() || units.isEmpty() || category == "Add Category" || category.isEmpty()) {
-                android.widget.Toast.makeText(this, "Please fill out all fields", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this, "Complete all fields.", android.widget.Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -163,7 +164,7 @@ class AddItemActivity : AppCompatActivity() {
                 .collection("products")
                 .add(productData)
                 .addOnSuccessListener {
-                    android.widget.Toast.makeText(this, "Product added!", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "Product added.", android.widget.Toast.LENGTH_SHORT).show()
                     val intent = android.content.Intent(this, HomeActivity::class.java)
                     intent.putExtra("storeId", storeId)
                     intent.putExtra("storeName", storeName)
@@ -172,7 +173,7 @@ class AddItemActivity : AppCompatActivity() {
                     finish()
                 }
                 .addOnFailureListener {
-                    android.widget.Toast.makeText(this, "Failed to add product.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "Unable to add product.", android.widget.Toast.LENGTH_SHORT).show()
                 }
         }
 
@@ -217,12 +218,12 @@ class AddItemActivity : AppCompatActivity() {
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
         val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         if (userId != null) {
             db.collection("users").document(userId).get().addOnSuccessListener { doc ->
                 userNameText.text = doc.getString("name") ?: "User"
-                userEmailText.text = doc.getString("email") ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: ""
+                userEmailText.text = doc.getString("email") ?: SupabaseProvider.client.auth.currentUserOrNull()?.email ?: ""
             }
         }
     }

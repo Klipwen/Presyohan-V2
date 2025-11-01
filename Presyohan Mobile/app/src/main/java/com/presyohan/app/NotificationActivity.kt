@@ -8,9 +8,7 @@ import android.view.View
 import android.widget.ImageView
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.navigation.NavigationView
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+ 
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.FirebaseFirestore
@@ -26,7 +24,6 @@ import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 
 class NotificationActivity : AppCompatActivity() {
-    private lateinit var googleSignInClient: GoogleSignInClient
     private var notificationListener: ListenerRegistration? = null
     private val notifications = mutableListOf<Notification>()
     private val notificationDocIds = mutableListOf<String>()
@@ -34,12 +31,7 @@ class NotificationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_notification)
 
-        // Google Sign-In setup for logout
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id))
-            .requestEmail()
-            .build()
-        googleSignInClient = GoogleSignIn.getClient(this, gso)
+        // Removed Google Play Services client setup; logout handled via Supabase only
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
         val navigationView = findViewById<NavigationView>(R.id.navigationView)
@@ -122,7 +114,7 @@ class NotificationActivity : AppCompatActivity() {
                                 dialog.dismiss()
                             }
                             .addOnFailureListener {
-                                android.widget.Toast.makeText(this@NotificationActivity, "Failed to delete notification", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(this@NotificationActivity, "Unable to delete notification.", android.widget.Toast.LENGTH_SHORT).show()
                                 adapter.notifyItemChanged(position)
                                 dialog.dismiss()
                             }
@@ -365,14 +357,14 @@ class NotificationActivity : AppCompatActivity() {
                             }
                         }
                         .addOnFailureListener {
-                            android.widget.Toast.makeText(this, "Failed to check membership.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(this, "Unable to check membership.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                 } else {
                     android.widget.Toast.makeText(this, "Store not found or no longer exists.", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
             .addOnFailureListener {
-                android.widget.Toast.makeText(this, "Failed to open store.", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this, "Unable to open store.", android.widget.Toast.LENGTH_SHORT).show()
             }
     }
 

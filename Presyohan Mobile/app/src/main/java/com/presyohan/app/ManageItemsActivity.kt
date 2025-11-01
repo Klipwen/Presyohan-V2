@@ -111,7 +111,7 @@ class ManageItemsActivity : AppCompatActivity() {
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("ManageItems", "Delete error: "+e.localizedMessage)
-                            android.widget.Toast.makeText(this@ManageItemsActivity, "Delete error: "+e.localizedMessage, android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to delete item.", android.widget.Toast.LENGTH_LONG).show()
                         }
                         dialog.dismiss()
                     }
@@ -119,7 +119,7 @@ class ManageItemsActivity : AppCompatActivity() {
                 dialog.show()
             } catch (e: Exception) {
                 android.util.Log.e("ManageItems", "Dialog error: "+e.localizedMessage)
-                android.widget.Toast.makeText(this@ManageItemsActivity, "Dialog error: "+e.localizedMessage, android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to open dialog.", android.widget.Toast.LENGTH_LONG).show()
             }
         })
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -167,12 +167,12 @@ class ManageItemsActivity : AppCompatActivity() {
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("ManageItems", "Fetch error: ${e.localizedMessage}")
-                    android.widget.Toast.makeText(this, "Error loading items: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(this, "Unable to load items.", android.widget.Toast.LENGTH_LONG).show()
                     finish()
                 }
             }
             .addOnFailureListener { e ->
-                android.widget.Toast.makeText(this, "Failed to fetch items: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "Unable to fetch items.", android.widget.Toast.LENGTH_LONG).show()
                 finish()
             }
 
@@ -193,7 +193,7 @@ class ManageItemsActivity : AppCompatActivity() {
                     recyclerView.clearFocus()
                     val storeId = intent.getStringExtra("storeId")
                     if (storeId.isNullOrBlank()) {
-                        android.widget.Toast.makeText(this@ManageItemsActivity, "No store ID provided. Cannot save.", android.widget.Toast.LENGTH_LONG).show()
+                        android.widget.Toast.makeText(this@ManageItemsActivity, "Store ID missing. Cannot save.", android.widget.Toast.LENGTH_LONG).show()
                         dialog.dismiss()
                         return@setOnClickListener
                     }
@@ -223,7 +223,7 @@ class ManageItemsActivity : AppCompatActivity() {
                         startActivity(homeIntent)
                         finish()
                     }.addOnFailureListener { e ->
-                        android.widget.Toast.makeText(this@ManageItemsActivity, "Failed to save items: ${e.localizedMessage}", android.widget.Toast.LENGTH_LONG).show()
+                        android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to save items.", android.widget.Toast.LENGTH_LONG).show()
                         dialog.dismiss()
                     }
                 }

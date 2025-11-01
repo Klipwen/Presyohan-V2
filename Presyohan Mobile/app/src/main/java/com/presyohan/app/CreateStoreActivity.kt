@@ -58,7 +58,7 @@ class CreateStoreActivity : AppCompatActivity() {
         }
 
         val notifDot = findViewById<View>(R.id.notifDot)
-        val userIdNotif = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
         if (notifDot != null && userIdNotif != null) {
             try {
                 com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -154,7 +154,7 @@ class CreateStoreActivity : AppCompatActivity() {
                 selectedType
             }
             if (name.isEmpty() || branch.isEmpty() || type.isEmpty() || selectedType == "--Select store type--") {
-                Toast.makeText(this, "Please fill out all fields", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Complete all fields.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val db = FirebaseFirestore.getInstance()
@@ -179,10 +179,10 @@ class CreateStoreActivity : AppCompatActivity() {
                         // Fallback: create the array if it doesn't exist
                         userRef.set(mapOf("stores" to listOf(docRef.id)), com.google.firebase.firestore.SetOptions.merge())
                     }
-                Toast.makeText(this, "Store created!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Store created.", Toast.LENGTH_SHORT).show()
                 finish()
             }.addOnFailureListener {
-                Toast.makeText(this, "Failed to create store.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Unable to create store.", Toast.LENGTH_SHORT).show()
             }
         }
     }

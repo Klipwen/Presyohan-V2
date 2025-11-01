@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
-import com.google.firebase.auth.FirebaseAuth
 
 class SplashActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {

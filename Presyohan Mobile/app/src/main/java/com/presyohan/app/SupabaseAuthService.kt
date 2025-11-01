@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,26 +17,34 @@ import kotlinx.serialization.json.contentOrNull
 object SupabaseAuthService {
     private val client get() = SupabaseProvider.client
 
-    suspend fun signInEmail(email: String, password: String) = withContext(Dispatchers.IO) {
-        client.auth.signInWith(Email) {
-            this.email = email
-            this.password = password
-        }
-        true
-    }
-
-    // Google OAuth via Custom Tabs / deep link
-    suspend fun signInWithGoogle(context: Context, scheme: String = "presyohan://auth-callback") = withContext(Dispatchers.IO) {
+    suspend fun signInEmail(email: String, password: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            // v3 OAuth config differs; keep minimal config to compile
-            client.auth.signInWith(Google) { /* configuration handled via Android manifest/deeplink */ }
-            true
-        } catch (_: Exception) {
-            false
+            client.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            // Only succeed if a session exists (email may require verification)
+            client.auth.currentSessionOrNull() != null
+        } catch (e: Exception) {
+            throw RuntimeException(e.localizedMessage ?: "Supabase email sign-in failed")
         }
     }
 
-    // ID token sign-in is not available in current supabase-kt version; use OAuth instead
+    // Native Google Sign-In: exchange ID token with Supabase (no browser)
+    suspend fun signInWithGoogleIdToken(idToken: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            client.auth.signInWith(IDToken) {
+                provider = Google
+                this.idToken = idToken
+            }
+            client.auth.currentSessionOrNull() != null
+        } catch (e: Exception) {
+            // Surface a clearer message upstream
+            throw RuntimeException(e.localizedMessage ?: "Supabase ID token exchange failed")
+        }
+    }
+
+    // OAuth (browser) can be added later if needed; mobile uses native GoogleSignIn
 
     suspend fun signUpEmail(name: String, email: String, password: String) = withContext(Dispatchers.IO) {
         client.auth.signUpWith(Email) {

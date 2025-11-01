@@ -50,7 +50,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                         val unit = holder.itemView.findViewById<EditText>(R.id.inputItemUnit).text.toString().trim()
                         val price = holder.itemView.findViewById<EditText>(R.id.inputItemPrice).text.toString().trim()
                         if (name.isBlank() || unit.isBlank() || price.isBlank()) {
-                            Toast.makeText(this, "Please fill out all required fields before adding another item.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "Complete all required fields before adding another item.", Toast.LENGTH_SHORT).show()
                             return@CategoryAdapter
                         }
                         lastItem.name = name
@@ -285,7 +285,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 val unit = item.unit.trim()
                 val price = item.price.trim()
                 if (name.isBlank() || unit.isBlank() || price.isBlank()) {
-                    Toast.makeText(this, "Please fill out all required fields for every item.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Complete all required fields for every item.", Toast.LENGTH_SHORT).show()
                     return
                 }
                 val data = hashMapOf(
@@ -316,14 +316,14 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                     .collection("categories").document(categoryName)
                     .delete()
             }
-            Toast.makeText(this, "Items added!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Items added.", Toast.LENGTH_SHORT).show()
             val intent = android.content.Intent(this, HomeActivity::class.java)
             intent.putExtra("storeId", storeId)
             intent.putExtra("storeName", storeName)
             startActivity(intent)
             finish()
         }.addOnFailureListener {
-            Toast.makeText(this, "Failed to add items.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Unable to add items.", Toast.LENGTH_SHORT).show()
         }
     }
 }

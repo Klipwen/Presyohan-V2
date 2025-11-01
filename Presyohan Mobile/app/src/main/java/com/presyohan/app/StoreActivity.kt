@@ -15,10 +15,8 @@ import com.google.android.material.navigation.NavigationView
 import com.google.firebase.firestore.FirebaseFirestore
 import com.presyohan.app.adapter.Store
 import com.presyohan.app.adapter.StoreAdapter
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.firebase.auth.FirebaseAuth
+ 
+import io.github.jan.supabase.auth.auth
 import androidx.lifecycle.lifecycleScope
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.auth.auth
@@ -27,7 +25,6 @@ import kotlinx.serialization.Serializable
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private val db = FirebaseFirestore.getInstance()
-    private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navigationView: NavigationView
     private lateinit var recyclerView: RecyclerView
@@ -87,12 +84,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         checkUserStore()
         fetchStores()
 
-        // Google Sign-In setup for logout
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id))
-            .requestEmail()
-            .build()
-        googleSignInClient = GoogleSignIn.getClient(this, gso)
+        // Removed Google Play Services client setup; logout handled via Supabase only
 
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
         notifIcon.setOnClickListener {
@@ -157,7 +149,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun checkUserStore() {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
         db.collection("stores")
             .whereArrayContains("members", userId)
             .get()
@@ -273,7 +265,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 val clip = android.content.ClipData.newPlainText("Store Code", code)
                 clipboard.setPrimaryClip(clip)
-                android.widget.Toast.makeText(this, "Code copied!", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this, "Invite code copied.", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -288,11 +280,11 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             val storeDoc = db.collection("stores").document(store.id)
             storeDoc.update(updates).addOnSuccessListener {
                 updateCodeUI(newCode, true)
-                android.widget.Toast.makeText(this, "New code generated!", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this, "Invite code updated.", android.widget.Toast.LENGTH_SHORT).show()
             }.addOnFailureListener {
                 storeDoc.set(updates, com.google.firebase.firestore.SetOptions.merge()).addOnSuccessListener {
                     updateCodeUI(newCode, true)
-                    android.widget.Toast.makeText(this, "New code generated!", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "Invite code updated.", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -318,7 +310,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 else -> "sales staff"
             }
             if (email.isEmpty()) {
-                android.widget.Toast.makeText(this, "Please enter an email", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this, "Enter an email address.", android.widget.Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             // Allow inviting by email regardless of code
@@ -348,9 +340,9 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                                             val hasPending = notifSnapshot.any { it.getString("status") == "Pending" }
                                             val hasAccepted = notifSnapshot.any { it.getString("status") == "Accepted" }
                                             if (hasAccepted) {
-                                                android.widget.Toast.makeText(this, "${userDoc.getString("name") ?: email} is already your store staff", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this, "Already a staff member.", android.widget.Toast.LENGTH_SHORT).show()
                                             } else if (hasPending) {
-                                                android.widget.Toast.makeText(this, "Already Invited", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this, "Invitation already sent.", android.widget.Toast.LENGTH_SHORT).show()
                                             } else {
                                                 // No pending or accepted invitation (either rejected or deleted) — allow invite
                                                 val senderName = SupabaseAuthService.getDisplayNameImmediate()
@@ -369,18 +361,18 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                                                     .collection("notifications")
                                                     .add(notification)
                                                 // Do NOT add to store members here; only add when invitation is accepted
-                                                android.widget.Toast.makeText(this, "Invitation sent!", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this, "Invitation sent.", android.widget.Toast.LENGTH_SHORT).show()
                                                 dialog.dismiss()
                                             }
                                         }
                                 }
                             }
                     } else {
-                        android.widget.Toast.makeText(this, "User not found", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(this, "User not found.", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
                 .addOnFailureListener {
-                    android.widget.Toast.makeText(this, "Failed to send invitation", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "Unable to send invitation.", android.widget.Toast.LENGTH_SHORT).show()
                 }
         }
 
@@ -458,7 +450,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                                             .collection("members").document(userId)
                                             .delete()
                                             .addOnSuccessListener {
-                                                android.widget.Toast.makeText(this, "You have left the store.", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
                                                 fetchStores()
                                             }
                                     }
@@ -485,15 +477,15 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                                         db.collection("users").document(userId)
                                             .update("stores", com.google.firebase.firestore.FieldValue.arrayRemove(store.id))
                                             .addOnSuccessListener {
-                                                android.widget.Toast.makeText(this, "Store deleted!", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this, "Store deleted.", android.widget.Toast.LENGTH_SHORT).show()
                                                 fetchStores()
                                             }
                                             .addOnFailureListener {
-                                                android.widget.Toast.makeText(this, "Store deleted, but failed to update user.", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this, "Store deleted. User update failed.", android.widget.Toast.LENGTH_SHORT).show()
                                                 fetchStores()
                                             }
                                     } else {
-                                        android.widget.Toast.makeText(this, "Failed to delete store.", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(this, "Unable to delete store.", android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 }
                                 confirmDialog.dismiss()
@@ -516,7 +508,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         view.findViewById<TextView>(R.id.textStoreName).text = store.name
         // Set access message based on role
-        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         if (userId != null) {
             db.collection("stores").document(store.id)
                 .collection("members").document(userId)
@@ -605,7 +597,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                                 .collection("members").document(userId)
                                 .delete()
                                 .addOnSuccessListener {
-                                    android.widget.Toast.makeText(this, "You have left the store.", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(this, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
                                     fetchStores()
                                 }
                         }

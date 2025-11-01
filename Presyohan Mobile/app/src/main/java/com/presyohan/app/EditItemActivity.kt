@@ -1,5 +1,6 @@
 package com.presyohan.app
 
+import io.github.jan.supabase.auth.auth
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.Button
@@ -139,7 +140,7 @@ class EditItemActivity : AppCompatActivity() {
         }
 
         val notifDot = findViewById<View>(R.id.notifDot)
-        val userIdNotif = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
         if (notifDot != null && userIdNotif != null) {
             try {
                 com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -184,7 +185,7 @@ class EditItemActivity : AppCompatActivity() {
             val storeIdForUpdate = intent.getStringExtra("storeId") ?: return@setOnClickListener
             val productId = intent.getStringExtra("productId") ?: return@setOnClickListener
             if (newName.isEmpty() || newUnit.isEmpty() || newCategory.isEmpty() || newCategory == "Add Category") {
-                android.widget.Toast.makeText(this, "Please fill out all fields", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this, "Complete all fields.", android.widget.Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val updateData = hashMapOf(
@@ -199,11 +200,11 @@ class EditItemActivity : AppCompatActivity() {
                 .collection("products").document(productId)
                 .update(updateData as Map<String, Any>)
                 .addOnSuccessListener {
-                    android.widget.Toast.makeText(this, "Product updated!", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "Product updated.", android.widget.Toast.LENGTH_SHORT).show()
                     finish()
                 }
                 .addOnFailureListener {
-                    android.widget.Toast.makeText(this, "Failed to update product.", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(this, "Unable to update product.", android.widget.Toast.LENGTH_SHORT).show()
                 }
         }
 
@@ -211,7 +212,7 @@ class EditItemActivity : AppCompatActivity() {
             val storeId = intent.getStringExtra("storeId")
             val storeName = intent.getStringExtra("storeName")
             if (storeId.isNullOrBlank() || storeName.isNullOrBlank()) {
-                android.widget.Toast.makeText(this, "Store information missing. Cannot manage items.", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "Store info missing. Cannot manage items.", android.widget.Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
             val intent = Intent(this, ManageItemsActivity::class.java)
@@ -224,12 +225,12 @@ class EditItemActivity : AppCompatActivity() {
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
         val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
-        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         if (userId != null) {
             db.collection("users").document(userId).get().addOnSuccessListener { doc ->
                 userNameText.text = doc.getString("name") ?: "User"
-                userEmailText.text = doc.getString("email") ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: ""
+                userEmailText.text = doc.getString("email") ?: SupabaseProvider.client.auth.currentUserOrNull()?.email ?: ""
             }
         }
     }

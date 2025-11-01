@@ -12,9 +12,7 @@ import android.view.View
 import android.widget.ImageView
 // Firebase Firestore removed for product/listener and header; using Supabase instead
 import android.widget.Spinner
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+ 
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -58,19 +56,13 @@ class HomeActivity : AppCompatActivity() {
 
     @Serializable
     data class NotificationRow(val id: String, val recipient_user_id: String, val unread: Boolean = true, val status: String? = null)
-    private lateinit var googleSignInClient: GoogleSignInClient
     private val REQUEST_EDIT_ITEM = 1001
     private val REQUEST_ADD_ITEM = 1002
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
 
-        // Google Sign-In setup for logout
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id))
-            .requestEmail()
-            .build()
-        googleSignInClient = GoogleSignIn.getClient(this, gso)
+        // Removed Google Play Services client setup; logout handled via Supabase only
 
         // Drawer and menu logic
         val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
@@ -451,7 +443,7 @@ class HomeActivity : AppCompatActivity() {
         view.findViewById<android.widget.ImageView>(R.id.btnEdit).setOnClickListener {
             // Open Edit Item activity, pass product info
             if (storeId.isNullOrBlank() || storeName.isNullOrBlank()) {
-                android.widget.Toast.makeText(this, "Store information missing. Cannot edit item.", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "Store info missing. Cannot edit item.", android.widget.Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
             val intent = Intent(this, EditItemActivity::class.java)
@@ -490,7 +482,7 @@ class HomeActivity : AppCompatActivity() {
                                     eq("store_id", storeId)
                                 }
                             }
-                            android.widget.Toast.makeText(this@HomeActivity, "Item deleted!", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(this@HomeActivity, "Item deleted.", android.widget.Toast.LENGTH_SHORT).show()
                             if (product.category.isNotBlank()) {
                                 deleteCategoryIfEmpty(storeId, product.category)
                             }
@@ -498,7 +490,7 @@ class HomeActivity : AppCompatActivity() {
                             dialog.dismiss()
                             recreate()
                         } catch (e: Exception) {
-                            android.widget.Toast.makeText(this@HomeActivity, "Failed to delete item.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(this@HomeActivity, "Unable to delete item.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
