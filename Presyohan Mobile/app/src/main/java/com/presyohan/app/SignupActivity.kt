@@ -47,6 +47,7 @@ class SignupActivity : androidx.appcompat.app.AppCompatActivity() {
                             // Supabase can require email confirmation; direct to VerifyEmail screen
                             val intent = Intent(this@SignupActivity, VerifyEmailActivity::class.java)
                             intent.putExtra("email", email)
+                            intent.putExtra("name", name)
                             startActivity(intent)
                             finish()
                         } catch (e: Exception) {

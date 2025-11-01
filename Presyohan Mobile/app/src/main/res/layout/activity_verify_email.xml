@@ -8,7 +8,6 @@
     android:background="@color/presyo_bg"
     android:fitsSystemWindows="true">
 
-    <!-- Top Curve Background -->
     <View
         android:id="@+id/topCurve"
         android:layout_width="411dp"
@@ -18,11 +17,10 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="MissingConstraints" />
 
-    <!-- Logo -->
     <ImageView
         android:id="@+id/iconPresyohan"
-        android:layout_width="100dp"
-        android:layout_height="75dp"
+        android:layout_width="130dp"
+        android:layout_height="90dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="16dp"
         android:contentDescription="Logo"
@@ -33,12 +31,11 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/topCurve" />
 
-    <!-- Title -->
     <TextView
         android:id="@+id/verifyTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="12dp"
         android:gravity="center"
         android:text="Verify Your Email"
         android:textColor="@color/presyo_orange"
@@ -48,12 +45,11 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/iconPresyohan" />
 
-    <!-- Message -->
     <TextView
         android:id="@+id/verifyMessage"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="A verification email has been sent to your email address. Please check your inbox and click the link to verify your account."
+        android:text="Enter the 6-digit code sent to your email address."
         android:textColor="@color/presyo_darkblue"
         android:textSize="15sp"
         android:gravity="center"
@@ -64,38 +60,81 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Resend Button -->
+    <LinearLayout
+        android:id="@+id/otpInputLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="32dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toBottomOf="@id/verifyMessage"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+        </LinearLayout>
+
+    <TextView
+        android:id="@+id/textResendCode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Resend Code"
+        android:textColor="@color/presyo_teal"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/otpInputLayout" />
+
     <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/buttonResendEmail"
+        android:id="@+id/buttonVerifyCode"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="52dp"
+        android:layout_marginTop="12dp"
         android:layout_marginEnd="32dp"
         android:background="@drawable/rounded_button"
-        android:backgroundTint="@color/presyo_teal"
-        android:text="Resend Email"
+        android:backgroundTint="@color/presyo_orange"
+        android:text="Verify Code"
         android:textColor="@android:color/white"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/verifyMessage" />
+        app:layout_constraintTop_toBottomOf="@id/textResendCode" />
+    
+    <TextView
+        android:id="@+id/feedbackMessage"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:textColor="@android:color/holo_red_dark"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:visibility="gone"
+        tools:text="Verification failed: Invalid token"
+        app:layout_constraintTop_toBottomOf="@id/buttonVerifyCode"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Back to Login Button -->
+
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/buttonBackToLogin"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="32dp"
         android:background="@drawable/rounded_button"
-        android:backgroundTint="@color/presyo_orange"
+        android:backgroundTint="@color/presyo_teal"
         android:text="Back to Login"
         android:textColor="@android:color/white"
         android:textStyle="bold"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        app:layout_constraintTop_toBottomOf="@id/buttonResendEmail"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/feedbackMessage" />
 
-</androidx.constraintlayout.widget.ConstraintLayout> 
+</androidx.constraintlayout.widget.ConstraintLayout>

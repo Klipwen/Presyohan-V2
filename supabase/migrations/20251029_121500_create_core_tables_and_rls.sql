@@ -69,6 +69,9 @@ END $$;
 
 -- Enable RLS and define conservative policies
 ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS app_users_select_own ON public.app_users;
+DROP POLICY IF EXISTS app_users_insert_own ON public.app_users;
+DROP POLICY IF EXISTS app_users_update_own ON public.app_users;
 CREATE POLICY app_users_select_own ON public.app_users
   FOR SELECT TO authenticated
   USING (id = auth.uid());
@@ -81,6 +84,7 @@ CREATE POLICY app_users_update_own ON public.app_users
   WITH CHECK (id = auth.uid());
 
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS stores_select_members ON public.stores;
 CREATE POLICY stores_select_members ON public.stores
   FOR SELECT TO authenticated
   USING (
@@ -91,6 +95,7 @@ CREATE POLICY stores_select_members ON public.stores
   );
 
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS categories_select_members ON public.categories;
 CREATE POLICY categories_select_members ON public.categories
   FOR SELECT TO authenticated
   USING (
@@ -101,6 +106,7 @@ CREATE POLICY categories_select_members ON public.categories
   );
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS products_select_members ON public.products;
 CREATE POLICY products_select_members ON public.products
   FOR SELECT TO authenticated
   USING (
@@ -111,6 +117,7 @@ CREATE POLICY products_select_members ON public.products
   );
 
 -- Admin/owner writes for products and categories
+DROP POLICY IF EXISTS products_insert_admins ON public.products;
 CREATE POLICY products_insert_admins ON public.products
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -119,6 +126,7 @@ CREATE POLICY products_insert_admins ON public.products
       WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
     )
   );
+DROP POLICY IF EXISTS products_update_admins ON public.products;
 CREATE POLICY products_update_admins ON public.products
   FOR UPDATE TO authenticated
   USING (
@@ -133,6 +141,7 @@ CREATE POLICY products_update_admins ON public.products
       WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
     )
   );
+DROP POLICY IF EXISTS products_delete_admins ON public.products;
 CREATE POLICY products_delete_admins ON public.products
   FOR DELETE TO authenticated
   USING (
@@ -142,6 +151,7 @@ CREATE POLICY products_delete_admins ON public.products
     )
   );
 
+DROP POLICY IF EXISTS categories_insert_admins ON public.categories;
 CREATE POLICY categories_insert_admins ON public.categories
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -150,6 +160,7 @@ CREATE POLICY categories_insert_admins ON public.categories
       WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
     )
   );
+DROP POLICY IF EXISTS categories_update_admins ON public.categories;
 CREATE POLICY categories_update_admins ON public.categories
   FOR UPDATE TO authenticated
   USING (
@@ -164,6 +175,7 @@ CREATE POLICY categories_update_admins ON public.categories
       WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
     )
   );
+DROP POLICY IF EXISTS categories_delete_admins ON public.categories;
 CREATE POLICY categories_delete_admins ON public.categories
   FOR DELETE TO authenticated
   USING (
@@ -174,11 +186,13 @@ CREATE POLICY categories_delete_admins ON public.categories
   );
 
 ALTER TABLE public.store_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS store_members_select_own ON public.store_members;
 CREATE POLICY store_members_select_own ON public.store_members
   FOR SELECT TO authenticated
   USING (user_id = auth.uid());
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS notifications_select_own ON public.notifications;
 CREATE POLICY notifications_select_own ON public.notifications
   FOR SELECT TO authenticated
   USING (receiver_user_id = auth.uid() OR sender_user_id = auth.uid());

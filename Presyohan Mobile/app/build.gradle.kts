@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     id("com.google.gms.google-services")
 }
 
@@ -107,4 +108,7 @@ dependencies {
 
     // Ktor HTTP client for Android (match supabase-kt 3.2.x recommended)
     implementation("io.ktor:ktor-client-okhttp:3.3.1")
+
+    // Kotlinx Serialization JSON for Supabase Kotlin decoding
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }

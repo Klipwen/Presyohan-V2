@@ -1,6 +1,8 @@
 package com.presyohan.app
 
 import android.content.Context
+import io.ktor.client.request.*
+import io.ktor.http.*
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.Google
@@ -76,6 +78,32 @@ object SupabaseAuthService {
             // Ignore if table/policy not ready; we can add later
         }
         true
+    }
+
+    // Resend signup verification email (Supabase REST: POST /auth/v1/resend)
+    suspend fun resendSignupEmail(email: String): Boolean = withContext(Dispatchers.IO) {
+        val baseUrl = BuildConfig.SUPABASE_URL
+        val anonKey = BuildConfig.SUPABASE_ANON_KEY
+        if (baseUrl.isBlank() || anonKey.isBlank()) throw RuntimeException("Supabase is not configured")
+
+        val url = "$baseUrl/auth/v1/resend"
+        val http = io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)
+        try {
+            val response = http.post(url) {
+                header("apikey", anonKey)
+                header(io.ktor.http.HttpHeaders.Authorization, "Bearer $anonKey")
+                contentType(io.ktor.http.ContentType.Application.Json)
+                setBody("{" +
+                    "\"type\":\"signup\"," +
+                    "\"email\":\"$email\"" +
+                    "}")
+            }
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            throw RuntimeException(e.localizedMessage ?: "Failed to resend verification email")
+        } finally {
+            http.close()
+        }
     }
 
     fun isLoggedIn(): Boolean {

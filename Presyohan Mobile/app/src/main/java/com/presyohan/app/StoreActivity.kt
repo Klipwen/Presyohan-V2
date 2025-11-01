@@ -3,6 +3,7 @@ package com.presyohan.app
 import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -31,11 +32,26 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     private lateinit var adapter: StoreAdapter
     private val stores = mutableListOf<Store>()
 
+    private val createStoreLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // After returning from CreateStoreActivity, refresh list
+        fetchStores()
+    }
+
     @Serializable
     data class StoreMemberRow(val store_id: String, val user_id: String, val role: String)
 
     @Serializable
     data class StoreRow(val id: String, val name: String, val branch: String? = null, val type: String? = null)
+
+    // Minimal shape to avoid user_id/member_user_id mismatch; RLS filters rows for current user
+    @Serializable
+    data class StoreMemberLite(val store_id: String, val role: String)
+
+    // Result shape for get_user_stores RPC
+    @Serializable
+    data class UserStoreRow(val store_id: String, val name: String, val branch: String? = null, val role: String)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -172,7 +188,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val btnJoin = view.findViewById<Button>(R.id.btnJoinStore)
 
         btnCreate.setOnClickListener {
-            startActivity(Intent(this, CreateStoreActivity::class.java))
+            createStoreLauncher.launch(Intent(this, CreateStoreActivity::class.java))
             dialog.dismiss()
         }
 
@@ -190,50 +206,37 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val noStoreLabel = findViewById<TextView>(R.id.noStoreLabel)
         lifecycleScope.launch {
             try {
-                val members = client.postgrest["store_members"]
-                    .select {
-                        filter { eq("user_id", userId) }
-                    }
-                    .decodeList<StoreMemberRow>()
+                // Server-side resolution of memberships and stores via resilient RPC
+                val rows = client.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
+                
+                Log.d("StoreActivity", "RPC get_user_stores returned ${rows.size} rows")
+                if (rows.isNotEmpty()) {
+                    Log.d("StoreActivity", "First store: id=${rows[0].store_id}, name='${rows[0].name}', role='${rows[0].role}'")
+                }
 
-                if (members.isEmpty()) {
+                if (rows.isEmpty()) {
+                    Log.d("StoreActivity", "No stores found, showing empty state")
                     adapter.updateStores(emptyList(), emptyMap())
                     noStoreLabel.visibility = View.VISIBLE
                     showStoreChoiceDialog()
                     return@launch
                 }
 
-                val roles = members.associate { it.store_id to it.role }
-                val storeIds = members.map { it.store_id }
-
-                val fetchedStores = mutableListOf<Store>()
-                for (sid in storeIds) {
-                    try {
-                        val store = client.postgrest["stores"]
-                            .select {
-                                filter { eq("id", sid) }
-                                limit(1)
-                            }
-                            .decodeList<StoreRow>()
-                            .firstOrNull()
-                        if (store != null) {
-                            fetchedStores.add(Store(store.id, store.name, store.branch ?: "", store.type ?: ""))
-                        }
-                    } catch (_: Exception) { }
+                val roles = rows.associate { it.store_id to it.role }
+                val fetchedStores = rows.map { r ->
+                    Store(r.store_id, r.name, r.branch ?: "", "")
                 }
 
                 val sortedStores = fetchedStores.sortedWith(compareBy(
-                    { val role = roles[it.id]; when (role) { "owner" -> 0; "manager" -> 1; "sales staff" -> 2; else -> 3 } },
+                    { val role = roles[it.id]?.lowercase(); when (role) { "owner" -> 0; "manager" -> 1; else -> 2 } },
                     { it.name.lowercase() }
                 ))
+
+                Log.d("StoreActivity", "Updating adapter with ${sortedStores.size} stores")
                 adapter.updateStores(sortedStores, roles)
-                if (sortedStores.isEmpty()) {
-                    noStoreLabel.visibility = View.VISIBLE
-                    showStoreChoiceDialog()
-                } else {
-                    noStoreLabel.visibility = View.GONE
-                }
+                noStoreLabel.visibility = View.GONE
             } catch (e: Exception) {
+                Log.e("StoreActivity", "Error fetching stores via RPC: ${e.message}", e)
                 adapter.updateStores(emptyList(), emptyMap())
                 noStoreLabel.visibility = View.VISIBLE
             }

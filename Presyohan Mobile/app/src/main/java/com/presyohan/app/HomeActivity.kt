@@ -2,6 +2,7 @@ package com.presyohan.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -50,6 +51,22 @@ class HomeActivity : AppCompatActivity() {
 
     @Serializable
     data class CategoryRow(val id: String, val store_id: String, val name: String)
+
+    // Result shape for get_user_categories RPC
+    @Serializable
+    data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
+
+    // Result shape for get_store_products RPC
+    @Serializable
+    data class UserProductRow(
+        val product_id: String,
+        val store_id: String,
+        val name: String,
+        val description: String? = null,
+        val price: Double = 0.0,
+        val units: String? = null,
+        val category: String? = null
+    )
 
     @Serializable
     data class StoreRow(val id: String, val name: String, val branch: String? = null, val type: String? = null)
@@ -227,34 +244,32 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        // Supabase-driven product loading with server-side filters
+        // Supabase-driven product loading with server-side filters via resilient RPC
         fun loadProductsFromSupabase() {
             val sId = storeId ?: return
             lifecycleScope.launch {
                 try {
-                    val query = currentQuery
-                    val category = selectedCategory
-                    val rows = supabase.postgrest["products"].select {
+                    val query = currentQuery.takeIf { it.isNotBlank() }
+                    val category = selectedCategory.takeIf { it != "PRICELIST" }
+                    
+                    val rows = supabase.postgrest.rpc("get_store_products") {
                         filter {
-                            eq("store_id", sId)
-                            if (!category.isNullOrBlank() && category != "PRICELIST") {
-                                eq("category", category)
+                            eq("p_store_id", sId)
+                            if (category != null) {
+                                eq("p_category_filter", category)
                             }
-                            if (!query.isNullOrBlank()) {
-                                // Match name/description/units
-                                or {
-                                    ilike("name", "%${query}%")
-                                    ilike("description", "%${query}%")
-                                    ilike("units", "%${query}%")
-                                }
+                            if (query != null) {
+                                eq("p_search_query", query)
                             }
                         }
-                    }.decodeList<ProductRow>()
+                    }.decodeList<UserProductRow>()
+                    
+                    Log.d("HomeActivity", "RPC get_store_products returned ${rows.size} products for store $sId")
                     products.clear()
                     for (row in rows) {
                         products.add(
-                com.presyohan.app.adapter.Product(
-                                row.id,
+                            com.presyohan.app.adapter.Product(
+                                row.product_id,
                                 row.name,
                                 row.description ?: "",
                                 row.price,
@@ -266,7 +281,7 @@ class HomeActivity : AppCompatActivity() {
                     adapter.updateProducts(products)
                     filterAndDisplayProducts()
                 } catch (e: Exception) {
-                    android.util.Log.e("HomeActivity", "Products load failed", e)
+                    Log.e("HomeActivity", "Products load via RPC failed: ${e.message}", e)
                 }
             }
         }
@@ -336,15 +351,17 @@ class HomeActivity : AppCompatActivity() {
         }
         categorySpinner.adapter = adapterSpinner
 
-        // Load categories from Supabase for the current store
+        // Load categories from Supabase for the current store via resilient RPC
         if (storeId != null) {
             lifecycleScope.launch {
                 try {
-                    val rows = supabase.postgrest["categories"]
-                        .select {
-                            filter { eq("store_id", storeId) }
+                    val rows = supabase.postgrest.rpc("get_user_categories") {
+                        filter {
+                            eq("p_store_id", storeId)
                         }
-                        .decodeList<CategoryRow>()
+                    }.decodeList<UserCategoryRow>()
+                    
+                    Log.d("HomeActivity", "RPC get_user_categories returned ${rows.size} categories")
                     for (row in rows) {
                         val name = row.name
                         if (!categories.contains(name)) {
@@ -353,7 +370,7 @@ class HomeActivity : AppCompatActivity() {
                     }
                     adapterSpinner.notifyDataSetChanged()
                 } catch (e: Exception) {
-                    android.util.Log.e("HomeActivity", "Categories load failed", e)
+                    Log.e("HomeActivity", "Categories load via RPC failed: ${e.message}", e)
                 }
             }
         }

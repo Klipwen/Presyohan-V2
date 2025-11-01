@@ -18,6 +18,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class CreateStoreActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -154,35 +157,43 @@ class CreateStoreActivity : AppCompatActivity() {
                 selectedType
             }
             if (name.isEmpty() || branch.isEmpty() || type.isEmpty() || selectedType == "--Select store type--") {
-                Toast.makeText(this, "Complete all fields.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please complete all fields.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val db = FirebaseFirestore.getInstance()
-            val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@setOnClickListener
-            val members: HashMap<String, String> = hashMapOf(userId to "owner")
-            val storeData: HashMap<String, Any> = hashMapOf(
-                "name" to name,
-                "branch" to branch,
-                "type" to type,
-                "members" to members
-            )
-            db.collection("stores").add(storeData).addOnSuccessListener { docRef ->
-                // Add user to members subcollection with role 'owner' and name
-                db.collection("users").document(userId).get().addOnSuccessListener { userDoc ->
-                    val name = userDoc.getString("name") ?: ""
-                    val memberData = hashMapOf("role" to "owner", "name" to name)
-                    docRef.collection("members").document(userId).set(memberData)
-                }
-                val userRef = db.collection("users").document(userId)
-                userRef.update("stores", com.google.firebase.firestore.FieldValue.arrayUnion(docRef.id))
-                    .addOnFailureListener {
-                        // Fallback: create the array if it doesn't exist
-                        userRef.set(mapOf("stores" to listOf(docRef.id)), com.google.firebase.firestore.SetOptions.merge())
+
+            val client = SupabaseProvider.client
+            val uid = client.auth.currentUserOrNull()?.id
+            if (uid == null) {
+                Toast.makeText(this, "Not signed in. Please log in and try again.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Create store via Supabase RPC. This inserts into public.stores and
+            // public.store_members with the caller as 'owner'.
+            lifecycleScope.launch {
+                try {
+                    android.util.Log.d("CreateStore", "Starting store creation with name: $name, branch: $branch, type: $type")
+                    android.util.Log.d("CreateStore", "User ID: $uid")
+                    
+                    val payload = buildJsonObject {
+                        put("p_name", name)
+                        put("p_branch", branch)
+                        put("p_type", type)
                     }
-                Toast.makeText(this, "Store created.", Toast.LENGTH_SHORT).show()
-                finish()
-            }.addOnFailureListener {
-                Toast.makeText(this, "Unable to create store.", Toast.LENGTH_SHORT).show()
+                    
+                    android.util.Log.d("CreateStore", "Calling create_store RPC with payload: $payload")
+                    val result = client.postgrest.rpc("create_store", payload)
+                    android.util.Log.d("CreateStore", "RPC call successful, result: $result")
+                    
+                    // The RPC returns the new store id (UUID). StoreActivity fetches memberships.
+                    Toast.makeText(this@CreateStoreActivity, "Store created successfully.", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK)
+                    finish()
+                } catch (e: Exception) {
+                    android.util.Log.e("CreateStore", "Store creation failed", e)
+                    // Professional, user-friendly fallback message without debug details
+                    Toast.makeText(this@CreateStoreActivity, "Couldn’t create the store. Please try again.", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
