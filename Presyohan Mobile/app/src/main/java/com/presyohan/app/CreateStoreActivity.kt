@@ -6,7 +6,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.Toast
-import com.google.firebase.firestore.FirebaseFirestore
 import android.widget.ArrayAdapter
 import android.widget.AdapterView
 import android.view.View
@@ -63,25 +62,20 @@ class CreateStoreActivity : AppCompatActivity() {
         val notifDot = findViewById<View>(R.id.notifDot)
         val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
         if (notifDot != null && userIdNotif != null) {
-            try {
-                com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    .collection("users").document(userIdNotif)
-                    .collection("notifications")
-                    .whereEqualTo("status", "Pending")
-                    .whereEqualTo("unread", true)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            notifDot.visibility = View.GONE
-                            android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                            android.util.Log.e("FirestoreNotif", "Error: ", error)
-                            return@addSnapshotListener
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest["notifications"].select {
+                        filter {
+                            eq("receiver_user_id", userIdNotif)
+                            eq("read", false)
                         }
-                        notifDot.visibility = if (snapshot != null && !snapshot.isEmpty) View.VISIBLE else View.GONE
-                    }
-            } catch (e: Exception) {
-                notifDot.visibility = View.GONE
-                android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                android.util.Log.e("FirestoreNotif", "Exception: ", e)
+                        limit(1)
+                    }.decodeList<com.presyohan.app.HomeActivity.NotificationRow>()
+                    notifDot.visibility = if (rows.isNotEmpty()) View.VISIBLE else View.GONE
+                } catch (e: Exception) {
+                    notifDot.visibility = View.GONE
+                    android.util.Log.e("SupabaseNotif", "Error loading notif badge", e)
+                }
             }
         }
 

@@ -8,22 +8,43 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.android.material.navigation.NavigationView
 import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
 import android.widget.ImageView
 import com.presyohan.app.NotificationActivity
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
+
+@Serializable
+data class StoreByInviteCodeRow(
+    val id: String,
+    val name: String,
+    val owner_id: String,
+    val invite_code_expires_at: String?
+)
+
+@Serializable
+data class UserStoreSummaryRow(
+    val store_id: String,
+    val name: String,
+    val role: String
+)
+
+@Serializable
+data class NotificationIdRow(
+    val id: String
+)
 
 class JoinStoreActivity : AppCompatActivity() {
 
     private lateinit var storeCodeInput: EditText
     private lateinit var joinButton: Button
-
-    private val db = FirebaseFirestore.getInstance()
-    // Identity is provided by Supabase session; no FirebaseAuth usage.
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,122 +86,87 @@ class JoinStoreActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Find store by inviteCode in stores collection
-            db.collection("stores")
-                .whereEqualTo("inviteCode", storeCode)
-                .get()
-                .addOnSuccessListener { querySnapshot ->
-                    if (querySnapshot.isEmpty) {
-                        Toast.makeText(this, "Invalid store code. Please request a new one or approach the store owner for help.", Toast.LENGTH_LONG).show()
-                        return@addOnSuccessListener
-                    }
-
-                    val storeDoc = querySnapshot.documents[0]
-                    val storeId = storeDoc.id
-                    val createdAt = storeDoc.getLong("inviteCodeCreatedAt") ?: 0L
-                    val now = System.currentTimeMillis()
-                    val expiryMillis = createdAt + 24 * 60 * 60 * 1000
-                    if (now > expiryMillis) {
-                        Toast.makeText(this, "Store code expired. Please request a new one or approach the store owner for help.", Toast.LENGTH_LONG).show()
-                        return@addOnSuccessListener
-                    }
-
-                    // Check if user is already a member
+            lifecycleScope.launch {
+                try {
                     val supaUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
                     if (supaUserId == null) {
-                        Toast.makeText(this, "Not signed in. Please log in and try again.", Toast.LENGTH_SHORT).show()
-                        return@addOnSuccessListener
+                        runOnUiThread {
+                            Toast.makeText(this@JoinStoreActivity, "Not signed in. Please log in and try again.", Toast.LENGTH_SHORT).show()
+                        }
+                        return@launch
                     }
-                    db.collection("stores").document(storeId).collection("members")
-                        .document(supaUserId).get()
-                        .addOnSuccessListener { docSnapshot ->
-                            if (docSnapshot.exists()) {
-                                Toast.makeText(this, "You're already a member of this store.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                // Find owner UID from 'members' map in store document
-                                val membersMap = storeDoc.get("members") as? Map<*, *>
-                                val ownerEntry = membersMap?.entries?.find { it.value == "owner" }
-                                val ownerUid = ownerEntry?.key as? String
-                                if (ownerUid == null) {
-                                    Toast.makeText(this, "Store owner not found. Please contact support.", Toast.LENGTH_SHORT).show()
-                                    return@addOnSuccessListener
-                                }
-                                // Check for existing pending join request from this user for this store
-                                db.collection("users").document(ownerUid)
-                                    .collection("notifications")
-                                    .whereEqualTo("type", "Join Request")
-                                    .whereEqualTo("senderId", supaUserId)
-                                    .whereEqualTo("storeName", storeDoc.getString("name") ?: "Store")
-                                    .whereEqualTo("status", "Pending")
-                                    .get()
-                                    .addOnSuccessListener { notifSnapshot ->
-                                        if (!notifSnapshot.isEmpty) {
-                                            Toast.makeText(this, "You already have a pending join request for this store.", Toast.LENGTH_SHORT).show()
-                                            return@addOnSuccessListener
-                                        }
-                                        // Send join request notification to owner
-                                        val senderNameOrEmail = SupabaseAuthService.getDisplayNameImmediate()
-                                        val notif = hashMapOf(
-                                            "type" to "Join Request",
-                                            "status" to "Pending",
-                                            "sender" to senderNameOrEmail,
-                                            "senderId" to supaUserId,
-                                            "storeName" to (storeDoc.getString("name") ?: "Store"),
-                                            "role" to null,
-                                            "timestamp" to System.currentTimeMillis(),
-                                            "message" to "$senderNameOrEmail requested to join your store.",
-                                            "unread" to true
-                                        )
-                                        db.collection("users").document(ownerUid)
-                                            .collection("notifications")
-                                            .add(notif)
-                                            .addOnSuccessListener {
-                                                // Add notification to current user (joinee) as well
-                                                val selfNotif = hashMapOf(
-                                                    "type" to "Join Request",
-                                                    "status" to "Pending",
-                                                    "sender" to senderNameOrEmail,
-                                                    "senderId" to supaUserId,
-                                                    "storeName" to (storeDoc.getString("name") ?: "Store"),
-                                                    "role" to null,
-                                                    "timestamp" to System.currentTimeMillis(),
-                                                    "message" to "Your request to join ${(storeDoc.getString("name") ?: "Store")} was sent and is awaiting owner approval.",
-                                                    "unread" to true
-                                                )
-                                                db.collection("users").document(supaUserId)
-                                                    .collection("notifications")
-                                                    .add(selfNotif)
-                                                    .addOnSuccessListener {
-                                                        // Go to store list (StoreActivity) while waiting for approval
-                                                        val intent = android.content.Intent(this, com.presyohan.app.StoreActivity::class.java)
-                                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                        startActivity(intent)
-                                                        finish()
-                                                    }
-                                                    .addOnFailureListener {
-                                                        Toast.makeText(this, "Join request sent. Notification delivery failed.", Toast.LENGTH_SHORT).show()
-                                                        val intent = android.content.Intent(this, com.presyohan.app.StoreActivity::class.java)
-                                                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                        startActivity(intent)
-                                                        finish()
-                                                    }
-                                            }
-                                            .addOnFailureListener {
-                                                Toast.makeText(this, "Unable to send join request.", Toast.LENGTH_SHORT).show()
-                                            }
-                                    }
-                                    .addOnFailureListener {
-                                        Toast.makeText(this, "Unable to check existing requests.", Toast.LENGTH_SHORT).show()
-                                    }
+
+                    // Use RPC to get store by invite code (includes expiry check)
+                    val storeResponse = SupabaseProvider.client.postgrest.rpc(
+                        "get_store_by_invite_code",
+                        buildJsonObject { put("p_invite_code", storeCode) }
+                    ).decodeList<StoreByInviteCodeRow>()
+
+                    if (storeResponse.isEmpty()) {
+                        runOnUiThread {
+                            Toast.makeText(this@JoinStoreActivity, "Invalid or expired store code. Please request a new one or approach the store owner for help.", Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
+
+                    val store = storeResponse[0]
+
+                    // Check if user is already a member of this store
+                    val userStores = SupabaseProvider.client.postgrest.rpc("get_user_stores")
+                        .decodeList<UserStoreSummaryRow>()
+
+                    val isAlreadyMember = userStores.any { it.store_id == store.id }
+                    if (isAlreadyMember) {
+                        runOnUiThread {
+                            Toast.makeText(this@JoinStoreActivity, "You're already a member of this store.", Toast.LENGTH_SHORT).show()
+                        }
+                        return@launch
+                    }
+
+                    // Check for existing pending join request
+                    val existingNotifications = SupabaseProvider.client.postgrest["notifications"]
+                        .select(Columns.list("id")) {
+                            filter {
+                                eq("receiver_user_id", store.owner_id)
+                                eq("sender_user_id", supaUserId)
+                                eq("store_id", store.id)
+                                eq("type", "join_request")
+                                eq("read", false)
                             }
                         }
-                        .addOnFailureListener {
-                            Toast.makeText(this, "Unexpected error.", Toast.LENGTH_SHORT).show()
+                        .decodeList<NotificationIdRow>()
+
+                    if (existingNotifications.isNotEmpty()) {
+                        runOnUiThread {
+                            Toast.makeText(this@JoinStoreActivity, "You already have a pending join request for this store.", Toast.LENGTH_SHORT).show()
                         }
+                        return@launch
+                    }
+
+                    // Send join request using RPC
+                    SupabaseProvider.client.postgrest.rpc(
+                        "send_join_request",
+                        buildJsonObject {
+                            put("p_store_id", store.id)
+                            put("p_owner_id", store.owner_id)
+                        }
+                    )
+
+                    runOnUiThread {
+                        Toast.makeText(this@JoinStoreActivity, "Join request sent successfully!", Toast.LENGTH_SHORT).show()
+                        // Go to store list (StoreActivity) while waiting for approval
+                        val intent = android.content.Intent(this@JoinStoreActivity, com.presyohan.app.StoreActivity::class.java)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        finish()
+                    }
+
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@JoinStoreActivity, "Unable to send join request. Please try again.", Toast.LENGTH_SHORT).show()
+                    }
                 }
-                .addOnFailureListener {
-                    Toast.makeText(this, "Invalid or expired store code.", Toast.LENGTH_SHORT).show()
-                }
+            }
         }
     }
 }

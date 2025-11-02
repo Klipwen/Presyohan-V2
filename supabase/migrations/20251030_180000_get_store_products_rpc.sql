@@ -53,21 +53,28 @@ BEGIN
   -- Return products for the store with optional filtering
   RETURN QUERY
   SELECT 
-    p.id as product_id, 
-    p.store_id, 
-    p.name, 
-    p.description, 
-    p.price, 
-    p.units, 
-    p.category
+    p.id as product_id,
+    p.store_id,
+    p.name,
+    p.description,
+    p.price,
+    -- Alias underlying column 'unit' to 'units' for client compatibility
+    p.unit AS units,
+    COALESCE(c.name, '') AS category
   FROM public.products p
+  LEFT JOIN public.categories c ON c.id = p.category_id
   WHERE p.store_id = p_store_id
-    AND (p_category_filter IS NULL OR p_category_filter = 'PRICELIST' OR p.category = p_category_filter)
-    AND (p_search_query IS NULL OR p_search_query = '' OR (
-      p.name ILIKE '%' || p_search_query || '%' OR
-      p.description ILIKE '%' || p_search_query || '%' OR
-      p.units ILIKE '%' || p_search_query || '%'
-    ))
+    AND (
+      p_category_filter IS NULL OR p_category_filter = 'PRICELIST' OR COALESCE(c.name, '') = p_category_filter
+    )
+    AND (
+      p_search_query IS NULL OR p_search_query = '' OR (
+        p.name ILIKE '%' || p_search_query || '%'
+        OR p.description ILIKE '%' || p_search_query || '%'
+        OR p.unit ILIKE '%' || p_search_query || '%'
+        OR COALESCE(c.name, '') ILIKE '%' || p_search_query || '%'
+      )
+    )
   ORDER BY p.name;
 END;
 $$;

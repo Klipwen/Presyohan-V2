@@ -121,9 +121,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 try {
                     val rows = SupabaseProvider.client.postgrest["notifications"].select {
                         filter {
-                            eq("recipient_user_id", userIdNotif)
-                            eq("unread", true)
-                            eq("status", "Pending")
+                            eq("receiver_user_id", userIdNotif)
+                            eq("read", false)
                         }
                         limit(1)
                     }.decodeList<com.presyohan.app.HomeActivity.NotificationRow>()

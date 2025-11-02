@@ -26,6 +26,9 @@ import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.JsonPrimitive
 
 class HomeActivity : AppCompatActivity() {
     private val supabase: SupabaseClient
@@ -82,7 +85,11 @@ class HomeActivity : AppCompatActivity() {
     )
 
     @Serializable
-    data class NotificationRow(val id: String, val recipient_user_id: String, val unread: Boolean = true, val status: String? = null)
+    data class NotificationRow(
+        val id: String,
+        val receiver_user_id: String,
+        val read: Boolean = false
+    )
     private val REQUEST_EDIT_ITEM = 1001
     private val REQUEST_ADD_ITEM = 1002
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -257,17 +264,18 @@ class HomeActivity : AppCompatActivity() {
                     val query = currentQuery.takeIf { it.isNotBlank() }
                     val category = selectedCategory.takeIf { it != "PRICELIST" }
                     
-                    val rows = supabase.postgrest.rpc("get_store_products") {
-                        filter {
-                            eq("p_store_id", sId)
+                    val rows = supabase.postgrest.rpc(
+                        "get_store_products",
+                        buildJsonObject {
+                            put("p_store_id", sId)
                             if (category != null) {
-                                eq("p_category_filter", category)
+                                put("p_category_filter", category)
                             }
                             if (query != null) {
-                                eq("p_search_query", query)
+                                put("p_search_query", query)
                             }
                         }
-                    }.decodeList<UserProductRow>()
+                    ).decodeList<UserProductRow>()
                     
                     Log.d("HomeActivity", "RPC get_store_products returned ${rows.size} products for store $sId")
                     products.clear()
@@ -360,11 +368,10 @@ class HomeActivity : AppCompatActivity() {
         if (storeId != null) {
             lifecycleScope.launch {
                 try {
-                    val rows = supabase.postgrest.rpc("get_user_categories") {
-                        filter {
-                            eq("p_store_id", storeId)
-                        }
-                    }.decodeList<UserCategoryRow>()
+                    val rows = supabase.postgrest.rpc(
+                        "get_user_categories",
+                        buildJsonObject { put("p_store_id", storeId) }
+                    ).decodeList<UserCategoryRow>()
                     
                     Log.d("HomeActivity", "RPC get_user_categories returned ${rows.size} categories")
                     for (row in rows) {
@@ -505,8 +512,10 @@ class HomeActivity : AppCompatActivity() {
                                 }
                             }
                             android.widget.Toast.makeText(this@HomeActivity, "Item deleted.", android.widget.Toast.LENGTH_SHORT).show()
-                            if (product.category.isNotBlank()) {
-                                deleteCategoryIfEmpty(storeId, product.category)
+                            val catName = product.category.trim()
+                            if (catName.isNotEmpty()) {
+                                // Await cleanup to avoid coroutine cancellation on activity recreate
+                                deleteCategoryIfEmpty(storeId, catName)
                             }
                             confirmDialog.dismiss()
                             dialog.dismiss()
@@ -522,27 +531,40 @@ class HomeActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun deleteCategoryIfEmpty(storeId: String, categoryName: String) {
-        lifecycleScope.launch {
-            try {
-                val rows = supabase.postgrest["products"].select {
+    private suspend fun deleteCategoryIfEmpty(storeId: String, categoryName: String) {
+        try {
+            // Find the category id by name
+            val catRows = supabase.postgrest["categories"].select {
+                filter {
+                    eq("store_id", storeId)
+                    eq("name", categoryName)
+                }
+                limit(1)
+            }.decodeList<CategoryRow>()
+            val cat = catRows.firstOrNull() ?: return
+
+            // Check if any products still reference this category id
+            @kotlinx.serialization.Serializable
+            data class ProductIdRow(val id: String, val category_id: String? = null)
+            val prodRows = supabase.postgrest["products"].select {
+                filter {
+                    eq("store_id", storeId)
+                    eq("category_id", cat.id)
+                }
+                limit(1)
+            }.decodeList<ProductIdRow>()
+
+            if (prodRows.isEmpty()) {
+                supabase.postgrest["categories"].delete {
                     filter {
                         eq("store_id", storeId)
-                        eq("category", categoryName)
-                    }
-                    limit(1)
-                }.decodeList<ProductRow>()
-                if (rows.isEmpty()) {
-                    supabase.postgrest["categories"].delete {
-                        filter {
-                            eq("store_id", storeId)
-                            eq("name", categoryName)
-                        }
+                        eq("id", cat.id)
                     }
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("HomeActivity", "deleteCategoryIfEmpty failed", e)
+                android.util.Log.d("HomeActivity", "Deleted empty category: $categoryName")
             }
+        } catch (e: Exception) {
+            android.util.Log.e("HomeActivity", "deleteCategoryIfEmpty failed", e)
         }
     }
 

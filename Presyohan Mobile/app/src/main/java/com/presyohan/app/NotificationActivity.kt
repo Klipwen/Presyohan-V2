@@ -11,8 +11,6 @@ import com.google.android.material.navigation.NavigationView
  
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import com.presyohan.app.Notification
 import com.presyohan.app.adapter.NotificationAdapter
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -21,17 +19,47 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import android.widget.Toast
+import java.util.UUID
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.JsonPrimitive
+
+@Serializable
+data class NotificationFullRow(
+    val id: String,
+    val receiver_user_id: String,
+    val sender_user_id: String?,
+    val store_id: String?,
+    val type: String,
+    val title: String,
+    val message: String,
+    val read: Boolean,
+    val created_at: String
+)
+
+// Local summary shape for get_user_stores RPC to avoid type name collisions
+@Serializable
+data class UserStoreLiteRow(
+    val store_id: String,
+    val name: String,
+    val branch: String? = null,
+    val type: String? = null,
+    val role: String
+)
 
 class NotificationActivity : AppCompatActivity() {
-    private var notificationListener: ListenerRegistration? = null
     private val notifications = mutableListOf<Notification>()
-    private val notificationDocIds = mutableListOf<String>()
+    private val notificationIds = mutableListOf<String>()
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_notification)
-
-        // Removed Google Play Services client setup; logout handled via Supabase only
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
         val navigationView = findViewById<NavigationView>(R.id.navigationView)
@@ -88,7 +116,7 @@ class NotificationActivity : AppCompatActivity() {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.adapterPosition
                 val notification = notifications[position]
-                val docId = notificationDocIds[position]
+                val notificationId = notificationIds[position]
                 // Show confirmation dialog
                 val dialog = Dialog(this@NotificationActivity)
                 val view = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
@@ -98,29 +126,28 @@ class NotificationActivity : AppCompatActivity() {
                 view.findViewById<TextView>(R.id.dialogTitle).text = "Delete Notification"
                 view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this notification? This action cannot be undone."
                 view.findViewById<Button>(R.id.btnCancel).setOnClickListener {
+                    adapter.notifyItemChanged(position)
                     dialog.dismiss()
-                    adapter.notifyItemChanged(position) // Restore item
                 }
                 view.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                    // Delete from Firestore
-                    val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-                    if (userId != null) {
-                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                        db.collection("users").document(userId)
-                            .collection("notifications")
-                            .document(docId)
-                            .delete()
-                            .addOnSuccessListener {
-                                dialog.dismiss()
-                            }
-                            .addOnFailureListener {
-                                android.widget.Toast.makeText(this@NotificationActivity, "Unable to delete notification.", android.widget.Toast.LENGTH_SHORT).show()
-                                adapter.notifyItemChanged(position)
-                                dialog.dismiss()
-                            }
-                    } else {
-                        adapter.notifyItemChanged(position)
-                        dialog.dismiss()
+                    lifecycleScope.launch {
+                        try {
+                            SupabaseProvider.client.postgrest["notifications"]
+                                .delete {
+                                    filter {
+                                        eq("id", notificationId)
+                                        eq("receiver_user_id", SupabaseProvider.client.auth.currentUserOrNull()?.id ?: "")
+                                    }
+                                }
+                            notifications.removeAt(position)
+                            notificationIds.removeAt(position)
+                            adapter.notifyItemRemoved(position)
+                            dialog.dismiss()
+                        } catch (e: Exception) {
+                            Toast.makeText(this@NotificationActivity, "Unable to delete notification.", Toast.LENGTH_SHORT).show()
+                            adapter.notifyItemChanged(position)
+                            dialog.dismiss()
+                        }
                     }
                 }
                 dialog.show()
@@ -128,72 +155,138 @@ class NotificationActivity : AppCompatActivity() {
         })
         itemTouchHelper.attachToRecyclerView(recyclerView)
 
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        // Set real user name and email in navigation drawer header (Supabase)
-        val navigationViewHeader = findViewById<com.google.android.material.navigation.NavigationView>(R.id.navigationView)
-        val headerView = navigationViewHeader.getHeaderView(0)
-        val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-        val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
-        userNameText.text = "User"
-        val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
-        userEmailText.text = supaUser?.email ?: ""
-        lifecycleScope.launch {
-            val name = SupabaseAuthService.getDisplayName() ?: "User"
-            userNameText.text = name
-        }
+        // Load notifications
+        loadNotifications()
+        
+        // Mark all notifications as read when activity opens
+        markAllNotificationsAsRead()
+    }
 
-        if (userId != null) {
-            // Mark all unread notifications as read
-            db.collection("users").document(userId)
-                .collection("notifications")
-                .whereEqualTo("unread", true)
-                .get()
-                .addOnSuccessListener { snapshot ->
-                    for (doc in snapshot.documents) {
-                        doc.reference.update("unread", false)
-                    }
-                }
-            notificationListener = db.collection("users").document(userId)
-                .collection("notifications")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) return@addSnapshotListener
-                    notifications.clear()
-                    notificationDocIds.clear()
-                    snapshot?.forEach { doc ->
-                        val type = doc.getString("type") ?: ""
-                        val status = doc.getString("status") ?: "Pending"
-                        val sender = doc.getString("sender") ?: ""
-                        val senderId = doc.getString("senderId")
-                        val storeName = doc.getString("storeName")
-                        val role = doc.getString("role")
-                        val timestampAny = doc.get("timestamp")
-                        val timestamp = when (timestampAny) {
-                            is Number -> timestampAny.toLong()
-                            is String -> {
-                                // Try to parse as long, then as date string
-                                timestampAny.toLongOrNull() ?: try {
-                                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(timestampAny)?.time ?: System.currentTimeMillis()
-                                } catch (e: Exception) {
-                                    System.currentTimeMillis()
-                                }
-                            }
-                            else -> System.currentTimeMillis()
+    private fun loadNotifications() {
+        lifecycleScope.launch {
+            try {
+                val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@launch
+                
+                val response = SupabaseProvider.client.postgrest["notifications"]
+                    .select(Columns.list("id", "receiver_user_id", "sender_user_id", "store_id", "type", "title", "message", "read", "created_at")) {
+                        filter {
+                            eq("receiver_user_id", userId)
                         }
-                        val message = doc.getString("message") ?: ""
-                        notifications.add(Notification(type, status, sender, senderId, storeName, role, timestamp, message))
-                        notificationDocIds.add(doc.id)
+                        order("created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                     }
-                    notifications.sortByDescending { it.timestamp }
-                    adapter.notifyDataSetChanged()
+                    .decodeList<NotificationFullRow>()
+
+                notifications.clear()
+                notificationIds.clear()
+                
+                for (row in response) {
+                    // Convert timestamp from ISO string to epoch millis
+                    val timestamp = try {
+                        java.time.Instant.parse(row.created_at).toEpochMilli()
+                    } catch (e: Exception) {
+                        System.currentTimeMillis()
+                    }
+                    
+                    // Map notification types and extract info from message
+                    val (type, status, sender, storeName, role) = parseNotificationInfo(row)
+                    
+                    notifications.add(Notification(
+                        type = type ?: "",
+                        status = status ?: "",
+                        sender = sender ?: "",
+                        senderId = row.sender_user_id ?: "",
+                        storeName = storeName ?: "",
+                        role = role ?: "",
+                        timestamp = timestamp,
+                        message = row.message
+                    ))
+                    notificationIds.add(row.id)
                 }
+                
+                runOnUiThread {
+                    findViewById<RecyclerView>(R.id.recyclerViewNotifications).adapter?.notifyDataSetChanged()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this@NotificationActivity, "Failed to load notifications", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    
+    private fun parseNotificationInfo(row: NotificationFullRow): List<String?> {
+        val type = when (row.type) {
+            "join_request" -> "Join Request"
+            "join_accepted" -> "Join Request"
+            "join_rejected" -> "Join Request"
+            "store_invitation" -> "Store Invitation"
+            "invitation_accepted" -> "Store Invitation"
+            else -> row.type
+        }
+        
+        val status = when (row.type) {
+            "join_request", "store_invitation" -> "Pending"
+            "join_accepted", "invitation_accepted" -> "Accepted"
+            "join_rejected" -> "Declined"
+            else -> "Pending"
+        }
+        
+        // Extract sender email from message or use sender_user_id
+        val sender = extractSenderFromMessage(row.message) ?: row.sender_user_id ?: "Unknown"
+        
+        // Extract store name from message
+        val storeName = extractStoreNameFromMessage(row.message)
+        
+        // Extract role from message
+        val role = extractRoleFromMessage(row.message)
+        
+        return listOf(type, status, sender, storeName, role)
+    }
+    
+    private fun extractSenderFromMessage(message: String): String? {
+        // Extract email from messages like "user@example.com invited you to join..."
+        val emailRegex = "([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})".toRegex()
+        return emailRegex.find(message)?.value
+    }
+    
+    private fun extractStoreNameFromMessage(message: String): String? {
+        // Extract store name from messages like "...join StoreName as..."
+        val joinPattern = "join\\s+([^\\s]+)\\s+".toRegex()
+        return joinPattern.find(message)?.groupValues?.get(1)
+    }
+    
+    private fun extractRoleFromMessage(message: String): String? {
+        return when {
+            message.contains("as manager") -> "manager"
+            message.contains("as employee") -> "employee"
+            else -> null
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        notificationListener?.remove()
+    private fun markAllNotificationsAsRead() {
+        lifecycleScope.launch {
+            try {
+                val unreadIds = notificationIds.filterIndexed { index, _ ->
+                    !(notifications.getOrNull(index)?.let { it.status == "Accepted" || it.status == "Declined" } ?: false)
+                }
+
+                if (unreadIds.isNotEmpty()) {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "mark_notifications_read",
+                        buildJsonObject {
+                            put(
+                                "p_notification_ids",
+                                buildJsonArray {
+                                    unreadIds.forEach { add(JsonPrimitive(it)) }
+                                }
+                            )
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                // Silently fail - not critical
+            }
+        }
     }
 
     private fun handleAccept(notification: Notification) {
@@ -202,170 +295,99 @@ class NotificationActivity : AppCompatActivity() {
             showManageJoinRequestDialog(notification)
             return
         }
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val docIndex = notifications.indexOf(notification)
-        if (docIndex == -1) return
-        val docId = notificationDocIds[docIndex]
-        // Update notification status to 'Accepted'
-        db.collection("users").document(userId)
-            .collection("notifications").document(docId)
-            .update("status", "Accepted")
-            .addOnSuccessListener {
-                // Add store to user's stores array
-                db.collection("stores").whereEqualTo("name", notification.storeName).get()
-                    .addOnSuccessListener { storeSnapshot ->
-                        if (!storeSnapshot.isEmpty) {
-                            val storeId = storeSnapshot.documents[0].id
-                            db.collection("users").document(userId)
-                                .update("stores", com.google.firebase.firestore.FieldValue.arrayUnion(storeId))
-                            db.collection("stores").document(storeId)
-                                .collection("members").document(userId)
-                                .set(mapOf("role" to (notification.role ?: "sales staff")), com.google.firebase.firestore.SetOptions.merge())
-                        }
+        
+        lifecycleScope.launch {
+            try {
+                val notificationId = notificationIds[notifications.indexOf(notification)]
+
+                SupabaseProvider.client.postgrest.rpc(
+                    "handle_store_invitation",
+                    buildJsonObject {
+                        put("p_notification_id", notificationId)
+                        put("p_action", "accept")
                     }
-                // Notify sender
-                db.collection("users").whereEqualTo("name", notification.sender).get()
-                    .addOnSuccessListener { senderSnapshot ->
-                        if (!senderSnapshot.isEmpty) {
-                            val senderId = senderSnapshot.documents[0].id
-                            val currentDisplayNameAccepted = SupabaseAuthService.getDisplayNameImmediate()
-                            val senderNotif = hashMapOf(
-                                "type" to "Store Invitation",
-                                "status" to "Accepted",
-                                "sender" to currentDisplayNameAccepted,
-                                "senderId" to userId,
-                                "storeName" to notification.storeName,
-                                "timestamp" to System.currentTimeMillis(),
-                                "message" to "$currentDisplayNameAccepted accepted your invitation to join ${notification.storeName}."
-                            )
-                            db.collection("users").document(senderId)
-                                .collection("notifications")
-                                .add(senderNotif)
-                        }
-                    }
-                // Notify invited user (self)
-                val selfNotif = hashMapOf(
-                    "type" to "Store Invitation",
-                    "status" to "Accepted",
-                    "sender" to notification.sender,
-                    "senderId" to notification.senderId,
-                    "storeName" to notification.storeName,
-                    "timestamp" to System.currentTimeMillis(),
-                    "message" to "You accepted ${notification.sender}'s invitation to join ${notification.storeName}."
                 )
-                db.collection("users").document(userId)
-                    .collection("notifications")
-                    .add(selfNotif)
+
+                Toast.makeText(this@NotificationActivity, "Invitation accepted", Toast.LENGTH_SHORT).show()
+                loadNotifications() // Refresh list
+            } catch (e: Exception) {
+                Toast.makeText(this@NotificationActivity, "Failed to accept invitation", Toast.LENGTH_SHORT).show()
             }
+        }
     }
+    
     private fun handleReject(notification: Notification) {
         if (notification.type == "Join Request") {
-            // Notify requester of rejection
-            val db = FirebaseFirestore.getInstance()
-            val userId = notification.senderId ?: return
-            val ownerId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
-            val storeName = notification.storeName ?: "Store"
-            val requesterNotif = hashMapOf(
-                "type" to "Join Request",
-                "status" to "Declined",
-                "sender" to SupabaseAuthService.getDisplayNameImmediate(),
-                "senderId" to ownerId,
-                "storeName" to storeName,
-                "role" to null,
-                "timestamp" to System.currentTimeMillis(),
-                "message" to "Your request to join $storeName was declined."
-            )
-            db.collection("users").document(userId)
-                .collection("notifications").add(requesterNotif)
-            // Update notification status to Declined for owner
-            val docIndex = notifications.indexOf(notification)
-            if (docIndex != -1) {
-                val docId = notificationDocIds[docIndex]
-                db.collection("users").document(ownerId)
-                    .collection("notifications").document(docId)
-                    .update("status", "Declined")
+            lifecycleScope.launch {
+                try {
+                    val notificationId = notificationIds[notifications.indexOf(notification)]
+
+                    SupabaseProvider.client.postgrest.rpc(
+                        "handle_join_request",
+                        buildJsonObject {
+                            put("p_notification_id", notificationId)
+                            put("p_action", "reject")
+                        }
+                    )
+
+                    Toast.makeText(this@NotificationActivity, "Join request rejected", Toast.LENGTH_SHORT).show()
+                    loadNotifications() // Refresh list
+                } catch (e: Exception) {
+                    Toast.makeText(this@NotificationActivity, "Failed to reject request", Toast.LENGTH_SHORT).show()
+                }
             }
             return
         }
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val docIndex = notifications.indexOf(notification)
-        if (docIndex == -1) return
-        val docId = notificationDocIds[docIndex]
-        db.collection("users").document(userId)
-            .collection("notifications").document(docId)
-            .update("status", "Declined")
-            .addOnSuccessListener {
-                // Notify sender
-                db.collection("users").whereEqualTo("name", notification.sender).get()
-                    .addOnSuccessListener { senderSnapshot ->
-                        if (!senderSnapshot.isEmpty) {
-                            val senderId = senderSnapshot.documents[0].id
-                            val currentDisplayNameDeclined = SupabaseAuthService.getDisplayNameImmediate()
-                            val senderNotif = hashMapOf(
-                                "type" to "Store Invitation",
-                                "status" to "Declined",
-                                "sender" to currentDisplayNameDeclined,
-                                "senderId" to userId,
-                                "storeName" to notification.storeName,
-                                "timestamp" to System.currentTimeMillis(),
-                                "message" to "$currentDisplayNameDeclined declined your invitation to join ${notification.storeName}."
-                            )
-                            db.collection("users").document(senderId)
-                                .collection("notifications")
-                                .add(senderNotif)
-                        }
+        
+        lifecycleScope.launch {
+            try {
+                val notificationId = notificationIds[notifications.indexOf(notification)]
+
+                SupabaseProvider.client.postgrest.rpc(
+                    "handle_store_invitation",
+                    buildJsonObject {
+                        put("p_notification_id", notificationId)
+                        put("p_action", "reject")
                     }
-                // Notify invited user (self)
-                val selfNotif = hashMapOf(
-                    "type" to "Store Invitation",
-                    "status" to "Declined",
-                    "sender" to notification.sender,
-                    "senderId" to notification.senderId,
-                    "storeName" to notification.storeName,
-                    "timestamp" to System.currentTimeMillis(),
-                    "message" to "You declined ${notification.sender}'s invitation to join ${notification.storeName}."
                 )
-                db.collection("users").document(userId)
-                    .collection("notifications")
-                    .add(selfNotif)
+
+                Toast.makeText(this@NotificationActivity, "Invitation rejected", Toast.LENGTH_SHORT).show()
+                loadNotifications() // Refresh list
+            } catch (e: Exception) {
+                Toast.makeText(this@NotificationActivity, "Failed to reject invitation", Toast.LENGTH_SHORT).show()
             }
+        }
     }
+    
     private fun handleViewStore(notification: Notification) {
         // Open HomeActivity for the store referenced in the notification
         val storeName = notification.storeName ?: return
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
-        db.collection("stores").whereEqualTo("name", storeName).get()
-            .addOnSuccessListener { storeSnapshot ->
-                if (!storeSnapshot.isEmpty) {
-                    val storeDoc = storeSnapshot.documents[0]
-                    val storeId = storeDoc.id
-                    // Check if user is a member
-                    db.collection("stores").document(storeId)
-                        .collection("members").document(userId)
-                        .get()
-                        .addOnSuccessListener { memberDoc ->
-                            if (memberDoc.exists()) {
-        val intent = android.content.Intent(this, com.presyohan.app.HomeActivity::class.java)
-                                intent.putExtra("storeId", storeId)
-                                intent.putExtra("storeName", storeName)
-                                startActivity(intent)
-                            } else {
-                                android.widget.Toast.makeText(this, "You are not a member of this store.", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                        .addOnFailureListener {
-                            android.widget.Toast.makeText(this, "Unable to check membership.", android.widget.Toast.LENGTH_SHORT).show()
-                        }
+        
+        lifecycleScope.launch {
+            try {
+                val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@launch
+                
+                // Get user's stores to find the store ID
+                val userStores = SupabaseProvider.client.postgrest.rpc("get_user_stores")
+                    .decodeList<UserStoreLiteRow>()
+                
+                val store = userStores.find { it.name == storeName }
+                if (store != null) {
+                    val intent = Intent(this@NotificationActivity, HomeActivity::class.java)
+                    intent.putExtra("storeId", store.store_id)
+                    intent.putExtra("storeName", storeName)
+                    startActivity(intent)
                 } else {
-                    android.widget.Toast.makeText(this, "Store not found or no longer exists.", android.widget.Toast.LENGTH_SHORT).show()
+                    runOnUiThread {
+                        Toast.makeText(this@NotificationActivity, "You are not a member of this store.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this@NotificationActivity, "Unable to open store.", Toast.LENGTH_SHORT).show()
                 }
             }
-            .addOnFailureListener {
-                android.widget.Toast.makeText(this, "Unable to open store.", android.widget.Toast.LENGTH_SHORT).show()
-            }
+        }
     }
 
     private fun showManageJoinRequestDialog(notification: Notification) {
@@ -386,47 +408,32 @@ class NotificationActivity : AppCompatActivity() {
 
         btnBack.setOnClickListener { dialog.dismiss() }
         btnAccept.setOnClickListener {
-            val selectedRole = if (radioManager.isChecked) "manager" else "sales staff"
-            // Add user to store with selected role
-            val db = FirebaseFirestore.getInstance()
-            db.collection("stores").whereEqualTo("name", notification.storeName).get()
-                .addOnSuccessListener { storeSnapshot ->
-                    if (!storeSnapshot.isEmpty) {
-                        val storeId = storeSnapshot.documents[0].id
-                        val userId = notification.senderId ?: return@addOnSuccessListener
-                        db.collection("users").document(userId).get().addOnSuccessListener { userDoc ->
-                            val name = userDoc.getString("name") ?: ""
-                            db.collection("stores").document(storeId)
-                                .collection("members").document(userId)
-                                .set(mapOf("role" to selectedRole, "name" to name), com.google.firebase.firestore.SetOptions.merge())
-                            db.collection("users").document(userId)
-                                .update("stores", com.google.firebase.firestore.FieldValue.arrayUnion(storeId))
-                            // Update notification status to Accepted for owner
-                            val ownerId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@addOnSuccessListener
-                            val docIndex = notifications.indexOf(notification)
-                            if (docIndex != -1) {
-                                val docId = notificationDocIds[docIndex]
-                                db.collection("users").document(ownerId)
-                                    .collection("notifications").document(docId)
-                                    .update("status", "Accepted", "role", selectedRole)
-                            }
-                            // Notify requester
-                            val requesterNotif = hashMapOf(
-                                "type" to "Join Request",
-                                "status" to "Accepted",
-                                "sender" to SupabaseAuthService.getDisplayNameImmediate(),
-                                "senderId" to ownerId,
-                                "storeName" to notification.storeName,
-                                "role" to selectedRole,
-                                "timestamp" to System.currentTimeMillis(),
-                                "message" to "Your request to join $storeName was accepted."
-                            )
-                            db.collection("users").document(userId)
-                                .collection("notifications").add(requesterNotif)
-                            dialog.dismiss()
+            val selectedRole = if (radioManager.isChecked) "manager" else "employee"
+            
+            lifecycleScope.launch {
+                try {
+                    val notificationId = notificationIds[notifications.indexOf(notification)]
+
+                    SupabaseProvider.client.postgrest.rpc(
+                        "handle_join_request",
+                        buildJsonObject {
+                            put("p_notification_id", notificationId)
+                            put("p_action", "accept")
+                            put("p_role", selectedRole)
                         }
+                    )
+
+                    runOnUiThread {
+                        Toast.makeText(this@NotificationActivity, "Join request accepted", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                        loadNotifications() // Refresh list
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@NotificationActivity, "Failed to accept request", Toast.LENGTH_SHORT).show()
                     }
                 }
+            }
         }
         dialog.show()
     }

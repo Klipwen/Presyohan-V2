@@ -12,7 +12,12 @@ import com.google.android.material.button.MaterialButton
 import androidx.appcompat.widget.AppCompatButton
 import com.presyohan.app.adapter.ManageItemsAdapter
 import com.presyohan.app.adapter.ManageItemData
-import com.google.firebase.firestore.FirebaseFirestore
+// ... existing code ...
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.put
 import android.widget.Spinner
 import android.widget.ArrayAdapter
 import android.app.Dialog
@@ -85,28 +90,42 @@ class ManageItemsActivity : AppCompatActivity() {
                             adapter.updateItems(filteredItems)
                             hasChanges = true
                             updateItemCounter()
-                            // Delete from Firestore
                             val storeId = intent.getStringExtra("storeId")
                             if (!storeId.isNullOrBlank()) {
-                                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                                db.collection("stores").document(storeId)
-                                    .collection("products").document(item.id)
-                                    .delete()
-                            }
-                            // Check if the category is now empty and delete it from Firestore
-                            val categoryToCheck = item.category
-                            if (categoryToCheck.isNotBlank() && allItems.none { it.category == categoryToCheck }) {
-                                val storeId = intent.getStringExtra("storeId")
-                                if (!storeId.isNullOrBlank()) {
-                                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                                    db.collection("stores").document(storeId)
-                                        .collection("categories")
-                                        .whereEqualTo("name", categoryToCheck)
-                                        .get().addOnSuccessListener { querySnapshot ->
-                                            if (!querySnapshot.isEmpty) {
-                                                querySnapshot.documents[0].reference.delete()
+                                lifecycleScope.launch {
+                                    try {
+                                        // Delete from Supabase products
+                                        SupabaseProvider.client.postgrest["products"].delete {
+                                            filter {
+                                                eq("id", item.id)
+                                                eq("store_id", storeId)
                                             }
                                         }
+                                        // If no items remain in this category, delete category from Supabase
+                                        val categoryToCheck = item.category
+                                        if (categoryToCheck.isNotBlank() && allItems.none { it.category == categoryToCheck }) {
+                                            @Serializable
+                                            data class MinimalCategoryRow(val id: String, val store_id: String, val name: String)
+                                            @Serializable
+                                            data class MinimalProductRow(val id: String, val store_id: String, val category_id: String)
+                                            val cats = SupabaseProvider.client.postgrest["categories"].select {
+                                                filter { eq("store_id", storeId); eq("name", categoryToCheck) }
+                                                limit(1)
+                                            }.decodeList<MinimalCategoryRow>()
+                                            val catId = cats.firstOrNull()?.id
+                                            if (!catId.isNullOrBlank()) {
+                                                val prods = SupabaseProvider.client.postgrest["products"].select {
+                                                    filter { eq("store_id", storeId); eq("category_id", catId) }
+                                                    limit(1)
+                                                }.decodeList<MinimalProductRow>()
+                                                if (prods.isEmpty()) {
+                                                    SupabaseProvider.client.postgrest["categories"].delete {
+                                                        filter { eq("id", catId); eq("store_id", storeId) }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch (_: Exception) { /* noop */ }
                                 }
                             }
                         } catch (e: Exception) {
@@ -131,50 +150,61 @@ class ManageItemsActivity : AppCompatActivity() {
             categoryLabel.text = filterCategory.replaceFirstChar { it.uppercase() }
         }
 
-        // Fetch items and categories from Firestore
-        val db = FirebaseFirestore.getInstance()
-        db.collection("stores").document(storeId).collection("products").get()
-            .addOnSuccessListener { result ->
-                try {
-                    allItems.clear()
-                    categories.clear()
-                    val categorySet = mutableSetOf<String>()
-                    for (doc in result) {
-                        val name = doc.getString("name") ?: ""
-                        val description = doc.getString("description") ?: ""
-                        val price = doc.getDouble("price") ?: 0.0
-                        val unit = doc.getString("units") ?: "" // Fix: use 'unit' for ManageItemData
-                        val category = doc.getString("category") ?: ""
-                        allItems.add(ManageItemData(doc.id, name, unit, price, description, category))
-                        if (category.isNotBlank()) categorySet.add(category)
-                    }
-                    allItems.sortBy { it.name.lowercase() }
-                    categories.add("All")
-                    categories.addAll(categorySet.sortedBy { it.lowercase() })
-                    updateFilter()
+        // Fetch items and categories from Supabase via resilient RPC
+        lifecycleScope.launch {
+            try {
+                @kotlinx.serialization.Serializable
+                data class UserProductRow(
+                    val product_id: String,
+                    val store_id: String,
+                    val name: String,
+                    val description: String? = null,
+                    val price: Double = 0.0,
+                    val units: String? = null,
+                    val category: String? = null
+                )
 
-                    // Remove spinner logic for category selection
-                    // categorySpinner.adapter = spinnerAdapter
-                    // categorySpinner.setSelection(0)
-                    // categorySpinner.onItemSelectedListener = ...
-                    // categoryDrawerButton.setOnClickListener { categorySpinner.performClick() }
-                    categoryDrawerButton.setOnClickListener { showCategoryDialog() }
-                    // Set label to selected category or ALL ITEMS
-                    if (!selectedCategory.isNullOrBlank()) {
-                        categoryLabel.text = selectedCategory!!.replaceFirstChar { it.uppercase() }
-                    } else {
-                        categoryLabel.text = "ALL ITEMS"
+                val sId = storeId
+                val rows = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_products",
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("p_store_id", sId)
+                        selectedCategory?.takeIf { it != "PRICELIST" && it.isNotBlank() }?.let {
+                            put("p_category_filter", it)
+                        }
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("ManageItems", "Fetch error: ${e.localizedMessage}")
-                    android.widget.Toast.makeText(this, "Unable to load items.", android.widget.Toast.LENGTH_LONG).show()
-                    finish()
+                ).decodeList<UserProductRow>()
+
+                allItems.clear()
+                categories.clear()
+                val categorySet = mutableSetOf<String>()
+                for (row in rows) {
+                    val name = row.name
+                    val description = row.description ?: ""
+                    val price = row.price
+                    val unit = row.units ?: ""
+                    val category = row.category ?: ""
+                    allItems.add(ManageItemData(row.product_id, name, unit, price, description, category))
+                    if (category.isNotBlank()) categorySet.add(category)
                 }
-            }
-            .addOnFailureListener { e ->
-                android.widget.Toast.makeText(this, "Unable to fetch items.", android.widget.Toast.LENGTH_LONG).show()
+                allItems.sortBy { it.name.lowercase() }
+                categories.add("All")
+                categories.addAll(categorySet.sortedBy { it.lowercase() })
+                updateFilter()
+
+                categoryDrawerButton.setOnClickListener { showCategoryDialog() }
+                // Set label to selected category or ALL ITEMS
+                if (!selectedCategory.isNullOrBlank()) {
+                    categoryLabel.text = selectedCategory!!.replaceFirstChar { it.uppercase() }
+                } else {
+                    categoryLabel.text = "ALL ITEMS"
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ManageItems", "Fetch error: ${e.localizedMessage}")
+                android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to load items.", android.widget.Toast.LENGTH_LONG).show()
                 finish()
             }
+        }
 
         // Done button with confirmation dialog
         doneButton.setOnClickListener {
@@ -197,34 +227,69 @@ class ManageItemsActivity : AppCompatActivity() {
                         dialog.dismiss()
                         return@setOnClickListener
                     }
-                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    val batch = db.batch()
-                    // Save all items in allItems to Firestore
-                    for (item in allItems) {
-                        val docRef = db.collection("stores").document(storeId).collection("products").document(item.id)
-                        val data = hashMapOf(
-                            "name" to item.name,
-                            "description" to item.description,
-                            "price" to item.price,
-                            "units" to item.unit,
-                            "category" to item.category
-                        )
-                        batch.set(docRef, data)
-                    }
-                    batch.commit().addOnSuccessListener {
-                        hasChanges = false
-                        dialog.dismiss()
-                        // Navigate to HomeActivity with storeId and storeName
-                        val storeName = intent.getStringExtra("storeName")
-                        val homeIntent = android.content.Intent(this@ManageItemsActivity, HomeActivity::class.java)
-                        homeIntent.putExtra("storeId", storeId)
-                        homeIntent.putExtra("storeName", storeName)
-                        homeIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        startActivity(homeIntent)
-                        finish()
-                    }.addOnFailureListener { e ->
-                        android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to save items.", android.widget.Toast.LENGTH_LONG).show()
-                        dialog.dismiss()
+                    // Save all items to Supabase
+                    lifecycleScope.launch {
+                        try {
+                            // Preload categories for mapping name -> id
+
+                            val existingCategories = SupabaseProvider.client.postgrest.rpc(
+                                "get_user_categories",
+                                kotlinx.serialization.json.buildJsonObject { put("p_store_id", storeId) }
+                            ).decodeList<UserCategoryRow>()
+                            val categoryMap = existingCategories.associate { it.name to it.category_id }.toMutableMap()
+
+                            for (item in allItems) {
+                                // Resolve or create category
+                                val catName = item.category.trim()
+                                val categoryId = if (catName.isBlank()) {
+                                    null
+                                } else {
+                                    categoryMap[catName] ?: run {
+                                        // Create missing category via RPC
+                                        val inserted = SupabaseProvider.client.postgrest.rpc(
+                                            "add_category",
+                                            kotlinx.serialization.json.buildJsonObject {
+                                                put("p_store_id", storeId)
+                                                put("p_name", catName)
+                                            }
+                                        ).decodeList<NewCategoryRow>()
+                                        val newId = inserted.firstOrNull()?.category_id
+                                        if (!newId.isNullOrBlank()) {
+                                            categoryMap[catName] = newId
+                                        }
+                                        newId
+                                    }
+                                }
+
+                                // Update product row in Supabase
+                                val updatePayload = mapOf(
+                                    "name" to item.name,
+                                    "description" to item.description,
+                                    "price" to item.price,
+                                    "unit" to item.unit,
+                                    // Use category_id if available; Postgrest will set NULL if absent
+                                    "category_id" to categoryId
+                                )
+                                SupabaseProvider.client.postgrest["products"].update(updatePayload) {
+                                    filter { eq("id", item.id); eq("store_id", storeId) }
+                                }
+                            }
+
+                            hasChanges = false
+                            dialog.dismiss()
+                            // Navigate to HomeActivity with storeId and storeName
+                            val storeName = intent.getStringExtra("storeName")
+                            val homeIntent = android.content.Intent(this@ManageItemsActivity, HomeActivity::class.java)
+                            homeIntent.putExtra("storeId", storeId)
+                            homeIntent.putExtra("storeName", storeName)
+                            homeIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(homeIntent)
+                            finish()
+                        } catch (e: Exception) {
+                            android.util.Log.e("ManageItems", "Save error: ${e.localizedMessage}")
+                            android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to save items.", android.widget.Toast.LENGTH_LONG).show()
+                            dialog.dismiss()
+                        }
                     }
                 }
             }
@@ -302,3 +367,9 @@ class ManageItemsActivity : AppCompatActivity() {
         builder.show()
     }
 }
+
+@kotlinx.serialization.Serializable
+data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
+
+@kotlinx.serialization.Serializable
+data class NewCategoryRow(val category_id: String, val store_id: String, val name: String)

@@ -19,6 +19,13 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
 import com.google.android.material.button.MaterialButton
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.put
+import io.github.jan.supabase.postgrest.postgrest
 
 class AddMultipleItemsActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
@@ -27,6 +34,9 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private lateinit var itemCounter: TextView
     private val categories = mutableListOf<CategoryWithItems>()
     private val categoryNames = mutableListOf<String>()
+    private val categoryIdByName = mutableMapOf<String, String>()
+    private val createdCategories = mutableSetOf<String>()
+    private val emptiedCategories = mutableSetOf<String>()
     private var storeId: String? = null
     private var storeName: String? = null
 
@@ -67,15 +77,10 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 val categoryName = categories[categoryPos].categoryName
                 items.removeAt(itemPos)
                 items.forEachIndexed { idx, item -> item.itemNumber = idx + 1 }
-                // If no items left, remove the category card and delete the category from Firestore
+                // If no items left, remove the category card
                 if (items.isEmpty()) {
-                    val storeId = storeId
-                    if (storeId != null) {
-                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                        db.collection("stores").document(storeId)
-                            .collection("categories").document(categoryName)
-                            .delete()
-                    }
+                    // Track that this category became empty in this session
+                    emptiedCategories.add(categoryName)
                     categories.removeAt(categoryPos)
                     adapter.notifyDataSetChanged()
                 } else {
@@ -120,11 +125,11 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 btnCancel.setOnClickListener { dialog.dismiss() }
                 btnDelete.setOnClickListener {
                     dialog.dismiss()
-                    saveAllItemsToFirestore()
+            saveAllItemsToSupabase()
                 }
                 dialog.show()
             } else {
-                saveAllItemsToFirestore()
+            saveAllItemsToSupabase()
             }
         }
         val btnBack = findViewById<ImageView>(R.id.btnBack)
@@ -170,28 +175,38 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     }
 
     private fun showCategoryDialogWithFetch() {
-        fetchCategoriesFromFirestore {
+        fetchCategoriesFromSupabase {
             showCategorySelectionDialog()
         }
     }
 
-    private fun fetchCategoriesFromFirestore(onFetched: () -> Unit) {
-        storeId?.let { id ->
-            com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                .collection("stores").document(id)
-                .collection("categories")
-                .get()
-                .addOnSuccessListener { result ->
-                    categoryNames.clear()
-                    for (doc in result) {
-                        val name = doc.getString("name")
-                        if (name != null && !categoryNames.contains(name)) {
-                            categoryNames.add(name)
-                        }
+    @Serializable
+    private data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
+
+    private fun fetchCategoriesFromSupabase(onFetched: () -> Unit) {
+        val id = storeId ?: return
+        lifecycleScope.launch {
+            try {
+                val rows = SupabaseProvider.client.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", id) }
+                ).decodeList<UserCategoryRow>()
+                categoryNames.clear()
+                categoryIdByName.clear()
+                for (row in rows) {
+                    if (!categoryNames.contains(row.name)) {
+                        categoryNames.add(row.name)
+                        categoryIdByName[row.name] = row.category_id
                     }
-                    categoryNames.add("Add new Category")
-                    onFetched()
                 }
+                categoryNames.add("Add new Category")
+                onFetched()
+            } catch (e: Exception) {
+                android.util.Log.e("AddMultipleItems", "Fetch categories error: ${e.localizedMessage}", e)
+                categoryNames.clear()
+                categoryNames.add("Add new Category")
+                onFetched()
+            }
         }
     }
 
@@ -225,22 +240,35 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         val btnAdd = view.findViewById<android.widget.Button>(R.id.btnAdd)
         val btnBack = view.findViewById<android.widget.Button>(R.id.btnBack)
 
+        @Serializable
+        data class NewCategoryRow(val category_id: String, val store_id: String, val name: String)
+
         btnAdd.setOnClickListener {
             val category = input.text.toString().trim()
             if (category.isNotEmpty()) {
-                // Save to Firestore with auto-generated ID
-                val storeId = intent.getStringExtra("storeId") ?: return@setOnClickListener
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                val categoryData = hashMapOf("name" to category)
-                db.collection("stores").document(storeId)
-                    .collection("categories").add(categoryData)
-                    .addOnSuccessListener {
+                val sId = storeId ?: return@setOnClickListener
+                lifecycleScope.launch {
+                    try {
+                        val inserted = SupabaseProvider.client.postgrest.rpc(
+                            "add_category",
+                            buildJsonObject {
+                                put("p_store_id", sId)
+                                put("p_name", category)
+                            }
+                        ).decodeList<NewCategoryRow>()
+                        val newId = inserted.firstOrNull()?.category_id
+                        if (!newId.isNullOrBlank()) {
+                            categoryIdByName[category] = newId
+                        }
+                        // Track categories created in this session
+                        createdCategories.add(category)
                         onCategoryAdded(category)
                         dialog.dismiss()
-                    }
-                    .addOnFailureListener {
+                    } catch (e: Exception) {
+                        android.util.Log.e("AddMultipleItems", "add_category RPC failed: ${e.localizedMessage}", e)
                         input.error = "Failed to add category"
                     }
+                }
             } else {
                 input.error = "Enter a category name"
             }
@@ -271,59 +299,113 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveAllItemsToFirestore() {
-        val storeId = storeId ?: return
-        val storeName = storeName
-        val allItems = mutableListOf<Map<String, Any>>()
-        val categoriesToCheck = mutableListOf<String>()
-        for (category in categories) {
-            if (category.items.isEmpty()) {
-                categoriesToCheck.add(category.categoryName)
-            }
-            for (item in category.items) {
-                val name = item.name.trim()
-                val unit = item.unit.trim()
-                val price = item.price.trim()
-                if (name.isBlank() || unit.isBlank() || price.isBlank()) {
-                    Toast.makeText(this, "Complete all required fields for every item.", Toast.LENGTH_SHORT).show()
-                    return
+    private fun saveAllItemsToSupabase() {
+        val sId = storeId ?: return
+        val sName = storeName
+        lifecycleScope.launch {
+            try {
+                var totalCount = 0
+                for (category in categories) {
+                    val catName = category.categoryName
+                    // Ensure category_id is available; create if missing
+                    var catId = categoryIdByName[catName]
+                    if (catId.isNullOrBlank()) {
+                        @Serializable
+                        data class NewCategoryRow(val category_id: String, val store_id: String, val name: String)
+                        val inserted = SupabaseProvider.client.postgrest.rpc(
+                            "add_category",
+                            buildJsonObject { put("p_store_id", sId); put("p_name", catName) }
+                        ).decodeList<NewCategoryRow>()
+                        catId = inserted.firstOrNull()?.category_id
+                        if (!catId.isNullOrBlank()) {
+                            categoryIdByName[catName] = catId
+                        }
+                        // Track categories created in this session when auto-creating
+                        createdCategories.add(catName)
+                    }
+                    for (item in category.items) {
+                        val name = item.name.trim()
+                        val unit = item.unit.trim()
+                        val priceStr = item.price.trim()
+                        if (name.isBlank() || unit.isBlank() || priceStr.isBlank()) {
+                            Toast.makeText(this@AddMultipleItemsActivity, "Complete all required fields for every item.", Toast.LENGTH_SHORT).show()
+                            return@launch
+                        }
+                        val priceVal = priceStr.toDoubleOrNull() ?: 0.0
+                        val desc = item.description.trim().takeIf { it.isNotBlank() }
+                        val payload = buildJsonObject {
+                            put("p_store_id", sId)
+                            put("p_name", name)
+                            if (desc != null) put("p_description", desc) else put("p_description", JsonNull)
+                            put("p_price", priceVal)
+                            put("p_unit", unit)
+                            if (!catId.isNullOrBlank()) put("p_category_id", catId!!) else put("p_category_id", JsonNull)
+                        }
+                        try {
+                            SupabaseProvider.client.postgrest.rpc("add_product", payload)
+                            totalCount += 1
+                        } catch (e: Exception) {
+                            android.util.Log.e("AddMultipleItems", "add_product RPC failed: ${e.localizedMessage}", e)
+                            Toast.makeText(this@AddMultipleItemsActivity, "Unable to add items.", Toast.LENGTH_SHORT).show()
+                            return@launch
+                        }
+                    }
                 }
-                val data = hashMapOf(
-                    "name" to name,
-                    "units" to unit,
-                    "price" to (price.toDoubleOrNull() ?: 0.0),
-                    "description" to item.description.trim(),
-                    "category" to category.categoryName
-                )
-                allItems.add(data)
+                // After saving, delete any categories that ended up with no items (new or existing)
+                try {
+                    @Serializable
+                    data class MinimalProductRow(val id: String)
+                    @Serializable
+                    data class MinimalCategoryRow(val id: String)
+                    val candidateNames = mutableSetOf<String>()
+                    candidateNames.addAll(createdCategories)
+                    candidateNames.addAll(emptiedCategories)
+                    // Also include any current cards that are empty
+                    candidateNames.addAll(categories.filter { it.items.isEmpty() }.map { it.categoryName })
+
+                    for (name in candidateNames) {
+                        // Resolve category id by name; fallback to DB lookup if missing
+                        var catId = categoryIdByName[name]
+                        if (catId.isNullOrBlank()) {
+                            val cats = SupabaseProvider.client.postgrest["categories"].select {
+                                filter { eq("store_id", sId); eq("name", name) }
+                                limit(1)
+                            }.decodeList<MinimalCategoryRow>()
+                            catId = cats.firstOrNull()?.id
+                            if (!catId.isNullOrBlank()) {
+                                categoryIdByName[name] = catId
+                            }
+                        }
+                        if (!catId.isNullOrBlank()) {
+                            val prods = SupabaseProvider.client.postgrest["products"].select {
+                                filter { eq("store_id", sId); eq("category_id", catId!!) }
+                                limit(1)
+                            }.decodeList<MinimalProductRow>()
+                            if (prods.isEmpty()) {
+                                SupabaseProvider.client.postgrest["categories"].delete {
+                                    filter { eq("id", catId!!); eq("store_id", sId) }
+                                }
+                                android.util.Log.d("AddMultipleItems", "Deleted empty category: $name")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AddMultipleItems", "Cleanup empty categories failed: ${e.localizedMessage}", e)
+                }
+                if (totalCount == 0) {
+                    Toast.makeText(this@AddMultipleItemsActivity, "No items to save.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                Toast.makeText(this@AddMultipleItemsActivity, "Items added.", Toast.LENGTH_SHORT).show()
+                val intent = android.content.Intent(this@AddMultipleItemsActivity, HomeActivity::class.java)
+                intent.putExtra("storeId", sId)
+                intent.putExtra("storeName", sName)
+                startActivity(intent)
+                finish()
+            } catch (e: Exception) {
+                android.util.Log.e("AddMultipleItems", "Save items error: ${e.localizedMessage}", e)
+                Toast.makeText(this@AddMultipleItemsActivity, "Unable to add items.", Toast.LENGTH_SHORT).show()
             }
-        }
-        if (allItems.isEmpty()) {
-            Toast.makeText(this, "No items to save.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val storeRef = db.collection("stores").document(storeId).collection("products")
-        val batch = db.batch()
-        for (item in allItems) {
-            val newDoc = storeRef.document()
-            batch.set(newDoc, item)
-        }
-        batch.commit().addOnSuccessListener {
-            // After saving, delete any empty categories from Firestore
-            for (categoryName in categoriesToCheck) {
-                db.collection("stores").document(storeId)
-                    .collection("categories").document(categoryName)
-                    .delete()
-            }
-            Toast.makeText(this, "Items added.", Toast.LENGTH_SHORT).show()
-            val intent = android.content.Intent(this, HomeActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-            finish()
-        }.addOnFailureListener {
-            Toast.makeText(this, "Unable to add items.", Toast.LENGTH_SHORT).show()
         }
     }
 }

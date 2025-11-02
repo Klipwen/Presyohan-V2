@@ -118,7 +118,7 @@
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
-    opacity: 0.18; /* low opacity per request */
+    opacity: 0.08; /* low opacity per request */
     pointer-events: none;
     z-index: 0;
 }

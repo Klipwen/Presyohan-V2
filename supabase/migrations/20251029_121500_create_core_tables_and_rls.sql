@@ -123,7 +123,7 @@ CREATE POLICY products_insert_admins ON public.products
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   );
 DROP POLICY IF EXISTS products_update_admins ON public.products;
@@ -132,13 +132,13 @@ CREATE POLICY products_update_admins ON public.products
   USING (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   );
 DROP POLICY IF EXISTS products_delete_admins ON public.products;
@@ -147,7 +147,7 @@ CREATE POLICY products_delete_admins ON public.products
   USING (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.products.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   );
 
@@ -157,7 +157,7 @@ CREATE POLICY categories_insert_admins ON public.categories
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   );
 DROP POLICY IF EXISTS categories_update_admins ON public.categories;
@@ -166,13 +166,13 @@ CREATE POLICY categories_update_admins ON public.categories
   USING (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   );
 DROP POLICY IF EXISTS categories_delete_admins ON public.categories;
@@ -181,7 +181,7 @@ CREATE POLICY categories_delete_admins ON public.categories
   USING (
     EXISTS (
       SELECT 1 FROM public.store_members m
-      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','admin')
+      WHERE m.store_id = public.categories.store_id AND m.user_id = auth.uid() AND m.role IN ('owner','manager')
     )
   );
 
