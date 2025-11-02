@@ -10,19 +10,37 @@ import { useNavigate } from 'react-router-dom';
 export default function StoresPage() {
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [stores, setStores] = useState([
-    { id: 'demo-1', name: 'Gaisano Grand Mall', branch: 'Colon Street, Cebu City' },
-    { id: 'demo-2', name: 'SM City Cebu', branch: 'North Reclamation Area' }
-  ]);
+  const [stores, setStores] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to login if no session
-    const check = async () => {
+    // Redirect to login if no session, then load stores via RPC
+    const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) navigate('/login', { replace: true });
+      if (!session) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      try {
+        const { data, error } = await supabase.rpc('get_user_stores');
+        if (error) {
+          console.warn('Failed to load stores:', error);
+          return;
+        }
+        // Map RPC rows to UI shape
+        const mapped = (data || []).map(r => ({
+          id: r.store_id,
+          name: r.name,
+          branch: r.branch || '',
+          type: r.type || 'Type',
+          role: r.role || null
+        }));
+        setStores(mapped);
+      } catch (e) {
+        console.warn('Unexpected error loading stores:', e);
+      }
     };
-    check();
+    init();
   }, [navigate]);
 
   const toggleSideMenu = () => setSideMenuOpen(v => !v);
@@ -81,7 +99,14 @@ export default function StoresPage() {
 
         <div className="stores-grid" id="storesGrid">
           {stores.map((s) => (
-            <StoreCard key={s.id} name={s.name} location={s.branch} href="/store" />
+            <StoreCard
+              key={s.id}
+              name={s.name}
+              location={s.branch}
+              type={s.type}
+              role={s.role}
+              href={`/store?id=${encodeURIComponent(s.id)}`}
+            />
           ))}
         </div>
       </div>

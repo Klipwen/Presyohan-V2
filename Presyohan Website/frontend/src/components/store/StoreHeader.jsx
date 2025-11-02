@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import storeIcon from '../../assets/icon_store.png';
 
-export default function StoreHeader({ storeName, storeBranch, onBack }) {
+export default function StoreHeader({ storeName, storeBranch, onBack, storeIcon: iconSrc }) {
   const navigate = useNavigate();
   return (
     <div style={{
@@ -33,19 +34,12 @@ export default function StoreHeader({ storeName, storeBranch, onBack }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div style={{
-          width: '45px',
-          height: '45px',
-          background: '#ff8c00',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <svg width="28" height="28" fill="white" viewBox="0 0 24 24">
-            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
-          </svg>
-        </div>
+        {/* Store icon without background */}
+        <img
+          src={iconSrc || storeIcon}
+          alt={storeName || 'Store'}
+          style={{ width: '45px', height: '45px', borderRadius: '8px' }}
+        />
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: '1.3rem', fontWeight: '700', margin: 0, color: '#ff8c00' }}>{storeName}</h1>
           <p style={{ fontSize: '0.85rem', color: '#999', margin: 0 }}>| {storeBranch}</p>

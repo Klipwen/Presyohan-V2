@@ -59,6 +59,52 @@
   color: #333;
 }
 
+/* Name row to align role indicator */
+.store-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Store type text (placeholder and real value) */
+.store-type {
+  font-size: 0.95rem;
+  margin: 0 0 6px 0;
+  color: #F48C06; /* Match mobile type color */
+  text-align: center;
+}
+
+/* Role-based indicator dot */
+/* Top-left indicator */
+.store-indicator {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.indicator-dot.owner {
+  background: #FFB703; /* Presyo mobile bg yellow */
+}
+
+.indicator-dot.member {
+  background: #596679; /* Other users' store */
+}
+
+.indicator-label {
+  font-size: 0.85rem;
+  color: #596679;
+}
+
 .store-location {
   display: flex;
   align-items: center;

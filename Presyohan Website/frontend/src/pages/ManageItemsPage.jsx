@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../styles/StoresPage.css';
 import StoreHeader from '../components/layout/StoreHeader';
 import '../styles/ManageItemsPage.css';
@@ -6,11 +6,15 @@ import MobileCategorySelect from '../components/manage/MobileCategorySelect';
 import ManageHeader from '../components/manage/ManageHeader';
 import CategorySidebar from '../components/manage/CategorySidebar';
 import ItemsList from '../components/manage/ItemsList';
+import { supabase } from '../config/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 export default function ManageItemsPage() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Items');
   const [showMobileCategories, setShowMobileCategories] = useState(false);
+  const [stores, setStores] = useState([]);
   
   const [categories] = useState([
     { id: 0, name: 'All Items' },
@@ -91,6 +95,30 @@ export default function ManageItemsPage() {
     return acc;
   }, {});
 
+  // Load user stores for sidebar dropdown
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      try {
+        const { data, error } = await supabase.rpc('get_user_stores');
+        if (error) {
+          console.warn('Failed to load stores:', error);
+          return;
+        }
+        const rows = Array.isArray(data) ? data : [];
+        const mapped = rows.map(r => ({ id: r.store_id, name: r.name, branch: r.branch || '' }));
+        setStores(mapped);
+      } catch (e) {
+        console.warn('Unexpected error loading stores:', e);
+      }
+    };
+    init();
+  }, [navigate]);
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -98,7 +126,7 @@ export default function ManageItemsPage() {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       paddingBottom: '80px'
     }}>
-      <StoreHeader />
+      <StoreHeader stores={stores} />
       {/* ... existing code ... */}
       {/* Header */}
       <ManageHeader />

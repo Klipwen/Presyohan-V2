@@ -3,6 +3,7 @@ import storeHeaderLogo from '../../assets/presyohan_logo.png';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../config/supabaseClient';
 import '../../styles/StoreHeader.css';
+import storeIcon from '../../assets/icon_store.png';
 
 // StoreHeader with side-menu layout
 export default function StoreHeader({ userName = 'User Name', userEmail = 'email@example.com', stores = [], onLogout }) {
@@ -84,24 +85,18 @@ export default function StoreHeader({ userName = 'User Name', userEmail = 'email
                     className="submenu-item"
                     onClick={closeSideMenu}
                   >
-                    <svg fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-                    </svg>
+                    <img src={storeIcon} alt="Store" className="submenu-store-icon" />
                     <span>{s.name}{s.branch ? ` — ${s.branch}` : ''}</span>
                   </Link>
                 ))
               ) : (
                 <>
                   <Link to="/stores" className="submenu-item" onClick={closeSideMenu}>
-                    <svg fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
-                    </svg>
+                    <img src={storeIcon} alt="Stores" className="submenu-store-icon" />
                     <span>All Stores</span>
                   </Link>
                   <Link to="/store" className="submenu-item" onClick={closeSideMenu}>
-                    <svg fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-                    </svg>
+                    <img src={storeIcon} alt="Shop" className="submenu-store-icon" />
                     <span>Shop Products</span>
                   </Link>
                 </>

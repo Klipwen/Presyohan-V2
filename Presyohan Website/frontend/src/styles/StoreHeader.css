@@ -21,6 +21,14 @@
   height: 20px;
 }
 
+/* Image-based icon for submenu, rendered black */
+.submenu-store-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: brightness(0);
+}
+
 .submenu-toggle-caret {
   transition: transform 0.2s ease;
 }

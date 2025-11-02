@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../styles/StoresPage.css';
 import '../styles/StorePage.css';
 import StoreHeader from '../components/layout/StoreHeader';
@@ -6,10 +6,20 @@ import StoreBanner from '../components/store/StoreHeader';
 import StoreSearchBar from '../components/store/StoreSearchBar';
 import CategorySidebar from '../components/store/CategorySidebar';
 import ProductsGrid from '../components/store/ProductsGrid';
+import { supabase } from '../config/supabaseClient';
+import { useLocation, useNavigate } from 'react-router-dom';
+import storeIcon from '../assets/icon_store.png';
 
 export default function StorePage() {
-  const [storeName] = useState('OSBOS');
-  const [storeBranch] = useState('Curva branch');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = new URLSearchParams(location.search);
+  const storeId = params.get('id');
+
+  const [storeName, setStoreName] = useState('Store');
+  const [storeBranch, setStoreBranch] = useState('');
+  const [iconSrc] = useState(storeIcon); // Placeholder until DB supports per-store icon
+  const [stores, setStores] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('PRICELIST');
   
@@ -40,11 +50,47 @@ export default function StorePage() {
     return matchesCategory && matchesSearch;
   });
 
+  // Load real store name/branch via RPC
+  useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      try {
+        const { data, error } = await supabase.rpc('get_user_stores');
+        if (error) {
+          console.warn('Failed to load stores for header:', error);
+          return;
+        }
+        const rows = Array.isArray(data) ? data : [];
+        // Map to StoreHeader expected shape
+        const mappedStores = rows.map(r => ({ id: r.store_id, name: r.name, branch: r.branch || '' }));
+        setStores(mappedStores);
+        let row = null;
+        if (storeId) {
+          row = rows.find(r => r.store_id === storeId);
+        }
+        if (!row && rows.length > 0) {
+          row = rows[0];
+        }
+        if (row) {
+          setStoreName(row.name || 'Store');
+          setStoreBranch(row.branch || '');
+        }
+      } catch (e) {
+        console.warn('Unexpected error loading store header:', e);
+      }
+    };
+    init();
+  }, [storeId, navigate]);
+
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <StoreHeader />
+      <StoreHeader stores={stores} />
       {/* Store Header Banner */}
-      <StoreBanner storeName={storeName} storeBranch={storeBranch} />
+      <StoreBanner storeName={storeName} storeBranch={storeBranch} storeIcon={iconSrc} />
 
       {/* Search Bar */}
       <StoreSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
