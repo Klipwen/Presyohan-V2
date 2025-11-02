@@ -6,88 +6,35 @@ import MobileCategorySelect from '../components/manage/MobileCategorySelect';
 import ManageHeader from '../components/manage/ManageHeader';
 import CategorySidebar from '../components/manage/CategorySidebar';
 import ItemsList from '../components/manage/ItemsList';
+import AddItemModal from '../components/items/AddItemModal';
+import EditItemModal from '../components/items/EditItemModal';
+import ConfirmationModal from '../components/common/ConfirmationModal';
 import { supabase } from '../config/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
 export default function ManageItemsPage() {
   const navigate = useNavigate();
+  const storeId = new URLSearchParams(window.location.search).get('id');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All Items');
+  const [selectedCategory, setSelectedCategory] = useState('PRICELIST');
   const [showMobileCategories, setShowMobileCategories] = useState(false);
   const [stores, setStores] = useState([]);
-  
-  const [categories] = useState([
-    { id: 0, name: 'All Items' },
-    { id: 1, name: 'SCHOOL SUPPLIES', store_id: 1 },
-    { id: 2, name: 'GROCERIES', store_id: 1 },
-    { id: 3, name: 'LIQUORS', store_id: 1 },
-  ]);
-
-  const [items] = useState([
-    { 
-      id: 1, 
-      name: 'Notebook Competition', 
-      category_id: 1,
-      description: '',
-      price: 18.00,
-      unit: 'pc',
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01'
-    },
-    { 
-      id: 2, 
-      name: 'Single line notebook', 
-      category_id: 1,
-      description: '',
-      price: 15.00,
-      unit: 'pc',
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01'
-    },
-    { 
-      id: 3, 
-      name: 'Notebook Competition', 
-      category_id: 1,
-      description: '',
-      price: 18.00,
-      unit: 'pc',
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01'
-    },
-    { 
-      id: 4, 
-      name: 'Rice Premium', 
-      category_id: 2,
-      description: '',
-      price: 45.00,
-      unit: 'kg',
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01'
-    },
-    { 
-      id: 5, 
-      name: 'Cooking Oil', 
-      category_id: 2,
-      description: '',
-      price: 32.00,
-      unit: 'L',
-      created_at: '2024-01-01',
-      updated_at: '2024-01-01'
-    },
-  ]);
-
-  const [totalItems] = useState(6);
+  const [categories, setCategories] = useState([]);
+  const [items, setItems] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
+  const [hasChanges, setHasChanges] = useState(false);
 
   const filteredItems = items.filter(item => {
-    const matchesCategory = selectedCategory === 'All Items' || 
-      categories.find(c => c.id === item.category_id)?.name === selectedCategory;
+    const matchesCategory = selectedCategory === 'PRICELIST' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const groupedItems = filteredItems.reduce((acc, item) => {
-    const category = categories.find(c => c.id === item.category_id);
-    const categoryName = category ? category.name : 'Other';
+    const categoryName = item.category || 'Other';
     if (!acc[categoryName]) {
       acc[categoryName] = [];
     }
@@ -115,9 +62,42 @@ export default function ManageItemsPage() {
       } catch (e) {
         console.warn('Unexpected error loading stores:', e);
       }
+      try {
+        if (storeId) {
+          const { data: cats, error: catsErr } = await supabase.rpc('get_user_categories', { p_store_id: storeId });
+          if (!catsErr) setCategories(Array.isArray(cats) ? cats.map(c => ({ id: c.category_id, name: c.name })) : []);
+        }
+      } catch (e) {
+        console.warn('Error loading categories:', e);
+      }
     };
     init();
   }, [navigate]);
+
+  useEffect(() => {
+    const loadItems = async () => {
+      if (!storeId) return;
+      try {
+        const args = { p_store_id: storeId };
+        const cat = selectedCategory && selectedCategory !== 'PRICELIST' ? selectedCategory : null;
+        if (cat) args.p_category_filter = cat;
+        const q = searchQuery?.trim();
+        if (q) args.p_search_query = q;
+        const { data, error } = await supabase.rpc('get_store_products', args);
+        if (error) {
+          console.warn('Failed to load products:', error);
+          return;
+        }
+        const rows = Array.isArray(data) ? data : [];
+        const mapped = rows.map(r => ({ id: r.product_id, name: r.name, description: r.description || '', price: Number(r.price) || 0, unit: r.units || '', category: r.category || '' }));
+        setItems(mapped);
+        setTotalItems(mapped.length);
+      } catch (e) {
+        console.warn('Unexpected error loading products:', e);
+      }
+    };
+    loadItems();
+  }, [storeId, selectedCategory, searchQuery]);
 
   return (
     <div style={{ 
@@ -129,7 +109,34 @@ export default function ManageItemsPage() {
       <StoreHeader stores={stores} />
       {/* ... existing code ... */}
       {/* Header */}
-      <ManageHeader />
+      <ManageHeader 
+        onBack={() => {
+          setConfirm({
+            open: true,
+            title: 'Confirm Navigation',
+            message: hasChanges ? 'You made changes. Go back to the store page?' : 'Go back to the store page?',
+            confirmText: 'Back',
+            cancelText: 'Stay',
+            onConfirm: () => {
+              setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
+              navigate(`/store?id=${encodeURIComponent(storeId || '')}`);
+            }
+          });
+        }}
+        onDone={() => {
+          setConfirm({
+            open: true,
+            title: 'Done Managing Items',
+            message: hasChanges ? 'All changes are saved. Return to the store page?' : 'No changes made. Return to the store page?',
+            confirmText: 'Done',
+            cancelText: 'Cancel',
+            onConfirm: () => {
+              setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
+              navigate(`/store?id=${encodeURIComponent(storeId || '')}`);
+            }
+          });
+        }}
+      />
 
       {/* Main Content */}
       <div style={{ 
@@ -197,7 +204,7 @@ export default function ManageItemsPage() {
                 alignItems: 'center',
                 gap: '8px',
                 whiteSpace: 'nowrap'
-              }}>
+              }} onClick={() => setShowAddItem(true)}>
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -216,11 +223,175 @@ export default function ManageItemsPage() {
           />
 
           {/* Items List by Category */}
-          <ItemsList groupedItems={groupedItems} />
+          <ItemsList 
+            groupedItems={groupedItems}
+            onEditItem={(item) => setEditItem(item)}
+            onDeleteItem={(item) => {
+              setConfirm({
+                open: true,
+                title: 'Delete Item',
+                message: `Are you sure you want to delete "${item.name}"?`,
+                onConfirm: async () => {
+                  try {
+                    await supabase.from('products').delete().eq('id', item.id).eq('store_id', storeId);
+                    // Auto-delete category if no products remain
+                    const catName = item.category;
+                    if (catName) {
+                      const { data: cats } = await supabase.from('categories').select('id').eq('store_id', storeId).eq('name', catName).limit(1);
+                      const catId = Array.isArray(cats) && cats[0]?.id;
+                      if (catId) {
+                        const { data: prods } = await supabase.from('products').select('id').eq('store_id', storeId).eq('category_id', catId).limit(1);
+                        if (Array.isArray(prods) && prods.length === 0) {
+                          await supabase.from('categories').delete().eq('id', catId).eq('store_id', storeId);
+                          setCategories(prev => prev.filter(c => c.name !== catName));
+                        }
+                      }
+                    }
+                    setConfirm({ open: false, title: '', message: '', onConfirm: null });
+                    // Refresh
+                    setHasChanges(true);
+                    setSelectedCategory('PRICELIST');
+                    window.location.reload();
+                  } catch (e) {
+                    alert(e.message || 'Failed to delete item');
+                  }
+                }
+              });
+            }}
+            onAddItemToCategory={(categoryName) => {
+              setSelectedCategory(categoryName);
+              setShowAddItem(true);
+            }}
+          />
         </div>
       </div>
 
       {/* Responsive Styles moved to ManageItemsPage.css */}
+      {showAddItem && (
+        <AddItemModal
+          open={showAddItem}
+          onClose={() => setShowAddItem(false)}
+          storeName={stores.find(s => s.id === storeId)?.name || ''}
+          storeBranch={stores.find(s => s.id === storeId)?.branch || ''}
+          categories={categories}
+          defaultCategory={selectedCategory !== 'PRICELIST' ? selectedCategory : ''}
+          onAddCategory={async (newName) => {
+            try {
+              const upper = newName.trim().toUpperCase();
+              const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: upper });
+              if (error) throw error;
+              const newId = inserted?.[0]?.category_id;
+              if (newId) setCategories(prev => [...prev, { id: newId, name: upper }]);
+              setSelectedCategory(upper);
+            } catch (e) {
+              alert(e.message || 'Failed to add category');
+            }
+          }}
+          onCreateItem={async (payload) => {
+            try {
+              const catName = payload.category.trim();
+              const existing = categories.find(c => c.name === catName);
+              let categoryId = existing?.id;
+              if (!categoryId && catName) {
+                const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: catName });
+                if (error) throw error;
+                categoryId = inserted?.[0]?.category_id;
+                if (categoryId) setCategories(prev => [...prev, { id: categoryId, name: catName }]);
+              }
+              const { error: addErr } = await supabase.rpc('add_product', {
+                p_store_id: storeId,
+                p_category_id: categoryId ?? null,
+                p_name: payload.name,
+                p_description: payload.description || null,
+                p_price: payload.price,
+                p_unit: payload.unit
+              });
+              if (addErr) throw addErr;
+              setShowAddItem(false);
+              setHasChanges(true);
+              setSelectedCategory('PRICELIST');
+              window.location.reload();
+            } catch (e) {
+              alert(e.message || 'Failed to add item');
+            }
+          }}
+        />
+      )}
+
+      {editItem && (
+        <EditItemModal
+          open={!!editItem}
+          onClose={() => setEditItem(null)}
+          item={editItem}
+          categories={categories}
+          onAddCategory={async (newName) => {
+            try {
+              const upper = newName.trim().toUpperCase();
+              const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: upper });
+              if (error) throw error;
+              const newId = inserted?.[0]?.category_id;
+              if (newId) setCategories(prev => [...prev, { id: newId, name: upper }]);
+            } catch (e) {
+              alert(e.message || 'Failed to add category');
+            }
+          }}
+          onSave={async (payload) => {
+            try {
+              // Map category name to id (optional)
+              const catName = payload.category.trim();
+              const existing = categories.find(c => c.name === catName);
+              const categoryId = existing?.id ?? null;
+              const previousCategoryName = editItem?.category || '';
+              await supabase.from('products').update({
+                name: payload.name,
+                description: payload.description || null,
+                price: payload.price,
+                unit: payload.unit,
+                category_id: categoryId
+              }).eq('id', payload.id).eq('store_id', storeId);
+
+              // If item moved categories, check and delete previous category if now empty
+              if (previousCategoryName && previousCategoryName !== catName) {
+                const { data: prevCatRows } = await supabase
+                  .from('categories')
+                  .select('id')
+                  .eq('store_id', storeId)
+                  .eq('name', previousCategoryName)
+                  .limit(1);
+                const prevCatId = Array.isArray(prevCatRows) && prevCatRows[0]?.id;
+                if (prevCatId) {
+                  const { data: remaining } = await supabase
+                    .from('products')
+                    .select('id')
+                    .eq('store_id', storeId)
+                    .eq('category_id', prevCatId)
+                    .limit(1);
+                  if (Array.isArray(remaining) && remaining.length === 0) {
+                    await supabase.from('categories').delete().eq('id', prevCatId).eq('store_id', storeId);
+                    setCategories(prev => prev.filter(c => c.name !== previousCategoryName));
+                  }
+                }
+              }
+              setEditItem(null);
+              setHasChanges(true);
+              setSelectedCategory('PRICELIST');
+              window.location.reload();
+            } catch (e) {
+              alert(e.message || 'Failed to save item');
+            }
+          }}
+        />
+      )}
+
+      <ConfirmationModal
+        open={confirm.open}
+        title={confirm.title}
+        message={confirm.message}
+        onConfirm={confirm.onConfirm}
+        onCancel={() => setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' })}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+      />
     </div>
   );
 }

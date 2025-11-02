@@ -21,6 +21,28 @@ export default function CategorySidebar({ categories, selectedCategory, setSelec
       }}>
         CATEGORIES
       </h3>
+      {/* Pricelist button */}
+      <div style={{ marginBottom: '12px' }}>
+        <button
+          onClick={() => setSelectedCategory('PRICELIST')}
+          style={{
+            width: '100%',
+            padding: '16px 20px',
+            border: selectedCategory === 'PRICELIST' ? 'none' : '1px solid #f0f0f0',
+            borderRadius: '30px',
+            background: selectedCategory === 'PRICELIST' ? 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)' : 'white',
+            color: selectedCategory === 'PRICELIST' ? 'white' : '#555',
+            fontSize: '0.9rem',
+            fontWeight: selectedCategory === 'PRICELIST' ? '700' : '500',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'all 0.3s ease',
+            boxShadow: selectedCategory === 'PRICELIST' ? '0 4px 12px rgba(255, 140, 0, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)'
+          }}
+        >
+          Pricelist
+        </button>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {categories.map((cat) => {
           const isSelected = selectedCategory === cat.name;

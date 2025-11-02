@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ManageHeader() {
+export default function ManageHeader({ onBack, onDone }) {
   return (
     <div style={{
       background: 'white',
@@ -14,7 +14,7 @@ export default function ManageHeader() {
       justifyContent: 'space-between'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <button style={{
+        <button onClick={onBack} style={{
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
@@ -34,7 +34,7 @@ export default function ManageHeader() {
           Manage Items
         </h1>
       </div>
-      <button style={{
+      <button onClick={onDone} style={{
         background: '#ff8c00',
         color: 'white',
         border: 'none',

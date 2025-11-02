@@ -70,6 +70,7 @@ export default function StoresPage() {
       }
       const newStore = { id: data, name: payload.name, branch: payload.branch };
       setStores((prev) => [newStore, ...prev]);
+      window.location.reload();
     } catch (e) {
       alert(e.message || 'Unexpected error creating store.');
     }
@@ -83,7 +84,7 @@ export default function StoresPage() {
 
   return (
     <div className="page-root">
-      <StoreHeader stores={stores} onLogout={logout} />
+      <StoreHeader stores={stores} onLogout={logout} includeAllStoresLink={false} />
 
 
       <div className="main-content">

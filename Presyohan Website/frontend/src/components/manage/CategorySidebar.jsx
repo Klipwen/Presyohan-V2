@@ -21,6 +21,28 @@ export default function CategorySidebar({ categories, selectedCategory, setSelec
         }}>
           Categories
         </h3>
+        {/* Pricelist button */}
+        <div style={{ marginBottom: '10px' }}>
+          <button
+            onClick={() => setSelectedCategory('PRICELIST')}
+            style={{
+              width: '100%',
+              padding: '14px 18px',
+              border: selectedCategory === 'PRICELIST' ? 'none' : '1px solid #f0f0f0',
+              borderRadius: '25px',
+              background: selectedCategory === 'PRICELIST' ? '#ff8c00' : 'white',
+              color: selectedCategory === 'PRICELIST' ? 'white' : '#555',
+              fontSize: '0.85rem',
+              fontWeight: selectedCategory === 'PRICELIST' ? '700' : '500',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.3s ease',
+              boxShadow: selectedCategory === 'PRICELIST' ? '0 4px 12px rgba(255, 140, 0, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+          >
+            Pricelist
+          </button>
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.name;
@@ -93,15 +115,18 @@ export default function CategorySidebar({ categories, selectedCategory, setSelec
         </div>
       </div>
 
-      {/* Total Items */}
+      {/* Total Items - stationary bottom-left */}
       <div style={{
-        marginTop: 'auto',
+        position: 'fixed',
+        left: '20px',
+        bottom: '20px',
         padding: '15px',
         background: '#f8f9fa',
         borderRadius: '12px',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px'
+        gap: '10px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
         <svg width="20" height="20" fill="#666" viewBox="0 0 24 24">
           <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>

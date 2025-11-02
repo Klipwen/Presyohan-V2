@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import storeHeaderLogo from '../../assets/presyohan_logo.png';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../config/supabaseClient';
@@ -6,12 +6,79 @@ import '../../styles/StoreHeader.css';
 import storeIcon from '../../assets/icon_store.png';
 
 // StoreHeader with side-menu layout
-export default function StoreHeader({ userName = 'User Name', userEmail = 'email@example.com', stores = [], onLogout }) {
+export default function StoreHeader({ stores = [], onLogout, includeAllStoresLink = true }) {
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [storesExpanded, setStoresExpanded] = useState(false);
+  const [userProfile, setUserProfile] = useState({
+    name: 'User Name',
+    email: 'email@example.com',
+    avatarUrl: null
+  });
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const user = session.user;
+          // Get name from user metadata or app_users table
+          let displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+          
+          // Try to get more complete profile from app_users table
+          try {
+            const { data: appUser } = await supabase
+              .from('app_users')
+              .select('name, email')
+              .eq('auth_uid', user.id)
+              .single();
+            
+            if (appUser?.name) {
+              displayName = appUser.name;
+            }
+          } catch (err) {
+            // Fallback to auth metadata if app_users query fails
+            console.warn('Could not fetch from app_users:', err);
+          }
+
+          setUserProfile({
+            name: displayName,
+            email: user.email || 'email@example.com',
+            avatarUrl: user.user_metadata?.avatar_url || null
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to fetch user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   const toggleSideMenu = () => setSideMenuOpen((v) => !v);
   const closeSideMenu = () => setSideMenuOpen(false);
+
+  // Generate avatar from email using a simple hash-based color
+  const getAvatarFromEmail = (email) => {
+    if (!email) return 'U';
+    const hash = email.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+    const color = colors[Math.abs(hash) % colors.length];
+    const initial = email.charAt(0).toUpperCase();
+    
+    return (
+      <div style={{
+        width: '50px', height: '50px', borderRadius: '50%',
+        background: color, display: 'flex',
+        alignItems: 'center', justifyContent: 'center', color: 'white',
+        fontWeight: '700', fontSize: '1.2rem'
+      }}>
+        {initial}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -48,16 +115,22 @@ export default function StoreHeader({ userName = 'User Name', userEmail = 'email
         {/* Menu Header */}
         <div className="side-menu-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {/* Profile pic placeholder */}
-            <div style={{
-              width: '50px', height: '50px', borderRadius: '50%',
-              background: 'rgba(255,255,255,0.25)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', color: 'white',
-              fontWeight: 700
-            }}>U</div>
+            {/* Profile pic - use avatar URL or generated avatar */}
+            {userProfile.avatarUrl ? (
+              <img 
+                src={userProfile.avatarUrl} 
+                alt="Profile" 
+                style={{
+                  width: '50px', height: '50px', borderRadius: '50%',
+                  objectFit: 'cover'
+                }}
+              />
+            ) : (
+              getAvatarFromEmail(userProfile.email)
+            )}
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userName}</h3>
-              <p style={{ margin: '4px 0 6px', fontSize: '0.9rem', opacity: 0.9 }}>{userEmail}</p>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userProfile.name}</h3>
+              <p style={{ margin: '4px 0 6px', fontSize: '0.9rem', opacity: 0.9 }}>{userProfile.email}</p>
               <a href="#" style={{ color: 'white', textDecoration: 'underline', fontSize: '0.9rem' }}>View Profile</a>
             </div>
           </div>
@@ -78,17 +151,25 @@ export default function StoreHeader({ userName = 'User Name', userEmail = 'email
           {storesExpanded && (
             <div className="submenu">
               {Array.isArray(stores) && stores.length > 0 ? (
-                stores.map((s) => (
-                  <Link
-                    key={s.id ?? s.name}
-                    to={`/store?id=${encodeURIComponent(s.id ?? '')}`}
-                    className="submenu-item"
-                    onClick={closeSideMenu}
-                  >
-                    <img src={storeIcon} alt="Store" className="submenu-store-icon" />
-                    <span>{s.name}{s.branch ? ` — ${s.branch}` : ''}</span>
-                  </Link>
-                ))
+                <>
+                  {includeAllStoresLink && (
+                    <Link to="/stores" className="submenu-item" onClick={closeSideMenu}>
+                      <img src={storeIcon} alt="Stores" className="submenu-store-icon" />
+                      <span>All Stores</span>
+                    </Link>
+                  )}
+                  {stores.map((s) => (
+                    <Link
+                      key={s.id ?? s.name}
+                      to={`/store?id=${encodeURIComponent(s.id ?? '')}`}
+                      className="submenu-item"
+                      onClick={closeSideMenu}
+                    >
+                      <img src={storeIcon} alt="Store" className="submenu-store-icon" />
+                      <span>{s.name}{s.branch ? ` — ${s.branch}` : ''}</span>
+                    </Link>
+                  ))}
+                </>
               ) : (
                 <>
                   <Link to="/stores" className="submenu-item" onClick={closeSideMenu}>

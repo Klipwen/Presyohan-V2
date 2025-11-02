@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ItemsList({ groupedItems }) {
+export default function ItemsList({ groupedItems, onEditItem, onDeleteItem, onAddItemToCategory }) {
   return (
     <div style={{ padding: '20px' }}>
       {Object.entries(groupedItems).map(([categoryName, categoryItems]) => {
@@ -63,15 +63,22 @@ export default function ItemsList({ groupedItems }) {
                     }}>
                       {item.name}
                     </div>
+                    <div style={{
+                      fontSize: '0.82rem',
+                      color: item.description ? '#666' : '#aaa',
+                      marginBottom: '6px'
+                    }}>
+                      {item.description?.trim() ? item.description : 'No description'}
+                    </div>
                     <div style={{ 
                       display: 'flex',
                       gap: '15px',
-                      fontSize: '0.8rem',
-                      color: '#999',
+                      fontSize: '0.85rem',
+                      color: '#555',
                       flexWrap: 'wrap'
                     }}>
-                      <span>Price: ₱{item.price.toFixed(2)}</span>
-                      <span>Unit: {item.unit}</span>
+                      <span>₱{item.price.toFixed(2)}</span>
+                      <span>{item.unit}</span>
                     </div>
                   </div>
 
@@ -87,7 +94,7 @@ export default function ItemsList({ groupedItems }) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#666'
-                    }}>
+                    }} onClick={() => onEditItem?.(item)} aria-label={`Edit ${item.name}`}>
                       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
                       </svg>
@@ -103,7 +110,7 @@ export default function ItemsList({ groupedItems }) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: 'white'
-                    }}>
+                    }} onClick={() => onDeleteItem?.(item)} aria-label={`Delete ${item.name}`}>
                       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                       </svg>
@@ -125,7 +132,7 @@ export default function ItemsList({ groupedItems }) {
               fontSize: '0.9rem',
               fontWeight: '600',
               cursor: 'pointer'
-            }}>
+            }} onClick={() => onAddItemToCategory?.(categoryName)}>
               Add Item to {categoryName}
             </button>
           </div>
