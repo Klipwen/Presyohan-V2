@@ -71,6 +71,16 @@ class HomeActivity : AppCompatActivity() {
     @Serializable
     data class StoreRow(val id: String, val name: String, val branch: String? = null, val type: String? = null)
 
+    // Result shape for get_user_stores RPC (for header)
+    @Serializable
+    data class UserStoreRow(
+        val store_id: String,
+        val name: String,
+        val branch: String? = null,
+        val type: String? = null,
+        val role: String
+    )
+
     @Serializable
     data class NotificationRow(val id: String, val recipient_user_id: String, val unread: Boolean = true, val status: String? = null)
     private val REQUEST_EDIT_ITEM = 1001
@@ -151,18 +161,13 @@ class HomeActivity : AppCompatActivity() {
         if (storeId != null) {
             lifecycleScope.launch {
                 try {
-                    val rows = supabase.postgrest["stores"].select {
-                        filter {
-                            eq("id", storeId)
-                        }
-                        limit(1)
-                    }.decodeList<StoreRow>()
-                    val row = rows.firstOrNull()
-                    // Prefer live name from DB if present
+                    // Use RPC to fetch user-visible stores (respects RLS/policies)
+                    val rows = supabase.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
+                    val row = rows.firstOrNull { it.store_id == storeId }
                     storeText.text = row?.name ?: (storeName ?: "Store")
                     storeBranchText.text = row?.branch ?: ""
                 } catch (e: Exception) {
-                    android.util.Log.e("HomeActivity", "Store header load failed", e)
+                    android.util.Log.e("HomeActivity", "Store header load via RPC failed", e)
                     storeBranchText.text = ""
                 }
             }

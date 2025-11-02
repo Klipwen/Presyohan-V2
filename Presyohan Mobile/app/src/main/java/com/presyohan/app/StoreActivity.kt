@@ -51,7 +51,13 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
     // Result shape for get_user_stores RPC
     @Serializable
-    data class UserStoreRow(val store_id: String, val name: String, val branch: String? = null, val role: String)
+    data class UserStoreRow(
+        val store_id: String,
+        val name: String,
+        val branch: String? = null,
+        val type: String? = null,
+        val role: String
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -224,7 +230,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
                 val roles = rows.associate { it.store_id to it.role }
                 val fetchedStores = rows.map { r ->
-                    Store(r.store_id, r.name, r.branch ?: "", "")
+                    Store(r.store_id, r.name, r.branch ?: "", r.type ?: "")
                 }
 
                 val sortedStores = fetchedStores.sortedWith(compareBy(
