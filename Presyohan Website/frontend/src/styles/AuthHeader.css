@@ -1,0 +1,172 @@
+/* AuthHeader: dedicated styles to keep LoginSignUpPage.css clean */
+
+.auth-header {
+  background: #ffffff;
+  padding: 15px 50px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.auth-header .header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.auth-header .header-logo img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.auth-header .header-logo h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.auth-header .header-logo .presyo { color: #ff8c00; }
+.auth-header .header-logo .han { color: #00a8cc; margin-right: 20px}
+
+/* Links + CTAs are horizontally aligned and spaced */
+.auth-header .nav-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  flex: 1;
+}
+.auth-header .nav-links .links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.auth-header .nav-links .links a {
+  text-decoration: none;
+  color: #666;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+.auth-header .nav-links .links a:hover { color: #ff8c00; }
+
+.auth-header .cta-buttons {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.auth-header .cta-buttons .cta-primary {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 10px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+ background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+  box-shadow: 0 4px 10px rgba(26, 115, 232, 0.25);
+}
+.auth-header .cta-buttons .cta-primary:hover { filter: brightness(1.05); }
+
+.auth-header .cta-buttons .cta-secondary {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  background: #ffffff;
+  color: #ff8c00;
+  border: 2px solid #ffb800; /* Outline secondary CTA */
+}
+.auth-header .cta-buttons .cta-secondary:hover { background: rgba(26,115,232,0.06); }
+
+/* Hamburger */
+.auth-header .hamburger {
+  display: none;
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #e8e8e8;
+  background: #fff;
+  cursor: pointer;
+}
+.auth-header .hamburger-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 2px;
+}
+.auth-header .hamburger-inner,
+.auth-header .hamburger-inner::before,
+.auth-header .hamburger-inner::after {
+  display: block;
+  background: #666;
+  width: 24px;
+  height: 2px;
+  border-radius: 2px;
+  position: absolute;
+  transition: all 0.2s ease;
+}
+.auth-header .hamburger-inner { top: 0; }
+.auth-header .hamburger-inner::before { content: ""; top: -7px; }
+.auth-header .hamburger-inner::after { content: ""; top: 7px; }
+.auth-header .hamburger.is-active .hamburger-inner { background: transparent; }
+.auth-header .hamburger.is-active .hamburger-inner::before { transform: translateY(7px) rotate(45deg); }
+.auth-header .hamburger.is-active .hamburger-inner::after { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile */
+@media (max-width: 768px) {
+  .auth-header {
+    background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+    padding: 15px 20px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .auth-header .hamburger { display: block; align-self: flex-end; }
+
+  .auth-header .nav-links { display: none; }
+  .auth-header .nav-links.open {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .auth-header .nav-links .links a { color: #333; }
+
+  .auth-header .cta-buttons {
+    width: 100%;
+    justify-content: center;
+    gap: 12px;
+  }
+}
+.auth-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Ensure content below isn’t covered when using fixed headers elsewhere */
+.auth-header + * { 
+  scroll-margin-top: 80px; /* approximate header height for anchor scroll */
+}
+
+/* Active states for nav links and CTA when section is in view */
+.auth-header .nav-links .links a {
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+.auth-header .nav-links .links a.active {
+  color: #ff8c00;
+  border-bottom-color: #ff8c00;
+}
+.auth-header .cta-buttons .cta-primary.active {
+  filter: brightness(1.06);
+  box-shadow: 0 6px 16px rgba(255, 140, 0, 0.35);
+}

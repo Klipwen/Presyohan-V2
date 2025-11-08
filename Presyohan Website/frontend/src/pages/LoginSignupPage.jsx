@@ -167,9 +167,9 @@ export default function LoginSignupPage() {
           <div className="brand">
               <img src={presyohanLogo} alt="Presyohan Logo" />
             <h1>
+              <p>Atong</p>
               <span className="presyo">presyo</span><span className="han">han?</span>
             </h1>
-            <p>Find the best prices in one place!</p>
           </div>
         </div>
 

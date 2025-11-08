@@ -417,7 +417,6 @@ padding-right: 220px;
         flex-direction: column;
         gap: 15px;
     }
-
     .login-page-root .header-nav {
         display: flex;
         gap: 46px; /* adjust this value to increase/decrease spacing */

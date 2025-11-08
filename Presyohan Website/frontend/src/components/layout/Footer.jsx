@@ -25,13 +25,13 @@ export default function Footer() {
         </div>
         <div className="footer-section">
           <h3>Contact Us</h3>
-          <p>Email: support@presyohan.com</p>
-          <p>Phone: +63 123 456 7890</p>
-          <p>Location: Cebu City, Philippines</p>
+          <p>Email: presyohan@gmail.com</p>
+          <p>Phone: +63 932 430 8387</p>
+          <p>Location: Curva Medellin, Cebu City, Philippines</p>
         </div>
       </div>
       <div className="footer-bottom">
-        <p>&copy; 2024 Presyohan. All rights reserved.</p>
+        <p>&copy; 2025 Presyohan. All rights reserved.</p>
       </div>
     </footer>
   );
