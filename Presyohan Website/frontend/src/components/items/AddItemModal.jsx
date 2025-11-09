@@ -81,7 +81,7 @@ export default function AddItemModal({
           )}
         </div>
 
-        {/* Store row and Manage Items button */}
+        {/* Store row and Manage Items button (only if onManageItems is provided) */}
         <div style={{ padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <img src={storeIcon} alt={storeName} style={{ width: 28, height: 28 }} />
@@ -90,22 +90,24 @@ export default function AddItemModal({
               <div style={{ fontSize: '0.85rem', color: '#999' }}>| {storeBranch}</div>
             </div>
           </div>
-          <button
-            onClick={goManage}
-            style={{
-              background: '#00bcd4',
-              color: 'white',
-              border: 'none',
-              padding: '10px 16px',
-              borderRadius: '22px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            + Multiple Items
-          </button>
+          {onManageItems && (
+            <button
+              onClick={goManage}
+              style={{
+                background: '#00bcd4',
+                color: 'white',
+                border: 'none',
+                padding: '10px 16px',
+                borderRadius: '22px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              + Multiple Items
+            </button>
+          )}
         </div>
 
         <form onSubmit={submit} className="modal-form" noValidate>

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import '../styles/StoresPage.css';
 import StoreHeader from '../components/layout/StoreHeader';
 import StoreBanner from '../components/store/StoreHeader';
+import StoreOptionsModal from '../components/store/StoreOptionsModal';
+import ConfirmModal from '../components/store/ConfirmModal';
 import StoreSearchBar from '../components/store/StoreSearchBar';
 import CategorySidebar from '../components/store/CategorySidebar';
 import ProductsGrid from '../components/store/ProductsGrid';
@@ -16,12 +18,16 @@ export default function StorePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('PRICELIST');
   const [showAddItem, setShowAddItem] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
   const navigate = useNavigate();
   
   const [products, setProducts] = useState([]);
 
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
+  const [currentRole, setCurrentRole] = useState(null);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('id');
@@ -43,6 +49,7 @@ export default function StorePage() {
           if (match) {
             setStoreName(match.name);
             setStoreBranch(match.branch || '');
+            setCurrentRole(match.role || null);
           }
         }
       } catch (e) {
@@ -60,6 +67,47 @@ export default function StorePage() {
     };
     init();
   }, [navigate]);
+
+  const getCurrentUserId = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const authId = session?.user?.id;
+    if (!authId) return null;
+    const { data: userRow } = await supabase.from('app_users').select('id, auth_uid').eq('auth_uid', authId).maybeSingle();
+    return userRow?.id || authId;
+  };
+
+  const triggerConfirm = (type) => {
+    if (!storeId) return;
+    if (type === 'delete') {
+      setConfirmConfig({
+        title: 'Delete Store',
+        message: 'Are you sure you want to delete this store? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        action: async () => {
+          const { error } = await supabase.from('stores').delete().eq('id', storeId);
+          if (error) { alert(error.message || 'Failed to delete store'); return; }
+          setConfirmOpen(false);
+          navigate('/stores');
+        }
+      });
+    } else {
+      setConfirmConfig({
+        title: 'Leave Store',
+        message: 'Are you sure you want to leave this store?',
+        confirmLabel: 'Leave',
+        action: async () => {
+          const uid = await getCurrentUserId();
+          if (!uid) { alert('Not authenticated'); return; }
+          const { error } = await supabase.from('store_members').delete().eq('store_id', storeId).eq('user_id', uid);
+          if (error) { alert(error.message || 'Failed to leave store'); return; }
+          setConfirmOpen(false);
+          navigate('/stores');
+        }
+      });
+    }
+    setOptionsOpen(false);
+    setConfirmOpen(true);
+  };
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -95,7 +143,7 @@ export default function StorePage() {
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <StoreHeader stores={stores} includeAllStoresLink={true} />
       {/* Store Header Banner */}
-      <StoreBanner storeName={storeName} storeBranch={storeBranch} />
+      <StoreBanner storeName={storeName} storeBranch={storeBranch} onOptionsClick={() => setOptionsOpen(true)} />
 
       {/* Search Bar */}
       <StoreSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
@@ -271,6 +319,31 @@ export default function StorePage() {
           }}
         />
       )}
+
+      {/* Options modal */}
+      {storeId && (
+        <StoreOptionsModal
+          open={optionsOpen}
+          onClose={() => setOptionsOpen(false)}
+          storeId={storeId}
+          storeName={storeName}
+          role={currentRole}
+          onSettings={() => navigate(`/manage-store?id=${encodeURIComponent(storeId)}`)}
+          onInvite={() => navigate(`/invite-staff?id=${encodeURIComponent(storeId)}`)}
+          onDelete={() => triggerConfirm('delete')}
+          onLeave={() => triggerConfirm('leave')}
+        />
+      )}
+
+      {/* Confirm modal */}
+      <ConfirmModal
+        open={confirmOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmLabel={confirmConfig.confirmLabel}
+        onConfirm={confirmConfig.action}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

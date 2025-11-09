@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import storeIcon from '../../assets/icon_store.png';
 
-export default function StoreHeader({ storeName, storeBranch, onBack, storeIcon: iconSrc }) {
+export default function StoreHeader({ storeName, storeBranch, onBack, storeIcon: iconSrc, onOptionsClick }) {
   const navigate = useNavigate();
   return (
     <div style={{
@@ -44,7 +44,7 @@ export default function StoreHeader({ storeName, storeBranch, onBack, storeIcon:
           <h1 style={{ fontSize: '1.3rem', fontWeight: '700', margin: 0, color: '#ff8c00' }}>{storeName}</h1>
           <p style={{ fontSize: '0.85rem', color: '#999', margin: 0 }}>| {storeBranch}</p>
         </div>
-        <button style={{
+        <button onClick={onOptionsClick} style={{
           width: '40px',
           height: '40px',
           background: 'transparent',

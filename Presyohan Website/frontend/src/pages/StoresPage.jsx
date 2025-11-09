@@ -4,6 +4,8 @@ import StoreHeader from '../components/layout/StoreHeader';
 import Footer from '../components/layout/Footer';
 import AddStoreModal from '../components/store/AddStoreModal';
 import StoreCard from '../components/store/StoreCard';
+import StoreOptionsModal from '../components/store/StoreOptionsModal';
+import ConfirmModal from '../components/store/ConfirmModal';
 import { supabase } from '../config/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +13,10 @@ export default function StoresPage() {
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [stores, setStores] = useState([]);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
+  const [selectedStore, setSelectedStore] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -82,6 +88,67 @@ export default function StoresPage() {
     navigate('/login', { replace: true });
   };
 
+  // Helper to resolve current app_users.id if present, else use auth.uid()
+  const getCurrentUserId = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const authId = session?.user?.id;
+    if (!authId) return null;
+    const { data: userRow } = await supabase.from('app_users').select('id, auth_uid').eq('auth_uid', authId).maybeSingle();
+    return userRow?.id || authId;
+  };
+
+  const openStoreOptions = (store) => {
+    setSelectedStore(store);
+    setOptionsOpen(true);
+  };
+
+  const closeOptions = () => setOptionsOpen(false);
+
+  const handleSettings = () => {
+    setOptionsOpen(false);
+    navigate(`/manage-store?id=${encodeURIComponent(selectedStore?.id || '')}`);
+  };
+
+  const handleInvite = () => {
+    setOptionsOpen(false);
+    navigate(`/invite-staff?id=${encodeURIComponent(selectedStore?.id || '')}`);
+  };
+
+  const triggerConfirm = (type) => {
+    if (!selectedStore) return;
+    if (type === 'delete') {
+      setConfirmConfig({
+        title: 'Delete Store',
+        message: 'Are you sure you want to delete this store? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        action: async () => {
+          const { error } = await supabase.from('stores').delete().eq('id', selectedStore.id);
+          if (error) { alert(error.message || 'Failed to delete store'); return; }
+          setStores(prev => prev.filter(s => s.id !== selectedStore.id));
+          setConfirmOpen(false);
+          setSelectedStore(null);
+        }
+      });
+    } else {
+      setConfirmConfig({
+        title: 'Leave Store',
+        message: 'Are you sure you want to leave this store?',
+        confirmLabel: 'Leave',
+        action: async () => {
+          const uid = await getCurrentUserId();
+          if (!uid) { alert('Not authenticated'); return; }
+          const { error } = await supabase.from('store_members').delete().eq('store_id', selectedStore.id).eq('user_id', uid);
+          if (error) { alert(error.message || 'Failed to leave store'); return; }
+          setStores(prev => prev.filter(s => s.id !== selectedStore.id));
+          setConfirmOpen(false);
+          setSelectedStore(null);
+        }
+      });
+    }
+    setOptionsOpen(false);
+    setConfirmOpen(true);
+  };
+
   return (
     <div className="page-root">
       <StoreHeader stores={stores} onLogout={logout} includeAllStoresLink={false} />
@@ -107,6 +174,7 @@ export default function StoresPage() {
               type={s.type}
               role={s.role}
               href={`/store?id=${encodeURIComponent(s.id)}`}
+              onOptionsClick={() => openStoreOptions(s)}
             />
           ))}
         </div>
@@ -119,6 +187,31 @@ export default function StoresPage() {
       </button>
 
       <AddStoreModal open={modalOpen} onClose={closeModal} onJoin={joinStore} onCreate={createStore} />
+
+      {/* Options modal */}
+      {selectedStore && (
+        <StoreOptionsModal
+          open={optionsOpen}
+          onClose={closeOptions}
+          storeId={selectedStore.id}
+          storeName={selectedStore.name}
+          role={selectedStore.role}
+          onSettings={handleSettings}
+          onInvite={handleInvite}
+          onDelete={() => triggerConfirm('delete')}
+          onLeave={() => triggerConfirm('leave')}
+        />
+      )}
+
+      {/* Confirm modal */}
+      <ConfirmModal
+        open={confirmOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmLabel={confirmConfig.confirmLabel}
+        onConfirm={confirmConfig.action}
+        onCancel={() => setConfirmOpen(false)}
+      />
 
       <Footer />
     </div>
