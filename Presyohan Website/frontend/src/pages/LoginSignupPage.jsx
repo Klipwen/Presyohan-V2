@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
 import '../styles/LoginSignUpPage.css';
@@ -29,6 +29,11 @@ export default function LoginSignupPage() {
   const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
   const [isSubmittingSignup, setIsSubmittingSignup] = useState(false);
   const navigate = useNavigate();
+
+  // Ensure the page starts at the very top when navigated to
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
 
   const toggleTab = (tab) => setActiveTab(tab);
 

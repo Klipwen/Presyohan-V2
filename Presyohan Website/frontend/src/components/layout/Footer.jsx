@@ -7,14 +7,15 @@ export default function Footer() {
       <div className="footer-content">
         <div className="footer-section">
           <h3>About Presyohan</h3>
-          <p>Your trusted platform for finding the best prices in one place. Compare, save, and shop smarter.</p>
+          <p>
+            Presyohan is your centralized, role-based pricing hub. Keep your team aligned with a single source of truth for product prices across web and mobile — faster, clearer, and always up to date.
+          </p>
+          <Link to="/#about">More</Link>
         </div>
         <div className="footer-section">
-          <h3>Quick Links</h3>
-          <Link to="/login">Login</Link>
-          <Link to="/stores">Stores</Link>
-          <Link to="/verify-email">Verify Email</Link>
-          <a href="#">Contact</a>
+          <h3>Get the App</h3>
+          <p>Check the correct price instantly anywhere on the floor.</p>
+          <Link to="/#download">Go to Download Section</Link>
         </div>
         <div className="footer-section">
           <h3>Support</h3>

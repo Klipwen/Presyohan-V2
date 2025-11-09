@@ -117,6 +117,20 @@
   background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
 }
 
+/* Soft grocery background behind orange backdrop */
+.lp-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/background_grocery.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.08; /* low opacity per request */
+  pointer-events: none;
+  z-index: 0;
+}
+
 .lp-hero-pattern {
   position: absolute;
   inset: 0;
@@ -126,7 +140,7 @@
 
 .lp-hero-content {
   position: relative;
-  z-index: 1;
+  z-index: 1; /* keep content above backdrop */
   max-width: 800px;
   text-align: center;
 }
@@ -184,6 +198,10 @@
   transform: translateY(-2px);
   background: #00a5bb;
   box-shadow: 0 10px 28px rgba(0, 188, 212, 0.5);
+}
+.lp-btn-primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 6px 18px rgba(0, 188, 212, 0.45);
 }
 
 /* Section Base */
@@ -250,6 +268,134 @@
   margin-bottom: 15px;
 }
 
+/* Carousel (About section) */
+.lp-carousel {
+  position: relative;
+  margin-bottom: 40px;
+  padding: 0 96px; /* wider gutters for arrows so cards never overlap */
+}
+.lp-carousel-viewport {
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 8px 0; /* breathing space so cards don’t touch edges */
+}
+.lp-carousel-track {
+  display: flex;
+  transition: transform 320ms ease;
+  will-change: transform;
+  touch-action: pan-y;
+  gap: 16px; /* spacing between cards */
+}
+.lp-card.slide {
+  position: relative;
+  flex: 0 0 auto; /* width set inline from React to support multi-card */
+  aspect-ratio: 2 / 3; /* updated to 2:3 (portrait) */
+  display: flex;
+  align-items: flex-end; /* anchor content to bottom */
+  overflow: hidden;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 220ms ease, box-shadow 220ms ease, opacity 220ms ease;
+}
+.lp-card.slide::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/background_grocery.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 15px;
+}
+.lp-card.slide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.35) 55%, rgba(255,255,255,0.85) 100%);
+  z-index: 0;
+  border-radius: 15px;
+}
+.lp-card.slide > * { position: relative; z-index: 1; }
+
+.lp-card.slide:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+.lp-card.slide:hover::before { opacity: 0.15; }
+.lp-card.slide:hover::after {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.30) 55%, rgba(255,255,255,0.80) 100%);
+}
+.lp-card.slide:active { transform: translateY(0) scale(0.98); }
+/* Temporary orange glow class applied on click */
+.lp-card.slide.glow-click {
+  box-shadow: 0 0 0 8px rgba(255, 140, 0, 0.35), 0 12px 26px rgba(0, 0, 0, 0.18);
+}
+
+/* Bottom content container inside each card */
+.lp-card-content {
+  width: 100%;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+.lp-card.slide:hover .lp-card-content { transform: translateY(-4px); }
+
+.lp-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #ff8c00;
+  background: #ffffff;
+  color: #ff8c00;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.lp-carousel-arrow:hover { background: #ff8c00; color: #ffffff; }
+.lp-carousel-arrow.left { left: 0; }
+.lp-carousel-arrow.right { right: 0; }
+.lp-carousel-arrow.disabled { opacity: 0.4; pointer-events: none; }
+
+@media (max-width: 768px) {
+  .lp-carousel { padding: 0 64px; }
+  .lp-carousel-arrow.left { left: 4px; }
+  .lp-carousel-arrow.right { right: 4px; }
+}
+
+/* Dots under the carousel */
+.lp-carousel-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.lp-carousel-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: #d9d9d9;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+.lp-carousel-dots .dot.active { background: #ff8c00; }
+.lp-carousel-dots .dot:hover { transform: scale(1.1); }
+.lp-carousel-dots .dot:active { transform: scale(0.95); }
+.lp-card.slide { cursor: pointer; }
+
 .lp-old {
   background: #fff5f5;
   border-radius: 10px;
@@ -295,6 +441,16 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   padding: 30px;
   text-align: center;
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+.lp-role-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+.lp-role-card:active { transform: translateY(0) scale(0.98); }
+/* Temporary orange glow class applied on click */
+.lp-role-card.glow-click {
+  box-shadow: 0 0 0 8px rgba(255, 140, 0, 0.35), 0 10px 22px rgba(0, 0, 0, 0.14);
 }
 .lp-role-icon {
   font-size: 3rem;
@@ -364,6 +520,16 @@
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   padding: 25px;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.lp-mini-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
+}
+.lp-mini-card:active { transform: translateY(0) scale(0.98); }
+/* Temporary orange glow class applied on click */
+.lp-mini-card.glow-click {
+  box-shadow: 0 0 0 8px rgba(255, 140, 0, 0.35), 0 8px 18px rgba(0, 0, 0, 0.12);
 }
 .lp-mini-icon { font-size: 2.5rem; margin-bottom: 12px; }
 .lp-mini-title {
@@ -407,6 +573,7 @@
   padding: 12px 18px;
   border-radius: 12px;
   text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
 }
 .lp-store-badge.apple {
   background: #333333;
@@ -418,6 +585,8 @@
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(0, 188, 212, 0.35);
 }
+.lp-store-badge:hover { transform: translateY(-2px); filter: brightness(1.05); }
+.lp-store-badge:active { transform: translateY(0) scale(0.98); }
 .lp-store-icon { font-size: 1.5rem; }
 .lp-store-text { display: flex; flex-direction: column; line-height: 1.2; }
 .lp-store-sub { font-size: 0.8rem; opacity: 0.9; }
@@ -449,6 +618,16 @@
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+.lp-mobile-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+.lp-mobile-card:active { transform: translateY(0) scale(0.98); }
+/* Temporary orange glow class applied on click */
+.lp-mobile-card.glow-click {
+  box-shadow: 0 0 0 8px rgba(255, 140, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.18);
 }
 .lp-mobile-card.dark1 { background: linear-gradient(180deg, #111111, #222222); }
 .lp-mobile-card.dark2 { background: linear-gradient(180deg, #1c1c1c, #333333); }
@@ -474,6 +653,18 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 .lp-contact-link { color: #00bcd4; font-weight: 700; text-decoration: none; }
+
+/* Contact form styles moved to ContactPage.css to keep styling organized per page */
+
+/* Focus visible outlines for interactive elements */
+.lp-btn-primary:focus-visible,
+.lp-store-badge:focus-visible,
+.lp-carousel-arrow:focus-visible,
+.lp-carousel-dots .dot:focus-visible,
+.lp-contact-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.35);
+}
 
 /* Footer */
 .lp-footer {

@@ -16,18 +16,18 @@ export default function AuthHeader() {
 
   return (
     <header className="auth-header">
-      <div className="header-logo">
+      <Link to="/#home" className="header-logo" aria-label="Go to Home">
         <img src={authHeaderLogo} alt="Presyohan Logo" />
         <h2>
           <span className="presyo">presyo</span>
           <span className="han">han?</span>
         </h2>
-      </div>
+      </Link>
 
       {/* Desktop navigation */}
       <nav className={`nav-links ${menuOpen ? 'open' : ''}`}>
         <div className="links">
-          <Link to="/" onClick={closeMenu} className={isLanding && (currentHash === '' || currentHash === '#home') ? 'active' : ''}>Home</Link>
+          <Link to="/#home" onClick={closeMenu} className={isLanding && (currentHash === '' || currentHash === '#home') ? 'active' : ''}>Home</Link>
           <Link to="/#about" onClick={closeMenu} className={isLanding && currentHash === '#about' ? 'active' : ''}>About</Link>
           <Link to="/#features" onClick={closeMenu} className={isLanding && currentHash === '#features' ? 'active' : ''}>Features</Link>
           <Link to="/contact" onClick={closeMenu}>Contact Us</Link>

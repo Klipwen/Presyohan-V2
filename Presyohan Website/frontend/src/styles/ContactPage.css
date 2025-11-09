@@ -1,0 +1,36 @@
+/* Contact Page specific styles (kept separate from LandingPage.css) */
+
+.lp-contact-form {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  padding: 24px;
+}
+.lp-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.lp-form-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.lp-form-field label { font-weight: 600; color: #333333; }
+.lp-form-field input,
+.lp-form-field textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 2px solid #e8e8e8;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.lp-form-field input:focus,
+.lp-form-field textarea:focus {
+  border-color: #ff8c00;
+  box-shadow: 0 0 0 3px rgba(255,140,0,0.15);
+}
+.lp-form-status {
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+.lp-form-status[data-type="success"] { color: #2e7d32; }
+.lp-form-status[data-type="error"] { color: #c62828; }
+
+@media (max-width: 768px) {
+  .lp-form-row { grid-template-columns: 1fr; }
+}

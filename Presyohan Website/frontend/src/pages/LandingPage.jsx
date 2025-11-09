@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import '../styles/LandingPage.css';
 import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
@@ -8,6 +8,28 @@ import presyohanLogo from '../assets/presyohan_logo.png';
 export default function LandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  // Carousel state: slides per view and current index (bounded)
+  const [slidesPerView, setSlidesPerView] = useState(1);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const viewportRef = useRef(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+
+  // Temporary orange glow feedback on click for cards (kept inside component)
+  const glowTimeoutsRef = useRef(new Map());
+  const triggerGlow = (el) => {
+    if (!el) return;
+    el.classList.add('glow-click');
+    const prev = glowTimeoutsRef.current.get(el);
+    if (prev) clearTimeout(prev);
+    const tid = setTimeout(() => {
+      el.classList.remove('glow-click');
+      glowTimeoutsRef.current.delete(el);
+    }, 600);
+    glowTimeoutsRef.current.set(el, tid);
+  };
+  const handleCardClick = (e) => {
+    triggerGlow(e.currentTarget);
+  };
 
   // Scroll to section when hash present (e.g., /#about, /#features, /#download)
   useEffect(() => {
@@ -39,8 +61,52 @@ export default function LandingPage() {
       feature: 'Multi-Store Management',
       old: 'Manual spreadsheets and different lists for every branch.',
       new: 'Copy & Scale: Effortlessly copy entire price lists, promotions, and categories across your store branches to maintain standards.'
+    },
+    {
+      feature: 'Bulk Import & Export',
+      old: 'Manual updates across spreadsheets; copy-paste errors and rework.',
+      new: 'Excel/CSV import with flexible mapping and clean exports for printing — fast and reliable.'
+    },
+    {
+      feature: 'Member Access & Accountability',
+      old: 'Shared accounts and uncontrolled edits with no clear audit trail.',
+      new: 'Role-based permissions (Owner/Manager/Sale Staff) with audit timestamps to track every change.'
     }
   ];
+
+  const totalSlides = comparisonRows.length;
+
+  // Responsive slides per view: show 3 on large, 2 on tablet, 1 on mobile
+  useEffect(() => {
+    const updateSPV = () => {
+      const w = window.innerWidth;
+      if (w >= 1200) setSlidesPerView(3);
+      else if (w >= 768) setSlidesPerView(2);
+      else setSlidesPerView(1);
+    };
+    updateSPV();
+    window.addEventListener('resize', updateSPV);
+    return () => window.removeEventListener('resize', updateSPV);
+  }, []);
+
+  // Track viewport width for accurate translate with gap spacing
+  useLayoutEffect(() => {
+    const readWidth = () => {
+      if (viewportRef.current) setViewportWidth(viewportRef.current.offsetWidth);
+    };
+    readWidth();
+    window.addEventListener('resize', readWidth);
+    return () => window.removeEventListener('resize', readWidth);
+  }, []);
+
+  // Number of pages = totalSlides - slidesPerView + 1 (bounded)
+  const pageCount = Math.max(1, totalSlides - slidesPerView + 1);
+  const prevSlide = () => setCurrentSlide((i) => Math.max(0, i - 1));
+  const nextSlide = () => setCurrentSlide((i) => Math.min(pageCount - 1, i + 1));
+
+  // Normal bounded sliding (no loop resets, no autoplay)
+
+  // Autoplay removed as requested
 
   const roles = [
     {
@@ -185,27 +251,74 @@ export default function LandingPage() {
 
           <h3 className="lp-block-title">How Presyohan Transforms Your Store</h3>
 
-          <div className="lp-grid">
-            {comparisonRows.map((row, index) => (
-              <div key={index} className="lp-card">
-                <h4 className="lp-card-title">{row.feature}</h4>
-                <div className="lp-old">
-                  <div className="lp-old-label">The Old Way:</div>
-                  <p className="lp-old-text">{row.old}</p>
-                </div>
-                <div className="lp-new">
-                  <div className="lp-new-label">The Presyohan Way:</div>
-                  <p className="lp-new-text">{row.new}</p>
-                </div>
+          <div className="lp-carousel">
+            <button
+              className={`lp-carousel-arrow left ${currentSlide === 0 ? 'disabled' : ''}`}
+              onClick={prevSlide}
+              aria-label="Previous"
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </button>
+            <div className="lp-carousel-viewport" ref={viewportRef}>
+              <div
+                className="lp-carousel-track"
+                style={{
+                  transform: (() => {
+                    const GAP_PX = 16; // must match CSS track gap
+                    const gapPercent = viewportWidth > 0 ? (GAP_PX * 100) / viewportWidth : 0;
+                    const perSlidePercent = 100 / slidesPerView + gapPercent;
+                    return `translateX(-${currentSlide * perSlidePercent}%)`;
+                  })(),
+                  transition: 'transform 320ms ease'
+                }}
+              >
+                {comparisonRows.map((row, index) => (
+                  <div
+                    key={index}
+                    className="lp-card slide"
+                    style={{ flex: `0 0 ${100 / slidesPerView}%` }}
+                    onClick={handleCardClick}
+                  >
+                    <div className="lp-card-content">
+                      <h4 className="lp-card-title">{row.feature}</h4>
+                      <div className="lp-old">
+                        <div className="lp-old-label">The Old Way:</div>
+                        <p className="lp-old-text">{row.old}</p>
+                      </div>
+                      <div className="lp-new">
+                        <div className="lp-new-label">The Presyohan Way:</div>
+                        <p className="lp-new-text">{row.new}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            {/* Dots navigation */}
+            <div className="lp-carousel-dots">
+              {Array.from({ length: pageCount }).map((_, i) => (
+                <button
+                  key={i}
+                  className={`dot ${currentSlide === i ? 'active' : ''}`}
+                  onClick={() => setCurrentSlide(i)}
+                  aria-label={`Go to slide ${i + 1}`}
+                />
+              ))}
+            </div>
+            <button
+              className={`lp-carousel-arrow right ${currentSlide >= pageCount - 1 ? 'disabled' : ''}`}
+              onClick={nextSlide}
+              aria-label="Next"
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+            </button>
           </div>
 
           <h3 className="lp-block-title">Powerful Tools for Every Role</h3>
 
           <div className="lp-grid">
             {roles.map((role, index) => (
-              <div key={index} className="lp-role-card">
+              <div key={index} className="lp-role-card" onClick={handleCardClick}>
                 <div className="lp-role-icon">{role.icon}</div>
                 <h4 className="lp-role-title">{role.title}</h4>
                 <div className="lp-role-subtitle">{role.subtitle}</div>
@@ -235,7 +348,7 @@ export default function LandingPage() {
             <p className="lp-section-text">Manage your entire product catalog efficiently with robust Create, Read, Update, and Delete (CRUD) functionality.</p>
             <div className="lp-grid cards-3">
               {feature1Cards.map((item, index) => (
-                <div key={index} className="lp-mini-card">
+                <div key={index} className="lp-mini-card" onClick={handleCardClick}>
                   <div className="lp-mini-icon">{item.icon}</div>
                   <h4 className="lp-mini-title">{item.title}</h4>
                   <p className="lp-mini-text">{item.description}</p>
@@ -253,7 +366,7 @@ export default function LandingPage() {
             <p className="lp-section-text">Maintain security and accountability with precise, role-based controls over who can access and modify store data.</p>
             <div className="lp-grid cards-4">
               {feature2Cards.map((item, index) => (
-                <div key={index} className="lp-mini-card">
+                <div key={index} className="lp-mini-card" onClick={handleCardClick}>
                   <div className="lp-mini-icon">{item.icon}</div>
                   <h4 className="lp-mini-title">{item.title}</h4>
                   <p className="lp-mini-text">{item.description}</p>
@@ -271,7 +384,7 @@ export default function LandingPage() {
             <p className="lp-section-text">Move beyond manual data entry with powerful bulk tools and clear audit trails.</p>
             <div className="lp-grid cards-4">
               {feature3Cards.map((item, index) => (
-                <div key={index} className="lp-mini-card">
+                <div key={index} className="lp-mini-card" onClick={handleCardClick}>
                   <div className="lp-mini-icon">{item.icon}</div>
                   <h4 className="lp-mini-title">{item.title}</h4>
                   <p className="lp-mini-text">{item.description}</p>
@@ -320,7 +433,7 @@ export default function LandingPage() {
             <div>
               <div className="lp-mobile-collage">
                 {collageCards.map((card, i) => (
-                  <div key={i} className={`lp-mobile-card ${card.cls}`}>
+                  <div key={i} className={`lp-mobile-card ${card.cls}`} onClick={handleCardClick}>
                     <div className="lp-mobile-dots">• • •</div>
                     <div className="lp-mobile-label">{card.label}</div>
                     <div className="lp-mobile-shimmer" />
@@ -333,8 +446,8 @@ export default function LandingPage() {
         </div>
       </section>
       
-      {/* Global Footer */}
-      <Footer />
-    </div>
+  {/* Global Footer */}
+  <Footer />
+  </div>
   );
 }

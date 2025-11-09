@@ -68,7 +68,23 @@
   overflow: hidden;
 }
 
-/* Subtle grocery background overlay over content area only (not header/footer) */
+/* Match Login page background: gradient + subtle grocery overlay scoped to content */
+.verify-page-root {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.verify-page-root .wrapper {
+  display: flex;
+  flex: 1;
+  position: relative; /* scope overlay to content area */
+  overflow: hidden;
+}
+
 .verify-page-root .wrapper::before {
   content: "";
   position: absolute;
@@ -77,10 +93,14 @@
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
-  opacity: 0.18; /* low opacity per request */
+  opacity: 0.08; /* same low opacity as LoginSignUpPage */
   pointer-events: none;
   z-index: 0;
 }
+
+/* Ensure brand sits above overlay */
+.verify-page-root .left-section { position: relative; }
+.verify-page-root .brand { z-index: 1; }
 
 .left-section {
   flex: 1;

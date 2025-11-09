@@ -15,6 +15,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  text-decoration: none; /* remove underline on link */
 }
 .auth-header .header-logo img {
   width: 40px;
@@ -24,6 +25,7 @@
 .auth-header .header-logo h2 {
   font-size: 1.5rem;
   font-weight: 700;
+  text-decoration: none; /* ensure Presyohan text never underlined */
 }
 .auth-header .header-logo .presyo { color: #ff8c00; }
 .auth-header .header-logo .han { color: #00a8cc; margin-right: 20px}
