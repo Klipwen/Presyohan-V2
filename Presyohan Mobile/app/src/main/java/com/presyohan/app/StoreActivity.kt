@@ -23,6 +23,8 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private val db = FirebaseFirestore.getInstance()
@@ -31,6 +33,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: StoreAdapter
     private val stores = mutableListOf<Store>()
+    private var storeRolesMap: Map<String, String> = emptyMap()
 
     private val createStoreLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -57,6 +60,12 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val branch: String? = null,
         val type: String? = null,
         val role: String
+    )
+
+    @Serializable
+    data class InviteCodeReturn(
+        val invite_code: String,
+        val invite_code_created_at: String
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,25 +123,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             startActivity(intent)
         }
 
-        val notifDot = findViewById<View>(R.id.notifDot)
-        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        if (notifDot != null && userIdNotif != null) {
-            lifecycleScope.launch {
-                try {
-                    val rows = SupabaseProvider.client.postgrest["notifications"].select {
-                        filter {
-                            eq("receiver_user_id", userIdNotif)
-                            eq("read", false)
-                        }
-                        limit(1)
-                    }.decodeList<com.presyohan.app.HomeActivity.NotificationRow>()
-                    notifDot.visibility = if (rows.isNotEmpty()) View.VISIBLE else View.GONE
-                } catch (e: Exception) {
-                    notifDot.visibility = View.GONE
-                    android.util.Log.e("SupabaseNotif", "Error loading notif badge", e)
-                }
-            }
-        }
+        loadNotifBadge()
     }
 
     override fun onResume() {
@@ -140,6 +131,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         getSharedPreferences("presyo_prefs", MODE_PRIVATE)
             .edit().putString("last_screen", "store").apply()
         fetchStores()
+        loadNotifBadge()
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
@@ -231,6 +223,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 val fetchedStores = rows.map { r ->
                     Store(r.store_id, r.name, r.branch ?: "", r.type ?: "")
                 }
+                // Persist roles for later checks (e.g., options menu)
+                storeRolesMap = roles
 
                 val sortedStores = fetchedStores.sortedWith(compareBy(
                     { val role = roles[it.id]?.lowercase(); when (role) { "owner" -> 0; "manager" -> 1; else -> 2 } },
@@ -258,13 +252,57 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val codeText = view.findViewById<TextView>(R.id.storeCodeText)
         val copyBtn = view.findViewById<ImageView>(R.id.btnCopyCode)
         val generateBtn = view.findViewById<Button>(R.id.btnGenerateCode)
-        // Remove expiryLabel logic
-        fun updateCodeUI(code: String?, showExpiry: Boolean) {
+        generateBtn.setOnClickListener {
+            val role = storeRolesMap[store.id]?.lowercase()
+            val isOwner = role == "owner"
+            if (!isOwner) {
+                android.widget.Toast.makeText(this, "Only the owner can generate a code.", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            lifecycleScope.launch {
+                try {
+                    val params = buildJsonObject { put("p_store_id", store.id) }
+                    val rows = SupabaseProvider.client.postgrest
+                        .rpc("regenerate_invite_code", params)
+                        .decodeList<InviteCodeReturn>()
+                    val row = rows.firstOrNull()
+                    val newCode = row?.invite_code
+                    runOnUiThread {
+                        if (newCode != null) {
+                            codeText.text = newCode
+                            android.widget.Toast.makeText(
+                                applicationContext,
+                                "Invite code updated.",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            android.widget.Toast.makeText(
+                                applicationContext,
+                                "No code returned. Try again.",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        android.widget.Toast.makeText(
+                            applicationContext,
+                            "Unable to update invite code.",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+        // Update code UI: always show the code area; no expiry gating
+        fun updateCodeUI(code: String?, expiryMillis: Long?) {
+            codeText.visibility = View.VISIBLE
+            copyBtn.visibility = View.VISIBLE
             codeText.text = code ?: ""
-            // No expiry label
         }
         // Initial UI state
-        updateCodeUI(inviteCode, inviteCode != null && expiryMillis != null)
+        updateCodeUI(inviteCode, expiryMillis)
 
         // Copy code to clipboard
         copyBtn.setOnClickListener {
@@ -277,25 +315,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             }
         }
 
-        // Generate code button logic
-        generateBtn.setOnClickListener {
-            val newCode = (100000..999999).random().toString()
-            val now = System.currentTimeMillis()
-            val updates = mapOf(
-                "inviteCode" to newCode,
-                "inviteCodeCreatedAt" to now
-            )
-            val storeDoc = db.collection("stores").document(store.id)
-            storeDoc.update(updates).addOnSuccessListener {
-                updateCodeUI(newCode, true)
-                android.widget.Toast.makeText(this, "Invite code updated.", android.widget.Toast.LENGTH_SHORT).show()
-            }.addOnFailureListener {
-                storeDoc.set(updates, com.google.firebase.firestore.SetOptions.merge()).addOnSuccessListener {
-                    updateCodeUI(newCode, true)
-                    android.widget.Toast.makeText(this, "Invite code updated.", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        // Generate code button is wired above to Supabase RPC
 
         // Populate role spinner with permission options only
         val roleSpinner = view.findViewById<android.widget.Spinner>(R.id.roleSpinner)
@@ -389,122 +409,166 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
     // Helper to show invite staff dialog with Firestore-based code logic
     private fun showInviteStaffWithCode(store: Store) {
-        val storeDoc = db.collection("stores").document(store.id)
-        storeDoc.get().addOnSuccessListener { doc ->
-            val code = doc.getString("inviteCode")
-            val createdAt = doc.getLong("inviteCodeCreatedAt") ?: 0L
-            val now = System.currentTimeMillis()
-            val expiryMillis = createdAt + 24 * 60 * 60 * 1000
-            if (code != null && now < expiryMillis) {
-                // Use existing code
-                showInviteStaffDialog(store, code, expiryMillis)
-            } else {
-                // No code or expired: show empty, require user to generate
-                showInviteStaffDialog(store, null, null)
+        val client = SupabaseProvider.client
+        lifecycleScope.launch {
+            try {
+                @kotlinx.serialization.Serializable
+                data class StoreInviteFields(
+                    val invite_code: String? = null,
+                    val invite_code_created_at: String? = null
+                )
+
+                val rows = client.postgrest["stores"].select {
+                    filter { eq("id", store.id) }
+                    limit(1)
+                }.decodeList<StoreInviteFields>()
+                val row = rows.firstOrNull()
+
+                val code = row?.invite_code
+                val createdIso = row?.invite_code_created_at
+                val expiryMillis = try {
+                    if (createdIso != null) {
+                        java.time.Instant.parse(createdIso).toEpochMilli() + 24L * 60L * 60L * 1000L
+                    } else 0L
+                } catch (_: Exception) { 0L }
+
+                runOnUiThread {
+                    // Revert: always show whatever code is present without hiding on expiry
+                    showInviteStaffDialog(store, code, expiryMillis)
+                }
+            } catch (_: Exception) {
+                runOnUiThread {
+                    android.widget.Toast.makeText(this@StoreActivity, "Unable to fetch invite code. Generate a new one.", android.widget.Toast.LENGTH_SHORT).show()
+                    showInviteStaffDialog(store, null, null)
+                }
             }
         }
     }
 
     private fun showStoreMenu(store: Store, anchor: View) {
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        if (userId != null) {
-            db.collection("stores").document(store.id)
-                .collection("members").get().addOnSuccessListener { membersSnapshot ->
-                    val owners = membersSnapshot.documents.filter { it.getString("role") == "owner" }
-                    val isOwner = membersSnapshot.documents.any { it.id == userId && it.getString("role") == "owner" }
-                    if (!isOwner) {
-                        showStoreMenuEmployee(store)
-                        return@addOnSuccessListener
-                    }
-                    val dialog = Dialog(this)
-                    val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_menu, null)
-                    dialog.setContentView(view)
-                    dialog.setCancelable(true)
-                    dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        val role = storeRolesMap[store.id]?.lowercase()
+        val isOwner = role == "owner"
+        if (!isOwner) {
+            showStoreMenuEmployee(store)
+            return
+        }
 
-                    view.findViewById<ImageView>(R.id.btnSettings).setOnClickListener {
-                        val intent = Intent(this, ManageStoreActivity::class.java)
-                        intent.putExtra("storeId", store.id)
-                        startActivity(intent)
-                        dialog.dismiss()
-                    }
-                    view.findViewById<ImageView>(R.id.btnInviteStaff).setOnClickListener {
-                        dialog.dismiss()
-                        showInviteStaffWithCode(store)
-                    }
-                    val btnDelete = view.findViewById<ImageView>(R.id.btnDelete)
-                    if (owners.size > 1) {
-                        // Change to leave store
-                        btnDelete.setImageResource(R.drawable.icon_logout) // Use a leave icon
-                        btnDelete.contentDescription = "Leave Store"
-                        btnDelete.setColorFilter(resources.getColor(R.color.red, null))
-                        val labelDelete = view.findViewById<TextView>(R.id.labelDelete)
-                        labelDelete.text = "Leave"
-                        labelDelete.setTextColor(resources.getColor(R.color.red, null))
-                        btnDelete.setOnClickListener {
-                            val confirmDialog = Dialog(this)
-                            val confirmView = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
-                            confirmDialog.setContentView(confirmView)
-                            confirmDialog.setCancelable(true)
-                            confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-                            confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Leave Store"
-                            confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to leave this store? You will lose access to its products."
-                            confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
-                            confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                                db.collection("users").document(userId)
-                                    .update("stores", com.google.firebase.firestore.FieldValue.arrayRemove(store.id))
-                                    .addOnSuccessListener {
-                                        db.collection("stores").document(store.id)
-                                            .collection("members").document(userId)
-                                            .delete()
-                                            .addOnSuccessListener {
-                                                android.widget.Toast.makeText(this, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
-                                                fetchStores()
-                                            }
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_menu, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        view.findViewById<ImageView>(R.id.btnSettings).setOnClickListener {
+            val intent = Intent(this, ManageStoreActivity::class.java)
+            intent.putExtra("storeId", store.id)
+            startActivity(intent)
+            dialog.dismiss()
+        }
+        view.findViewById<ImageView>(R.id.btnInviteStaff).setOnClickListener {
+            dialog.dismiss()
+            showInviteStaffWithCode(store)
+        }
+        // Ensure tapping anywhere on the tile triggers the invite dialog
+        view.findViewById<android.widget.LinearLayout>(R.id.layoutInviteStaff).setOnClickListener {
+            dialog.dismiss()
+            showInviteStaffWithCode(store)
+        }
+
+        val btnDelete = view.findViewById<ImageView>(R.id.btnDelete)
+        val labelDelete = view.findViewById<TextView>(R.id.labelDelete)
+
+        // Determine owner count via Supabase to decide Delete vs Leave
+        lifecycleScope.launch {
+            try {
+                val owners = SupabaseProvider.client.postgrest["store_members"].select {
+                    filter { eq("store_id", store.id); eq("role", "owner") }
+                }.decodeList<StoreMemberRow>()
+                if (owners.size > 1) {
+                    // Change to leave store
+                    btnDelete.setImageResource(R.drawable.icon_logout)
+                    btnDelete.contentDescription = "Leave Store"
+                    btnDelete.setColorFilter(resources.getColor(R.color.red, null))
+                    labelDelete.text = "Leave"
+                    labelDelete.setTextColor(resources.getColor(R.color.red, null))
+                    btnDelete.setOnClickListener {
+                        val confirmDialog = Dialog(this@StoreActivity)
+                        val confirmView = LayoutInflater.from(this@StoreActivity).inflate(R.layout.dialog_confirm_delete, null)
+                        confirmDialog.setContentView(confirmView)
+                        confirmDialog.setCancelable(true)
+                        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+                        confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Leave Store"
+                        confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to leave this store? You will lose access to its products."
+                        confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
+                        confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
+                            lifecycleScope.launch {
+                                try {
+                                    SupabaseProvider.client.postgrest.rpc(
+                                        "leave_store",
+                                        kotlinx.serialization.json.buildJsonObject { put("p_store_id", store.id) }
+                                    )
+                                    android.widget.Toast.makeText(this@StoreActivity, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
+                                    fetchStores()
+                                } catch (e: Exception) {
+                                    val msg = if (e.message?.contains("sole owner", true) == true) {
+                                        "You are the sole owner. Transfer ownership first."
+                                    } else {
+                                        "Unable to leave store."
                                     }
-                                confirmDialog.dismiss()
-                                dialog.dismiss()
+                                    android.widget.Toast.makeText(this@StoreActivity, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                }
                             }
-                            confirmDialog.show()
+                            confirmDialog.dismiss()
+                            dialog.dismiss()
                         }
-                    } else {
-                        // Only 1 owner, allow delete
-                        btnDelete.setImageResource(R.drawable.icon_delete)
-                        btnDelete.contentDescription = "Delete Store"
-                        btnDelete.setOnClickListener {
-                            val confirmDialog = Dialog(this)
-                            val confirmView = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
-                            confirmDialog.setContentView(confirmView)
-                            confirmDialog.setCancelable(true)
-                            confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-                            confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this store? This action cannot be undone."
-                            confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
-                            confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                                deleteStoreAndSubcollections(store.id) { success ->
-                                    if (success) {
+                        confirmDialog.show()
+                    }
+                } else {
+                    // Only 1 owner, allow delete
+                    btnDelete.setImageResource(R.drawable.icon_delete)
+                    btnDelete.contentDescription = "Delete Store"
+                    btnDelete.setOnClickListener {
+                        val confirmDialog = Dialog(this@StoreActivity)
+                        val confirmView = LayoutInflater.from(this@StoreActivity).inflate(R.layout.dialog_confirm_delete, null)
+                        confirmDialog.setContentView(confirmView)
+                        confirmDialog.setCancelable(true)
+                        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+                        confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this store? This action cannot be undone."
+                        confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
+                        confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
+                            val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
+                            deleteStoreAndSubcollections(store.id) { success ->
+                                if (success) {
+                                    if (userId != null) {
                                         db.collection("users").document(userId)
                                             .update("stores", com.google.firebase.firestore.FieldValue.arrayRemove(store.id))
                                             .addOnSuccessListener {
-                                                android.widget.Toast.makeText(this, "Store deleted.", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this@StoreActivity, "Store deleted.", android.widget.Toast.LENGTH_SHORT).show()
                                                 fetchStores()
                                             }
                                             .addOnFailureListener {
-                                                android.widget.Toast.makeText(this, "Store deleted. User update failed.", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(this@StoreActivity, "Store deleted. User update failed.", android.widget.Toast.LENGTH_SHORT).show()
                                                 fetchStores()
                                             }
-                                    } else {
-                                        android.widget.Toast.makeText(this, "Unable to delete store.", android.widget.Toast.LENGTH_SHORT).show()
                                     }
+                                } else {
+                                    android.widget.Toast.makeText(this@StoreActivity, "Unable to delete store.", android.widget.Toast.LENGTH_SHORT).show()
                                 }
-                                confirmDialog.dismiss()
-                                dialog.dismiss()
                             }
-                            confirmDialog.show()
+                            confirmDialog.dismiss()
+                            dialog.dismiss()
                         }
+                        confirmDialog.show()
                     }
-                    dialog.show()
                 }
+            } catch (_: Exception) {
+                // Fallback: default to delete when owner count unknown
+                btnDelete.setImageResource(R.drawable.icon_delete)
+                btnDelete.contentDescription = "Delete Store"
+            }
         }
+
+        dialog.show()
     }
 
     private fun showStoreMenuEmployee(store: Store) {
@@ -515,20 +579,13 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         view.findViewById<TextView>(R.id.textStoreName).text = store.name
-        // Set access message based on role
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        if (userId != null) {
-            db.collection("stores").document(store.id)
-                .collection("members").document(userId)
-                .get().addOnSuccessListener { memberDoc ->
-                    val role = memberDoc.getString("role") ?: ""
-                    val accessText = when (role) {
-                        "manager" -> "You can manage prices and view products in this store"
-                        else -> "You can only view price on this store"
-                    }
-                    view.findViewById<TextView>(R.id.textAccessLevel).text = accessText
-                }
+        // Set access message based on Supabase role map
+        val role = storeRolesMap[store.id]?.lowercase()
+        val accessText = when (role) {
+            "manager" -> "You can manage prices and view products in this store"
+            else -> "You can only view price on this store"
         }
+        view.findViewById<TextView>(R.id.textAccessLevel).text = accessText
         // Set up view members and leave store actions as needed
         // Example:
         view.findViewById<ImageView>(R.id.btnViewMembers).setOnClickListener {
@@ -596,19 +653,22 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to leave this store? You will lose access to its products."
             confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
             confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-                if (userId != null) {
-                    db.collection("users").document(userId)
-                        .update("stores", com.google.firebase.firestore.FieldValue.arrayRemove(store.id))
-                        .addOnSuccessListener {
-                            db.collection("stores").document(store.id)
-                                .collection("members").document(userId)
-                                .delete()
-                                .addOnSuccessListener {
-                                    android.widget.Toast.makeText(this, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
-                                    fetchStores()
-                                }
+                lifecycleScope.launch {
+                    try {
+                        SupabaseProvider.client.postgrest.rpc(
+                            "leave_store",
+                            kotlinx.serialization.json.buildJsonObject { put("p_store_id", store.id) }
+                        )
+                        android.widget.Toast.makeText(this@StoreActivity, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
+                        fetchStores()
+                    } catch (e: Exception) {
+                        val msg = if (e.message?.contains("sole owner", true) == true) {
+                            "You are the sole owner. Transfer ownership first."
+                        } else {
+                            "Unable to leave store."
                         }
+                        android.widget.Toast.makeText(this@StoreActivity, msg, android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 }
                 confirmDialog.dismiss()
                 dialog.dismiss()
@@ -616,6 +676,30 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             confirmDialog.show()
         }
         dialog.show()
+    }
+
+    private fun loadNotifBadge() {
+        val notifDot = findViewById<View>(R.id.notifDot)
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
+        if (notifDot != null && userIdNotif != null) {
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest["notifications"].select {
+                        filter {
+                            eq("receiver_user_id", userIdNotif)
+                            eq("read", false)
+                        }
+                        limit(1)
+                    }.decodeList<com.presyohan.app.HomeActivity.NotificationRow>()
+                    notifDot.visibility = if (rows.isNotEmpty()) View.VISIBLE else View.GONE
+                } catch (e: Exception) {
+                    notifDot.visibility = View.GONE
+                    android.util.Log.e("SupabaseNotif", "Error loading notif badge", e)
+                }
+            }
+        } else if (notifDot != null) {
+            notifDot.visibility = View.GONE
+        }
     }
 
     // Add a helper function to recursively delete all subcollections of a store

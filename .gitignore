@@ -1,0 +1,8 @@
+# Root ignores
+
+# Ignore temp files and logs
+temp files/
+*.log
+
+# Build artifacts (ensure mobile module already ignores its local build)
+build/

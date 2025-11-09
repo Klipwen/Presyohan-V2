@@ -21,6 +21,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
@@ -414,27 +415,7 @@ class HomeActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        val notifDot = findViewById<View>(R.id.notifDot)
-        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        if (notifDot != null && userIdNotif != null) {
-            lifecycleScope.launch {
-                try {
-                    val pending = supabase.postgrest["notifications"].select {
-                        filter {
-                            eq("recipient_user_id", userIdNotif)
-                            eq("unread", true)
-                            // If you store lowercase statuses, use 'pending'
-                            // eq("status", "pending")
-                        }
-                        limit(1)
-                    }.decodeList<NotificationRow>()
-                    notifDot.visibility = if (pending.isNotEmpty()) View.VISIBLE else View.GONE
-                } catch (e: Exception) {
-                    notifDot.visibility = View.GONE
-                    android.util.Log.e("HomeActivity", "Notif badge load failed", e)
-                }
-            }
-        }
+        loadNotifBadge()
     }
 
     override fun onResume() {
@@ -450,6 +431,7 @@ class HomeActivity : AppCompatActivity() {
         prefs.apply()
         // Refresh products and notification badge when returning to this screen
         reloadProductsFn?.invoke()
+        loadNotifBadge()
     }
 
     override fun onBackPressed() {
@@ -529,6 +511,30 @@ class HomeActivity : AppCompatActivity() {
             confirmDialog.show()
         }
         dialog.show()
+    }
+
+    private fun loadNotifBadge() {
+        val notifDot = findViewById<View>(R.id.notifDot)
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
+        if (notifDot != null && userIdNotif != null) {
+            lifecycleScope.launch {
+                try {
+                    val pending = supabase.postgrest["notifications"].select(Columns.list("id", "receiver_user_id", "read")) {
+                        filter {
+                            eq("receiver_user_id", userIdNotif)
+                            eq("read", false)
+                        }
+                        limit(1)
+                    }.decodeList<NotificationRow>()
+                    notifDot.visibility = if (pending.isNotEmpty()) View.VISIBLE else View.GONE
+                } catch (e: Exception) {
+                    notifDot.visibility = View.GONE
+                    android.util.Log.e("HomeActivity", "Notif badge load failed", e)
+                }
+            }
+        } else if (notifDot != null) {
+            notifDot.visibility = View.GONE
+        }
     }
 
     private suspend fun deleteCategoryIfEmpty(storeId: String, categoryName: String) {

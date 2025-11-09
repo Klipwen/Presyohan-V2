@@ -56,6 +56,7 @@ data class UserStoreLiteRow(
 class NotificationActivity : AppCompatActivity() {
     private val notifications = mutableListOf<Notification>()
     private val notificationIds = mutableListOf<String>()
+    private val notificationStoreIds = mutableListOf<String?>()
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -141,6 +142,7 @@ class NotificationActivity : AppCompatActivity() {
                                 }
                             notifications.removeAt(position)
                             notificationIds.removeAt(position)
+                            notificationStoreIds.removeAt(position)
                             adapter.notifyItemRemoved(position)
                             dialog.dismiss()
                         } catch (e: Exception) {
@@ -155,11 +157,8 @@ class NotificationActivity : AppCompatActivity() {
         })
         itemTouchHelper.attachToRecyclerView(recyclerView)
 
-        // Load notifications
+        // Load notifications; marking as read happens after loading completes
         loadNotifications()
-        
-        // Mark all notifications as read when activity opens
-        markAllNotificationsAsRead()
     }
 
     private fun loadNotifications() {
@@ -178,6 +177,7 @@ class NotificationActivity : AppCompatActivity() {
 
                 notifications.clear()
                 notificationIds.clear()
+                notificationStoreIds.clear()
                 
                 for (row in response) {
                     // Convert timestamp from ISO string to epoch millis
@@ -201,11 +201,14 @@ class NotificationActivity : AppCompatActivity() {
                         message = row.message
                     ))
                     notificationIds.add(row.id)
+                    notificationStoreIds.add(row.store_id)
                 }
                 
                 runOnUiThread {
                     findViewById<RecyclerView>(R.id.recyclerViewNotifications).adapter?.notifyDataSetChanged()
                 }
+                // Mark all notifications as read once loaded
+                markAllNotificationsAsRead()
             } catch (e: Exception) {
                 runOnUiThread {
                     Toast.makeText(this@NotificationActivity, "Failed to load notifications", Toast.LENGTH_SHORT).show()
@@ -213,10 +216,17 @@ class NotificationActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Reload to ensure latest and mark as read upon load
+        loadNotifications()
+    }
     
     private fun parseNotificationInfo(row: NotificationFullRow): List<String?> {
         val type = when (row.type) {
             "join_request" -> "Join Request"
+            "join_pending" -> "Join Request"
             "join_accepted" -> "Join Request"
             "join_rejected" -> "Join Request"
             "store_invitation" -> "Store Invitation"
@@ -225,7 +235,7 @@ class NotificationActivity : AppCompatActivity() {
         }
         
         val status = when (row.type) {
-            "join_request", "store_invitation" -> "Pending"
+            "join_request", "join_pending", "store_invitation" -> "Pending"
             "join_accepted", "invitation_accepted" -> "Accepted"
             "join_rejected" -> "Declined"
             else -> "Pending"
@@ -266,18 +276,15 @@ class NotificationActivity : AppCompatActivity() {
     private fun markAllNotificationsAsRead() {
         lifecycleScope.launch {
             try {
-                val unreadIds = notificationIds.filterIndexed { index, _ ->
-                    !(notifications.getOrNull(index)?.let { it.status == "Accepted" || it.status == "Declined" } ?: false)
-                }
-
-                if (unreadIds.isNotEmpty()) {
+                val allIds = notificationIds.toList()
+                if (allIds.isNotEmpty()) {
                     SupabaseProvider.client.postgrest.rpc(
                         "mark_notifications_read",
                         buildJsonObject {
                             put(
                                 "p_notification_ids",
                                 buildJsonArray {
-                                    unreadIds.forEach { add(JsonPrimitive(it)) }
+                                    allIds.forEach { add(JsonPrimitive(it)) }
                                 }
                             )
                         }
@@ -361,21 +368,31 @@ class NotificationActivity : AppCompatActivity() {
     
     private fun handleViewStore(notification: Notification) {
         // Open HomeActivity for the store referenced in the notification
-        val storeName = notification.storeName ?: return
-        
+        val index = notifications.indexOf(notification)
+        val storeId = if (index >= 0 && index < notificationStoreIds.size) notificationStoreIds[index] else null
+        val storeName = notification.storeName
+
+        // If we have the storeId from the notification, prefer using it directly
+        if (storeId != null) {
+            val intent = Intent(this@NotificationActivity, HomeActivity::class.java)
+            intent.putExtra("storeId", storeId)
+            if (storeName != null) intent.putExtra("storeName", storeName)
+            startActivity(intent)
+            return
+        }
+
+        // Fallback: resolve by store name from the user's stores
+        val resolvedName = storeName ?: return
         lifecycleScope.launch {
             try {
-                val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@launch
-                
-                // Get user's stores to find the store ID
                 val userStores = SupabaseProvider.client.postgrest.rpc("get_user_stores")
                     .decodeList<UserStoreLiteRow>()
-                
-                val store = userStores.find { it.name == storeName }
+
+                val store = userStores.find { it.name == resolvedName }
                 if (store != null) {
                     val intent = Intent(this@NotificationActivity, HomeActivity::class.java)
                     intent.putExtra("storeId", store.store_id)
-                    intent.putExtra("storeName", storeName)
+                    intent.putExtra("storeName", resolvedName)
                     startActivity(intent)
                 } else {
                     runOnUiThread {

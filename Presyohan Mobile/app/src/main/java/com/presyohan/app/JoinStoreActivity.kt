@@ -23,10 +23,11 @@ import kotlinx.serialization.json.buildJsonObject
 
 @Serializable
 data class StoreByInviteCodeRow(
-    val id: String,
+    val store_id: String,
     val name: String,
-    val owner_id: String,
-    val invite_code_expires_at: String?
+    val branch: String? = null,
+    val type: String? = null,
+    val invite_code_created_at: String? = null
 )
 
 @Serializable
@@ -97,10 +98,18 @@ class JoinStoreActivity : AppCompatActivity() {
                     }
 
                     // Use RPC to get store by invite code (includes expiry check)
-                    val storeResponse = SupabaseProvider.client.postgrest.rpc(
-                        "get_store_by_invite_code",
-                        buildJsonObject { put("p_invite_code", storeCode) }
-                    ).decodeList<StoreByInviteCodeRow>()
+                    val storeResponse = try {
+                        SupabaseProvider.client.postgrest.rpc(
+                            "get_store_by_invite_code",
+                            buildJsonObject { put("p_invite_code", storeCode) }
+                        ).decodeList<StoreByInviteCodeRow>()
+                    } catch (e: Exception) {
+                        android.util.Log.e("JoinStoreActivity", "Lookup invite code failed: ${e.message}", e)
+                        runOnUiThread {
+                            Toast.makeText(this@JoinStoreActivity, "Invalid or expired store code.", Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
 
                     if (storeResponse.isEmpty()) {
                         runOnUiThread {
@@ -111,11 +120,15 @@ class JoinStoreActivity : AppCompatActivity() {
 
                     val store = storeResponse[0]
 
-                    // Check if user is already a member of this store
-                    val userStores = SupabaseProvider.client.postgrest.rpc("get_user_stores")
-                        .decodeList<UserStoreSummaryRow>()
-
-                    val isAlreadyMember = userStores.any { it.store_id == store.id }
+                    // Check if user is already a member of this store (best-effort)
+                    val isAlreadyMember = try {
+                        val userStores = SupabaseProvider.client.postgrest.rpc("get_user_stores")
+                            .decodeList<UserStoreSummaryRow>()
+                        userStores.any { it.store_id == store.store_id }
+                    } catch (e: Exception) {
+                        android.util.Log.w("JoinStoreActivity", "Membership check failed (continuing): ${e.message}")
+                        false
+                    }
                     if (isAlreadyMember) {
                         runOnUiThread {
                             Toast.makeText(this@JoinStoreActivity, "You're already a member of this store.", Toast.LENGTH_SHORT).show()
@@ -123,18 +136,22 @@ class JoinStoreActivity : AppCompatActivity() {
                         return@launch
                     }
 
-                    // Check for existing pending join request
-                    val existingNotifications = SupabaseProvider.client.postgrest["notifications"]
-                        .select(Columns.list("id")) {
-                            filter {
-                                eq("receiver_user_id", store.owner_id)
-                                eq("sender_user_id", supaUserId)
-                                eq("store_id", store.id)
-                                eq("type", "join_request")
-                                eq("read", false)
+                    // Check for existing pending join request (best-effort; skip if RLS blocks)
+                    val existingNotifications = try {
+                        SupabaseProvider.client.postgrest["notifications"]
+                            .select(Columns.list("id")) {
+                                filter {
+                                    eq("sender_user_id", supaUserId)
+                                    eq("store_id", store.store_id)
+                                    eq("type", "join_request")
+                                    eq("read", false)
+                                }
                             }
-                        }
-                        .decodeList<NotificationIdRow>()
+                            .decodeList<NotificationIdRow>()
+                    } catch (e: Exception) {
+                        android.util.Log.w("JoinStoreActivity", "Duplicate request check failed (continuing): ${e.message}")
+                        emptyList()
+                    }
 
                     if (existingNotifications.isNotEmpty()) {
                         runOnUiThread {
@@ -143,14 +160,39 @@ class JoinStoreActivity : AppCompatActivity() {
                         return@launch
                     }
 
-                    // Send join request using RPC
-                    SupabaseProvider.client.postgrest.rpc(
-                        "send_join_request",
-                        buildJsonObject {
-                            put("p_store_id", store.id)
-                            put("p_owner_id", store.owner_id)
+                    // Send join request using RPC (server determines owner internally)
+                    try {
+                        SupabaseProvider.client.postgrest.rpc(
+                            "send_join_request",
+                            buildJsonObject {
+                                put("p_store_id", store.store_id)
+                            }
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("JoinStoreActivity", "send_join_request failed: ${e.message}", e)
+                        runOnUiThread {
+                            Toast.makeText(this@JoinStoreActivity, "Unable to send request. Please try again.", Toast.LENGTH_SHORT).show()
                         }
-                    )
+                        return@launch
+                    }
+
+                    // Create a pending notification for the requester (best-effort)
+                    try {
+                        SupabaseProvider.client.postgrest["notifications"].insert(
+                            buildJsonObject {
+                                put("receiver_user_id", supaUserId)
+                                put("sender_user_id", supaUserId)
+                                put("store_id", store.store_id)
+                                put("type", "join_pending")
+                                put("title", "Join Request")
+                                put("message", "You requested to join ${store.name}")
+                                put("read", false)
+                            }
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.w("JoinStoreActivity", "Unable to create pending notification: ${e.message}")
+                        // Non-blocking: continue even if notification insert fails
+                    }
 
                     runOnUiThread {
                         Toast.makeText(this@JoinStoreActivity, "Join request sent successfully!", Toast.LENGTH_SHORT).show()
@@ -162,6 +204,7 @@ class JoinStoreActivity : AppCompatActivity() {
                     }
 
                 } catch (e: Exception) {
+                    android.util.Log.e("JoinStoreActivity", "Join request failed: ${e.message}", e)
                     runOnUiThread {
                         Toast.makeText(this@JoinStoreActivity, "Unable to send join request. Please try again.", Toast.LENGTH_SHORT).show()
                     }
