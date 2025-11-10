@@ -4,10 +4,13 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../config/supabaseClient';
 import '../../styles/StoreHeader.css';
 import storeIcon from '../../assets/icon_store.png';
+import NotificationsPanel from '../notifications/NotificationsPanel';
 
 // StoreHeader with side-menu layout
 export default function StoreHeader({ stores = [], onLogout, includeAllStoresLink = true }) {
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [storesExpanded, setStoresExpanded] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: 'User Name',
@@ -21,19 +24,21 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const user = session.user;
-          // Get name from user metadata or app_users table
-          let displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
-          
-          // Try to get more complete profile from app_users table
+          // Prefer Google/Gmail metadata from OAuth for name and avatar
+          let displayName = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          let avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
+          // Try to get more complete profile from app_users table (schema: id = auth.uid())
           try {
             const { data: appUser } = await supabase
               .from('app_users')
-              .select('name, email')
-              .eq('auth_uid', user.id)
+              .select('name, email, avatar_url')
+              .eq('id', user.id)
               .single();
-            
-            if (appUser?.name) {
-              displayName = appUser.name;
+
+            if (appUser) {
+              displayName = appUser.name || displayName;
+              avatarUrl = appUser.avatar_url || avatarUrl;
             }
           } catch (err) {
             // Fallback to auth metadata if app_users query fails
@@ -43,7 +48,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
           setUserProfile({
             name: displayName,
             email: user.email || 'email@example.com',
-            avatarUrl: user.user_metadata?.avatar_url || null
+            avatarUrl: avatarUrl
           });
         }
       } catch (error) {
@@ -53,6 +58,27 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
 
     fetchUserProfile();
   }, []);
+
+  // Fetch unread notifications count
+  useEffect(() => {
+    const loadUnread = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        if (!userId) { setUnreadCount(0); return; }
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('receiver_user_id', userId)
+          .eq('read', false);
+        if (error) throw error;
+        setUnreadCount(count || 0);
+      } catch (e) {
+        console.warn('Failed to get unread notifications count', e);
+      }
+    };
+    loadUnread();
+  }, [notificationsOpen]);
 
   const toggleSideMenu = () => setSideMenuOpen((v) => !v);
   const closeSideMenu = () => setSideMenuOpen(false);
@@ -96,10 +122,64 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
           </div>
         </div>
         <div className="header-icons">
-          <button className="icon-btn" title="Notifications">
+          <button
+            className="icon-btn"
+            title="Notifications"
+            onClick={async () => {
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const userId = session?.user?.id;
+                if (userId) {
+                  const { data: unreadList } = await supabase
+                    .from('notifications')
+                    .select('id')
+                    .eq('receiver_user_id', userId)
+                    .eq('read', false)
+                    .order('created_at', { ascending: false })
+                    .limit(200);
+                  const ids = (unreadList || []).map(n => n.id);
+                  if (ids.length > 0) {
+                    await supabase.rpc('mark_notifications_read', { p_notification_ids: ids });
+                  }
+                  // Confirm server-side state and update badge
+                  const { count } = await supabase
+                    .from('notifications')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('receiver_user_id', userId)
+                    .eq('read', false);
+                  setUnreadCount(count || 0);
+                  // Pass initial unread IDs to panel via window event for simplicity
+                  window.dispatchEvent(new CustomEvent('presyohan:initialUnreadIds', { detail: ids }));
+                }
+              } catch (e) {
+                console.warn('Failed to auto-mark notifications as read', e);
+              } finally {
+                setNotificationsOpen(true);
+              }
+            }}
+            style={{ position: 'relative' }}
+          >
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
             </svg>
+            {unreadCount > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                minWidth: '18px',
+                height: '18px',
+                borderRadius: '9px',
+                background: '#ff3b30',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 5px'
+              }}>{unreadCount}</span>
+            )}
           </button>
           <button className="icon-btn" title="Profile">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,6 +318,9 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
           </a>
         </div>
       </div>
+
+      {/* Notifications Panel */}
+      <NotificationsPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </>
   );
 }

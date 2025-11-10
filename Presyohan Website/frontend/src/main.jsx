@@ -8,6 +8,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage.jsx'
 import AuthCallback from './pages/AuthCallback.jsx'
 import StorePage from './pages/StorePage.jsx'
 import ManageItemsPage from './pages/ManageItemsPage.jsx'
+import StoreSettingsPage from './pages/StoreSettingsPage.jsx'
 import ContactPage from './pages/ContactPage.jsx'
 
 // Removed default Vite App.css to avoid constraining #root width
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/stores" element={<StoresPage />} />
         {/* Store page */}
         <Route path="/store" element={<StorePage />} />
+        <Route path="/manage-store" element={<StoreSettingsPage />} />
         <Route path="/manage-items" element={<ManageItemsPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />

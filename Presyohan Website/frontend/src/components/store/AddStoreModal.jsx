@@ -4,7 +4,7 @@ import JoinStore from './JoinStore';
 // ... existing code ...
 import storeIcon from '../../assets/icon_store.png';
 
-export default function AddStoreModal({ open, onClose, onJoin, onCreate }) {
+export default function AddStoreModal({ open, onClose, onJoin, onCreate, joinStatus }) {
   const [view, setView] = useState('choose'); // choose | create | join
 
   useEffect(() => {
@@ -35,8 +35,9 @@ export default function AddStoreModal({ open, onClose, onJoin, onCreate }) {
       <JoinStore
         onJoin={(code) => {
           onJoin?.(code);
-          closeAndReset();
+          // Keep modal open so we can show inline status labels
         }}
+        actionStatus={joinStatus}
         onDismiss={() => setView('choose')}
       />
     );

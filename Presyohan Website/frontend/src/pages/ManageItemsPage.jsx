@@ -114,12 +114,12 @@ export default function ManageItemsPage() {
           setConfirm({
             open: true,
             title: 'Confirm Navigation',
-            message: hasChanges ? 'You made changes. Go back to the store page?' : 'Go back to the store page?',
+            message: hasChanges ? 'You made changes. Go back?' : 'Go back?',
             confirmText: 'Back',
             cancelText: 'Stay',
             onConfirm: () => {
               setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
-              navigate(`/store?id=${encodeURIComponent(storeId || '')}`);
+              navigate(-1);
             }
           });
         }}

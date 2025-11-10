@@ -103,6 +103,19 @@
   margin-left: 12px;
 }
 
+/* Inline action/validation status labels */
+.status-text {
+  display: inline-block;
+  margin-left: 12px;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+}
+.status-text.info { background: #fff7e6; color: #a85e00; border-color: #ffe0b2; }
+.status-text.success { background: #e6f7e9; color: #1d7a33; border-color: #c6e6cc; }
+.status-text.error { background: #ffe8e6; color: #c62828; border-color: #ffcdd2; }
+
 input.input-error, select.input-error { border-color: #e53935; box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.12); }
 input.input-valid, select.input-valid { border-color: #2e7d32; box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12); }
 

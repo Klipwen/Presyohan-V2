@@ -5,6 +5,7 @@ import Footer from '../components/layout/Footer';
 import AddStoreModal from '../components/store/AddStoreModal';
 import StoreCard from '../components/store/StoreCard';
 import StoreOptionsModal from '../components/store/StoreOptionsModal';
+import InviteStaffModal from '../components/store/InviteStaffModal';
 import ConfirmModal from '../components/store/ConfirmModal';
 import { supabase } from '../config/supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +18,7 @@ export default function StoresPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
   const [selectedStore, setSelectedStore] = useState(null);
+  const [joinStatus, setJoinStatus] = useState({ kind: null, text: '' });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,7 +41,8 @@ export default function StoresPage() {
           name: r.name,
           branch: r.branch || '',
           type: r.type || 'Type',
-          role: r.role || null
+          role: r.role || null,
+          ownerName: r.owner_name || null
         }));
         setStores(mapped);
       } catch (e) {
@@ -54,8 +57,49 @@ export default function StoresPage() {
   const closeModal = () => setModalOpen(false);
 
   const joinStore = async (code) => {
-    // Placeholder: join flow via invite code RPC could be added
-    alert(`Requested to join store with code: ${code}`);
+    try {
+      setJoinStatus({ kind: 'info', text: 'Validating code…' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) {
+        setJoinStatus({ kind: 'error', text: 'Please sign in to join a store.' });
+        return;
+      }
+
+      // Resolve store by invite code (valid for 24h)
+      const { data: storeRows, error: codeErr } = await supabase.rpc('get_store_by_invite_code', { p_invite_code: code });
+      if (codeErr) throw codeErr;
+      const store = Array.isArray(storeRows) && storeRows.length > 0 ? storeRows[0] : null;
+      if (!store?.store_id) {
+        setJoinStatus({ kind: 'error', text: 'Invalid or expired store code.' });
+        return;
+      }
+
+      // Prevent duplicate pending requests
+      const { data: existing, error: dupErr } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('sender_user_id', userId)
+        .eq('store_id', store.store_id)
+        .eq('type', 'join_request')
+        .eq('read', false)
+        .limit(1);
+      if (!dupErr && existing && existing.length > 0) {
+        setJoinStatus({ kind: 'info', text: 'You already have a pending join request.' });
+        return;
+      }
+
+      // Send join request via RPC; server determines owner and inserts notification
+      const { error: sendErr } = await supabase.rpc('send_join_request', {
+        p_store_id: store.store_id,
+        p_message: null,
+      });
+      if (sendErr) throw sendErr;
+      setJoinStatus({ kind: 'success', text: `Request sent to join ${store.name}.` });
+    } catch (e) {
+      console.error('Join store failed', e);
+      setJoinStatus({ kind: 'error', text: e.message || 'Failed to send join request.' });
+    }
   };
 
   const createStore = async (payload) => {
@@ -103,6 +147,7 @@ export default function StoresPage() {
   };
 
   const closeOptions = () => setOptionsOpen(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const handleSettings = () => {
     setOptionsOpen(false);
@@ -111,8 +156,10 @@ export default function StoresPage() {
 
   const handleInvite = () => {
     setOptionsOpen(false);
-    navigate(`/invite-staff?id=${encodeURIComponent(selectedStore?.id || '')}`);
+    setInviteOpen(true);
   };
+
+  const closeInvite = () => setInviteOpen(false);
 
   const triggerConfirm = (type) => {
     if (!selectedStore) return;
@@ -173,6 +220,7 @@ export default function StoresPage() {
               location={s.branch}
               type={s.type}
               role={s.role}
+              ownerName={s.ownerName}
               href={`/store?id=${encodeURIComponent(s.id)}`}
               onOptionsClick={() => openStoreOptions(s)}
             />
@@ -186,7 +234,7 @@ export default function StoresPage() {
         </svg>
       </button>
 
-      <AddStoreModal open={modalOpen} onClose={closeModal} onJoin={joinStore} onCreate={createStore} />
+      <AddStoreModal open={modalOpen} onClose={closeModal} onJoin={joinStore} onCreate={createStore} joinStatus={joinStatus} />
 
       {/* Options modal */}
       {selectedStore && (
@@ -200,6 +248,17 @@ export default function StoresPage() {
           onInvite={handleInvite}
           onDelete={() => triggerConfirm('delete')}
           onLeave={() => triggerConfirm('leave')}
+        />
+      )}
+
+      {/* Invite Staff modal */}
+      {selectedStore && (
+        <InviteStaffModal
+          open={inviteOpen}
+          onClose={closeInvite}
+          storeId={selectedStore.id}
+          storeName={selectedStore.name}
+          isOwner={selectedStore.role === 'owner'}
         />
       )}
 

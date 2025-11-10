@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import '../../styles/StoreModals.css';
 import storeIcon from '../../assets/icon_store.png';
 
-export default function JoinStore({ onJoin, onDismiss }) {
+export default function JoinStore({ onJoin, onDismiss, actionStatus }) {
   const inputsRef = useRef([]);
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [invalid, setInvalid] = useState(false);
@@ -67,6 +67,9 @@ export default function JoinStore({ onJoin, onDismiss }) {
             ))}
           </div>
           {invalid && <p className="error-text">Please enter the 6-digit code.</p>}
+          {actionStatus?.text && (
+            <p className={`status-text ${actionStatus.kind || 'info'}`}>{actionStatus.text}</p>
+          )}
 
           <div className="modal-actions">
             <button type="submit" className="btn primary">Request to Join</button>
