@@ -40,7 +40,7 @@ export default function NotificationsPanel({ open, onClose, initialUnreadIds = [
 
   const joinTypes = ['join_request','join_pending','join_accepted','join_rejected'];
   const inviteTypes = ['store_invitation','invitation_pending','invitation_accepted','invitation_rejected'];
-  const systemTypes = ['member_joined','member_left'];
+  const systemTypes = ['member_joined','member_left','member_removed','join_confirmed','leave_confirmed'];
   const filtered = useMemo(() => {
     switch (activeTab) {
       case 'join':

@@ -182,13 +182,30 @@ export default function StoresPage() {
         message: 'Are you sure you want to leave this store?',
         confirmLabel: 'Leave',
         action: async () => {
-          const uid = await getCurrentUserId();
-          if (!uid) { alert('Not authenticated'); return; }
-          const { error } = await supabase.from('store_members').delete().eq('store_id', selectedStore.id).eq('user_id', uid);
-          if (error) { alert(error.message || 'Failed to leave store'); return; }
-          setStores(prev => prev.filter(s => s.id !== selectedStore.id));
-          setConfirmOpen(false);
-          setSelectedStore(null);
+          try {
+            const { error } = await supabase.rpc('leave_store', { p_store_id: selectedStore.id });
+            if (error) { alert(error.message || 'Failed to leave store'); return; }
+            // Refetch stores via secure RPC to ensure consistency
+            const { data: rows, error: fetchErr } = await supabase.rpc('get_user_stores');
+            if (fetchErr) {
+              // Fallback to local removal if refetch fails
+              setStores(prev => prev.filter(s => s.id !== selectedStore.id));
+            } else {
+              const mapped = (rows || []).map(r => ({
+                id: r.store_id,
+                name: r.name,
+                branch: r.branch || '',
+                type: r.type || 'Type',
+                role: r.role || null,
+                ownerName: r.owner_name || null
+              }));
+              setStores(mapped);
+            }
+            setConfirmOpen(false);
+            setSelectedStore(null);
+          } catch (e) {
+            alert(e.message || 'Failed to leave store');
+          }
         }
       });
     }

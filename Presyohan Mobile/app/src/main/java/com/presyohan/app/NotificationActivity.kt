@@ -241,7 +241,7 @@ class NotificationActivity : AppCompatActivity() {
             else -> "Pending"
         }
         
-        // Extract sender email from message or use sender_user_id
+        // Extract sender name/email from message; fallback to sender_user_id
         val sender = extractSenderFromMessage(row.message) ?: row.sender_user_id ?: "Unknown"
         
         // Extract store name from message
@@ -254,7 +254,23 @@ class NotificationActivity : AppCompatActivity() {
     }
     
     private fun extractSenderFromMessage(message: String): String? {
-        // Extract email from messages like "user@example.com invited you to join..."
+        // Try to extract a display name from common notification patterns
+        // Patterns: "<Name> invited you to join ...", "<Name> wants to join ...",
+        //           "<Name> joined ...", "<Name> left ..."
+        val patterns = listOf(
+            "^(.+?)\\s+invited you to join".toRegex(),
+            "^(.+?)\\s+wants to join".toRegex(),
+            "^(.+?)\\s+joined\\s+".toRegex(),
+            "^(.+?)\\s+left\\s+".toRegex()
+        )
+        for (regex in patterns) {
+            val match = regex.find(message)
+            if (match != null) {
+                val candidate = match.groupValues.getOrNull(1)?.trim()
+                if (!candidate.isNullOrEmpty()) return candidate
+            }
+        }
+        // Fallback: extract email from messages like "user@example.com invited you to join..."
         val emailRegex = "([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})".toRegex()
         return emailRegex.find(message)?.value
     }

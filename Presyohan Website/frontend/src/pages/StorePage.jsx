@@ -96,12 +96,14 @@ export default function StorePage() {
         message: 'Are you sure you want to leave this store?',
         confirmLabel: 'Leave',
         action: async () => {
-          const uid = await getCurrentUserId();
-          if (!uid) { alert('Not authenticated'); return; }
-          const { error } = await supabase.from('store_members').delete().eq('store_id', storeId).eq('user_id', uid);
-          if (error) { alert(error.message || 'Failed to leave store'); return; }
-          setConfirmOpen(false);
-          navigate('/stores');
+          try {
+            const { error } = await supabase.rpc('leave_store', { p_store_id: storeId });
+            if (error) { alert(error.message || 'Failed to leave store'); return; }
+            setConfirmOpen(false);
+            navigate('/stores');
+          } catch (e) {
+            alert(e.message || 'Failed to leave store');
+          }
         }
       });
     }
@@ -138,6 +140,21 @@ export default function StorePage() {
     };
     loadProducts();
   }, [storeId, selectedCategory, searchQuery]);
+
+  // Keyboard shortcut: Ctrl+A (or Cmd+A on Mac) opens Add Item modal
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const isCtrlA = (e.ctrlKey || e.metaKey) && ((e.key && e.key.toLowerCase() === 'a') || e.code === 'KeyA');
+      if (!isCtrlA) return;
+      const tag = (e.target?.tagName || '').toLowerCase();
+      const isEditable = e.target?.isContentEditable || ['input', 'textarea', 'select'].includes(tag);
+      if (isEditable) return; // don't override select-all inside editable fields
+      e.preventDefault();
+      setShowAddItem(true);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -194,6 +211,31 @@ export default function StorePage() {
                 .eq('store_id', storeId);
 
               if (error) throw error;
+
+              // If item moved categories, check and delete previous category if now empty
+              const previousCategoryName = products.find(p => p.id === updatedItem.id)?.category || '';
+              const newCategoryName = updatedItem.category?.trim() || '';
+              if (previousCategoryName && previousCategoryName !== newCategoryName) {
+                const { data: prevCatRows } = await supabase
+                  .from('categories')
+                  .select('id')
+                  .eq('store_id', storeId)
+                  .eq('name', previousCategoryName)
+                  .limit(1);
+                const prevCatId = Array.isArray(prevCatRows) && prevCatRows[0]?.id;
+                if (prevCatId) {
+                  const { data: remaining } = await supabase
+                    .from('products')
+                    .select('id')
+                    .eq('store_id', storeId)
+                    .eq('category_id', prevCatId)
+                    .limit(1);
+                  if (Array.isArray(remaining) && remaining.length === 0) {
+                    await supabase.from('categories').delete().eq('id', prevCatId).eq('store_id', storeId);
+                    setCategories(prev => prev.filter(c => c.name !== previousCategoryName));
+                  }
+                }
+              }
               // Refresh to reflect updates
               setSelectedCategory('PRICELIST');
               window.location.reload();
@@ -204,6 +246,7 @@ export default function StorePage() {
           onDeleteItem={async (itemId) => {
             if (!storeId) return;
             try {
+              const catName = products.find(p => p.id === itemId)?.category;
               const { error } = await supabase
                 .from('products')
                 .delete()
@@ -211,6 +254,28 @@ export default function StorePage() {
                 .eq('store_id', storeId);
 
               if (error) throw error;
+              // Auto-delete category if this was the last item in it
+              if (catName) {
+                const { data: cats } = await supabase
+                  .from('categories')
+                  .select('id')
+                  .eq('store_id', storeId)
+                  .eq('name', catName)
+                  .limit(1);
+                const catId = Array.isArray(cats) && cats[0]?.id;
+                if (catId) {
+                  const { data: prods } = await supabase
+                    .from('products')
+                    .select('id')
+                    .eq('store_id', storeId)
+                    .eq('category_id', catId)
+                    .limit(1);
+                  if (Array.isArray(prods) && prods.length === 0) {
+                    await supabase.from('categories').delete().eq('id', catId).eq('store_id', storeId);
+                    setCategories(prev => prev.filter(c => c.name !== catName));
+                  }
+                }
+              }
               // Refresh to reflect deletion
               setSelectedCategory('PRICELIST');
               window.location.reload();
@@ -255,7 +320,7 @@ export default function StorePage() {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 100
-      }} onClick={() => setShowAddItem(true)} aria-label="Add Item">
+      }} title="Shortcut: Ctrl+A" onClick={() => setShowAddItem(true)} aria-label="Add Item">
         <svg width="28" height="28" fill="none" stroke="white" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/>
         </svg>

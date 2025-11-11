@@ -249,7 +249,7 @@ export default function LandingPage() {
             Presyohan is a centralized, role-based platform designed to eliminate pricing errors and confusion in your store. Think of it as the single, authoritative source of truth for every product price, available instantly to everyone on your team—on both web and mobile. We take the stress out of store operations so you and your team can focus on serving your customers.
           </p>
 
-          <h3 className="lp-block-title">How Presyohan Transforms Your Store</h3>
+          <h3 className="lp-block-title">How Presyohan Transforms Your Store:</h3>
 
           <div className="lp-carousel">
             <button

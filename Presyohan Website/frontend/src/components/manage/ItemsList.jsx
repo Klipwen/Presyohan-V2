@@ -17,7 +17,7 @@ export default function ItemsList({ groupedItems, onEditItem, onDeleteItem, onAd
               <h2 style={{
                 fontSize: '0.9rem',
                 fontWeight: '700',
-                color: '#ff8c00',
+                color: '#00bcd4',
                 margin: 0,
                 textTransform: 'uppercase'
               }}>
@@ -124,7 +124,7 @@ export default function ItemsList({ groupedItems, onEditItem, onDeleteItem, onAd
             <button style={{
               width: '100%',
               marginTop: '15px',
-              background: '#ff8c00',
+              background: '#00bcd4',
               color: 'white',
               border: 'none',
               padding: '14px',

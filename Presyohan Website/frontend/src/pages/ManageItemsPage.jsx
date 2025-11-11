@@ -5,6 +5,7 @@ import '../styles/ManageItemsPage.css';
 import MobileCategorySelect from '../components/manage/MobileCategorySelect';
 import ManageHeader from '../components/manage/ManageHeader';
 import CategorySidebar from '../components/manage/CategorySidebar';
+import EditCategoryModal from '../components/manage/EditCategoryModal';
 import ItemsList from '../components/manage/ItemsList';
 import AddItemModal from '../components/items/AddItemModal';
 import EditItemModal from '../components/items/EditItemModal';
@@ -24,6 +25,7 @@ export default function ManageItemsPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [showAddItem, setShowAddItem] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [editCategory, setEditCategory] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -99,6 +101,74 @@ export default function ManageItemsPage() {
     loadItems();
   }, [storeId, selectedCategory, searchQuery]);
 
+  // Keyboard shortcut: Ctrl+A (or Cmd+A on Mac) opens Add Item modal
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const isCtrlA = (e.ctrlKey || e.metaKey) && ((e.key && e.key.toLowerCase() === 'a') || e.code === 'KeyA');
+      if (!isCtrlA) return;
+      const tag = (e.target?.tagName || '').toLowerCase();
+      const isEditable = e.target?.isContentEditable || ['input', 'textarea', 'select'].includes(tag);
+      if (isEditable) return; // don't override select-all inside editable fields
+      e.preventDefault();
+      setShowAddItem(true);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const refreshCategories = async () => {
+    if (!storeId) return;
+    try {
+      const { data: cats, error: catsErr } = await supabase.rpc('get_user_categories', { p_store_id: storeId });
+      if (!catsErr) setCategories(Array.isArray(cats) ? cats.map(c => ({ id: c.category_id, name: c.name })) : []);
+    } catch (e) {
+      console.warn('Error refreshing categories:', e);
+    }
+  };
+
+  const handleEditCategory = (cat) => setEditCategory(cat);
+
+  const handleSaveCategory = async (newName) => {
+    try {
+      const { error } = await supabase.rpc('rename_or_merge_category', {
+        p_store_id: storeId,
+        p_category_id: editCategory.id,
+        p_new_name: newName.trim()
+      });
+      if (error) throw error;
+      setEditCategory(null);
+      setHasChanges(true);
+      await refreshCategories();
+    } catch (e) {
+      alert(e.message || 'Failed to save category');
+    }
+  };
+
+  const handleDeleteCategory = (cat) => {
+    setConfirm({
+      open: true,
+      title: 'Delete Category',
+      message: `Are you sure you want to delete "${cat.name}"? All items under this category will be permanently deleted. This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase.rpc('delete_category_safe', {
+            p_store_id: storeId,
+            p_category_id: cat.id
+          });
+          if (error) throw error;
+          setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
+          setHasChanges(true);
+          setSelectedCategory('PRICELIST');
+          await refreshCategories();
+        } catch (e) {
+          alert(e.message || 'Failed to delete category');
+        }
+      }
+    });
+  };
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -110,32 +180,8 @@ export default function ManageItemsPage() {
       {/* ... existing code ... */}
       {/* Header */}
       <ManageHeader 
-        onBack={() => {
-          setConfirm({
-            open: true,
-            title: 'Confirm Navigation',
-            message: hasChanges ? 'You made changes. Go back?' : 'Go back?',
-            confirmText: 'Back',
-            cancelText: 'Stay',
-            onConfirm: () => {
-              setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
-              navigate(-1);
-            }
-          });
-        }}
-        onDone={() => {
-          setConfirm({
-            open: true,
-            title: 'Done Managing Items',
-            message: hasChanges ? 'All changes are saved. Return to the store page?' : 'No changes made. Return to the store page?',
-            confirmText: 'Done',
-            cancelText: 'Cancel',
-            onConfirm: () => {
-              setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
-              navigate(`/store?id=${encodeURIComponent(storeId || '')}`);
-            }
-          });
-        }}
+        onBack={() => navigate(-1)}
+        onDone={() => navigate(`/store?id=${encodeURIComponent(storeId || '')}`)}
       />
 
       {/* Main Content */}
@@ -151,6 +197,8 @@ export default function ManageItemsPage() {
           selectedCategory={selectedCategory}
           setSelectedCategory={setSelectedCategory}
           totalItems={totalItems}
+          onEditCategory={handleEditCategory}
+          onDeleteCategory={handleDeleteCategory}
         />
 
         {/* Items Content */}
@@ -204,7 +252,7 @@ export default function ManageItemsPage() {
                 alignItems: 'center',
                 gap: '8px',
                 whiteSpace: 'nowrap'
-              }} onClick={() => setShowAddItem(true)}>
+              }} title="Shortcut: Ctrl+A" onClick={() => setShowAddItem(true)}>
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -277,12 +325,13 @@ export default function ManageItemsPage() {
           defaultCategory={selectedCategory !== 'PRICELIST' ? selectedCategory : ''}
           onAddCategory={async (newName) => {
             try {
-              const upper = newName.trim().toUpperCase();
-              const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: upper });
+              const trimmed = newName.trim();
+              const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: trimmed });
               if (error) throw error;
               const newId = inserted?.[0]?.category_id;
-              if (newId) setCategories(prev => [...prev, { id: newId, name: upper }]);
-              setSelectedCategory(upper);
+              const normalizedName = inserted?.[0]?.name || trimmed.toUpperCase();
+              if (newId) setCategories(prev => [...prev, { id: newId, name: normalizedName }]);
+              setSelectedCategory(normalizedName);
             } catch (e) {
               alert(e.message || 'Failed to add category');
             }
@@ -296,7 +345,8 @@ export default function ManageItemsPage() {
                 const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: catName });
                 if (error) throw error;
                 categoryId = inserted?.[0]?.category_id;
-                if (categoryId) setCategories(prev => [...prev, { id: categoryId, name: catName }]);
+                const normalizedName = inserted?.[0]?.name || catName.toUpperCase();
+                if (categoryId) setCategories(prev => [...prev, { id: categoryId, name: normalizedName }]);
               }
               const { error: addErr } = await supabase.rpc('add_product', {
                 p_store_id: storeId,
@@ -326,11 +376,12 @@ export default function ManageItemsPage() {
           categories={categories}
           onAddCategory={async (newName) => {
             try {
-              const upper = newName.trim().toUpperCase();
-              const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: upper });
+              const trimmed = newName.trim();
+              const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: trimmed });
               if (error) throw error;
               const newId = inserted?.[0]?.category_id;
-              if (newId) setCategories(prev => [...prev, { id: newId, name: upper }]);
+              const normalizedName = inserted?.[0]?.name || trimmed.toUpperCase();
+              if (newId) setCategories(prev => [...prev, { id: newId, name: normalizedName }]);
             } catch (e) {
               alert(e.message || 'Failed to add category');
             }
@@ -382,6 +433,13 @@ export default function ManageItemsPage() {
           }}
         />
       )}
+
+      <EditCategoryModal
+        open={!!editCategory}
+        onClose={() => setEditCategory(null)}
+        category={editCategory}
+        onSave={handleSaveCategory}
+      />
 
       <ConfirmationModal
         open={confirm.open}

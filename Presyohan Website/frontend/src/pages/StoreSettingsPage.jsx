@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabaseClient';
-import Header from '../components/layout/Header';
+import StoreHeader from '../components/layout/StoreHeader';
 import Footer from '../components/layout/Footer';
 import iconStore from '../assets/icon_store.png';
+import addStaffIcon from '../assets/icon_add_staff.png';
+import InviteStaffModal from '../components/store/InviteStaffModal';
+import ConfirmModal from '../components/store/ConfirmModal';
 
 // Store Settings Page
 // Uses the provided layout, replaces dummy data with real store/member data,
@@ -13,6 +16,7 @@ export default function StoreSettingsPage() {
   const [activeTab, setActiveTab] = useState('store');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [stores, setStores] = useState([]);
 
   const [storeId, setStoreId] = useState(null);
   const [storeName, setStoreName] = useState('');
@@ -22,6 +26,10 @@ export default function StoreSettingsPage() {
 
   const [members, setMembers] = useState([]);
   const [actionStatus, setActionStatus] = useState({ kind: null, text: '' });
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [memberOptions, setMemberOptions] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
 
   // Resolve storeId from query and load data
   useEffect(() => {
@@ -36,6 +44,18 @@ export default function StoreSettingsPage() {
       }
 
       try {
+        // Load stores for StoreHeader side-menu
+        try {
+          const { data, error } = await supabase.rpc('get_user_stores');
+          if (!error) {
+            const rows = Array.isArray(data) ? data : [];
+            const mapped = rows.map(r => ({ id: r.store_id, name: r.name, branch: r.branch || '' }));
+            setStores(mapped);
+          }
+        } catch (e) {
+          console.warn('Failed to load stores for header:', e);
+        }
+
         if (id) {
           // Get store core info
           const { data: storeRow, error: storeErr } = await supabase
@@ -58,30 +78,20 @@ export default function StoreSettingsPage() {
             .maybeSingle();
           setRole(myMembership?.role || null);
 
-          // Fetch members: roles then enrich with names/emails
-          const { data: memRows, error: memErr } = await supabase
-            .from('store_members')
-            .select('user_id, role')
-            .eq('store_id', id);
-          if (!memErr) {
-            const ids = (memRows || []).map(m => m.user_id).filter(Boolean);
-            let infoById = {};
-            if (ids.length > 0) {
-              const { data: users, error: usersErr } = await supabase
-                .from('app_users')
-                .select('id, name, email')
-                .in('id', ids);
-              if (!usersErr) {
-                infoById = (users || []).reduce((acc, u) => { acc[u.id] = u; return acc; }, {});
-              }
+          // Fetch members via schema-aware RPC
+          try {
+            const { data: memRows, error: memErr } = await supabase.rpc('get_store_members', { p_store_id: id });
+            if (!memErr) {
+              const enriched = (memRows || []).map(m => ({
+                id: m.user_id,
+                role: m.role,
+                name: m.name || (m.email ? m.email.split('@')[0] : 'User'),
+                email: m.email || ''
+              }));
+              setMembers(enriched);
             }
-            const enriched = (memRows || []).map(m => ({
-              id: m.user_id,
-              role: m.role,
-              name: infoById[m.user_id]?.name || (infoById[m.user_id]?.email ? infoById[m.user_id].email.split('@')[0] : 'User'),
-              email: infoById[m.user_id]?.email || ''
-            }));
-            setMembers(enriched);
+          } catch (e) {
+            console.warn('Failed to load members via RPC:', e);
           }
         }
       } catch (e) {
@@ -107,9 +117,11 @@ export default function StoreSettingsPage() {
         .update({ name: storeName, branch, type: storeType })
         .eq('id', storeId);
       if (error) throw error;
-      setActionStatus({ kind: 'success', text: 'Store settings saved successfully.' });
+      setActionStatus({ kind: 'success', text: 'Store settings updated.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 3000);
     } catch (e) {
       setActionStatus({ kind: 'error', text: e.message || 'Failed to save store settings.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 4000);
     }
   };
 
@@ -139,7 +151,7 @@ export default function StoreSettingsPage() {
     }}>
       {/* Top Header: sticky to top */}
       <div style={{ position: 'sticky', top: 0, zIndex: 1000 }}>
-        <Header variant="store" onToggleSideMenu={() => setMobileSidebarOpen(s => !s)} />
+        <StoreHeader stores={stores} includeAllStoresLink={false} />
       </div>
 
       {/* Store Settings subheader with back button (do not remove) */}
@@ -166,44 +178,12 @@ export default function StoreSettingsPage() {
           <h1 style={{ fontSize: '1.3rem', fontWeight: '700', margin: 0, color: '#ff8c00' }}>
             Store Settings
           </h1>
-          {isMobile && (
-            <button 
-              className="mobile-menu-toggle"
-              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-              style={{
-                marginLeft: 'auto',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '5px',
-                color: '#ff8c00'
-              }}
-            >
-              <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
-              </svg>
-            </button>
-          )}
+          {/* StoreHeader handles hamburger and notifications */}
         </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}
-      {mobileSidebarOpen && (
-        <div 
-          className="mobile-overlay"
-          onClick={() => setMobileSidebarOpen(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 999,
-            display: 'block'
-          }}
-        ></div>
-      )}
+      {/* Side-menu overlay provided by StoreHeader */}
 
       {/* Main Content - fullscreen, responsive */}
       <div style={{ 
@@ -342,10 +322,8 @@ export default function StoreSettingsPage() {
                     alignItems: 'center',
                     gap: '8px',
                     transition: 'all 0.2s ease'
-                  }}>
-                    <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
+                  }} onClick={() => setInviteOpen(true)}>
+                    <img src={addStaffIcon} alt="Invite staff" style={{ width: '28px', height: '28px' }} />
                     Invite staff
                   </button>
                   <button style={{
@@ -447,6 +425,16 @@ export default function StoreSettingsPage() {
                 >
                   DONE
                 </button>
+                {actionStatus.kind && (
+                  <div style={{
+                    marginTop: '10px',
+                    textAlign: 'center',
+                    fontWeight: 600,
+                    color: actionStatus.kind === 'success' ? '#1d7a33' : actionStatus.kind === 'error' ? '#b32626' : '#a85e00'
+                  }}>
+                    {actionStatus.text}
+                  </div>
+                )}
               </div>
             )}
 
@@ -480,15 +468,7 @@ export default function StoreSettingsPage() {
                       <div style={{ fontSize: '1rem', fontWeight: '600', color: '#333' }}>{member.name}</div>
                       <div style={{ fontSize: '0.85rem', color: '#999' }}>Owner</div>
                     </div>
-                    <button style={{
-                      padding: '8px 16px',
-                      background: 'transparent',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '20px',
-                      fontSize: '0.85rem',
-                      color: '#666',
-                      cursor: 'pointer'
-                    }}>Options</button>
+                    {/* No options for owners */}
                   </div>
                 ))}
 
@@ -519,15 +499,22 @@ export default function StoreSettingsPage() {
                       <div style={{ fontSize: '1rem', fontWeight: '600', color: '#333' }}>{member.name}</div>
                       <div style={{ fontSize: '0.85rem', color: '#999' }}>Manager</div>
                     </div>
-                    <button style={{
-                      padding: '8px 16px',
-                      background: 'transparent',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '20px',
-                      fontSize: '0.85rem',
-                      color: '#666',
-                      cursor: 'pointer'
-                    }}>Options</button>
+                    <button style={{ 
+                      width: '36px', 
+                      height: '36px', 
+                      background: 'transparent', 
+                      border: '1px solid #e0e0e0', 
+                      borderRadius: '50%', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      color: '#666' 
+                    }} onClick={() => setMemberOptions({ member, role: 'manager' })} aria-label={`Edit ${member.name}`}>
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                      </svg>
+                    </button>
                   </div>
                 ))}
 
@@ -558,22 +545,178 @@ export default function StoreSettingsPage() {
                       <div style={{ fontSize: '1rem', fontWeight: '600', color: '#333' }}>{member.name}</div>
                       <div style={{ fontSize: '0.85rem', color: '#999' }}>Sale Staff</div>
                     </div>
-                    <button style={{
-                      padding: '8px 16px',
-                      background: 'transparent',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '20px',
-                      fontSize: '0.85rem',
-                      color: '#666',
-                      cursor: 'pointer'
-                    }}>Options</button>
+                    <button style={{ 
+                      width: '36px', 
+                      height: '36px', 
+                      background: 'transparent', 
+                      border: '1px solid #e0e0e0', 
+                      borderRadius: '50%', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      color: '#666' 
+                    }} onClick={() => setMemberOptions({ member, role: 'employee' })} aria-label={`Edit ${member.name}`}>
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
       </div>
+    </div>
+
+      {/* Member Options Modal */}
+      {memberOptions && (
+        <div 
+          className="member-options-overlay"
+          onClick={() => setMemberOptions(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999 }}
+        >
+          <div 
+            className="member-options-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 20, maxWidth: 420, width: '90%', margin: '10% auto', padding: 20, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}
+          >
+            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#ff8c00', textAlign: 'center', fontWeight: 800 }}>Manage Member</h3>
+            <p style={{ textAlign: 'center', marginTop: 8, color: '#444', fontWeight: 600 }}>{memberOptions.member.name}</p>
+            <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
+              <button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase.rpc('update_store_member_role', { p_store_id: storeId, p_member_id: memberOptions.member.id, p_new_role: 'employee' });
+                    if (error) throw error;
+                    setActionStatus({ kind: 'success', text: 'Updated to view-only.' });
+                    setTimeout(() => setActionStatus({ kind: null, text: '' }), 3000);
+                    const { data: memRows } = await supabase.rpc('get_store_members', { p_store_id: storeId });
+                    const enriched = (memRows || []).map(m => ({
+                      id: m.user_id,
+                      role: m.role,
+                      name: m.name || (m.email ? m.email.split('@')[0] : 'User'),
+                      email: m.email || ''
+                    }));
+                    setMembers(enriched);
+                  } catch (e) {
+                    setActionStatus({ kind: 'error', text: e.message || 'Failed to update role.' });
+                    setTimeout(() => setActionStatus({ kind: null, text: '' }), 4000);
+                  } finally {
+                    setMemberOptions(null);
+                  }
+                }}
+                style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid #e0e0e0', background: '#fff', color: '#333', fontWeight: 700 }}
+              >View only pricelist</button>
+
+              <button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase.rpc('update_store_member_role', { p_store_id: storeId, p_member_id: memberOptions.member.id, p_new_role: 'manager' });
+                    if (error) throw error;
+                    setActionStatus({ kind: 'success', text: 'Updated to manage prices.' });
+                    setTimeout(() => setActionStatus({ kind: null, text: '' }), 3000);
+                    const { data: memRows } = await supabase.rpc('get_store_members', { p_store_id: storeId });
+                    const enriched = (memRows || []).map(m => ({
+                      id: m.user_id,
+                      role: m.role,
+                      name: m.name || (m.email ? m.email.split('@')[0] : 'User'),
+                      email: m.email || ''
+                    }));
+                    setMembers(enriched);
+                  } catch (e) {
+                    setActionStatus({ kind: 'error', text: e.message || 'Failed to update role.' });
+                    setTimeout(() => setActionStatus({ kind: null, text: '' }), 4000);
+                  } finally {
+                    setMemberOptions(null);
+                  }
+                }}
+                style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid #e0e0e0', background: '#fff', color: '#333', fontWeight: 700 }}
+              >Manage prices</button>
+
+              <button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase.rpc('update_store_member_role', { p_store_id: storeId, p_member_id: memberOptions.member.id, p_new_role: 'owner' });
+                    if (error) throw error;
+                    setActionStatus({ kind: 'success', text: 'Granted all-access (owner).' });
+                    setTimeout(() => setActionStatus({ kind: null, text: '' }), 3000);
+                    const { data: memRows } = await supabase.rpc('get_store_members', { p_store_id: storeId });
+                    const enriched = (memRows || []).map(m => ({
+                      id: m.user_id,
+                      role: m.role,
+                      name: m.name || (m.email ? m.email.split('@')[0] : 'User'),
+                      email: m.email || ''
+                    }));
+                    setMembers(enriched);
+                  } catch (e) {
+                    setActionStatus({ kind: 'error', text: e.message || 'Failed to assign owner role.' });
+                    setTimeout(() => setActionStatus({ kind: null, text: '' }), 4000);
+                  } finally {
+                    setMemberOptions(null);
+                  }
+                }}
+                style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid #e0e0e0', background: '#fff', color: '#333', fontWeight: 700 }}
+              >All access on store (owner role)</button>
+
+              <button
+                onClick={() => {
+                  setConfirmConfig({
+                    title: 'Remove Member',
+                    message: `Are you sure you want to remove ${memberOptions.member.name} from this store?`,
+                    confirmLabel: 'Remove',
+                    action: async () => {
+                      try {
+                        const { error } = await supabase.rpc('remove_store_member', { p_store_id: storeId, p_member_id: memberOptions.member.id });
+                        if (error) throw error;
+                        setActionStatus({ kind: 'success', text: 'Member removed.' });
+                        setTimeout(() => setActionStatus({ kind: null, text: '' }), 3000);
+                        const { data: memRows } = await supabase.rpc('get_store_members', { p_store_id: storeId });
+                        const enriched = (memRows || []).map(m => ({
+                          id: m.user_id,
+                          role: m.role,
+                          name: m.name || (m.email ? m.email.split('@')[0] : 'User'),
+                          email: m.email || ''
+                        }));
+                        setMembers(enriched);
+                      } catch (e) {
+                        setActionStatus({ kind: 'error', text: e.message || 'Failed to remove member.' });
+                        setTimeout(() => setActionStatus({ kind: null, text: '' }), 4000);
+                      } finally {
+                        setMemberOptions(null);
+                        setConfirmOpen(false);
+                      }
+                    }
+                  });
+                  setConfirmOpen(true);
+                }}
+                style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid #f5caca', background: '#fdecec', color: '#b32626', fontWeight: 800 }}
+              >Remove from store</button>
+
+              <button onClick={() => setMemberOptions(null)} style={{ padding: '10px 12px', borderRadius: 14, border: '1px solid #e0e0e0', background: '#fafafa', color: '#666', fontWeight: 700 }}>Back</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Staff modal */}
+      <InviteStaffModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        storeId={storeId}
+        storeName={storeName}
+        isOwner={role === 'owner'}
+      />
+
+      {/* Confirm modal for destructive actions */}
+      <ConfirmModal
+        open={confirmOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmLabel={confirmConfig.confirmLabel}
+        onConfirm={confirmConfig.action}
+        onCancel={() => setConfirmOpen(false)}
+      />
 
       {/* Footer (anchored at bottom) */}
       <Footer />

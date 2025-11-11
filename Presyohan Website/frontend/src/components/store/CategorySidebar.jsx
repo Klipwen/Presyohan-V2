@@ -40,7 +40,7 @@ export default function CategorySidebar({ categories, selectedCategory, setSelec
             boxShadow: selectedCategory === 'PRICELIST' ? '0 4px 12px rgba(255, 140, 0, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)'
           }}
         >
-          Pricelist
+          PRICELIST
         </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
