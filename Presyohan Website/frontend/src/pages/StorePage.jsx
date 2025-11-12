@@ -143,7 +143,11 @@ export default function StorePage() {
 
   // Keyboard shortcut: Ctrl+A (or Cmd+A on Mac) opens Add Item modal
   useEffect(() => {
+    // Disable shortcut for sales staff (employee role)
+    if (currentRole === 'employee') return;
     const onKeyDown = (e) => {
+      // Guard in handler in case role changes at runtime
+      if (currentRole === 'employee') return;
       const isCtrlA = (e.ctrlKey || e.metaKey) && ((e.key && e.key.toLowerCase() === 'a') || e.code === 'KeyA');
       if (!isCtrlA) return;
       const tag = (e.target?.tagName || '').toLowerCase();
@@ -154,7 +158,7 @@ export default function StorePage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [currentRole]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -304,7 +308,8 @@ export default function StorePage() {
         />
       </div>
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button (hidden for sales staff) */}
+      {currentRole !== 'employee' && (
       <button style={{
         position: 'fixed',
         bottom: '30px',
@@ -320,13 +325,14 @@ export default function StorePage() {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 100
-      }} title="Shortcut: Ctrl+A" onClick={() => setShowAddItem(true)} aria-label="Add Item">
+      }} title="Shortcut: Ctrl+A" onClick={() => currentRole !== 'employee' && setShowAddItem(true)} aria-label="Add Item">
         <svg width="28" height="28" fill="none" stroke="white" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/>
         </svg>
       </button>
+      )}
 
-      {showAddItem && (
+      {showAddItem && currentRole !== 'employee' && (
         <AddItemModal
           open={showAddItem}
           onClose={() => setShowAddItem(false)}

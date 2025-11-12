@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabaseClient';
 import StoreHeader from '../components/layout/StoreHeader';
-import Footer from '../components/layout/Footer';
 import iconStore from '../assets/icon_store.png';
 import addStaffIcon from '../assets/icon_add_staff.png';
 import InviteStaffModal from '../components/store/InviteStaffModal';
 import ConfirmModal from '../components/store/ConfirmModal';
+import ExportPricelistModal from '../components/store/ExportPricelistModal';
+import CopyPricesModal from '../components/store/CopyPricesModal';
 
 // Store Settings Page
 // Uses the provided layout, replaces dummy data with real store/member data,
@@ -30,6 +31,11 @@ export default function StoreSettingsPage() {
   const [memberOptions, setMemberOptions] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
+  const [exportOpen, setExportOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [pasteCode, setPasteCode] = useState(null);
+  const [pasteCodeExpiresAt, setPasteCodeExpiresAt] = useState(null);
+  const [codeCountdown, setCodeCountdown] = useState('');
 
   // Resolve storeId from query and load data
   useEffect(() => {
@@ -60,13 +66,15 @@ export default function StoreSettingsPage() {
           // Get store core info
           const { data: storeRow, error: storeErr } = await supabase
             .from('stores')
-            .select('id, name, branch, type')
+            .select('id, name, branch, type, paste_code, paste_code_expires_at')
             .eq('id', id)
             .maybeSingle();
           if (!storeErr && storeRow) {
             setStoreName(storeRow.name || '');
             setBranch(storeRow.branch || '');
             setStoreType(storeRow.type || '');
+            setPasteCode(storeRow.paste_code || null);
+            setPasteCodeExpiresAt(storeRow.paste_code_expires_at || null);
           }
 
           // Get current user's role for this store
@@ -122,6 +130,82 @@ export default function StoreSettingsPage() {
     } catch (e) {
       setActionStatus({ kind: 'error', text: e.message || 'Failed to save store settings.' });
       setTimeout(() => setActionStatus({ kind: null, text: '' }), 4000);
+    }
+  };
+
+  // Paste-Code countdown updater
+  useEffect(() => {
+    let timer;
+    const updateCountdown = () => {
+      if (!pasteCodeExpiresAt) {
+        setCodeCountdown('');
+        return;
+      }
+      const now = Date.now();
+      const exp = new Date(pasteCodeExpiresAt).getTime();
+      const diff = Math.max(0, exp - now);
+      const hh = Math.floor(diff / 3600000);
+      const mm = Math.floor((diff % 3600000) / 60000);
+      const ss = Math.floor((diff % 60000) / 1000);
+      const pad = (n) => String(n).padStart(2, '0');
+      setCodeCountdown(`${pad(hh)}:${pad(mm)}:${pad(ss)}`);
+    };
+    updateCountdown();
+    if (pasteCodeExpiresAt) {
+      timer = setInterval(updateCountdown, 1000);
+    }
+    return () => timer && clearInterval(timer);
+  }, [pasteCodeExpiresAt]);
+
+  const generatePasteCode = async () => {
+    if (!storeId) return;
+    if (role !== 'owner') {
+      setActionStatus({ kind: 'error', text: 'Only store owners can generate codes.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 3000);
+      return;
+    }
+    setActionStatus({ kind: 'info', text: 'Generating code…' });
+    const { data, error } = await supabase.rpc('generate_paste_code', { p_store_id: storeId });
+    if (error) {
+      setActionStatus({ kind: 'error', text: error.message || 'Failed to generate code.' });
+    } else {
+      const row = Array.isArray(data) && data.length ? data[0] : null;
+      // Use correct field names returned by RPC: code, expires_at
+      setPasteCode(row?.code || null);
+      setPasteCodeExpiresAt(row?.expires_at || null);
+      setActionStatus({ kind: 'success', text: 'Paste-code generated.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 2500);
+    }
+  };
+
+  const copyPasteCode = async () => {
+    if (!pasteCode) return;
+    try {
+      await navigator.clipboard?.writeText(String(pasteCode));
+      setActionStatus({ kind: 'success', text: 'Code copied.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 1500);
+    } catch (e) {
+      setActionStatus({ kind: 'error', text: 'Failed to copy.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 2000);
+    }
+  };
+
+  const revokePasteCode = async () => {
+    if (!storeId) return;
+    if (role !== 'owner') {
+      setActionStatus({ kind: 'error', text: 'Only store owners can revoke codes.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 3000);
+      return;
+    }
+    setActionStatus({ kind: 'info', text: 'Revoking code…' });
+    const { error } = await supabase.rpc('revoke_paste_code', { p_store_id: storeId });
+    if (error) {
+      setActionStatus({ kind: 'error', text: error.message || 'Failed to revoke code.' });
+    } else {
+      setPasteCode(null);
+      setPasteCodeExpiresAt(null);
+      setActionStatus({ kind: 'success', text: 'Paste-code revoked.' });
+      setTimeout(() => setActionStatus({ kind: null, text: '' }), 2500);
     }
   };
 
@@ -288,7 +372,27 @@ export default function StoreSettingsPage() {
                   gap: '15px',
                   marginBottom: '30px'
                 }}>
-                  <button style={{
+                  <button
+                    onMouseEnter={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+                      e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
+                    }}
+                    onMouseUp={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    style={{
                     padding: '15px',
                     border: '2px solid #ff8c00',
                     borderRadius: '12px',
@@ -301,14 +405,35 @@ export default function StoreSettingsPage() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '8px',
-                    transition: 'all 0.2s ease'
-                  }}>
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                  }} onClick={() => setCopyOpen(true)} disabled={role !== 'owner'}>
                     <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
                       <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                     </svg>
                     Copy Prices
                   </button>
-                  <button style={{
+                  <button
+                    onMouseEnter={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+                      e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
+                    }}
+                    onMouseUp={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    style={{
                     padding: '15px',
                     border: '2px solid #ff8c00',
                     borderRadius: '12px',
@@ -321,12 +446,33 @@ export default function StoreSettingsPage() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '8px',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
                   }} onClick={() => setInviteOpen(true)}>
                     <img src={addStaffIcon} alt="Invite staff" style={{ width: '28px', height: '28px' }} />
                     Invite staff
                   </button>
-                  <button style={{
+                  <button
+                    onMouseEnter={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+                      e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
+                    }}
+                    onMouseUp={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    style={{
                     padding: '15px',
                     border: '2px solid #ff8c00',
                     borderRadius: '12px',
@@ -339,14 +485,35 @@ export default function StoreSettingsPage() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '8px',
-                    transition: 'all 0.2s ease'
-                  }}>
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                  }} onClick={() => setExportOpen(true)}>
                     <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
                       <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
                     Convert
                   </button>
-                  <button style={{
+                  <button
+                    onMouseEnter={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+                      e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
+                    }}
+                    onMouseUp={(e) => {
+                      if (e.currentTarget.disabled) return;
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                    }}
+                    style={{
                     padding: '15px',
                     border: '2px solid #ff8c00',
                     borderRadius: '12px',
@@ -359,13 +526,49 @@ export default function StoreSettingsPage() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '8px',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
                   }}>
                     <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
                       <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                     </svg>
                     Import prices
                   </button>
+                </div>
+
+                {/* Paste-Code generator */}
+                <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #eee', borderRadius: '12px', background: '#fffdf7' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 700, color: '#7a4a12' }}>Paste-Code (for copying prices to this store)</div>
+                    {pasteCode ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ fontWeight: 700, color: '#333' }}>Code: {pasteCode}</div>
+                        <div style={{ color: '#777' }}>Expires in {codeCountdown || '00:00:00'}</div>
+                        <button onClick={copyPasteCode} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #eee', background: 'white', color: '#333', fontWeight: 600, cursor: 'pointer' }}>Copy</button>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#999' }}>No active code</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      disabled={role !== 'owner'}
+                      onClick={generatePasteCode}
+                      style={{ padding: '10px 14px', borderRadius: '10px', border: 'none', background: role !== 'owner' ? '#ffd8ae' : 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)', color: 'white', fontWeight: 700, cursor: role !== 'owner' ? 'not-allowed' : 'pointer' }}
+                    >
+                      Generate Code
+                    </button>
+                    <button
+                      disabled={role !== 'owner' || !pasteCode}
+                      onClick={revokePasteCode}
+                      style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #ff8c00', background: 'white', color: '#ff8c00', fontWeight: 700, cursor: role !== 'owner' || !pasteCode ? 'not-allowed' : 'pointer' }}
+                    >
+                      Revoke
+                    </button>
+                  </div>
+                  {role !== 'owner' && (
+                    <div style={{ marginTop: '8px', color: '#a85e00' }}>Only store owners can generate or revoke codes.</div>
+                  )}
                 </div>
 
                 {/* Store Details Form */}
@@ -718,8 +921,25 @@ export default function StoreSettingsPage() {
         onCancel={() => setConfirmOpen(false)}
       />
 
-      {/* Footer (anchored at bottom) */}
-      <Footer />
+      {/* Export Pricelist modal */}
+      <ExportPricelistModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        storeId={storeId}
+        storeName={storeName}
+        branch={branch}
+        role={role}
+      />
+
+      {/* Copy Prices modal */}
+      <CopyPricesModal
+        open={copyOpen}
+        onClose={() => setCopyOpen(false)}
+        sourceStoreId={storeId}
+        sourceStoreName={storeName}
+      />
+
+      
     </div>
   );
 }

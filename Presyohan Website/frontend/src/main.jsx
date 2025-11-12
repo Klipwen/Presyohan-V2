@@ -10,12 +10,13 @@ import StorePage from './pages/StorePage.jsx'
 import ManageItemsPage from './pages/ManageItemsPage.jsx'
 import StoreSettingsPage from './pages/StoreSettingsPage.jsx'
 import ContactPage from './pages/ContactPage.jsx'
+import ProfilePage from './pages/ProfilePage.jsx'
 
 // Removed default Vite App.css to avoid constraining #root width
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginSignupPage />} />
@@ -27,6 +28,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/contact" element={<ContactPage />} />
+        {/* Protected profile page */}
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>

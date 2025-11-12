@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
+    "exceljs": "^4.4.0",
+    "file-saver": "^2.0.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^6.28.0"

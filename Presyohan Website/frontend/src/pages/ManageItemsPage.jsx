@@ -28,6 +28,7 @@ export default function ManageItemsPage() {
   const [editCategory, setEditCategory] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
   const [hasChanges, setHasChanges] = useState(false);
+  const [currentRole, setCurrentRole] = useState(null);
 
   const filteredItems = items.filter(item => {
     const matchesCategory = selectedCategory === 'PRICELIST' || item.category === selectedCategory;
@@ -61,6 +62,13 @@ export default function ManageItemsPage() {
         const rows = Array.isArray(data) ? data : [];
         const mapped = rows.map(r => ({ id: r.store_id, name: r.name, branch: r.branch || '' }));
         setStores(mapped);
+        const match = rows.find(r => String(r.store_id) === String(storeId));
+        setCurrentRole(match?.role || null);
+        if (match?.role === 'employee') {
+          // Block sales staff from Manage Items
+          navigate(`/store?id=${encodeURIComponent(storeId || '')}`, { replace: true });
+          return;
+        }
       } catch (e) {
         console.warn('Unexpected error loading stores:', e);
       }
@@ -103,7 +111,9 @@ export default function ManageItemsPage() {
 
   // Keyboard shortcut: Ctrl+A (or Cmd+A on Mac) opens Add Item modal
   useEffect(() => {
+    if (currentRole === 'employee') return; // disable for sales staff
     const onKeyDown = (e) => {
+      if (currentRole === 'employee') return;
       const isCtrlA = (e.ctrlKey || e.metaKey) && ((e.key && e.key.toLowerCase() === 'a') || e.code === 'KeyA');
       if (!isCtrlA) return;
       const tag = (e.target?.tagName || '').toLowerCase();
@@ -114,7 +124,7 @@ export default function ManageItemsPage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [currentRole]);
 
   const refreshCategories = async () => {
     if (!storeId) return;
@@ -160,6 +170,11 @@ export default function ManageItemsPage() {
           if (error) throw error;
           setConfirm({ open: false, title: '', message: '', onConfirm: null, confirmText: 'Confirm', cancelText: 'Cancel' });
           setHasChanges(true);
+          // Optimistically update UI without full page reload
+          const newItems = items.filter(item => (item.category || '') !== (cat.name || ''));
+          setItems(newItems);
+          setTotalItems(newItems.length);
+          setCategories(prev => prev.filter(c => c.id !== cat.id));
           setSelectedCategory('PRICELIST');
           await refreshCategories();
         } catch (e) {
@@ -202,9 +217,9 @@ export default function ManageItemsPage() {
         />
 
         {/* Items Content */}
-        <div style={{ flex: 1, background: '#f5f5f5' }}>
-          {/* Search Bar */}
-          <div style={{ padding: '20px', background: 'white', borderBottom: '1px solid #e0e0e0' }}>
+        <div style={{ flex: 1, background: '#f5f5f5', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)' }}>
+          {/* Search Bar (fixed at top within items pane under Manage Header) */}
+          <div style={{ padding: '20px', background: 'white', borderBottom: '1px solid #e0e0e0', position: 'sticky', top: '60px', zIndex: 5 }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -239,6 +254,7 @@ export default function ManageItemsPage() {
                   }}
                 />
               </div>
+              {currentRole !== 'employee' && (
               <button style={{
                 background: '#ff8c00',
                 color: 'white',
@@ -258,6 +274,7 @@ export default function ManageItemsPage() {
                 </svg>
                 Add Item
               </button>
+              )}
             </div>
           </div>
 
@@ -270,52 +287,54 @@ export default function ManageItemsPage() {
             setShowMobileCategories={setShowMobileCategories}
           />
 
-          {/* Items List by Category */}
-          <ItemsList 
-            groupedItems={groupedItems}
-            onEditItem={(item) => setEditItem(item)}
-            onDeleteItem={(item) => {
-              setConfirm({
-                open: true,
-                title: 'Delete Item',
-                message: `Are you sure you want to delete "${item.name}"?`,
-                onConfirm: async () => {
-                  try {
-                    await supabase.from('products').delete().eq('id', item.id).eq('store_id', storeId);
-                    // Auto-delete category if no products remain
-                    const catName = item.category;
-                    if (catName) {
-                      const { data: cats } = await supabase.from('categories').select('id').eq('store_id', storeId).eq('name', catName).limit(1);
-                      const catId = Array.isArray(cats) && cats[0]?.id;
-                      if (catId) {
-                        const { data: prods } = await supabase.from('products').select('id').eq('store_id', storeId).eq('category_id', catId).limit(1);
-                        if (Array.isArray(prods) && prods.length === 0) {
-                          await supabase.from('categories').delete().eq('id', catId).eq('store_id', storeId);
-                          setCategories(prev => prev.filter(c => c.name !== catName));
+          {/* Items List by Category - only this section scrolls */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <ItemsList 
+              groupedItems={groupedItems}
+              onEditItem={(item) => setEditItem(item)}
+              onDeleteItem={(item) => {
+                setConfirm({
+                  open: true,
+                  title: 'Delete Item',
+                  message: `Are you sure you want to delete "${item.name}"?`,
+                  onConfirm: async () => {
+                    try {
+                      await supabase.from('products').delete().eq('id', item.id).eq('store_id', storeId);
+                      // Auto-delete category if no products remain
+                      const catName = item.category;
+                      if (catName) {
+                        const { data: cats } = await supabase.from('categories').select('id').eq('store_id', storeId).eq('name', catName).limit(1);
+                        const catId = Array.isArray(cats) && cats[0]?.id;
+                        if (catId) {
+                          const { data: prods } = await supabase.from('products').select('id').eq('store_id', storeId).eq('category_id', catId).limit(1);
+                          if (Array.isArray(prods) && prods.length === 0) {
+                            await supabase.from('categories').delete().eq('id', catId).eq('store_id', storeId);
+                            setCategories(prev => prev.filter(c => c.name !== catName));
+                          }
                         }
                       }
+                      setConfirm({ open: false, title: '', message: '', onConfirm: null });
+                      // Refresh
+                      setHasChanges(true);
+                      setSelectedCategory('PRICELIST');
+                      window.location.reload();
+                    } catch (e) {
+                      alert(e.message || 'Failed to delete item');
                     }
-                    setConfirm({ open: false, title: '', message: '', onConfirm: null });
-                    // Refresh
-                    setHasChanges(true);
-                    setSelectedCategory('PRICELIST');
-                    window.location.reload();
-                  } catch (e) {
-                    alert(e.message || 'Failed to delete item');
                   }
-                }
-              });
-            }}
-            onAddItemToCategory={(categoryName) => {
-              setSelectedCategory(categoryName);
-              setShowAddItem(true);
-            }}
-          />
+                });
+              }}
+              onAddItemToCategory={(categoryName) => {
+                setSelectedCategory(categoryName);
+                setShowAddItem(true);
+              }}
+            />
+          </div>
         </div>
       </div>
 
       {/* Responsive Styles moved to ManageItemsPage.css */}
-      {showAddItem && (
+      {showAddItem && currentRole !== 'employee' && (
         <AddItemModal
           open={showAddItem}
           onClose={() => setShowAddItem(false)}

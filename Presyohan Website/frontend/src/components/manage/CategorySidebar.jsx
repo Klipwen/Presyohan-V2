@@ -9,7 +9,11 @@ export default function CategorySidebar({ categories, selectedCategory, setSelec
       padding: '20px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '20px'
+      gap: '20px',
+      position: 'sticky',
+      top: '60px',
+      height: 'fit-content',
+      maxHeight: 'calc(100vh - 60px)'
     }}>
       <div>
         <h3 style={{ 
@@ -43,7 +47,7 @@ export default function CategorySidebar({ categories, selectedCategory, setSelec
             PRICELIST
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.name;
             const isAllItems = cat.name === 'All Items';

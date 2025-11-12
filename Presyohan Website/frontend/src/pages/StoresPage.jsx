@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/StoresPage.css';
 import StoreHeader from '../components/layout/StoreHeader';
-import Footer from '../components/layout/Footer';
 import AddStoreModal from '../components/store/AddStoreModal';
 import StoreCard from '../components/store/StoreCard';
 import StoreOptionsModal from '../components/store/StoreOptionsModal';
@@ -289,7 +288,6 @@ export default function StoresPage() {
         onCancel={() => setConfirmOpen(false)}
       />
 
-      <Footer />
     </div>
   );
 }

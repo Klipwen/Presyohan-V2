@@ -181,11 +181,11 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
               }}>{unreadCount}</span>
             )}
           </button>
-          <button className="icon-btn" title="Profile">
+          <Link to="/profile" className="icon-btn" title="Profile">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -211,7 +211,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userProfile.name}</h3>
               <p style={{ margin: '4px 0 6px', fontSize: '0.9rem', opacity: 0.9 }}>{userProfile.email}</p>
-              <a href="#" style={{ color: 'white', textDecoration: 'underline', fontSize: '0.9rem' }}>View Profile</a>
+              <Link to="/profile" onClick={closeSideMenu} style={{ color: 'white', textDecoration: 'underline', fontSize: '0.9rem' }}>View Profile</Link>
             </div>
           </div>
         </div>
