@@ -1,0 +1,11 @@
+# Keep Docker context small and builds fast
+target/
+.git/
+.gitignore
+.mvn/
+mvnw
+**/*.log
+**/.DS_Store
+**/node_modules
+**/.idea
+**/.vscode
