@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginSignupPage from './pages/LoginSignupPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 import StoresPage from './pages/StoresPage.jsx'
@@ -16,7 +16,7 @@ import ProfilePage from './pages/ProfilePage.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginSignupPage />} />
@@ -31,6 +31,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         {/* Protected profile page */}
         <Route path="/profile" element={<ProfilePage />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>
 )

@@ -141,7 +141,7 @@ export default function LoginSignupPage() {
         options: { 
           shouldCreateUser: true,
           // Ensure magic link redirects to deployed site, not localhost
-          emailRedirectTo: `${getAppOrigin()}/auth/callback`
+          emailRedirectTo: `${getAppOrigin()}/#/auth/callback`
         }
       });
       if (error) {
@@ -166,7 +166,7 @@ export default function LoginSignupPage() {
 
   const signInWithGoogle = async () => {
     try {
-      const redirectTo = `${getAppOrigin()}/auth/callback`;
+      const redirectTo = `${getAppOrigin()}/#/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
