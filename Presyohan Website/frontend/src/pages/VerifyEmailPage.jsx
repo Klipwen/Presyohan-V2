@@ -208,7 +208,7 @@ export default function VerifyEmailPage() {
         options: { 
           shouldCreateUser: flow === 'signup',
           // Ensure magic link redirects to deployed site, not localhost
-          emailRedirectTo: `${getAppOrigin()}/#/auth/callback`
+          emailRedirectTo: `${getAppOrigin()}/auth/callback`
         }
       });
       if (error) throw error;

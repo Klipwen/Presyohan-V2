@@ -117,21 +117,6 @@ export default function LoginSignupPage() {
     const email = signupEmail.trim();
     const password = signupPassword;
     try {
-      // Pre-check if email already exists using a lightweight RPC.
-      // If the RPC is not present server-side, we gracefully fallback to OTP flow.
-      try {
-        const { data: exists, error: existsErr } = await supabase.rpc('email_exists', { email });
-        if (!existsErr && exists === true) {
-          setSignupEmailExists(true);
-          const updated = computeSignupErrors();
-          setSignupErrors(updated);
-          return;
-        }
-      } catch (checkErr) {
-        // Ignore and continue with OTP if the RPC is unavailable.
-        console.warn('email_exists RPC not available; proceeding with OTP:', checkErr);
-      }
-
       // Request an email OTP and create the user if it doesn't exist. This
       // ensures the template with {{ .Token }} is used and the user receives
       // a numeric code to paste into the Verify page.
@@ -141,7 +126,7 @@ export default function LoginSignupPage() {
         options: { 
           shouldCreateUser: true,
           // Ensure magic link redirects to deployed site, not localhost
-          emailRedirectTo: `${getAppOrigin()}/#/auth/callback`
+          emailRedirectTo: `${getAppOrigin()}/auth/callback`
         }
       });
       if (error) {
@@ -166,7 +151,7 @@ export default function LoginSignupPage() {
 
   const signInWithGoogle = async () => {
     try {
-      const redirectTo = `${getAppOrigin()}/#/auth/callback`;
+      const redirectTo = `${getAppOrigin()}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
