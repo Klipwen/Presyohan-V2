@@ -1,0 +1,9 @@
+/auth/callback /index.html 200
+/stores /index.html 200
+/store /index.html 200
+/manage-store /index.html 200
+/manage-items /index.html 200
+/verify-email /index.html 200
+/login /index.html 200
+/profile /index.html 200
+/* /index.html 200
