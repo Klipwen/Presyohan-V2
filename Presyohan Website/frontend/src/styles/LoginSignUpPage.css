@@ -182,6 +182,7 @@ padding-right: 220px;
 
 .login-page-root .brand p {
     font-size: 1.1rem;
+    text-align: left;
 }
 
 /* Right Section (Auth Forms) */

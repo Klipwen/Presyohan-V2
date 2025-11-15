@@ -111,11 +111,25 @@
   overflow: hidden;
   min-height: 90vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 40px 20px;
   background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
 }
+/* Two-column layout inside hero */
+.lp-hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 28px;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 12px;
+}
+.lp-hero-left { display: flex; justify-content: flex-start; align-items: flex-start; }
+.lp-hero-right { display: flex; justify-content: flex-end; align-items: flex-start; }
 
 /* Soft grocery background behind orange backdrop */
 .lp-hero::before {
@@ -142,57 +156,83 @@
   position: relative;
   z-index: 1; /* keep content above backdrop */
   max-width: 800px;
-  text-align: center;
+  text-align: left;
+}
+
+/* Outlined hero box for Get Started layout */
+.lp-hero-box {
+  position: relative;
+  z-index: 1;
+  max-width: 980px;
+  width: 90%;
+  margin-top: 80px;
+  margin-left: auto;
+  padding: 50px 60px;
+  background: transparent;
+  border: none; /* remove white stroke */
+  border-radius: 10px 56px 10px 56px;
+  background: #ffffff; /* white background */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); /* subtle elevation for readability */
+  box-sizing: border-box;
 }
 
 .lp-logo-box img {
   width: 220px;
   height: 220px;
+  margin-top: 80px;
   object-fit: contain;
 }
 
 .lp-eyebrow {
   font-size: 1.2rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #ff8c00; /* readable on white */
   text-align: left;
+  margin-bottom: -18px;
+  text-transform: lowercase; /* Makes "atong" lowercase */
 }
 
 .lp-title {
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 800;
-  margin: 0 0 10px 0;
+  margin: 0 0 20px 0;
+  margin-bottom: 42px;
+  text-align: left;
 }
-.lp-title-white { color: #ffffff; }
+.lp-title-white { color: #ff8c00; }
 .lp-title-accent { color: #00a8cc; }
 
 .lp-subtitle {
-  font-size: clamp(1.3rem, 3.5vw, 2rem);
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 12px;
+  font-size: clamp(1.2rem, 4vw, 1.0rem);
+  font-weight: 600;
+  color: #00a8cc; /* readable on white */
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 .lp-lead {
-  font-size: clamp(1rem, 2.5vw, 1.2rem);
-  color: #ffffff;
-  max-width: 600px;
-  margin: 0 auto 32px;
-  line-height: 1.6;
+  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+  color: #555555; /* readable on white */
+  max-width: 100%;
+  margin: 0 0 32px 0;
+  margin-bottom: 80px;
+  line-height: 1.7;
+  text-align: left;
 }
 
 .lp-btn-primary {
-  display: inline-block;
+  display: block; /* center horizontally within box */
   background: #00bcd4;
   color: #ffffff;
   border: none;
-  padding: 18px 50px;
+  padding: 14px 166px; /* widen CTA */
   border-radius: 30px;
   font-size: 1.2rem;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(0, 188, 212, 0.4);
   transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  margin: 0 auto; /* center horizontally */
 }
 .lp-btn-primary:hover {
   transform: translateY(-2px);
@@ -212,6 +252,34 @@
   max-width: 1200px;
   margin: 0 auto;
 }
+
+/* Arrow down to About section */
+.lp-scroll-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: 16px; /* bottom center of hero */
+  transform: translateX(-50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  background: transparent;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+}
+.lp-scroll-arrow:hover { background: rgba(255,255,255,0.12); }
+.lp-scroll-arrow:active { transform: translateX(-50%) scale(0.98); }
+
+@keyframes lpArrowBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(6px); }
+}
+.lp-scroll-arrow { animation: lpArrowBounce 2.2s ease-in-out infinite; }
 
 .lp-section-title {
   text-align: center;
@@ -681,5 +749,23 @@
 /* Responsive tweaks */
 @media (max-width: 640px) {
   .lp-logo-box { width: 120px; height: 120px; }
-  .lp-btn-primary { padding: 16px 38px; font-size: 1.05rem; }
+  .lp-btn-primary { padding: 14px 30px; font-size: 1rem; }
+  .lp-hero-box { 
+    padding: 32px 28px;
+    border-radius: 24px;
+  }
+  .lp-scroll-arrow { width: 40px; height: 40px; bottom: 12px; }
+  .lp-eyebrow { font-size: 1rem; }
+}
+
+@media (max-width: 768px) {
+  .lp-hero-grid { grid-template-columns: 1fr; gap: 20px; }
+  .lp-hero-left, .lp-hero-right { justify-content: center; }
+  .lp-hero { align-items: center; }
+  .lp-hero-box { 
+    max-width: 95%;
+    width: 95%;
+    margin: 0 auto;
+    padding: 40px 35px;
+  }
 }

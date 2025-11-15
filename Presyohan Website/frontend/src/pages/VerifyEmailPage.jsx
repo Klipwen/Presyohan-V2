@@ -228,10 +228,10 @@ export default function VerifyEmailPage() {
         <div className="left-section">
           <div className="brand">
               <img src={presyohanLogo} alt="Presyohan Logo" />
+               <p>atong</p>
             <h1>
               <span className="presyo">presyo</span><span className="han">han?</span>
             </h1>
-            <p>Find the best prices in one place!</p>
           </div>
         </div>
 

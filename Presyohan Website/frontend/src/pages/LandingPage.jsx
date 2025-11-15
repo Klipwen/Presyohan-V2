@@ -218,26 +218,52 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section id="home" className="lp-hero">
         <div className="lp-hero-pattern" />
-        <div className="lp-hero-content">
-          <div className="lp-logo-box">
-            <img src={presyohanLogo} alt="Presyohan Logo" />
+        {/* Hero grid: logo left, content box right */}
+        <div className="lp-hero-grid">
+          <div className="lp-hero-left">
+            <div className="lp-logo-box">
+              <img src={presyohanLogo} alt="Presyohan Logo" />
+            </div>
           </div>
 
-          <h3 className="lp-eyebrow">Atong</h3>
+          {/* Outlined box that follows requested layout (top corners rounded, no fill) */}
+          <div className="lp-hero-right">
+            <div className="lp-hero-box">
+              <div className="lp-hero-content">
+                <h3 className="lp-eyebrow">Atong</h3>
 
-          <h1 className="lp-title">
-            <span className="lp-title-white">presyo</span>
-            <span className="lp-title-accent">han?</span>
-          </h1>
+                <h1 className="lp-title">
+                  <span className="lp-title-white">presyo</span>
+                  <span className="lp-title-accent">han?</span>
+                </h1>
 
-          <h2 className="lp-subtitle">Wala Kahibaw sa Presyo?</h2>
+                <p className="lp-lead">
+                  We make it fast and easy to manage your store's entire price list, guaranteeing consistency across all staff and locations.
+                </p>
 
-          <p className="lp-lead">
-            We make it fast and easy to manage your store's entire price list, guaranteeing consistency across all staff and locations.
-          </p>
+                <h2 className="lp-subtitle">Wala Kahibaw sa Presyo?</h2>
 
-            <button className="lp-btn-primary" onClick={() => navigate('/login')}>Get Started</button>
+                <button className="lp-btn-primary" onClick={() => navigate('/login')}>Get Started</button>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Arrow down to About section with smooth scroll */}
+        <a
+          href="#about"
+          className="lp-scroll-arrow"
+          aria-label="Scroll to About section"
+          onClick={(e) => {
+            e.preventDefault();
+            const el = document.getElementById('about');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </a>
       </section>
 
       {/* About Section */}
