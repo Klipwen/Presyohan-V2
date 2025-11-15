@@ -53,6 +53,11 @@ export default function ManageItemsPage() {
         navigate('/login', { replace: true });
         return;
       }
+      // If missing store id, route back to Stores
+      if (!storeId) {
+        navigate('/stores', { replace: true });
+        return;
+      }
       try {
         const { data, error } = await supabase.rpc('get_user_stores');
         if (error) {

@@ -48,6 +48,11 @@ export default function StoreSettingsPage() {
         navigate('/login', { replace: true });
         return;
       }
+      // If no store id in query, return to Stores list
+      if (!id) {
+        navigate('/stores', { replace: true });
+        return;
+      }
 
       try {
         // Load stores for StoreHeader side-menu

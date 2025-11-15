@@ -38,6 +38,11 @@ export default function StorePage() {
         navigate('/login', { replace: true });
         return;
       }
+      // If no store id is provided, send the user back to Stores
+      if (!id) {
+        navigate('/stores', { replace: true });
+        return;
+      }
       try {
         const { data, error } = await supabase.rpc('get_user_stores');
         if (error) {
