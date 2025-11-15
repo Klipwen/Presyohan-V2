@@ -18,7 +18,20 @@ export default function VerifyEmailPage() {
   const navigate = useNavigate();
 
   // Resolve app origin from env when available; fallback to current origin.
-  const getAppOrigin = () => (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin);
+  // If env mistakenly points to localhost, prefer current origin to avoid dev URL on production.
+  const getAppOrigin = () => {
+    const configured = import.meta.env.VITE_PUBLIC_APP_URL;
+    if (configured) {
+      try {
+        const u = new URL(configured);
+        if (u.hostname === 'localhost') return window.location.origin;
+        return `${u.protocol}//${u.host}`;
+      } catch {
+        // Not a valid URL, ignore and fallback
+      }
+    }
+    return window.location.origin;
+  };
 
   useEffect(() => {
     inputsRef.current[0]?.focus();
