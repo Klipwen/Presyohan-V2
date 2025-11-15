@@ -1,4 +1,4 @@
-﻿﻿import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
 import '../styles/VerifyEmailPage.css';
@@ -16,6 +16,9 @@ export default function VerifyEmailPage() {
   const [flow, setFlow] = useState('email');
   const [invalidCode, setInvalidCode] = useState(false);
   const navigate = useNavigate();
+
+  // Resolve app origin from env when available; fallback to current origin.
+  const getAppOrigin = () => (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin);
 
   useEffect(() => {
     inputsRef.current[0]?.focus();
@@ -189,7 +192,11 @@ export default function VerifyEmailPage() {
       // Use signInWithOtp to request a fresh OTP. shouldCreateUser=true for signup flows.
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { shouldCreateUser: flow === 'signup' }
+        options: { 
+          shouldCreateUser: flow === 'signup',
+          // Ensure magic link redirects to deployed site, not localhost
+          emailRedirectTo: `${getAppOrigin()}/auth/callback`
+        }
       });
       if (error) throw error;
       // Increase cooldown to reduce rapid resend attempts and give more time.

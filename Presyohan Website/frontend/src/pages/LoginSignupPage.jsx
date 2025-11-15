@@ -30,6 +30,9 @@ export default function LoginSignupPage() {
   const [isSubmittingSignup, setIsSubmittingSignup] = useState(false);
   const navigate = useNavigate();
 
+  // Resolve app origin from env when available; fallback to current origin.
+  const getAppOrigin = () => (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin);
+
   // Ensure the page starts at the very top when navigated to
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -122,7 +125,11 @@ export default function LoginSignupPage() {
       setIsSubmittingSignup(true);
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { shouldCreateUser: true }
+        options: { 
+          shouldCreateUser: true,
+          // Ensure magic link redirects to deployed site, not localhost
+          emailRedirectTo: `${getAppOrigin()}/auth/callback`
+        }
       });
       if (error) {
         setSignupFormError(error.message || 'Signup failed. Please try again.');
@@ -146,7 +153,7 @@ export default function LoginSignupPage() {
 
   const signInWithGoogle = async () => {
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      const redirectTo = `${getAppOrigin()}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
