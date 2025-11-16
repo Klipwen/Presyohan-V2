@@ -3,6 +3,7 @@ import '../styles/StoresPage.css';
 import StoreHeader from '../components/layout/StoreHeader';
 import StoreBanner from '../components/store/StoreHeader';
 import StoreOptionsModal from '../components/store/StoreOptionsModal';
+import InviteStaffModal from '../components/store/InviteStaffModal';
 import ConfirmModal from '../components/store/ConfirmModal';
 import StoreSearchBar from '../components/store/StoreSearchBar';
 import CategorySidebar from '../components/store/CategorySidebar';
@@ -19,6 +20,7 @@ export default function StorePage() {
   const [selectedCategory, setSelectedCategory] = useState('PRICELIST');
   const [showAddItem, setShowAddItem] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
   const navigate = useNavigate();
@@ -405,9 +407,20 @@ export default function StorePage() {
           storeName={storeName}
           role={currentRole}
           onSettings={() => navigate(`/manage-store?id=${encodeURIComponent(storeId)}`)}
-          onInvite={() => navigate(`/invite-staff?id=${encodeURIComponent(storeId)}`)}
+          onInvite={() => { setOptionsOpen(false); setInviteOpen(true); }}
           onDelete={() => triggerConfirm('delete')}
           onLeave={() => triggerConfirm('leave')}
+        />
+      )}
+
+      {/* Invite Staff modal */}
+      {storeId && (
+        <InviteStaffModal
+          open={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+          storeId={storeId}
+          storeName={storeName}
+          isOwner={currentRole === 'owner'}
         />
       )}
 

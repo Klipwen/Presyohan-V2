@@ -21,7 +21,8 @@
 }
 
 .hero-text {
-  max-width: 980px;
+  max-width: none;
+  width: 100%;
   text-align: center;
 }
 
@@ -285,7 +286,7 @@
   text-align: center;
   font-size: clamp(1.8rem, 4vw, 2.4rem);
   font-weight: 800;
-  color: #333333;
+  color: #ff8c00;
   margin: 0 0 16px 0;
 }
 
@@ -293,7 +294,7 @@
   text-align: center;
   font-size: clamp(1rem, 3vw, 1.2rem);
   font-weight: 600;
-  color: #ff8c00;
+  color: #00a5bb;
   margin-bottom: 24px;
 }
 
@@ -625,14 +626,14 @@
   margin-bottom: 10px;
 }
 
-.lp-list { list-style: none; padding: 0; margin: 0; }
+.lp-list { list-style: none; padding: 0; margin: 0; margin-bottom: 54px; }
 .lp-list li { color: #555555; margin-bottom: 8px; }
 
 .lp-store-row {
   display: flex;
-  gap: 15px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 20px;
-  flex-wrap: wrap;
 }
 .lp-store-badge {
   display: inline-flex;
@@ -767,5 +768,59 @@
     width: 95%;
     margin: 0 auto;
     padding: 40px 35px;
+  }
+}
+
+.lp-download-btn:hover { filter: brightness(1.03); }
+
+.lp-app-collage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: start;
+  max-height: 60vh;
+  overflow: auto;
+}
+.lp-app-shot {
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+.lp-app-shot img { width: 100%; height: auto; display: block; }
+.lp-app-caption {
+  padding: 10px 14px;
+  font-weight: 700;
+  color: #ff8c00;
+}
+.lp-download-label {
+  font-weight: 800;
+  color: #ff8c00;
+  text-align: center;
+  font-size: 1.15rem;
+}
+
+.lp-download-btn {
+  display: inline-flex;
+  height: 52px;
+  align-items: center; 
+  gap: 12px;
+  padding: 12px 28px; 
+  border-radius: 26px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+  box-shadow: 0 8px 24px rgba(255, 140, 0, 0.35);
+  justify-content: center;
+  min-width: 240px;
+}
+
+@media (max-width: 480px) {
+  .lp-download-btn {
+    min-width: 200px;
+    padding: 12px 20px;
   }
 }

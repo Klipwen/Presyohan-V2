@@ -78,11 +78,11 @@ export default function ProfilePage() {
       const authUser = session?.user;
       const { data: row } = await supabase
         .from('app_users')
-        .select('id, name, email, avatar_url')
-        .eq('id', authUser?.id)
+        .select('id, auth_uid, name, email, avatar_url')
+        .or(`id.eq.${authUser?.id},auth_uid.eq.${authUser?.id}`)
         .maybeSingle();
       const base = {
-        id: authUser?.id || null,
+        id: row?.id || authUser?.id || null,
         name: row?.name || authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || '',
         email: row?.email || authUser?.email || '',
         avatar_url: row?.avatar_url || authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || ''
@@ -178,8 +178,12 @@ export default function ProfilePage() {
       const publicUrl = data?.publicUrl;
       if (!publicUrl) throw new Error('Failed to resolve avatar URL.');
       setProfile((p) => ({ ...p, avatar_url: publicUrl }));
-      const { error } = await supabase.from('app_users').update({ avatar_url: publicUrl }).eq('id', profile.id);
+      const { error } = await supabase
+        .from('app_users')
+        .update({ avatar_url: publicUrl })
+        .or(`id.eq.${profile.id},auth_uid.eq.${profile.id}`);
       if (error) throw error;
+      await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
       setActionStatus({ kind: 'success', text: 'Avatar updated.' });
     } catch (e) {
       setActionStatus({ kind: 'error', text: e.message || 'Avatar upload failed.' });
@@ -331,8 +335,9 @@ export default function ProfilePage() {
       const { error } = await supabase
         .from('app_users')
         .update({ name: profile.name })
-        .eq('id', profile.id);
+        .or(`id.eq.${profile.id},auth_uid.eq.${profile.id}`);
       if (error) throw error;
+      await supabase.auth.updateUser({ data: { name: profile.name } });
       setActionStatus({ kind: 'success', text: 'Profile updated.' });
     } catch (e) {
       setActionStatus({ kind: 'error', text: e.message || 'Failed to save profile.' });
@@ -362,8 +367,7 @@ export default function ProfilePage() {
           display: 'flex', 
           alignItems: 'center', 
           gap: '15px',
-          maxWidth: '1400px',
-          margin: '0 auto'
+          width: '100%'
         }}>
           <button onClick={() => navigate(-1)} style={{
             background: 'transparent',
@@ -395,8 +399,7 @@ export default function ProfilePage() {
               border: 'none',
               cursor: 'pointer',
               padding: '5px',
-              color: '#ff8c00',
-              display: 'none'
+              color: '#ff8c00'
             }}
           >
             <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
@@ -418,8 +421,7 @@ export default function ProfilePage() {
             right: 0,
             bottom: 0,
             background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 999,
-            display: 'none'
+            zIndex: 999
           }}
         ></div>
       )}
@@ -427,8 +429,8 @@ export default function ProfilePage() {
       {/* Main Content */}
       <div style={{ 
         display: 'flex',
-        maxWidth: '1400px',
-        margin: '0 auto',
+        width: '100%',
+        margin: 0,
         gap: '0',
         minHeight: 'calc(100vh - 60px)'
       }}>

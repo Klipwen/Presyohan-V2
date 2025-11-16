@@ -4,6 +4,12 @@ import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
 import { useNavigate, useLocation } from 'react-router-dom';
 import presyohanLogo from '../assets/presyohan_logo.png';
+import splashImg from '../assets/presyohan app sample/Splash.png';
+import loginImg from '../assets/presyohan app sample/Login.png';
+import addStoreImg from '../assets/presyohan app sample/Add Store.png';
+import storeItemsImg from '../assets/presyohan app sample/Store Items.png';
+import productsImg from '../assets/presyohan app sample/Products.png';
+import storeMgmtImg from '../assets/presyohan app sample/Store Management.png';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -13,6 +19,7 @@ export default function LandingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const viewportRef = useRef(null);
   const [viewportWidth, setViewportWidth] = useState(0);
+  const collageRef = useRef(null);
 
   // Temporary orange glow feedback on click for cards (kept inside component)
   const glowTimeoutsRef = useRef(new Map());
@@ -30,6 +37,8 @@ export default function LandingPage() {
   const handleCardClick = (e) => {
     triggerGlow(e.currentTarget);
   };
+
+  const apkUrl = import.meta.env.VITE_DOWNLOAD_APK_URL || '/presyohan.apk';
 
   // Scroll to section when hash present (e.g., /#about, /#features, /#download)
   useEffect(() => {
@@ -97,6 +106,33 @@ export default function LandingPage() {
     readWidth();
     window.addEventListener('resize', readWidth);
     return () => window.removeEventListener('resize', readWidth);
+  }, []);
+
+  useEffect(() => {
+    const el = collageRef.current;
+    if (!el) return;
+    let paused = false;
+    let rafId;
+    const step = () => {
+      if (!paused) {
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight) {
+          el.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          el.scrollTop += 0.4;
+        }
+      }
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    const onEnter = () => { paused = true; };
+    const onLeave = () => { paused = false; };
+    el.addEventListener('mouseenter', onEnter);
+    el.addEventListener('mouseleave', onLeave);
+    return () => {
+      cancelAnimationFrame(rafId);
+      el.removeEventListener('mouseenter', onEnter);
+      el.removeEventListener('mouseleave', onLeave);
+    };
   }, []);
 
   // Number of pages = totalSlides - slidesPerView + 1 (bounded)
@@ -440,33 +476,24 @@ export default function LandingPage() {
                 <li>Simple, fast, and built for busy teams</li>
               </ul>
               <div className="lp-store-row">
-                <a href="#" className="lp-store-badge apple">
-                  <span className="lp-store-icon"></span>
+                <div className="lp-download-label">Download the app now!</div>
+                <a href={apkUrl} className="lp-download-btn" target="_blank" rel="noopener noreferrer">
                   <div>
-                    <div className="lp-store-sub">Download on the</div>
-                    <div className="lp-store-title">App Store</div>
-                  </div>
-                </a>
-                <a href="#" className="lp-store-badge android">
-                  <span className="lp-store-icon">🤖</span>
-                  <div>
-                    <div className="lp-store-sub">Get it on</div>
-                    <div className="lp-store-title">Google Play</div>
+                    <div className="lp-store-title">presyohan.apk</div>
                   </div>
                 </a>
               </div>
             </div>
             <div>
-              <div className="lp-mobile-collage">
-                {collageCards.map((card, i) => (
-                  <div key={i} className={`lp-mobile-card ${card.cls}`} onClick={handleCardClick}>
-                    <div className="lp-mobile-dots">• • •</div>
-                    <div className="lp-mobile-label">{card.label}</div>
-                    <div className="lp-mobile-shimmer" />
-                  </div>
-                ))}
+              <div className="lp-app-collage" ref={collageRef}>
+                <div className="lp-app-shot"><img src={splashImg} alt="Splash screen" /><div className="lp-app-caption">Splash</div></div>
+                <div className="lp-app-shot"><img src={loginImg} alt="Login screen" /><div className="lp-app-caption">Login</div></div>
+                <div className="lp-app-shot"><img src={addStoreImg} alt="Add Store" /><div className="lp-app-caption">Add Store</div></div>
+                <div className="lp-app-shot"><img src={storeItemsImg} alt="Store Items" /><div className="lp-app-caption">Store Items</div></div>
+                <div className="lp-app-shot"><img src={productsImg} alt="Products" /><div className="lp-app-caption">Products</div></div>
+                <div className="lp-app-shot"><img src={storeMgmtImg} alt="Store Management" /><div className="lp-app-caption">Store Management</div></div>
               </div>
-              <div className="lp-collage-note">Mobile collage placeholder — aligns with brand design.</div>
+              <div className="lp-collage-note">Presyohan app previews aligned to brand design.</div>
             </div>
           </div>
         </div>

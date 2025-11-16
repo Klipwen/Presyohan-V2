@@ -14,6 +14,13 @@ export default function AuthHeader() {
   const toggleMenu = () => setMenuOpen((prev) => !prev);
   const closeMenu = () => setMenuOpen(false);
 
+  React.useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
   return (
     <header className="auth-header">
       <Link to="/#home" className="header-logo" aria-label="Go to Home">
@@ -51,6 +58,8 @@ export default function AuthHeader() {
           <span className="hamburger-inner" />
         </span>
       </button>
+
+      <div className={`auth-overlay ${menuOpen ? 'open' : ''}`} onClick={closeMenu} />
     </header>
   );
 }

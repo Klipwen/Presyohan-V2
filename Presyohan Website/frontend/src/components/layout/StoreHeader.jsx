@@ -30,11 +30,11 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
 
           // Try to get more complete profile from app_users table (schema: id = auth.uid())
           try {
-            const { data: appUser } = await supabase
-              .from('app_users')
-              .select('name, email, avatar_url')
-              .eq('id', user.id)
-              .single();
+        const { data: appUser } = await supabase
+          .from('app_users')
+          .select('name, email, avatar_url')
+          .or(`id.eq.${user.id},auth_uid.eq.${user.id}`)
+          .maybeSingle();
 
             if (appUser) {
               displayName = appUser.name || displayName;

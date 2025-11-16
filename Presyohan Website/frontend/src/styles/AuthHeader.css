@@ -48,6 +48,7 @@
   color: #666;
   font-weight: 500;
   transition: color 0.2s ease;
+  padding: 10px 8px;
 }
 .auth-header .nav-links .links a:hover { color: #ff8c00; }
 
@@ -87,8 +88,9 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  border: 1px solid #e8e8e8;
-  background: #fff;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }
 .auth-header .hamburger-box {
@@ -127,17 +129,27 @@
   }
 
   .auth-header .hamburger { display: block; align-self: flex-end; }
+  .auth-header .hamburger-inner,
+  .auth-header .hamburger-inner::before,
+  .auth-header .hamburger-inner::after {
+    background: #fff;
+  }
 
   .auth-header .nav-links { display: none; }
   .auth-header .nav-links.open {
     display: flex;
     flex-direction: column;
     gap: 18px;
-    width: 100%;
+    position: fixed;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 92%;
     background: #fff;
     border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    padding: 18px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+    z-index: 1001;
   }
 
   .auth-header .nav-links .links a { color: #333; }
@@ -172,3 +184,11 @@
   filter: brightness(1.06);
   box-shadow: 0 6px 16px rgba(255, 140, 0, 0.35);
 }
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: none;
+  z-index: 999;
+}
+.auth-overlay.open { display: block; }
