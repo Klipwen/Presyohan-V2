@@ -8,7 +8,12 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.firestore.FirebaseFirestore
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import android.view.ViewGroup
 import android.widget.ImageView
 
@@ -16,7 +21,7 @@ class ManageMembersActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: MembersAdapter
     private var storeId: String? = null
-    private val db = FirebaseFirestore.getInstance()
+    
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,12 +45,23 @@ class ManageMembersActivity : AppCompatActivity() {
 
         fetchMembers()
 
-        // Set store name and branch in header
+        // Set store name and branch in header via Supabase
         val textStoreName = findViewById<TextView>(R.id.textStoreName)
         val textStoreBranch = findViewById<TextView>(R.id.textStoreBranch)
-        db.collection("stores").document(storeId!!).get().addOnSuccessListener { doc ->
-            textStoreName.text = doc.getString("name") ?: "Store Name"
-            textStoreBranch.text = doc.getString("branch") ?: "Branch Name"
+        lifecycleScope.launch {
+            try {
+                @Serializable
+                data class StoreRow(val id: String, val name: String, val branch: String? = null)
+                val rows = SupabaseProvider.client.postgrest["stores"].select {
+                    filter { eq("id", storeId!!) }
+                    limit(1)
+                }.decodeList<StoreRow>()
+                val s = rows.firstOrNull()
+                textStoreName.text = s?.name ?: "Store Name"
+                textStoreBranch.text = s?.branch ?: "Branch Name"
+            } catch (_: Exception) {
+                // fallback labels already set
+            }
         }
 
         val btnBack = findViewById<ImageView>(R.id.btnBack)
@@ -53,31 +69,23 @@ class ManageMembersActivity : AppCompatActivity() {
     }
 
     private fun fetchMembers() {
-        db.collection("stores").document(storeId!!).collection("members").get().addOnSuccessListener { snapshot ->
-            val memberDocs = snapshot.documents
-            if (memberDocs.isEmpty()) {
-                adapter.setMembers(emptyList())
-                return@addOnSuccessListener
-            }
-            val members = mutableListOf<Member>()
-            var fetched = 0
-            for (doc in memberDocs) {
-                val role = doc.getString("role") ?: "sales staff"
-                val id = doc.id
-                db.collection("users").document(id).get().addOnSuccessListener { userDoc ->
-                    val name = userDoc.getString("name") ?: "Unknown"
-                    members.add(Member(id, name, role))
-                    fetched++
-                    if (fetched == memberDocs.size) {
-                        adapter.setMembers(members)
-                    }
-                }.addOnFailureListener {
-                    members.add(Member(id, "Unknown", role))
-                    fetched++
-                    if (fetched == memberDocs.size) {
-                        adapter.setMembers(members)
-                    }
+        val sId = storeId ?: return
+        lifecycleScope.launch {
+            try {
+                @Serializable
+                data class StoreMemberUser(val user_id: String, val name: String, val role: String)
+                val rows = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<StoreMemberUser>()
+
+                val members = rows.map { r ->
+                    Member(r.user_id, r.name, mapRoleToUi(r.role))
                 }
+                adapter.setMembers(members)
+            } catch (e: Exception) {
+                Toast.makeText(this@ManageMembersActivity, "Unable to load members.", Toast.LENGTH_LONG).show()
+                adapter.setMembers(emptyList())
             }
         }
     }
@@ -95,19 +103,43 @@ class ManageMembersActivity : AppCompatActivity() {
         spinner.setSelection(roles.indexOf(member.role))
         view.findViewById<Button>(R.id.btnCancel).setOnClickListener { dialog.dismiss() }
         view.findViewById<Button>(R.id.btnChange).setOnClickListener {
-            val newRole = spinner.selectedItem.toString()
-            db.collection("stores").document(storeId!!).collection("members").document(member.id)
-                .update("role", newRole)
-                .addOnSuccessListener {
-                    Toast.makeText(this, "Role updated.", Toast.LENGTH_SHORT).show()
+            val newRoleUi = spinner.selectedItem.toString()
+            val sId = storeId ?: return@setOnClickListener
+            lifecycleScope.launch {
+                try {
+                    // Map UI role to Supabase role keywords
+                    val newRole = mapRoleToSupabase(newRoleUi)
+                    SupabaseProvider.client.postgrest.rpc(
+                        "update_store_member_role",
+                        buildJsonObject {
+                            put("p_store_id", sId)
+                            put("p_member_id", member.id)
+                            put("p_new_role", newRole)
+                        }
+                    )
+                    Toast.makeText(this@ManageMembersActivity, "Role updated.", Toast.LENGTH_SHORT).show()
                     fetchMembers()
                     dialog.dismiss()
+                } catch (e: Exception) {
+                    Toast.makeText(this@ManageMembersActivity, "Unable to update role.", Toast.LENGTH_LONG).show()
                 }
-                .addOnFailureListener { e ->
-                    Toast.makeText(this, "Unable to update role.", Toast.LENGTH_LONG).show()
-                }
+            }
         }
         dialog.show()
+    }
+
+    private fun mapRoleToUi(role: String): String {
+        return when (role.lowercase()) {
+            "employee" -> "sales staff"
+            else -> role.lowercase()
+        }
+    }
+
+    private fun mapRoleToSupabase(roleUi: String): String {
+        return when (roleUi.lowercase()) {
+            "sales staff" -> "employee"
+            else -> roleUi.lowercase()
+        }
     }
 }
 

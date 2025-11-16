@@ -536,23 +536,16 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this store? This action cannot be undone."
                         confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
                         confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                            val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-                            deleteStoreAndSubcollections(store.id) { success ->
-                                if (success) {
-                                    if (userId != null) {
-                                        db.collection("users").document(userId)
-                                            .update("stores", com.google.firebase.firestore.FieldValue.arrayRemove(store.id))
-                                            .addOnSuccessListener {
-                                                android.widget.Toast.makeText(this@StoreActivity, "Store deleted.", android.widget.Toast.LENGTH_SHORT).show()
-                                                fetchStores()
-                                            }
-                                            .addOnFailureListener {
-                                                android.widget.Toast.makeText(this@StoreActivity, "Store deleted. User update failed.", android.widget.Toast.LENGTH_SHORT).show()
-                                                fetchStores()
-                                            }
+                            lifecycleScope.launch {
+                                try {
+                                    SupabaseProvider.client.postgrest["stores"].delete {
+                                        filter { eq("id", store.id) }
                                     }
-                                } else {
+                                    android.widget.Toast.makeText(this@StoreActivity, "Store deleted.", android.widget.Toast.LENGTH_SHORT).show()
+                                    fetchStores()
+                                } catch (e: Exception) {
                                     android.widget.Toast.makeText(this@StoreActivity, "Unable to delete store.", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.util.Log.e("StoreDelete", "Delete failed", e)
                                 }
                             }
                             confirmDialog.dismiss()
@@ -589,56 +582,46 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         // Set up view members and leave store actions as needed
         // Example:
         view.findViewById<ImageView>(R.id.btnViewMembers).setOnClickListener {
-            // Show members dialog using dialog_members.xml
-            db.collection("stores").document(store.id)
-                .get().addOnSuccessListener { storeDoc ->
-                    val storeName = storeDoc.getString("name") ?: "Store"
-                    // Fetch all members
-                    db.collection("stores").document(store.id)
-                        .collection("members").get().addOnSuccessListener { membersSnapshot ->
-                            val members = mutableListOf<Pair<String, String>>() // Pair<name, role>
-                            var ownerName: String? = null
-                            var fetchedCount = 0
-                            for (doc in membersSnapshot) {
-                                val role = doc.getString("role") ?: ""
-                                val userId = doc.id
-                                db.collection("users").document(userId).get().addOnSuccessListener { userDoc ->
-                                    val name = userDoc.getString("name") ?: "Unknown"
-                                    if (role == "owner") {
-                                        ownerName = name
-                                    } else {
-                                        members.add(Pair(name, role))
-                                    }
-                                    fetchedCount++
-                                    if (fetchedCount == membersSnapshot.size()) {
-                                        // Sort members: manager first, then sales staff
-                                        val sortedMembers = members.sortedWith(compareBy({ if (it.second == "manager") 0 else 1 }, { it.first.lowercase() }))
-                                        val dialog = Dialog(this)
-                                        val dialogView = layoutInflater.inflate(R.layout.dialog_members, null)
-                                        // Set store name
-                                        dialogView.findViewById<TextView>(R.id.dialogStoreName).text = storeName
-                                        // Set owner name
-                                        dialogView.findViewById<TextView>(R.id.dialogOwnerName).text = ownerName ?: ""
-                                        // Set members list
-                                        val membersList = dialogView.findViewById<LinearLayout>(R.id.membersList)
-                                        membersList.removeAllViews()
-                                        for (member in sortedMembers) {
-                                            val memberView = TextView(this)
-                                            memberView.text = member.first
-                                            memberView.textSize = 15f
-                                            memberView.setPadding(0, 0, 0, 4)
-                                            memberView.setTextColor(resources.getColor(R.color.black, null))
-                                            membersList.addView(memberView)
-                                        }
-                                        dialog.setContentView(dialogView)
-                                        dialog.setCancelable(true)
-                                        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-                                        dialog.show()
-                                    }
-                                }
-                            }
-                        }
+            // Show members dialog using Supabase RPC get_store_members
+            @kotlinx.serialization.Serializable
+            data class StoreMemberUser(val user_id: String, val name: String, val role: String)
+
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest.rpc(
+                        "get_store_members",
+                        kotlinx.serialization.json.buildJsonObject { put("p_store_id", store.id) }
+                    ).decodeList<StoreMemberUser>()
+
+                    val ownerName = rows.firstOrNull { it.role == "owner" }?.name
+                    val members = rows.filter { it.role != "owner" }
+                        .map { it.name to it.role }
+                    val sortedMembers = members.sortedWith(
+                        compareBy({ if (it.second == "manager") 0 else 1 }, { it.first.lowercase() })
+                    )
+
+                    val dialogMembers = Dialog(this@StoreActivity)
+                    val dialogView = layoutInflater.inflate(R.layout.dialog_members, null)
+                    dialogView.findViewById<TextView>(R.id.dialogStoreName).text = store.name
+                    dialogView.findViewById<TextView>(R.id.dialogOwnerName).text = ownerName ?: ""
+                    val membersList = dialogView.findViewById<LinearLayout>(R.id.membersList)
+                    membersList.removeAllViews()
+                    for (member in sortedMembers) {
+                        val memberView = TextView(this@StoreActivity)
+                        memberView.text = member.first
+                        memberView.textSize = 15f
+                        memberView.setPadding(0, 0, 0, 4)
+                        memberView.setTextColor(resources.getColor(R.color.black, null))
+                        membersList.addView(memberView)
+                    }
+                    dialogMembers.setContentView(dialogView)
+                    dialogMembers.setCancelable(true)
+                    dialogMembers.window?.setBackgroundDrawableResource(android.R.color.transparent)
+                    dialogMembers.show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(this@StoreActivity, "Unable to load members.", android.widget.Toast.LENGTH_SHORT).show()
                 }
+            }
             dialog.dismiss()
         }
         view.findViewById<ImageView>(R.id.btnLeaveStore).setOnClickListener {

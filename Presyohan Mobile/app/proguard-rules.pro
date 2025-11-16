@@ -19,3 +19,9 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+## Keep Apache POI, XMLBeans, and StAX classes used at runtime
+-keep class org.apache.poi.** { *; }
+-keep class org.apache.xmlbeans.** { *; }
+-keep class javax.xml.stream.** { *; }
+-keep class com.fasterxml.aalto.** { *; }
+-keep class org.codehaus.stax2.** { *; }

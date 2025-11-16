@@ -261,15 +261,23 @@ class ManageItemsActivity : AppCompatActivity() {
                                     }
                                 }
 
-                                // Update product row in Supabase
-                                val updatePayload = mapOf(
-                                    "name" to item.name,
-                                    "description" to item.description,
-                                    "price" to item.price,
-                                    "unit" to item.unit,
-                                    // Use category_id if available; Postgrest will set NULL if absent
-                                    "category_id" to categoryId
-                                )
+                                // Update product row in Supabase using JSON payload (avoid Any serializer errors)
+                                val updatePayload = kotlinx.serialization.json.buildJsonObject {
+                                    put("name", item.name)
+                                    if (item.description != null) {
+                                        put("description", item.description)
+                                    } else {
+                                        put("description", kotlinx.serialization.json.JsonNull)
+                                    }
+                                    put("price", item.price)
+                                    val unitVal = item.unit ?: ""
+                                    put("unit", unitVal)
+                                    if (categoryId != null) {
+                                        put("category_id", categoryId)
+                                    } else {
+                                        put("category_id", kotlinx.serialization.json.JsonNull)
+                                    }
+                                }
                                 SupabaseProvider.client.postgrest["products"].update(updatePayload) {
                                     filter { eq("id", item.id); eq("store_id", storeId) }
                                 }

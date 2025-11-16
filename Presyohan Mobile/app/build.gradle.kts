@@ -59,6 +59,8 @@ configurations.all {
     exclude(group = "io.github.jan-tennert.supabase", module = "auth-kt-android-debug")
     exclude(group = "io.github.jan-tennert.supabase", module = "storage-kt-android-debug")
     exclude(group = "io.github.jan-tennert.supabase", module = "realtime-kt-android-debug")
+    // Ensure Log4j desktop API is excluded globally for Android compatibility
+    exclude(group = "org.apache.logging.log4j", module = "log4j-api")
 }
 
 dependencies {
@@ -111,4 +113,7 @@ dependencies {
 
     // Kotlinx Serialization JSON for Supabase Kotlin decoding
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+    // Excel generation using FastExcel (no XMLBeans/POI)
+    implementation("org.dhatim:fastexcel:0.19.0")
 }

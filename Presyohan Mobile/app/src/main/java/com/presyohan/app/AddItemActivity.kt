@@ -2,6 +2,7 @@ package com.presyohan.app
 
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -212,8 +213,19 @@ class AddItemActivity : AppCompatActivity() {
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         storeNameText.text = storeName
         if (storeId != null) {
-            // Branch shown elsewhere; leaving as empty here to avoid Firestore dependency
-            storeBranchText.text = ""
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest["stores"].select(columns = Columns.list("branch")) {
+                        filter { eq("id", storeId) }
+                        limit(1)
+                    }.decodeList<StoreBranchRow>()
+                    val branch = rows.firstOrNull()?.branch ?: ""
+                    storeBranchText.text = branch
+                } catch (_: Exception) {
+                    // Fallback to blank if fetch fails
+                    storeBranchText.text = ""
+                }
+            }
         } else {
             storeBranchText.text = ""
         }
@@ -263,6 +275,9 @@ class AddItemActivity : AppCompatActivity() {
     // Top-level serializers for RPC decoding
     @kotlinx.serialization.Serializable
     data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
+
+    @kotlinx.serialization.Serializable
+    data class StoreBranchRow(val branch: String?)
 
     private fun deleteCategoryIfEmpty(storeId: String, categoryName: String) {
         lifecycleScope.launch {

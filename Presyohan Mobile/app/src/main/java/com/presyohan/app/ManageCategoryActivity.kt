@@ -7,7 +7,12 @@ import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.firestore.FirebaseFirestore
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import android.widget.Button
 import com.presyohan.app.adapter.ManageCategoryAdapter
 
@@ -15,7 +20,7 @@ class ManageCategoryActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ManageCategoryAdapter
     private var storeId: String? = null
-    private val db = FirebaseFirestore.getInstance()
+    
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,9 +36,18 @@ class ManageCategoryActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         val textStoreName = findViewById<TextView>(R.id.textStoreName)
         val textStoreBranch = findViewById<TextView>(R.id.textStoreBranch)
-        db.collection("stores").document(storeId!!).get().addOnSuccessListener { doc ->
-            textStoreName.text = doc.getString("name") ?: "Store Name"
-            textStoreBranch.text = doc.getString("branch") ?: "Branch Name"
+        lifecycleScope.launch {
+            try {
+                @Serializable
+                data class StoreRow(val id: String, val name: String, val branch: String? = null)
+                val rows = SupabaseProvider.client.postgrest["stores"].select {
+                    filter { eq("id", storeId!!) }
+                    limit(1)
+                }.decodeList<StoreRow>()
+                val s = rows.firstOrNull()
+                textStoreName.text = s?.name ?: "Store Name"
+                textStoreBranch.text = s?.branch ?: "Branch Name"
+            } catch (_: Exception) { /* ignore */ }
         }
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
@@ -60,21 +74,44 @@ class ManageCategoryActivity : AppCompatActivity() {
     }
 
     private fun fetchCategories() {
-        val storeId = storeId ?: return
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        db.collection("stores").document(storeId).collection("categories").get().addOnSuccessListener { snapshot ->
-            val categories = snapshot.documents.mapNotNull { it.getString("name") }
-            // Fetch item counts for each category
-            db.collection("stores").document(storeId).collection("products").get().addOnSuccessListener { productsSnapshot ->
+        val sId = storeId ?: return
+        lifecycleScope.launch {
+            try {
+                @Serializable
+                data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
+                @Serializable
+                data class UserProductRow(
+                    val product_id: String,
+                    val store_id: String,
+                    val name: String,
+                    val description: String? = null,
+                    val price: Double = 0.0,
+                    val units: String? = null,
+                    val category: String? = null
+                )
+
+                val categories = SupabaseProvider.client.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserCategoryRow>().map { it.name }
+
+                val products = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_products",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserProductRow>()
+
                 val counts = mutableMapOf<String, Int>()
                 for (cat in categories) counts[cat] = 0
-                for (doc in productsSnapshot) {
-                    val cat = doc.getString("category")
-                    if (cat != null && counts.containsKey(cat)) {
-                        counts[cat] = counts[cat]!! + 1
+                for (p in products) {
+                    val cat = p.category?.trim().orEmpty()
+                    if (cat.isNotEmpty() && counts.containsKey(cat)) {
+                        counts[cat] = (counts[cat] ?: 0) + 1
                     }
                 }
-                adapter.updateCategories(categories, counts)
+                val sortedCats = categories.sortedBy { it.lowercase() }
+                adapter.updateCategories(sortedCats, counts)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to load categories.", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -97,33 +134,24 @@ class ManageCategoryActivity : AppCompatActivity() {
                 input.error = "Enter a category name"
                 return@setOnClickListener
             }
-            val storeId = storeId ?: return@setOnClickListener
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            // Find the category doc by name
-            db.collection("stores").document(storeId).collection("categories")
-                .whereEqualTo("name", oldCategory).get().addOnSuccessListener { querySnapshot ->
-                    if (querySnapshot.isEmpty) return@addOnSuccessListener
-                    val docRef = querySnapshot.documents[0].reference
-                    docRef.delete().addOnSuccessListener {
-                        db.collection("stores").document(storeId).collection("categories")
-                            .add(mapOf("name" to newCategory)).addOnSuccessListener {
-                                // Update all products with oldCategory to newCategory
-                                db.collection("stores").document(storeId).collection("products")
-                                    .whereEqualTo("category", oldCategory)
-                                    .get().addOnSuccessListener { snapshot ->
-                                        val batch = db.batch()
-                                        for (doc in snapshot.documents) {
-                                            batch.update(doc.reference, "category", newCategory)
-                                        }
-                                        batch.commit().addOnSuccessListener {
-                                            fetchCategories()
-                                            android.widget.Toast.makeText(this, "Category renamed.", android.widget.Toast.LENGTH_SHORT).show()
-                                            dialog.dismiss()
-                                        }
-                                    }
-                            }
-                    }
+            val sId = storeId ?: return@setOnClickListener
+            lifecycleScope.launch {
+                try {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "rename_or_merge_category",
+                        buildJsonObject {
+                            put("p_store_id", sId)
+                            put("p_old_name", oldCategory)
+                            put("p_new_name", newCategory)
+                        }
+                    )
+                    fetchCategories()
+                    android.widget.Toast.makeText(this@ManageCategoryActivity, "Category renamed.", android.widget.Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to rename category.", android.widget.Toast.LENGTH_LONG).show()
                 }
+            }
         }
         btnBack.setOnClickListener { dialog.dismiss() }
         dialog.show()
@@ -139,28 +167,23 @@ class ManageCategoryActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.confirmMessage)?.text = "Are you sure you want to delete this category? All items in this category will remain, but the category will be removed."
         view.findViewById<Button>(R.id.btnCancel)?.setOnClickListener { dialog.dismiss() }
         view.findViewById<Button>(R.id.btnDelete)?.setOnClickListener {
-            val storeId = storeId ?: return@setOnClickListener
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            // Find the category doc by name
-            db.collection("stores").document(storeId).collection("categories")
-                .whereEqualTo("name", category).get().addOnSuccessListener { querySnapshot ->
-                    if (querySnapshot.isEmpty) return@addOnSuccessListener
-                    val docRef = querySnapshot.documents[0].reference
-                    // Delete all items in this category
-                    db.collection("stores").document(storeId).collection("products")
-                        .whereEqualTo("category", category).get().addOnSuccessListener { productsSnapshot ->
-                            val batch = db.batch()
-                            for (doc in productsSnapshot.documents) {
-                                batch.delete(doc.reference)
-                            }
-                            batch.delete(docRef)
-                            batch.commit().addOnSuccessListener {
-                                fetchCategories()
-                                android.widget.Toast.makeText(this, "Category and items deleted.", android.widget.Toast.LENGTH_SHORT).show()
-                                dialog.dismiss()
-                            }
+            val sId = storeId ?: return@setOnClickListener
+            lifecycleScope.launch {
+                try {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "delete_category_safe",
+                        buildJsonObject {
+                            put("p_store_id", sId)
+                            put("p_category_name", category)
                         }
+                    )
+                    fetchCategories()
+                    android.widget.Toast.makeText(this@ManageCategoryActivity, "Category and items deleted.", android.widget.Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to delete category.", android.widget.Toast.LENGTH_LONG).show()
                 }
+            }
         }
         dialog.show()
     }

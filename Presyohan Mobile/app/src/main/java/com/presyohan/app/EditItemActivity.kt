@@ -1,21 +1,29 @@
 package com.presyohan.app
 
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
+import android.util.Log
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.navigation.NavigationView
-import com.google.firebase.firestore.FirebaseFirestore
 import android.app.Dialog
 import android.view.LayoutInflater
 import android.view.View
 import android.content.Intent
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import com.presyohan.app.NotificationActivity
 
 class EditItemActivity : AppCompatActivity() {
@@ -64,44 +72,55 @@ class EditItemActivity : AppCompatActivity() {
         inputPrice.setText(if (productPrice == 0.0) "" else String.format("%.2f", productPrice))
         inputUnit.setText(productUnit)
 
-        // Load categories from Firestore and set spinner
+        // Load categories from Supabase and set spinner
         val categories = mutableListOf<String>()
+        val categoryIdMap = mutableMapOf<String, String>()
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, categories)
         spinnerCategory.adapter = adapter
         if (storeId.isNotEmpty()) {
-            FirebaseFirestore.getInstance()
-                .collection("stores").document(storeId)
-                .collection("categories")
-                .get()
-                .addOnSuccessListener { result ->
+            lifecycleScope.launch {
+                try {
+                    @Serializable
+                    data class UserCategoryRow(
+                        val category_id: String,
+                        val store_id: String,
+                        val name: String
+                    )
+                    val rows = SupabaseProvider.client.postgrest.rpc(
+                        "get_user_categories",
+                        buildJsonObject { put("p_store_id", storeId) }
+                    ).decodeList<UserCategoryRow>()
                     categories.clear()
-                    for (doc in result) {
-                        val name = doc.getString("name")
-                        if (name != null && !categories.contains(name)) {
-                            categories.add(name)
+                    categoryIdMap.clear()
+                    for (row in rows) {
+                        val nameUp = row.name.trim()
+                        if (nameUp.isNotEmpty() && !categories.contains(nameUp)) {
+                            categories.add(nameUp)
+                            categoryIdMap[nameUp] = row.category_id
                         }
                     }
                     if (productCategory.isNotEmpty() && categories.none { it.trim().equals(productCategory.trim(), ignoreCase = true) }) {
-                        categories.add(productCategory)
+                        categories.add(productCategory.trim().uppercase())
                     }
                     if (!categories.contains("Add Category")) {
                         categories.add("Add Category")
                     }
                     adapter.notifyDataSetChanged()
-                    val normalizedCategories = categories.map { it.trim().lowercase() }
-                    val normalizedProductCategory = productCategory.trim().lowercase()
+                    val normalizedCategories = categories.map { it.trim().uppercase() }
+                    val normalizedProductCategory = productCategory.trim().uppercase()
                     val index = normalizedCategories.indexOf(normalizedProductCategory)
                     if (index >= 0) {
                         spinnerCategory.setSelection(index)
                     } else if (categories.isNotEmpty()) {
                         spinnerCategory.setSelection(0)
                     }
+                } catch (e: Exception) {
+                    Log.e("EditItemActivity", "Failed to load categories: ${e.localizedMessage}")
+                    Toast.makeText(this@EditItemActivity, "Failed to load categories.", Toast.LENGTH_SHORT).show()
                 }
-                .addOnFailureListener { e ->
-                    android.util.Log.e("EditItemActivity", "Failed to load categories", e)
-                }
+            }
         } else {
-            android.util.Log.e("EditItemActivity", "storeId is empty! Cannot load categories.")
+            Log.e("EditItemActivity", "storeId is empty! Cannot load categories.")
         }
 
         spinnerCategory.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -112,7 +131,7 @@ class EditItemActivity : AppCompatActivity() {
                     return
                 }
                 if (categories.isNotEmpty() && position == categories.size - 1) { // 'Add Category' selected
-                    showAddCategoryDialog(storeId, categories, adapter, spinnerCategory)
+                    showAddCategoryDialog(storeId, categories, categoryIdMap, adapter, spinnerCategory)
                 }
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
@@ -123,11 +142,19 @@ class EditItemActivity : AppCompatActivity() {
         val storeNameText = findViewById<TextView>(R.id.storeText)
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         storeNameText.text = storeName
-        if (storeId != null) {
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            db.collection("stores").document(storeId).get().addOnSuccessListener { doc ->
-                val branch = doc.getString("branch") ?: ""
-                storeBranchText.text = branch
+        if (!storeId.isNullOrBlank()) {
+            lifecycleScope.launch {
+                try {
+                    val result = SupabaseProvider.client.postgrest["stores"].select(Columns.list("branch")) {
+                        filter { eq("id", storeId) }
+                        limit(1)
+                    }.decodeList<Map<String, String>>()
+                    val branch = result.firstOrNull()?.get("branch") ?: ""
+                    storeBranchText.text = branch
+                } catch (e: Exception) {
+                    Log.e("EditItemActivity", "Failed to load store branch: ${e.localizedMessage}")
+                    storeBranchText.text = ""
+                }
             }
         } else {
             storeBranchText.text = ""
@@ -178,34 +205,68 @@ class EditItemActivity : AppCompatActivity() {
         val doneButton = findViewById<Button>(R.id.buttonDone)
         doneButton.setOnClickListener {
             val newName = inputName.text.toString().trim()
-            val newDescription = inputDescription.text.toString().trim()
+            val newDescription = inputDescription.text.toString().trim().ifBlank { null }
             val newPrice = inputPrice.text.toString().toDoubleOrNull() ?: 0.0
             val newUnit = inputUnit.text.toString().trim()
-            val newCategory = spinnerCategory.selectedItem?.toString() ?: ""
+            val selected = spinnerCategory.selectedItem?.toString() ?: ""
             val storeIdForUpdate = intent.getStringExtra("storeId") ?: return@setOnClickListener
             val productId = intent.getStringExtra("productId") ?: return@setOnClickListener
-            if (newName.isEmpty() || newUnit.isEmpty() || newCategory.isEmpty() || newCategory == "Add Category") {
-                android.widget.Toast.makeText(this, "Complete all fields.", android.widget.Toast.LENGTH_SHORT).show()
+            if (newName.isEmpty() || newUnit.isEmpty() || selected.isEmpty() || selected == "Add Category") {
+                Toast.makeText(this, "Complete all fields.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val updateData = hashMapOf(
-                "name" to newName,
-                "description" to newDescription,
-                "price" to newPrice,
-                "units" to newUnit,
-                "category" to newCategory
-            )
-            FirebaseFirestore.getInstance()
-                .collection("stores").document(storeIdForUpdate)
-                .collection("products").document(productId)
-                .update(updateData as Map<String, Any>)
-                .addOnSuccessListener {
-                    android.widget.Toast.makeText(this, "Product updated.", android.widget.Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch {
+                try {
+                    val catName = selected.trim().uppercase()
+                    // Resolve or create category_id via RPC
+                    var categoryId = categoryIdMap[catName]
+                    if (categoryId.isNullOrBlank()) {
+                        @Serializable
+                        data class NewCategoryRow(
+                            val category_id: String,
+                            val store_id: String,
+                            val name: String
+                        )
+                        val inserted = SupabaseProvider.client.postgrest.rpc(
+                            "add_category",
+                            buildJsonObject {
+                                put("p_store_id", storeIdForUpdate)
+                                put("p_name", catName)
+                            }
+                        ).decodeList<NewCategoryRow>()
+                        categoryId = inserted.firstOrNull()?.category_id
+                        val normalized = inserted.firstOrNull()?.name ?: catName
+                        if (!categoryId.isNullOrBlank()) {
+                            categoryIdMap[normalized] = categoryId
+                        }
+                    }
+
+                    // Update product in Supabase using JSON payload
+                    val updatePayload = buildJsonObject {
+                        put("name", newName)
+                        if (newDescription != null) {
+                            put("description", newDescription)
+                        } else {
+                            put("description", kotlinx.serialization.json.JsonNull)
+                        }
+                        put("price", newPrice)
+                        put("unit", newUnit)
+                        if (categoryId != null) {
+                            put("category_id", categoryId)
+                        } else {
+                            put("category_id", kotlinx.serialization.json.JsonNull)
+                        }
+                    }
+                    SupabaseProvider.client.postgrest["products"].update(updatePayload) {
+                        filter { eq("id", productId); eq("store_id", storeIdForUpdate) }
+                    }
+                    Toast.makeText(this@EditItemActivity, "Product updated.", Toast.LENGTH_SHORT).show()
                     finish()
+                } catch (e: Exception) {
+                    Log.e("EditItemActivity", "Update failed: ${e.localizedMessage}")
+                    Toast.makeText(this@EditItemActivity, "Unable to update product.", Toast.LENGTH_SHORT).show()
                 }
-                .addOnFailureListener {
-                    android.widget.Toast.makeText(this, "Unable to update product.", android.widget.Toast.LENGTH_SHORT).show()
-                }
+            }
         }
 
         findViewById<Button>(R.id.btnManageItems).setOnClickListener {
@@ -225,17 +286,18 @@ class EditItemActivity : AppCompatActivity() {
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
         val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        if (userId != null) {
-            db.collection("users").document(userId).get().addOnSuccessListener { doc ->
-                userNameText.text = doc.getString("name") ?: "User"
-                userEmailText.text = doc.getString("email") ?: SupabaseProvider.client.auth.currentUserOrNull()?.email ?: ""
-            }
-        }
+        val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
+        userNameText.text = currentUser?.userMetadata?.get("name")?.toString() ?: "User"
+        userEmailText.text = currentUser?.email ?: ""
     }
 
-    private fun showAddCategoryDialog(storeId: String, categories: MutableList<String>, adapter: ArrayAdapter<String>, spinner: Spinner) {
+    private fun showAddCategoryDialog(
+        storeId: String,
+        categories: MutableList<String>,
+        categoryIdMap: MutableMap<String, String>,
+        adapter: ArrayAdapter<String>,
+        spinner: Spinner
+    ) {
         val dialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_add_category, null)
         dialog.setContentView(view)
@@ -247,43 +309,47 @@ class EditItemActivity : AppCompatActivity() {
         val btnBack = view.findViewById<Button>(R.id.btnBack)
 
         btnAdd.setOnClickListener {
-            val category = input.text.toString().trim()
+            val categoryRaw = input.text.toString().trim()
+            val category = categoryRaw.uppercase()
             if (category.isNotEmpty()) {
-                // Save to Firestore with auto-generated ID
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                val categoryData = hashMapOf("name" to category)
-                db.collection("stores").document(storeId)
-                    .collection("categories").add(categoryData)
-                    .addOnSuccessListener {
-                        categories.add(category)
+                lifecycleScope.launch {
+                    try {
+                        @Serializable
+                        data class NewCategoryRow(
+                            val category_id: String,
+                            val store_id: String,
+                            val name: String
+                        )
+                        val inserted = SupabaseProvider.client.postgrest.rpc(
+                            "add_category",
+                            buildJsonObject {
+                                put("p_store_id", storeId)
+                                put("p_name", category)
+                            }
+                        ).decodeList<NewCategoryRow>()
+                        val newId = inserted.firstOrNull()?.category_id
+                        val normalizedName = inserted.firstOrNull()?.name ?: category
+                        if (!newId.isNullOrBlank()) {
+                            categoryIdMap[normalizedName] = newId
+                        }
+                        // Insert before 'Add Category'
+                        val addIndex = categories.indexOf("Add Category")
+                        val insertIndex = if (addIndex >= 0) addIndex else categories.size
+                        if (categories.none { it.equals(normalizedName, ignoreCase = true) }) {
+                            categories.add(insertIndex, normalizedName)
+                        }
                         adapter.notifyDataSetChanged()
-                        spinner.setSelection(categories.indexOf(category))
+                        spinner.setSelection(categories.indexOf(normalizedName))
                         dialog.dismiss()
-                    }
-                    .addOnFailureListener {
+                    } catch (e: Exception) {
                         input.error = "Failed to add category"
                     }
+                }
             } else {
                 input.error = "Enter a category name"
             }
         }
         btnBack.setOnClickListener { dialog.dismiss() }
         dialog.show()
-    }
-
-    private fun deleteCategoryIfEmpty(storeId: String, categoryName: String) {
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        db.collection("stores").document(storeId)
-            .collection("products")
-            .whereEqualTo("category", categoryName)
-            .limit(1)
-            .get()
-            .addOnSuccessListener { result ->
-                if (result.isEmpty) {
-                    db.collection("stores").document(storeId)
-                        .collection("categories").document(categoryName)
-                        .delete()
-                }
-            }
     }
 }
