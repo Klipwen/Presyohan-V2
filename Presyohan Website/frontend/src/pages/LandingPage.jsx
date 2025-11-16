@@ -4,6 +4,7 @@ import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
 import { useNavigate, useLocation } from 'react-router-dom';
 import presyohanLogo from '../assets/presyohan_logo.png';
+import { supabase } from '../config/supabaseClient';
 import splashImg from '../assets/presyohan app sample/Splash.png';
 import loginImg from '../assets/presyohan app sample/Login.png';
 import addStoreImg from '../assets/presyohan app sample/Add Store.png';
@@ -20,6 +21,7 @@ export default function LandingPage() {
   const viewportRef = useRef(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const collageRef = useRef(null);
+  const [apkUrl, setApkUrl] = useState(import.meta.env.VITE_DOWNLOAD_APK_URL || '');
 
   // Temporary orange glow feedback on click for cards (kept inside component)
   const glowTimeoutsRef = useRef(new Map());
@@ -38,7 +40,7 @@ export default function LandingPage() {
     triggerGlow(e.currentTarget);
   };
 
-  const apkUrl = import.meta.env.VITE_DOWNLOAD_APK_URL || '/presyohan.apk';
+  
 
   // Scroll to section when hash present (e.g., /#about, /#features, /#download)
   useEffect(() => {
@@ -50,6 +52,15 @@ export default function LandingPage() {
       }
     }
   }, [location]);
+
+  useEffect(() => {
+    if (!apkUrl) {
+      try {
+        const { data } = supabase.storage.from('presyohan.apk').getPublicUrl('presyohan.apk');
+        if (data?.publicUrl) setApkUrl(data.publicUrl);
+      } catch (_) {}
+    }
+  }, [apkUrl]);
   const comparisonRows = [
     {
       feature: 'Price Updates',
