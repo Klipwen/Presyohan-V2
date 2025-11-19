@@ -2,4 +2,5 @@
     <string name="app_name">Presyohan</string>
     <!-- Google Web Client ID used to request ID token -->
     <string name="default_web_client_id">299772768391-cricvjiu9oktg0tt4ro2gpcfl7ir89q4.apps.googleusercontent.com</string>
+    <string name="select_category_items">Select all items in this category</string>
 </resources>

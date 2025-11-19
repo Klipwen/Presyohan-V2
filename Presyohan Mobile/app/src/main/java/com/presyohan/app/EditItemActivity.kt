@@ -27,9 +27,15 @@ import kotlinx.serialization.json.put
 import com.presyohan.app.NotificationActivity
 
 class EditItemActivity : AppCompatActivity() {
+    private var storeIdArg: String? = null
+    private var storeNameArg: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_edit_item)
+
+        storeIdArg = intent.getStringExtra("storeId")
+        storeNameArg = intent.getStringExtra("storeName") ?: "Store name"
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
         val navigationView = findViewById<NavigationView>(R.id.navigationView)
@@ -65,7 +71,7 @@ class EditItemActivity : AppCompatActivity() {
         val productPrice = intent.getDoubleExtra("productPrice", 0.0)
         val productUnit = intent.getStringExtra("productUnit") ?: ""
         val productCategory = intent.getStringExtra("productCategory") ?: ""
-        val storeId = intent.getStringExtra("storeId") ?: ""
+        val storeId = storeIdArg ?: ""
 
         inputName.setText(productName)
         inputDescription.setText(productDescription)
@@ -138,7 +144,7 @@ class EditItemActivity : AppCompatActivity() {
         }
 
         // Set store name in header
-        val storeName = intent.getStringExtra("storeName") ?: "Store name"
+        val storeName = storeNameArg ?: "Store name"
         val storeNameText = findViewById<TextView>(R.id.storeText)
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         storeNameText.text = storeName
@@ -271,7 +277,7 @@ class EditItemActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnManageItems).setOnClickListener {
             val storeId = intent.getStringExtra("storeId")
-            val storeName = intent.getStringExtra("storeName")
+            val storeName = storeNameArg
             if (storeId.isNullOrBlank() || storeName.isNullOrBlank()) {
                 android.widget.Toast.makeText(this, "Store info missing. Cannot manage items.", android.widget.Toast.LENGTH_LONG).show()
                 return@setOnClickListener
@@ -289,6 +295,11 @@ class EditItemActivity : AppCompatActivity() {
         val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
         userNameText.text = currentUser?.userMetadata?.get("name")?.toString() ?: "User"
         userEmailText.text = currentUser?.email ?: ""
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, storeIdArg, storeNameArg)
     }
 
     private fun showAddCategoryDialog(

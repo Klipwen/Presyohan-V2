@@ -20,6 +20,7 @@ class ManageCategoryActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ManageCategoryAdapter
     private var storeId: String? = null
+    private var storeName: String? = null
     
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,6 +28,7 @@ class ManageCategoryActivity : AppCompatActivity() {
         setContentView(R.layout.activity_manage_category)
 
         storeId = intent.getStringExtra("storeId")
+        storeName = intent.getStringExtra("storeName")
         if (storeId.isNullOrBlank()) {
             finish()
             return
@@ -45,8 +47,10 @@ class ManageCategoryActivity : AppCompatActivity() {
                     limit(1)
                 }.decodeList<StoreRow>()
                 val s = rows.firstOrNull()
-                textStoreName.text = s?.name ?: "Store Name"
+                storeName = s?.name ?: storeName
+                textStoreName.text = storeName ?: "Store Name"
                 textStoreBranch.text = s?.branch ?: "Branch Name"
+                SessionManager.markStoreHome(this@ManageCategoryActivity, storeId, storeName)
             } catch (_: Exception) { /* ignore */ }
         }
 
@@ -186,5 +190,10 @@ class ManageCategoryActivity : AppCompatActivity() {
             }
         }
         dialog.show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, storeId, storeName)
     }
 }

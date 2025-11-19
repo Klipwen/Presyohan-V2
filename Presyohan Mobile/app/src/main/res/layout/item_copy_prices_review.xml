@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical"
+    android:background="@drawable/rounded_bg_store_employee"
+    android:layout_marginBottom="2dp">
+
+    <TextView
+        android:id="@+id/reviewNameText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:text="Product Name"
+        android:textColor="@color/presyo_darkblue"
+        android:textStyle="bold"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/reviewSourcePriceText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="₱0.00"
+        android:textColor="@color/presyo_darkblue"
+        android:textSize="14sp"
+        android:gravity="end" />
+
+    <TextView
+        android:id="@+id/reviewDestPriceText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="—"
+        android:textColor="@color/presyo_darkblue"
+        android:textSize="14sp"
+        android:gravity="end"
+        android:layout_marginStart="8dp" />
+
+    <TextView
+        android:id="@+id/reviewActionText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Update"
+        android:textColor="@color/presyo_orange"
+        android:textStyle="bold"
+        android:textSize="12sp"
+        android:layout_marginStart="8dp" />
+</LinearLayout>
+
+
+

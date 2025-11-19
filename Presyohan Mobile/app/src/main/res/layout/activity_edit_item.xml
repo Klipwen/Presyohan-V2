@@ -116,7 +116,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/headerLabel"
             app:layout_constraintStart_toStartOf="@+id/menuIcon"
             app:layout_constraintTop_toTopOf="@+id/headerLabel"
-            app:srcCompat="@drawable/icon_back" />
+            android:src="@drawable/icon_back" />
 
         <LinearLayout
             android:id="@+id/formCard"

@@ -21,6 +21,7 @@ class ManageMembersActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: MembersAdapter
     private var storeId: String? = null
+    private var storeName: String? = null
     
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,6 +29,7 @@ class ManageMembersActivity : AppCompatActivity() {
         setContentView(R.layout.activity_manage_members)
 
         storeId = intent.getStringExtra("storeId")
+        storeName = intent.getStringExtra("storeName")
         if (storeId.isNullOrBlank()) {
             Toast.makeText(this, "No store ID provided.", Toast.LENGTH_LONG).show()
             finish()
@@ -57,8 +59,10 @@ class ManageMembersActivity : AppCompatActivity() {
                     limit(1)
                 }.decodeList<StoreRow>()
                 val s = rows.firstOrNull()
-                textStoreName.text = s?.name ?: "Store Name"
+                storeName = s?.name ?: storeName
+                textStoreName.text = storeName ?: "Store Name"
                 textStoreBranch.text = s?.branch ?: "Branch Name"
+                SessionManager.markStoreHome(this@ManageMembersActivity, storeId, storeName)
             } catch (_: Exception) {
                 // fallback labels already set
             }
@@ -140,6 +144,11 @@ class ManageMembersActivity : AppCompatActivity() {
             "sales staff" -> "employee"
             else -> roleUi.lowercase()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, storeId, storeName)
     }
 }
 

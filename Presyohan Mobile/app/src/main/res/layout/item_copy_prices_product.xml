@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:paddingStart="32dp"
+    android:gravity="center_vertical"
+    android:background="@drawable/rounded_bg_store_employee"
+    android:layout_marginTop="2dp">
+
+    <CheckBox
+        android:id="@+id/productCheckbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="12dp" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/productNameText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Product Name"
+            android:textColor="@color/presyo_darkblue"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/productDetailsText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Category · Unit"
+            android:textColor="@color/presyo_teal"
+            android:textSize="12sp"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/productPriceText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="₱0.00"
+        android:textColor="@color/presyo_orange"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:layout_marginStart="12dp" />
+</LinearLayout>
+
+
+

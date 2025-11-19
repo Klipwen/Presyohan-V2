@@ -228,10 +228,19 @@ class ManageStoreActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        // Copy Prices action
+        findViewById<View>(R.id.btnCopyPrices).setOnClickListener {
+            val intent = android.content.Intent(this, CopyPricesActivity::class.java)
+            intent.putExtra("storeId", storeId)
+            intent.putExtra("storeName", storeName)
+            startActivity(intent)
+        }
+
         val btnManageMembers = findViewById<View>(R.id.btnManageMembers)
         btnManageMembers.setOnClickListener {
             val intent = android.content.Intent(this, ManageMembersActivity::class.java)
             intent.putExtra("storeId", storeId)
+            intent.putExtra("storeName", storeName)
             startActivity(intent)
         }
 
@@ -239,6 +248,7 @@ class ManageStoreActivity : AppCompatActivity() {
         btnManageCategory.setOnClickListener {
             val intent = android.content.Intent(this, ManageCategoryActivity::class.java)
             intent.putExtra("storeId", storeId)
+            intent.putExtra("storeName", storeName)
             startActivity(intent)
         }
 
@@ -662,5 +672,9 @@ class ManageStoreActivity : AppCompatActivity() {
                 showInviteStaffDialog(null)
             }
         }
+    }
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, storeId, storeName)
     }
 }

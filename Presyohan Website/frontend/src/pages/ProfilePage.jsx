@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabaseClient';
 import StoreHeader from '../components/layout/StoreHeader';
@@ -11,6 +11,7 @@ export default function ProfilePage() {
     id: null,
     name: '',
     email: '',
+    phone: '',
     avatar_url: ''
   });
 
@@ -33,6 +34,9 @@ export default function ProfilePage() {
   ];
 
   const [actionStatus, setActionStatus] = useState(null); // { kind: 'info'|'success'|'error', text }
+  const [isEditingOverview, setIsEditingOverview] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const editSnapshotRef = useRef(null);
 
   // Avatar cropper state
   const [avatarCropOpen, setAvatarCropOpen] = useState(false);
@@ -78,13 +82,14 @@ export default function ProfilePage() {
       const authUser = session?.user;
       const { data: row } = await supabase
         .from('app_users')
-        .select('id, auth_uid, name, email, avatar_url')
+        .select('id, auth_uid, name, email, phone, avatar_url')
         .or(`id.eq.${authUser?.id},auth_uid.eq.${authUser?.id}`)
         .maybeSingle();
       const base = {
         id: row?.id || authUser?.id || null,
         name: row?.name || authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || '',
-        email: row?.email || authUser?.email || '',
+        email: row?.email ?? authUser?.email ?? '',
+        phone: row?.phone || authUser?.user_metadata?.phone || '',
         avatar_url: row?.avatar_url || authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || ''
       };
       setProfile(base);
@@ -329,18 +334,41 @@ export default function ProfilePage() {
   const openConfirm = (opts) => setConfirmState({ open: true, ...opts });
   const closeConfirm = () => setConfirmState((s) => ({ ...s, open: false }));
 
+  const startEditingOverview = () => {
+    editSnapshotRef.current = { ...profile };
+    setIsEditingOverview(true);
+    setActionStatus(null);
+  };
+
+  const cancelEditingOverview = () => {
+    if (editSnapshotRef.current) {
+      setProfile(editSnapshotRef.current);
+    }
+    setIsEditingOverview(false);
+    setIsSavingProfile(false);
+  };
+
   const handleSave = async () => {
     try {
       if (!profile.id) throw new Error('No profile loaded.');
+      setIsSavingProfile(true);
+      const payload = {
+        name: profile.name || null,
+        phone: profile.phone?.trim() || null
+      };
       const { error } = await supabase
         .from('app_users')
-        .update({ name: profile.name })
+        .update(payload)
         .or(`id.eq.${profile.id},auth_uid.eq.${profile.id}`);
       if (error) throw error;
-      await supabase.auth.updateUser({ data: { name: profile.name } });
+      await supabase.auth.updateUser({ data: { name: payload.name, phone: payload.phone } });
+      editSnapshotRef.current = { ...profile };
+      setIsEditingOverview(false);
       setActionStatus({ kind: 'success', text: 'Profile updated.' });
     } catch (e) {
       setActionStatus({ kind: 'error', text: e.message || 'Failed to save profile.' });
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -588,6 +616,7 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       value={profile.name}
+                      readOnly={!isEditingOverview}
                       onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                       style={{
                         width: '100%',
@@ -596,7 +625,10 @@ export default function ProfilePage() {
                         borderRadius: '10px',
                         fontSize: '1rem',
                         outline: 'none',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        background: isEditingOverview ? 'white' : '#f5f5f5',
+                        color: isEditingOverview ? '#333' : '#777',
+                        cursor: isEditingOverview ? 'text' : 'not-allowed'
                       }}
                     />
                   </div>
@@ -627,25 +659,91 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  {/* Phone field removed as requested */}
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#333',
+                      marginBottom: '8px'
+                    }}>Phone Number</label>
+                    <input
+                      type="tel"
+                      value={profile.phone}
+                      readOnly={!isEditingOverview}
+                      placeholder="e.g., +63 900 000 0000"
+                      onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '14px',
+                        border: '2px solid #e0e0e0',
+                        borderRadius: '10px',
+                        fontSize: '1rem',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        background: isEditingOverview ? 'white' : '#f5f5f5',
+                        color: isEditingOverview ? '#333' : '#777',
+                        cursor: isEditingOverview ? 'text' : 'not-allowed'
+                      }}
+                    />
+                  </div>
 
-                  <button
-                    onClick={handleSave}
-                    style={{
-                      width: '100%',
-                      padding: '16px',
-                      background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '25px',
-                      fontSize: '1.1rem',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      marginTop: '10px'
-                    }}
-                  >
-                    Save Changes
-                  </button>
+                  {!isEditingOverview ? (
+                    <button
+                      onClick={startEditingOverview}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        background: 'linear-gradient(135deg, #00bcd4 0%, #0097a7 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '25px',
+                        fontSize: '1.1rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        marginTop: '10px'
+                      }}
+                    >
+                      Edit Profile
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '10px' }}>
+                      <button
+                        onClick={cancelEditingOverview}
+                        style={{
+                          flex: 1,
+                          padding: '16px',
+                          background: '#f1f1f1',
+                          color: '#555',
+                          border: '2px solid #e0e0e0',
+                          borderRadius: '25px',
+                          fontSize: '1rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSave}
+                        disabled={isSavingProfile}
+                        style={{
+                          flex: 1,
+                          padding: '16px',
+                          background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '25px',
+                          fontSize: '1.1rem',
+                          fontWeight: '700',
+                          cursor: isSavingProfile ? 'wait' : 'pointer',
+                          opacity: isSavingProfile ? 0.7 : 1
+                        }}
+                      >
+                        {isSavingProfile ? 'Saving…' : 'Save Changes'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

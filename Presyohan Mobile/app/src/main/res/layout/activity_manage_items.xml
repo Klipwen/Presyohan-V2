@@ -22,7 +22,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/buttonDone"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@+id/buttonDone"
-            app:srcCompat="@drawable/icon_back"
+            android:src="@drawable/icon_back"
             app:tint="@color/presyo_teal" />
 
         <TextView
@@ -114,7 +114,7 @@
                 android:layout_width="24dp"
                 android:layout_height="18dp"
                 android:layout_marginStart="8dp"
-                app:srcCompat="@drawable/icon_category_drawer" />
+                android:src="@drawable/icon_category_drawer" />
         </LinearLayout>
 
         <!-- RecyclerView for items -->
@@ -132,4 +132,4 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-</androidx.drawerlayout.widget.DrawerLayout> 
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -17,11 +17,16 @@ import android.widget.TextView
 import android.widget.ImageView
 
 class AddItemActivity : AppCompatActivity() {
+    private var storeId: String? = null
+    private var storeName: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_add_item)
 
+        storeId = intent.getStringExtra("storeId")
+        storeName = intent.getStringExtra("storeName") ?: "Store name"
 
         fun showAddCategoryDialog(onCategoryAdded: (String, String) -> Unit) {
             val dialog = android.app.Dialog(this)
@@ -37,13 +42,13 @@ class AddItemActivity : AppCompatActivity() {
             btnAdd.setOnClickListener {
                 val category = input.text.toString().trim()
                 if (category.isNotEmpty()) {
-                    val storeId = intent.getStringExtra("storeId") ?: return@setOnClickListener
+                    val currentStoreIdInner = storeId ?: return@setOnClickListener
                     lifecycleScope.launch {
                         try {
                             val result = SupabaseProvider.client.postgrest.rpc(
                                 "add_category",
                                 buildJsonObject {
-                                    put("p_store_id", storeId)
+                                    put("p_store_id", JsonPrimitive(currentStoreIdInner))
                                     put("p_name", category)
                                 }
                             ).decodeList<UserCategoryRow>()
@@ -74,19 +79,22 @@ class AddItemActivity : AppCompatActivity() {
         priceDisplay.textSize = 18f
         priceDisplay.setTextColor(resources.getColor(R.color.presyo_orange, null))
 
-        val storeId = intent.getStringExtra("storeId")
         val categories = mutableListOf("Add Category")
         val categoryIdByName = mutableMapOf<String, String>()
         val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, categories)
         spinner.adapter = adapter
 
         // Load categories via Supabase RPC
-        if (storeId != null) {
+        val currentStoreId = storeId
+        if (currentStoreId != null) {
             lifecycleScope.launch {
                 try {
                     val rows = SupabaseProvider.client.postgrest.rpc(
                         "get_user_categories",
-                        buildJsonObject { put("p_store_id", storeId) }
+                        buildJsonObject {
+                            val sid: String = currentStoreId
+                            put("p_store_id", JsonPrimitive(sid))
+                        }
                     ).decodeList<UserCategoryRow>()
                     for (row in rows) {
                         if (!categories.contains(row.name)) {
@@ -171,8 +179,8 @@ class AddItemActivity : AppCompatActivity() {
             }
 
             val price = priceText.toDoubleOrNull() ?: 0.0
-            val storeId = intent.getStringExtra("storeId") ?: return@setOnClickListener
-            val storeName = intent.getStringExtra("storeName") ?: "Store"
+                    val storeId = this@AddItemActivity.storeId ?: return@setOnClickListener
+                    val storeName = this@AddItemActivity.storeName ?: "Store"
 
             val categoryId = categoryIdByName[category]
             if (categoryId.isNullOrBlank()) {
@@ -185,12 +193,12 @@ class AddItemActivity : AppCompatActivity() {
                     SupabaseProvider.client.postgrest.rpc(
                         "add_product",
                         buildJsonObject {
-                            put("p_store_id", storeId)
-                            put("p_category_id", categoryId)
+                            put("p_store_id", JsonPrimitive(storeId))
+                            put("p_category_id", JsonPrimitive(categoryId))
                             put("p_name", itemName)
                             put("p_description", description)
                             put("p_price", JsonPrimitive(price))
-                            put("p_unit", units)
+                            put("p_unit", JsonPrimitive(units))
                         }
                     )
                     android.widget.Toast.makeText(this@AddItemActivity, "Product added.", android.widget.Toast.LENGTH_SHORT).show()
@@ -208,15 +216,16 @@ class AddItemActivity : AppCompatActivity() {
         }
 
         val btnAddMultipleItems = findViewById<android.widget.Button>(R.id.btnAddMultipleItems)
-        val storeName = intent.getStringExtra("storeName") ?: "Store name"
         val storeNameText = findViewById<TextView>(R.id.storeText)
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         storeNameText.text = storeName
         if (storeId != null) {
+            // Make a stable local copy to avoid smart-cast issues inside lambdas/coroutines
+            val sid: String = storeId!!
             lifecycleScope.launch {
                 try {
                     val rows = SupabaseProvider.client.postgrest["stores"].select(columns = Columns.list("branch")) {
-                        filter { eq("id", storeId) }
+                        filter { eq("id", sid) }
                         limit(1)
                     }.decodeList<StoreBranchRow>()
                     val branch = rows.firstOrNull()?.branch ?: ""
@@ -265,6 +274,11 @@ class AddItemActivity : AppCompatActivity() {
                 userNameText.text = name
             } catch (_: Exception) { /* noop */ }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, storeId, storeName)
     }
 
     @kotlinx.serialization.Serializable

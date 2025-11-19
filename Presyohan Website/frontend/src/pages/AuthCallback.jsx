@@ -2,6 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../config/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
+const extractOAuthError = () => {
+  if (typeof window === 'undefined') return null;
+  const buckets = [];
+  if (window.location.search) buckets.push(window.location.search.substring(1));
+  if (window.location.hash) buckets.push(window.location.hash.substring(1));
+  for (const raw of buckets) {
+    if (!raw) continue;
+    const params = new URLSearchParams(raw);
+    const message = params.get('error_description') || params.get('error');
+    if (message) {
+      return message.replace(/\+/g, ' ');
+    }
+  }
+  return null;
+};
+
 export default function AuthCallback() {
   const [status, setStatus] = useState('Signing you in');
   const [needEmail, setNeedEmail] = useState(false);
@@ -9,7 +25,42 @@ export default function AuthCallback() {
   const [savingEmail, setSavingEmail] = useState(false);
   const navigate = useNavigate();
 
+  const fetchFacebookEmail = async (session) => {
+    const accessToken = session?.provider_token;
+    if (!accessToken) return null;
+    try {
+      const resp = await fetch(`https://graph.facebook.com/me?fields=email&access_token=${accessToken}`);
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const email = data?.email;
+      if (!email) return null;
+      await supabase.auth.updateUser({ email });
+      await supabase
+        .from('app_users')
+        .upsert({
+          id: session.user.id,
+          auth_uid: session.user.id,
+          email,
+          name: session.user.user_metadata?.name || null
+        }, { onConflict: 'id' });
+      return email;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
+    const oauthError = extractOAuthError();
+    if (oauthError) {
+      setStatus(oauthError);
+      const timer = setTimeout(() => {
+        navigate('/login', { replace: true, state: { oauthError } });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+
+    let subscription;
+    let timer;
     const run = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) {
@@ -21,8 +72,11 @@ export default function AuthCallback() {
         try {
           const user = session.user;
           const userEmail = user.email || null;
-          if (!userEmail) {
-            // Some Facebook accounts may not expose email. Collect it to proceed.
+          let finalEmail = userEmail;
+          if (!finalEmail && session.provider === 'facebook') {
+            finalEmail = await fetchFacebookEmail(session);
+          }
+          if (!finalEmail) {
             setNeedEmail(true);
             setStatus('Facebook signed in. Please provide your email to continue.');
             return;
@@ -32,7 +86,7 @@ export default function AuthCallback() {
             .upsert(
               {
                 id: user.id,
-                email: userEmail,
+                email: finalEmail,
                 name: user.user_metadata?.name || null,
                 avatar_url: user.user_metadata?.avatar_url || null
               },
@@ -45,42 +99,46 @@ export default function AuthCallback() {
   navigate('/stores', { replace: true });
         return;
       }
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-  if (session) {
-    // Upsert profile as soon as session appears
-    (async () => {
-      try {
-        const userEmail = session.user.email || null;
-        if (!userEmail) {
-          setNeedEmail(true);
-          setStatus('Facebook signed in. Please provide your email to continue.');
-          return;
-        }
-        await supabase
-          .from('app_users')
-          .upsert(
-            {
-              id: session.user.id,
-              email: userEmail,
-              name: session.user.user_metadata?.name || null,
-              avatar_url: session.user.user_metadata?.avatar_url || null
-            },
-            { onConflict: 'id' }
-          );
-      } catch (e) {
-        console.warn('Profile upsert failed in auth state change:', e);
+      const listener = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        // Upsert profile as soon as session appears
+        (async () => {
+          try {
+            let userEmail = session.user.email || null;
+            if (!userEmail && session.provider === 'facebook') {
+              userEmail = await fetchFacebookEmail(session);
+            }
+            if (!userEmail) {
+              setNeedEmail(true);
+              setStatus('Facebook signed in. Please provide your email to continue.');
+              return;
+            }
+            await supabase
+              .from('app_users')
+              .upsert(
+                {
+                  id: session.user.id,
+                  email: userEmail,
+                  name: session.user.user_metadata?.name || null,
+                  avatar_url: session.user.user_metadata?.avatar_url || null
+                },
+                { onConflict: 'id' }
+              );
+          } catch (e) {
+            console.warn('Profile upsert failed in auth state change:', e);
+          }
+          navigate('/stores', { replace: true });
+        })();
       }
-      navigate('/stores', { replace: true });
-    })();
-  }
       });
-      const timer = setTimeout(() => setStatus('No session found. Please try logging in again.'), 4000);
-      return () => {
-        subscription?.unsubscribe();
-        clearTimeout(timer);
-      };
+      subscription = listener.data.subscription;
+      timer = setTimeout(() => setStatus('No session found. Please try logging in again.'), 4000);
     };
     run();
+    return () => {
+      subscription?.unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
   }, [navigate]);
 
   const saveEmailAndProceed = async () => {

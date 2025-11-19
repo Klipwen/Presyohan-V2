@@ -1,6 +1,7 @@
 package com.presyohan.app
 
 import android.app.Application
+import androidx.appcompat.app.AppCompatDelegate
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
@@ -34,6 +35,7 @@ object SupabaseProvider {
 class PresyohanApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         SupabaseProvider.init(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
     }
 }

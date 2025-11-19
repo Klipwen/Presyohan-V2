@@ -34,6 +34,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     private lateinit var adapter: StoreAdapter
     private val stores = mutableListOf<Store>()
     private var storeRolesMap: Map<String, String> = emptyMap()
+    private var lastBackPress: Long = 0
 
     private val createStoreLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -128,8 +129,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
     override fun onResume() {
         super.onResume()
-        getSharedPreferences("presyo_prefs", MODE_PRIVATE)
-            .edit().putString("last_screen", "store").apply()
+        SessionManager.markStoreList(this)
         fetchStores()
         loadNotifBadge()
     }
@@ -157,8 +157,13 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     }
 
     override fun onBackPressed() {
-        // Exit the app when back is pressed from Store screen
-        finishAffinity()
+        val now = System.currentTimeMillis()
+        if (now - lastBackPress < 2000) {
+            finishAffinity()
+        } else {
+            lastBackPress = now
+            android.widget.Toast.makeText(this, "Press again to exit", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun checkUserStore() {

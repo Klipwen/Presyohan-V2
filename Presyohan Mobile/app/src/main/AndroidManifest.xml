@@ -75,6 +75,9 @@
         <activity
             android:name=".ManageCategoryActivity"
             android:exported="false" />
+        <activity
+            android:name=".CopyPricesActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

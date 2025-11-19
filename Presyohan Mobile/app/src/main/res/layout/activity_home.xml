@@ -133,7 +133,7 @@
                 android:layout_width="61dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                app:srcCompat="@drawable/icon_search" />
+                android:src="@drawable/icon_search" />
         </LinearLayout>
 
         <!-- Add Button -->
@@ -145,7 +145,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/imgHeader"
             app:layout_constraintStart_toEndOf="@+id/searchBarContainer"
             app:layout_constraintTop_toTopOf="@+id/imgHeader"
-            app:srcCompat="@drawable/icon_add_item" />
+            android:src="@drawable/icon_add_item" />
 
         <!-- Category Section -->
         <LinearLayout
@@ -200,7 +200,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/linearLayout2"
             app:layout_constraintStart_toStartOf="@+id/notifIcon"
             app:layout_constraintTop_toBottomOf="@+id/imgHeader"
-            app:srcCompat="@drawable/icon_category_drawer" />
+            android:src="@drawable/icon_category_drawer" />
 
         <!-- Floating Search Button -->
         <ImageButton

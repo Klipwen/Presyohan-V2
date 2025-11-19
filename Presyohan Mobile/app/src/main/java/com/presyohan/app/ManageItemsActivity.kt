@@ -38,12 +38,16 @@ class ManageItemsActivity : AppCompatActivity() {
     private var categories = mutableListOf<String>()
     private var selectedCategory: String? = null
     private var hasChanges = false
+    private var storeId: String? = null
+    private var storeName: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manage_items)
 
-        val storeId = intent.getStringExtra("storeId")
+        storeId = intent.getStringExtra("storeId")
+        storeName = intent.getStringExtra("storeName")
+        val storeId = this.storeId
         if (storeId.isNullOrBlank()) {
             android.widget.Toast.makeText(this, "No store ID provided. Cannot manage items.", android.widget.Toast.LENGTH_LONG).show()
             finish()
@@ -90,7 +94,7 @@ class ManageItemsActivity : AppCompatActivity() {
                             adapter.updateItems(filteredItems)
                             hasChanges = true
                             updateItemCounter()
-                            val storeId = intent.getStringExtra("storeId")
+                            val storeId = this@ManageItemsActivity.storeId
                             if (!storeId.isNullOrBlank()) {
                                 lifecycleScope.launch {
                                     try {
@@ -221,7 +225,7 @@ class ManageItemsActivity : AppCompatActivity() {
                 setOnClickListener {
                     // Force all EditTexts in the RecyclerView to lose focus
                     recyclerView.clearFocus()
-                    val storeId = intent.getStringExtra("storeId")
+                    val storeId = this@ManageItemsActivity.storeId
                     if (storeId.isNullOrBlank()) {
                         android.widget.Toast.makeText(this@ManageItemsActivity, "Store ID missing. Cannot save.", android.widget.Toast.LENGTH_LONG).show()
                         dialog.dismiss()
@@ -373,6 +377,11 @@ class ManageItemsActivity : AppCompatActivity() {
             updateFilter()
         }
         builder.show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, storeId, storeName)
     }
 }
 

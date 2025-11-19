@@ -138,6 +138,11 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, storeId, storeName)
+    }
+
     override fun onBackPressed() {
         val hasItems = categories.any { it.items.isNotEmpty() }
         if (hasItems) {

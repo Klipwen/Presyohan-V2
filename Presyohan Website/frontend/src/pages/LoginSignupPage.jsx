@@ -4,7 +4,7 @@ import Footer from '../components/layout/Footer';
 import '../styles/LoginSignUpPage.css';
 import presyohanLogo from '../assets/presyohan_logo.png';
 import { supabase } from '../config/supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function LoginSignupPage() {
   const [activeTab, setActiveTab] = useState('login');
@@ -26,9 +26,11 @@ export default function LoginSignupPage() {
   const [signupTouched, setSignupTouched] = useState({});
   const [loginFormError, setLoginFormError] = useState('');
   const [signupFormError, setSignupFormError] = useState('');
+  const [isSubmittingFacebook, setIsSubmittingFacebook] = useState(false);
   const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
   const [isSubmittingSignup, setIsSubmittingSignup] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Resolve app origin from env when available; fallback to current origin.
   // If env mistakenly points to localhost, prefer current origin to avoid dev URL on production.
@@ -50,6 +52,14 @@ export default function LoginSignupPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
+
+  useEffect(() => {
+    if (location.state?.oauthError) {
+      setActiveTab('login');
+      setLoginFormError(location.state.oauthError);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const toggleTab = (tab) => setActiveTab(tab);
 
@@ -170,19 +180,26 @@ export default function LoginSignupPage() {
 
   const signInWithFacebook = async () => {
     try {
+      setLoginFormError('');
+      setIsSubmittingFacebook(true);
       const redirectTo = `${getAppOrigin()}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo
+          redirectTo,
+          scopes: 'email,public_profile',
+          queryParams: {
+            display: 'popup',
+            auth_type: 'rerequest'
+          }
         }
       });
       if (error) {
-        setLoginFormError(error.message || 'Facebook sign-in failed.');
+        throw error;
       }
-      // on success Supabase will redirect to the callback
     } catch (err) {
       setLoginFormError(err.message || 'Unexpected error during Facebook sign-in.');
+      setIsSubmittingFacebook(false);
     }
   };
 
@@ -269,7 +286,14 @@ export default function LoginSignupPage() {
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06 .56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                       </svg>
                     </button>
-                    <button type="button" className="social-btn" onClick={signInWithFacebook}
+                    <button
+                      type="button"
+                      className="social-btn"
+                      onClick={signInWithFacebook}
+                      disabled={isSubmittingFacebook}
+                      aria-busy={isSubmittingFacebook}
+                      aria-label={isSubmittingFacebook ? 'Connecting to Facebook' : 'Sign in with Facebook'}
+                      title="Sign in with Facebook"
                     >
                       <svg viewBox="0 0 24 24">
                         <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686 .235 2.686 .235v2.953H15.83c-1.491 0-1.956 .925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>

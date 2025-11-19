@@ -93,6 +93,7 @@ class HomeActivity : AppCompatActivity() {
     )
     private val REQUEST_EDIT_ITEM = 1001
     private val REQUEST_ADD_ITEM = 1002
+    private var lastBackPress: Long = 0
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
@@ -420,23 +421,22 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE).edit()
-        prefs.putString("last_screen", "home")
         val storeId = intent.getStringExtra("storeId")
         val storeName = intent.getStringExtra("storeName")
-        if (storeId != null && storeName != null) {
-            prefs.putString("last_store_id", storeId)
-            prefs.putString("last_store_name", storeName)
-        }
-        prefs.apply()
+        SessionManager.markStoreHome(this, storeId, storeName)
         // Refresh products and notification badge when returning to this screen
         reloadProductsFn?.invoke()
         loadNotifBadge()
     }
 
     override fun onBackPressed() {
-        // Exit the app when back is pressed from Home screen
-        finishAffinity()
+        val now = System.currentTimeMillis()
+        if (now - lastBackPress < 2000) {
+            finishAffinity()
+        } else {
+            lastBackPress = now
+            android.widget.Toast.makeText(this, "Press again to exit", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showManageItemDialog(product: com.presyohan.app.adapter.Product, storeId: String?, storeName: String?) {

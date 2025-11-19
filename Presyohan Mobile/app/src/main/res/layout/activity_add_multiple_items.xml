@@ -22,7 +22,7 @@
             app:layout_constraintBottom_toBottomOf="@+id/buttonDone"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@+id/buttonDone"
-            app:srcCompat="@drawable/icon_back"
+            android:src="@drawable/icon_back"
             app:tint="@color/presyo_teal" />
 
         <TextView
@@ -121,4 +121,4 @@
         app:headerLayout="@layout/drawer_header"
         app:menu="@menu/nav_menu" />
 
-</androidx.drawerlayout.widget.DrawerLayout> 
+</androidx.drawerlayout.widget.DrawerLayout>
