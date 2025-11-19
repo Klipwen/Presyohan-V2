@@ -34,23 +34,24 @@
             app:layout_constraintVertical_bias="0.502" />
 
         <!-- Icon -->
+
+        <!-- Logo Text -->
         <ImageView
             android:id="@+id/iconPresyohan"
             android:layout_width="200dp"
             android:layout_height="150dp"
             android:layout_marginTop="20dp"
             android:layout_marginBottom="60dp"
+            android:contentDescription="Logo"
             android:rotation="-45"
             android:src="@drawable/icon_presyohan"
-            android:contentDescription="Logo"
-            app:layout_constraintTop_toTopOf="@+id/topCurve"
             app:layout_constraintBottom_toBottomOf="@+id/topCurve"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="@+id/topCurve"
-            app:layout_constraintHorizontal_bias="0.505"
+            app:layout_constraintHorizontal_bias="0.507"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/topCurve"
             app:layout_constraintVertical_bias="0.0" />
 
-        <!-- Logo Text -->
         <ImageView
             android:id="@+id/txtPresyohan"
             android:layout_width="200dp"
@@ -75,9 +76,11 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
+
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
                 android:paddingTop="20dp">
 
                 <TextView
@@ -93,14 +96,6 @@
                     tools:ignore="MissingConstraints" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Your Name"
-                android:textColor="@color/presyo_teal"
-                android:textSize="14sp" />
-
             <EditText
                 android:id="@+id/inputName"
                 android:layout_width="match_parent"
@@ -108,15 +103,9 @@
                 android:background="@drawable/edittext_background2"
                 android:inputType="textPersonName"
                 android:textColor="@color/presyo_darkblue"
-                android:padding="10dp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Your Email"
-                android:textColor="@color/presyo_teal"
-                android:textSize="14sp" />
+                android:padding="10dp"
+                android:layout_marginBottom="14dp"
+                android:hint="Name" />
 
             <EditText
                 android:id="@+id/inputEmail"
@@ -125,15 +114,9 @@
                 android:background="@drawable/edittext_background2"
                 android:inputType="textEmailAddress"
                 android:textColor="@color/presyo_darkblue"
-                android:padding="10dp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Your Password"
-                android:textColor="@color/presyo_teal"
-                android:textSize="14sp" />
+                android:padding="10dp"
+                android:layout_marginBottom="14dp"
+                android:hint="Email" />
 
             <EditText
                 android:id="@+id/inputPassword"
@@ -142,15 +125,9 @@
                 android:background="@drawable/edittext_background2"
                 android:inputType="textPassword"
                 android:textColor="@color/presyo_darkblue"
-                android:padding="10dp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Confirm Password"
-                android:textColor="@color/presyo_teal"
-                android:textSize="14sp" />
+                android:padding="10dp"
+                android:layout_marginBottom="14dp"
+                android:hint="Password" />
 
             <EditText
                 android:id="@+id/inputConfirmPassword"
@@ -159,43 +136,49 @@
                 android:background="@drawable/edittext_background2"
                 android:inputType="textPassword"
                 android:textColor="@color/presyo_darkblue"
-                android:padding="10dp" />
+                android:padding="10dp"
+                android:layout_marginBottom="14dp"
+                android:hint="Confirm Password" />
+        </LinearLayout>
 
-            <!-- Google Sign-In Text Button -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp"
+            app:layout_constraintBottom_toTopOf="@+id/buttonSignUp">
 
             <TextView
-                android:id="@+id/txtAlreadyHaveAnAccount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
                 android:text="Already have an account?"
                 android:textColor="@color/presyo_darkblue"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/linkLogin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" Login"
+                android:textColor="@color/presyo_teal"
                 android:textSize="14sp"
-                android:gravity="center"
-                android:layout_gravity="center_horizontal" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/buttonBackToLogin"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/rounded_button"
-                android:backgroundTint="#219EBC"
-                android:text="Back to Login"
-                android:textColor="@android:color/white"
-                android:textStyle="bold" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/buttonSignUp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_button"
-                android:backgroundTint="@color/presyo_orange"
-                android:text="Signup"
-                android:textColor="@android:color/white"
                 android:textStyle="bold" />
         </LinearLayout>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/buttonSignUp"
+            android:layout_width="match_parent"
+            android:layout_marginEnd="16dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="26dp"
+            android:layout_height="wrap_content"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_orange"
+            android:text="Signup"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:layout_editor_absoluteX="20dp" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </RelativeLayout>

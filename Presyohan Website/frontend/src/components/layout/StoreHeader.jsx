@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import storeHeaderLogo from '../../assets/presyohan_logo.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabaseClient';
 import '../../styles/StoreHeader.css';
 import storeIcon from '../../assets/icon_store.png';
@@ -8,15 +8,18 @@ import NotificationsPanel from '../notifications/NotificationsPanel';
 
 // StoreHeader with side-menu layout
 export default function StoreHeader({ stores = [], onLogout, includeAllStoresLink = true }) {
+  const navigate = useNavigate();
   const [sideMenuOpen, setSideMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [storesExpanded, setStoresExpanded] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: 'User Name',
-    email: 'email@example.com',
+    email: '',
+    phone: '',
     avatarUrl: null
   });
+  const [requireContactModal, setRequireContactModal] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -32,7 +35,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
           try {
         const { data: appUser } = await supabase
           .from('app_users')
-          .select('name, email, avatar_url')
+          .select('name, email, phone, avatar_url')
           .or(`id.eq.${user.id},auth_uid.eq.${user.id}`)
           .maybeSingle();
 
@@ -45,9 +48,13 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
             console.warn('Could not fetch from app_users:', err);
           }
 
+          const resolvedEmail = appUser?.email || user.email || '';
+          const resolvedPhone = appUser?.phone || '';
+          setRequireContactModal(!resolvedEmail && !resolvedPhone);
           setUserProfile({
             name: displayName,
-            email: user.email || 'email@example.com',
+            email: resolvedEmail,
+            phone: resolvedPhone,
             avatarUrl: avatarUrl
           });
         }
@@ -84,9 +91,10 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
   const closeSideMenu = () => setSideMenuOpen(false);
 
   // Generate avatar from email using a simple hash-based color
-  const getAvatarFromEmail = (email) => {
-    if (!email) return 'U';
-    const hash = email.split('').reduce((a, b) => {
+  const getAvatarFromEmail = (seed) => {
+    const basis = seed || userProfile.name || 'User';
+    if (!basis) return 'U';
+    const hash = basis.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
@@ -101,7 +109,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
         alignItems: 'center', justifyContent: 'center', color: 'white',
         fontWeight: '700', fontSize: '1.2rem'
       }}>
-        {initial}
+        {basis.charAt(0).toUpperCase()}
       </div>
     );
   };
@@ -210,7 +218,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
             )}
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userProfile.name}</h3>
-              <p style={{ margin: '4px 0 6px', fontSize: '0.9rem', opacity: 0.9 }}>{userProfile.email}</p>
               <Link to="/profile" onClick={closeSideMenu} style={{ color: 'white', textDecoration: 'underline', fontSize: '0.9rem' }}>View Profile</Link>
             </div>
           </div>
@@ -318,6 +325,54 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
           </a>
         </div>
       </div>
+
+      {requireContactModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2500
+        }}>
+          <div style={{
+            width: '92%',
+            maxWidth: '440px',
+            background: '#fff',
+            borderRadius: '16px',
+            boxShadow: '0 12px 30px rgba(0,0,0,0.2)',
+            padding: '28px'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1.2rem', fontWeight: 700, color: '#ff8c00' }}>
+              Complete Your Profile
+            </h3>
+            <p style={{ fontSize: '0.95rem', color: '#555', lineHeight: 1.5, marginBottom: '24px' }}>
+              Add either an email or phone number so we can send staff invites and important updates.
+            </p>
+            <button
+              onClick={() => {
+                setRequireContactModal(false);
+                closeSideMenu();
+                navigate('/profile', { state: { startProfileEdit: true, tab: 'overview' } });
+              }}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
+                border: 'none',
+                borderRadius: '25px',
+                color: '#fff',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Edit Profile
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Notifications Panel */}
       <NotificationsPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />

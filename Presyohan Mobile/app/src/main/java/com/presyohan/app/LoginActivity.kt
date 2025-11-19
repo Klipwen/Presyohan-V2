@@ -3,6 +3,7 @@ package com.presyohan.app
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
+import android.widget.ImageView
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -118,7 +119,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
         val emailEditText = findViewById<EditText>(R.id.inputEmail)
         val passwordEditText = findViewById<EditText>(R.id.inputPassword)
         val loginBtn = findViewById<Button>(R.id.buttonLogin)
-        val signUpBtn = findViewById<Button>(R.id.buttonSignUp)
+        val linkSignUp = findViewById<TextView>(R.id.linkSignUp)
 
         loginBtn.setOnClickListener {
             val email = emailEditText.text.toString().trim()
@@ -140,12 +141,12 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             }
         }
 
-        signUpBtn.setOnClickListener {
+        linkSignUp.setOnClickListener {
             startActivity(Intent(this, SignupActivity::class.java))
         }
 
-        val googleSignInText = findViewById<TextView>(R.id.googleSignInText)
-        googleSignInText.setOnClickListener {
+        val googleIconButton = findViewById<ImageView>(R.id.googleIconButton)
+        googleIconButton.setOnClickListener {
             hasRetriedInteractiveSignIn = false
             if (!ensurePlayServices()) return@setOnClickListener
             // Force showing the Google account picker by clearing any cached account
@@ -153,6 +154,11 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                 val intent = googleSignInClient.signInIntent
                 googleSignInLauncher.launch(intent)
             }
+        }
+
+        val facebookIconButton = findViewById<ImageView>(R.id.facebookIconButton)
+        facebookIconButton.setOnClickListener {
+            Toast.makeText(this, "Facebook sign-in not implemented.", Toast.LENGTH_SHORT).show()
         }
 
         // Handle a possible OAuth deep link when activity is launched via browser callback

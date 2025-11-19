@@ -74,9 +74,11 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
+
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
                 android:paddingTop="20dp">
 
                 <TextView
@@ -92,15 +94,6 @@
                     tools:ignore="MissingConstraints" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <TextView
-                android:id="@+id/textView2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Your Email"
-                android:textColor="@color/presyo_teal"
-                android:textSize="14sp" />
-
             <EditText
                 android:id="@+id/inputEmail"
                 android:layout_width="match_parent"
@@ -108,16 +101,9 @@
                 android:background="@drawable/edittext_background2"
                 android:inputType="textEmailAddress"
                 android:textColor="@color/presyo_darkblue"
-                android:padding="10dp" />
-
-            <TextView
-                android:id="@+id/textView3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="Your Password"
-                android:textColor="@color/presyo_teal"
-                android:textSize="14sp" />
+                android:padding="10dp"
+                android:layout_marginBottom="14dp"
+                android:hint="Email" />
 
             <EditText
                 android:id="@+id/inputPassword"
@@ -126,54 +112,94 @@
                 android:background="@drawable/edittext_background2"
                 android:inputType="textPassword"
                 android:textColor="@color/presyo_darkblue"
-                android:padding="10dp" />
+                android:padding="10dp"
+                android:hint="Password" />
 
-            <!-- Google Sign-In Text Button -->
-            <TextView
-                android:id="@+id/googleSignInText"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:gravity="center"
-                android:text="Sign in with Google"
-                android:textColor="@color/presyo_darkblue"
-                android:textSize="16sp"
-                android:background="@drawable/rounded_button"
-                android:padding="12dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:background="#DDDDDD"
+                    android:layout_weight="1" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="  or sign in with  "
+                    android:textColor="#777777"
+                    android:textSize="14sp" />
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:background="#DDDDDD"
+                    android:layout_weight="1" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/socialRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center">
+                <ImageView
+                    android:id="@+id/googleIconButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/icon_google"
+                    android:contentDescription="Google Sign-In"
+                    android:layout_marginEnd="16dp" />
+                <ImageView
+                    android:id="@+id/facebookIconButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/icon_facebook"
+                    android:contentDescription="Facebook Sign-In" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp"
+            app:layout_constraintBottom_toTopOf="@+id/buttonLogin">
 
             <TextView
-                android:id="@+id/txtSignUpLink"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
                 android:text="Don't have an account?"
                 android:textColor="@color/presyo_darkblue"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/linkSignUp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" Sign Up"
+                android:textColor="@color/presyo_teal"
                 android:textSize="14sp"
-                android:gravity="center"
-                android:layout_gravity="center_horizontal" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/buttonSignUp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/rounded_button"
-                android:backgroundTint="@color/presyo_teal"
-                android:text="Sign up"
-                android:textColor="@android:color/white"
-                android:textStyle="bold" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/buttonLogin"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_button"
-                android:backgroundTint="@color/presyo_orange"
-                android:text="Login"
-                android:textColor="@android:color/white"
                 android:textStyle="bold" />
         </LinearLayout>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/buttonLogin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/rounded_button"
+            android:backgroundTint="@color/presyo_orange"
+            android:text="Login"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:layout_marginEnd="16dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="26dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:layout_editor_absoluteX="20dp" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </RelativeLayout>

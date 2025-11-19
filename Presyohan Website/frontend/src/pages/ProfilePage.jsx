@@ -1,10 +1,44 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../config/supabaseClient';
 import StoreHeader from '../components/layout/StoreHeader';
 
+const formatPhoneFromInput = (raw) => {
+  if (!raw || !raw.trim()) {
+    return { formatted: '', normalized: null };
+  }
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) {
+    return null;
+  }
+  let normalized;
+  if (digits.startsWith('63') && digits.length === 12) {
+    normalized = '0' + digits.slice(2);
+  } else if (digits.startsWith('0') && digits.length === 11) {
+    normalized = digits;
+  } else if (digits.length === 10 && digits.startsWith('9')) {
+    normalized = '0' + digits;
+  } else if (digits.length === 11 && digits[0] !== '0') {
+    normalized = '0' + digits.slice(-10);
+  } else {
+    return null;
+  }
+  if (!/^0\d{10}$/.test(normalized)) {
+    return null;
+  }
+  const formatted = `${normalized.slice(0, 4)} ${normalized.slice(4, 7)} ${normalized.slice(7)}`;
+  return { formatted, normalized };
+};
+
+const normalizePhoneForState = (raw) => {
+  if (!raw) return '';
+  const result = formatPhoneFromInput(raw);
+  return result?.formatted || raw;
+};
+
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [profile, setProfile] = useState({
@@ -68,6 +102,30 @@ export default function ProfilePage() {
     init();
   }, [navigate]);
 
+  useEffect(() => {
+    const state = location.state;
+    if (!state) return;
+    let shouldClear = false;
+    const desiredTab = state.tab;
+    if (desiredTab && ['overview','account','security','memberships','notifications'].includes(desiredTab) && desiredTab !== activeTab) {
+      setActiveTab(desiredTab);
+      if (!state.startProfileEdit) {
+        shouldClear = true;
+      }
+    }
+    if (state.startProfileEdit) {
+      if (profile?.id && activeTab === 'overview' && !isEditingOverview) {
+        startEditingOverview();
+        shouldClear = true;
+      } else if (activeTab !== 'overview') {
+        setActiveTab('overview');
+      }
+    }
+    if (shouldClear) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, profile?.id, activeTab, isEditingOverview, navigate]);
+
   const logout = async () => {
     try {
       await supabase.auth.signOut();
@@ -89,7 +147,7 @@ export default function ProfilePage() {
         id: row?.id || authUser?.id || null,
         name: row?.name || authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || '',
         email: row?.email ?? authUser?.email ?? '',
-        phone: row?.phone || authUser?.user_metadata?.phone || '',
+        phone: normalizePhoneForState(row?.phone || authUser?.user_metadata?.phone || ''),
         avatar_url: row?.avatar_url || authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || ''
       };
       setProfile(base);
@@ -352,9 +410,35 @@ export default function ProfilePage() {
     try {
       if (!profile.id) throw new Error('No profile loaded.');
       setIsSavingProfile(true);
+      const trimmedName = profile.name?.trim() || '';
+      let formattedPhone = '';
+      let normalizedPhone = null;
+      if (profile.phone?.trim()) {
+        const phoneResult = formatPhoneFromInput(profile.phone);
+        if (!phoneResult) {
+          setActionStatus({ kind: 'error', text: 'Please enter a valid phone number (e.g., 0932 430 8387).' });
+          setIsSavingProfile(false);
+          return;
+        }
+        formattedPhone = phoneResult.formatted;
+        normalizedPhone = phoneResult.normalized;
+        const { data: conflicts, error: conflictErr } = await supabase
+          .from('app_users')
+          .select('id')
+          .neq('id', profile.id)
+          .eq('phone_normalized', normalizedPhone)
+          .limit(1);
+        if (conflictErr) throw conflictErr;
+        if (Array.isArray(conflicts) && conflicts.length > 0) {
+          setActionStatus({ kind: 'error', text: 'Phone number already used.' });
+          setIsSavingProfile(false);
+          return;
+        }
+      }
       const payload = {
-        name: profile.name || null,
-        phone: profile.phone?.trim() || null
+        name: trimmedName || null,
+        phone: formattedPhone || null,
+        phone_normalized: normalizedPhone
       };
       const { error } = await supabase
         .from('app_users')
@@ -362,7 +446,8 @@ export default function ProfilePage() {
         .or(`id.eq.${profile.id},auth_uid.eq.${profile.id}`);
       if (error) throw error;
       await supabase.auth.updateUser({ data: { name: payload.name, phone: payload.phone } });
-      editSnapshotRef.current = { ...profile };
+      editSnapshotRef.current = { ...profile, name: trimmedName, phone: formattedPhone || '' };
+      setProfile((prev) => ({ ...prev, name: trimmedName, phone: formattedPhone || '' }));
       setIsEditingOverview(false);
       setActionStatus({ kind: 'success', text: 'Profile updated.' });
     } catch (e) {

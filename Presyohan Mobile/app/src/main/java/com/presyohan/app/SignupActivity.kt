@@ -21,7 +21,7 @@ class SignupActivity : androidx.appcompat.app.AppCompatActivity() {
         val passwordEditText = findViewById<EditText>(R.id.inputPassword)
         val confirmPasswordEditText = findViewById<EditText>(R.id.inputConfirmPassword)
         val signupBtn = findViewById<Button>(R.id.buttonSignUp)
-        val backBtn = findViewById<Button>(R.id.buttonBackToLogin)
+        val linkLogin = findViewById<TextView>(R.id.linkLogin)
 
         // Note: Signup flow uses Supabase Email provider only.
         // Google Sign-In for account creation is centralized via LoginActivity using ID token → Supabase.
@@ -58,9 +58,7 @@ class SignupActivity : androidx.appcompat.app.AppCompatActivity() {
             }
         }
 
-        backBtn.setOnClickListener {
-            finish()
-        }
+        linkLogin.setOnClickListener { finish() }
     }
 
     // No Google Sign-In handling in SignupActivity; centralized in LoginActivity.
