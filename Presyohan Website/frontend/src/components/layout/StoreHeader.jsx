@@ -21,6 +21,25 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
   });
   const [requireContactModal, setRequireContactModal] = useState(false);
 
+  const fetchAppUserRow = async (userId) => {
+    if (!userId) return null;
+    const columns = 'id, auth_uid, name, email, phone, avatar_url';
+    const { data: byAuth, error: authErr } = await supabase
+      .from('app_users')
+      .select(columns)
+      .eq('auth_uid', userId)
+      .maybeSingle();
+    if (authErr && authErr.code !== 'PGRST116') throw authErr;
+    if (byAuth) return byAuth;
+    const { data: byId, error: idErr } = await supabase
+      .from('app_users')
+      .select(columns)
+      .eq('id', userId)
+      .maybeSingle();
+    if (idErr && idErr.code !== 'PGRST116') throw idErr;
+    return byId;
+  };
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
@@ -32,19 +51,14 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
           let avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
           // Try to get more complete profile from app_users table (schema: id = auth.uid())
+          let appUser = null;
           try {
-        const { data: appUser } = await supabase
-          .from('app_users')
-          .select('name, email, phone, avatar_url')
-          .or(`id.eq.${user.id},auth_uid.eq.${user.id}`)
-          .maybeSingle();
-
+            appUser = await fetchAppUserRow(user.id);
             if (appUser) {
               displayName = appUser.name || displayName;
               avatarUrl = appUser.avatar_url || avatarUrl;
             }
           } catch (err) {
-            // Fallback to auth metadata if app_users query fails
             console.warn('Could not fetch from app_users:', err);
           }
 

@@ -43,6 +43,7 @@ export default function ProfilePage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [profile, setProfile] = useState({
     id: null,
+    authId: null,
     name: '',
     email: '',
     phone: '',
@@ -81,6 +82,45 @@ export default function ProfilePage() {
   const [avatarDragging, setAvatarDragging] = useState(false);
   const [avatarLastPoint, setAvatarLastPoint] = useState({ x: 0, y: 0 });
   const AVATAR_CROP_SIZE = 240;
+
+  const fetchAppUserRow = async (authId) => {
+    if (!authId) return null;
+    const columns = 'id, auth_uid, name, email, phone, avatar_url, phone_normalized';
+    const { data: byAuth, error: authErr } = await supabase
+      .from('app_users')
+      .select(columns)
+      .eq('auth_uid', authId)
+      .maybeSingle();
+    if (authErr && authErr.code !== 'PGRST116') throw authErr;
+    if (byAuth) return byAuth;
+    const { data: byId, error: idErr } = await supabase
+      .from('app_users')
+      .select(columns)
+      .eq('id', authId)
+      .maybeSingle();
+    if (idErr && idErr.code !== 'PGRST116') throw idErr;
+    return byId;
+  };
+
+  const upsertAppUserFields = async (fields) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const authId = session?.user?.id || profile.authId;
+    if (!authId) throw new Error('Not signed in.');
+    const recordId = profile.id || authId;
+    const payload = {
+      id: recordId,
+      auth_uid: authId,
+      ...fields
+    };
+    const { error } = await supabase
+      .from('app_users')
+      .upsert(payload, { onConflict: 'id' });
+    if (error) throw error;
+    if (!profile.id) {
+      setProfile((prev) => ({ ...prev, id: recordId, authId }));
+    }
+    return { recordId, authId };
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -138,13 +178,10 @@ export default function ProfilePage() {
   const loadProfile = async (session) => {
     try {
       const authUser = session?.user;
-      const { data: row } = await supabase
-        .from('app_users')
-        .select('id, auth_uid, name, email, phone, avatar_url')
-        .or(`id.eq.${authUser?.id},auth_uid.eq.${authUser?.id}`)
-        .maybeSingle();
+      const row = await fetchAppUserRow(authUser?.id);
       const base = {
-        id: row?.id || authUser?.id || null,
+        id: row?.id || null,
+        authId: authUser?.id || null,
         name: row?.name || authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || '',
         email: row?.email ?? authUser?.email ?? '',
         phone: normalizePhoneForState(row?.phone || authUser?.user_metadata?.phone || ''),
@@ -232,20 +269,17 @@ export default function ProfilePage() {
 
   const uploadAvatar = async (fileOrBlob) => {
     try {
-      if (!fileOrBlob || !profile.id) return;
+      const ownerId = profile.id || profile.authId;
+      if (!fileOrBlob || !ownerId) return;
       const ext = (fileOrBlob.name?.split('.')?.pop()?.toLowerCase()) || 'jpg';
-      const filename = `${profile.id}-${Date.now()}.${ext}`;
+      const filename = `${ownerId}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from('avatars').upload(filename, fileOrBlob, { upsert: true });
       if (upErr) throw upErr;
       const { data } = supabase.storage.from('avatars').getPublicUrl(filename);
       const publicUrl = data?.publicUrl;
       if (!publicUrl) throw new Error('Failed to resolve avatar URL.');
       setProfile((p) => ({ ...p, avatar_url: publicUrl }));
-      const { error } = await supabase
-        .from('app_users')
-        .update({ avatar_url: publicUrl })
-        .or(`id.eq.${profile.id},auth_uid.eq.${profile.id}`);
-      if (error) throw error;
+      await upsertAppUserFields({ avatar_url: publicUrl });
       await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
       setActionStatus({ kind: 'success', text: 'Avatar updated.' });
     } catch (e) {
@@ -408,7 +442,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     try {
-      if (!profile.id) throw new Error('No profile loaded.');
+      if (!profile.id && !profile.authId) throw new Error('No profile loaded.');
       setIsSavingProfile(true);
       const trimmedName = profile.name?.trim() || '';
       let formattedPhone = '';
@@ -438,13 +472,9 @@ export default function ProfilePage() {
       const payload = {
         name: trimmedName || null,
         phone: formattedPhone || null,
-        phone_normalized: normalizedPhone
+        phone_normalized: normalizedPhone || null
       };
-      const { error } = await supabase
-        .from('app_users')
-        .update(payload)
-        .or(`id.eq.${profile.id},auth_uid.eq.${profile.id}`);
-      if (error) throw error;
+      await upsertAppUserFields(payload);
       await supabase.auth.updateUser({ data: { name: payload.name, phone: payload.phone } });
       editSnapshotRef.current = { ...profile, name: trimmedName, phone: formattedPhone || '' };
       setProfile((prev) => ({ ...prev, name: trimmedName, phone: formattedPhone || '' }));
