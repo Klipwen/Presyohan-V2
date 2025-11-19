@@ -100,7 +100,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
     }, 0);
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
     const color = colors[Math.abs(hash) % colors.length];
-    const initial = email.charAt(0).toUpperCase();
+    const initial = basis.charAt(0).toUpperCase();
     
     return (
       <div style={{
@@ -109,7 +109,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
         alignItems: 'center', justifyContent: 'center', color: 'white',
         fontWeight: '700', fontSize: '1.2rem'
       }}>
-        {basis.charAt(0).toUpperCase()}
+        {initial}
       </div>
     );
   };
