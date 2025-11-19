@@ -8,6 +8,7 @@ import InviteStaffModal from '../components/store/InviteStaffModal';
 import ConfirmModal from '../components/store/ConfirmModal';
 import ExportPricelistModal from '../components/store/ExportPricelistModal';
 import CopyPricesModal from '../components/store/CopyPricesModal';
+import ImportPricesModal from '../components/store/ImportPricesModal';
 
 // Store Settings Page
 // Uses the provided layout, replaces dummy data with real store/member data,
@@ -33,6 +34,7 @@ export default function StoreSettingsPage() {
   const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
   const [exportOpen, setExportOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [pasteCode, setPasteCode] = useState(null);
   const [pasteCodeExpiresAt, setPasteCodeExpiresAt] = useState(null);
   const [codeCountdown, setCodeCountdown] = useState('');
@@ -533,7 +535,7 @@ export default function StoreSettingsPage() {
                     gap: '8px',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-                  }}>
+                  }} onClick={() => setImportOpen(true)} disabled={!(role === 'owner' || role === 'manager')}>
                     <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
                       <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                     </svg>
@@ -942,6 +944,15 @@ export default function StoreSettingsPage() {
         onClose={() => setCopyOpen(false)}
         sourceStoreId={storeId}
         sourceStoreName={storeName}
+      />
+
+      {/* Import Prices modal */}
+      <ImportPricesModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        storeId={storeId}
+        storeName={storeName}
+        role={role}
       />
 
       
