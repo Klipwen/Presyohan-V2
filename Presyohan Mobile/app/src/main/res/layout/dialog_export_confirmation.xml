@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/rounded_bg"
+    android:minWidth="320dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/exportTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Export Pricelist"
+        android:textColor="@color/presyo_orange"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/exportSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Generate a professionally formatted Excel file of your store products."
+        android:textColor="#6B6B6B"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="18dp" />
+
+    <LinearLayout
+        android:id="@+id/exportDetailsCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/dialog_info_background"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/rowsLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Rows to export"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/rowsCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="12dp"
+            android:background="#FFE0B2" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/scopeLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Scope"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/scopeValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="All products"
+                android:textColor="@color/presyo_darkblue"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/columnsInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Columns: Category, Name, Description, Unit, Price"
+            android:textColor="#8A8A8A"
+            android:textSize="13sp"
+            android:layout_marginTop="12dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="20dp"
+        android:gravity="center">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCancelExport"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Cancel"
+            android:textAllCaps="false"
+            android:textColor="@color/presyo_teal"
+            android:textSize="15sp"
+            android:background="@drawable/dialog_button_outline"
+            android:layout_marginEnd="12dp" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnConfirmExport"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Confirm Export"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:background="@drawable/rounded_button_orange" />
+    </LinearLayout>
+
+</LinearLayout>
+

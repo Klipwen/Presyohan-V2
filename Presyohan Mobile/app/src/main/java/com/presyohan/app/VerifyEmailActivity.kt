@@ -60,10 +60,12 @@ class VerifyEmailActivity : AppCompatActivity() {
     private lateinit var resendTextView: TextView
     private lateinit var verifyButton: Button
     private lateinit var feedbackMessage: TextView
+    private lateinit var loadingOverlay: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_verify_email)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         // Initialize Supabase Client
         supabaseClient = SupabaseProvider.client
@@ -89,13 +91,15 @@ class VerifyEmailActivity : AppCompatActivity() {
 
         // 5. Back to Login navigates to the start (ensure session cleared)
         backBtn.setOnClickListener {
-            lifecycleScope.launch {
-                try { SupabaseAuthService.signOut() } catch (_: Exception) {}
-                val intent = Intent(this@VerifyEmailActivity, LoginActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                finish()
-            }
+        LoadingOverlayHelper.show(loadingOverlay)
+        lifecycleScope.launch {
+            try { SupabaseAuthService.signOut() } catch (_: Exception) {}
+            val intent = Intent(this@VerifyEmailActivity, LoginActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            finish()
+            LoadingOverlayHelper.hide(loadingOverlay)
+        }
         }
         
         // 6. No initial cooldown: allow immediate resend for better UX
@@ -190,6 +194,7 @@ class VerifyEmailActivity : AppCompatActivity() {
         verifyButton.isEnabled = false
 
         // Use Coroutines for network operations in Android
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 // Verify the OTP code and establish session via Auth plugin
@@ -266,6 +271,7 @@ class VerifyEmailActivity : AppCompatActivity() {
                 isVerifying = false
                 verifyButton.isEnabled = true
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
 
@@ -279,6 +285,7 @@ class VerifyEmailActivity : AppCompatActivity() {
 
         setFeedback("Sending new code...", false)
 
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 val ok = SupabaseAuthService.resendSignupEmail(email)
@@ -292,6 +299,7 @@ class VerifyEmailActivity : AppCompatActivity() {
                 setFeedback("Unable to resend code. Please try again later.", true)
                 startCooldown(60)
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
 

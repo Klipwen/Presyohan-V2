@@ -39,10 +39,12 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private val emptiedCategories = mutableSetOf<String>()
     private var storeId: String? = null
     private var storeName: String? = null
+    private lateinit var loadingOverlay: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_multiple_items)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         recyclerView = findViewById(R.id.recyclerViewItems)
         buttonSelectCategory = findViewById(R.id.buttonSelectCategory)
@@ -190,6 +192,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
     private fun fetchCategoriesFromSupabase(onFetched: () -> Unit) {
         val id = storeId ?: return
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 val rows = SupabaseProvider.client.postgrest.rpc(
@@ -212,6 +215,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 categoryNames.add("Add new Category")
                 onFetched()
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
 
@@ -252,6 +256,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             val category = input.text.toString().trim()
             if (category.isNotEmpty()) {
                 val sId = storeId ?: return@setOnClickListener
+                LoadingOverlayHelper.show(loadingOverlay)
                 lifecycleScope.launch {
                     try {
                         val inserted = SupabaseProvider.client.postgrest.rpc(
@@ -273,6 +278,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                         android.util.Log.e("AddMultipleItems", "add_category RPC failed: ${e.localizedMessage}", e)
                         input.error = "Failed to add category"
                     }
+                    LoadingOverlayHelper.hide(loadingOverlay)
                 }
             } else {
                 input.error = "Enter a category name"
@@ -307,6 +313,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private fun saveAllItemsToSupabase() {
         val sId = storeId ?: return
         val sName = storeName
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 var totalCount = 0
@@ -334,7 +341,9 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                         val priceStr = item.price.trim()
                         if (name.isBlank() || unit.isBlank() || priceStr.isBlank()) {
                             Toast.makeText(this@AddMultipleItemsActivity, "Complete all required fields for every item.", Toast.LENGTH_SHORT).show()
-                            return@launch
+                            // Abort saving gracefully
+                            totalCount = 0
+                            throw IllegalStateException("Validation failed")
                         }
                         val priceVal = priceStr.toDoubleOrNull() ?: 0.0
                         val desc = item.description.trim().takeIf { it.isNotBlank() }
@@ -410,6 +419,8 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("AddMultipleItems", "Save items error: ${e.localizedMessage}", e)
                 Toast.makeText(this@AddMultipleItemsActivity, "Unable to add items.", Toast.LENGTH_SHORT).show()
+            } finally {
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
     }

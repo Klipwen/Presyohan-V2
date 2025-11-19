@@ -19,11 +19,13 @@ import android.widget.ImageView
 class AddItemActivity : AppCompatActivity() {
     private var storeId: String? = null
     private var storeName: String? = null
+    private lateinit var loadingOverlay: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_add_item)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName") ?: "Store name"
@@ -87,6 +89,7 @@ class AddItemActivity : AppCompatActivity() {
         // Load categories via Supabase RPC
         val currentStoreId = storeId
         if (currentStoreId != null) {
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val rows = SupabaseProvider.client.postgrest.rpc(
@@ -104,6 +107,7 @@ class AddItemActivity : AppCompatActivity() {
                     }
                     adapter.notifyDataSetChanged()
                 } catch (_: Exception) { /* noop */ }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
@@ -188,6 +192,7 @@ class AddItemActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     SupabaseProvider.client.postgrest.rpc(
@@ -212,6 +217,7 @@ class AddItemActivity : AppCompatActivity() {
                     android.util.Log.e("AddItemActivity", "add_product RPC failed: ${e.message}", e)
                     android.widget.Toast.makeText(this@AddItemActivity, "Unable to add product.", android.widget.Toast.LENGTH_SHORT).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
@@ -222,6 +228,7 @@ class AddItemActivity : AppCompatActivity() {
         if (storeId != null) {
             // Make a stable local copy to avoid smart-cast issues inside lambdas/coroutines
             val sid: String = storeId!!
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val rows = SupabaseProvider.client.postgrest["stores"].select(columns = Columns.list("branch")) {
@@ -234,6 +241,7 @@ class AddItemActivity : AppCompatActivity() {
                     // Fallback to blank if fetch fails
                     storeBranchText.text = ""
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         } else {
             storeBranchText.text = ""

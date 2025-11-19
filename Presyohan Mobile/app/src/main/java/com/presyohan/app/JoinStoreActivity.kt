@@ -46,10 +46,12 @@ class JoinStoreActivity : AppCompatActivity() {
 
     private lateinit var storeCodeInput: EditText
     private lateinit var joinButton: Button
+    private lateinit var loadingOverlay: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_join_store)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         storeCodeInput = findViewById(R.id.inputStoreCode)
         joinButton = findViewById(R.id.buttonRequestJoin)
@@ -87,6 +89,7 @@ class JoinStoreActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val supaUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
@@ -196,7 +199,6 @@ class JoinStoreActivity : AppCompatActivity() {
 
                     runOnUiThread {
                         Toast.makeText(this@JoinStoreActivity, "Join request sent successfully!", Toast.LENGTH_SHORT).show()
-                        // Go to store list (StoreActivity) while waiting for approval
                         val intent = android.content.Intent(this@JoinStoreActivity, com.presyohan.app.StoreActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(intent)
@@ -209,6 +211,7 @@ class JoinStoreActivity : AppCompatActivity() {
                         Toast.makeText(this@JoinStoreActivity, "Unable to send join request. Please try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
     }

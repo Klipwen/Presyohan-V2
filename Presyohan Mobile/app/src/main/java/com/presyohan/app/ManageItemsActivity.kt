@@ -40,10 +40,12 @@ class ManageItemsActivity : AppCompatActivity() {
     private var hasChanges = false
     private var storeId: String? = null
     private var storeName: String? = null
+    private lateinit var loadingOverlay: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manage_items)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName")
@@ -155,6 +157,7 @@ class ManageItemsActivity : AppCompatActivity() {
         }
 
         // Fetch items and categories from Supabase via resilient RPC
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 @kotlinx.serialization.Serializable
@@ -208,6 +211,7 @@ class ManageItemsActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to load items.", android.widget.Toast.LENGTH_LONG).show()
                 finish()
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
 
         // Done button with confirmation dialog
@@ -232,14 +236,23 @@ class ManageItemsActivity : AppCompatActivity() {
                         return@setOnClickListener
                     }
                     // Save all items to Supabase
+                    LoadingOverlayHelper.show(loadingOverlay)
                     lifecycleScope.launch {
                         try {
                             // Preload categories for mapping name -> id
 
-                            val existingCategories = SupabaseProvider.client.postgrest.rpc(
-                                "get_user_categories",
-                                kotlinx.serialization.json.buildJsonObject { put("p_store_id", storeId) }
-                            ).decodeList<UserCategoryRow>()
+                            val existingCategories = try {
+                                SupabaseProvider.client.postgrest.rpc(
+                                    "get_user_categories",
+                                    kotlinx.serialization.json.buildJsonObject { put("p_store_id", storeId) }
+                                ).decodeList<UserCategoryRow>()
+                            } catch (_: Exception) {
+                                @kotlinx.serialization.Serializable
+                                data class MinimalCategoryRow(val id: String, val name: String)
+                                SupabaseProvider.client.postgrest["categories"].select {
+                                    filter { eq("store_id", storeId) }
+                                }.decodeList<MinimalCategoryRow>().map { UserCategoryRow(it.id, storeId ?: "", it.name) }
+                            }
                             val categoryMap = existingCategories.associate { it.name to it.category_id }.toMutableMap()
 
                             for (item in allItems) {
@@ -250,14 +263,26 @@ class ManageItemsActivity : AppCompatActivity() {
                                 } else {
                                     categoryMap[catName] ?: run {
                                         // Create missing category via RPC
-                                        val inserted = SupabaseProvider.client.postgrest.rpc(
-                                            "add_category",
-                                            kotlinx.serialization.json.buildJsonObject {
-                                                put("p_store_id", storeId)
-                                                put("p_name", catName)
-                                            }
-                                        ).decodeList<NewCategoryRow>()
-                                        val newId = inserted.firstOrNull()?.category_id
+                                        val newId = try {
+                                            val inserted = SupabaseProvider.client.postgrest.rpc(
+                                                "add_category",
+                                                kotlinx.serialization.json.buildJsonObject {
+                                                    put("p_store_id", storeId)
+                                                    put("p_name", catName)
+                                                }
+                                            ).decodeList<NewCategoryRow>()
+                                            inserted.firstOrNull()?.category_id
+                                        } catch (_: Exception) {
+                                            @kotlinx.serialization.Serializable
+                                            data class InsertedCategory(val id: String)
+                                            val res = SupabaseProvider.client.postgrest["categories"].insert(
+                                                kotlinx.serialization.json.buildJsonObject {
+                                                    put("store_id", storeId)
+                                                    put("name", catName)
+                                                }
+                                            ).decodeList<InsertedCategory>()
+                                            res.firstOrNull()?.id
+                                        }
                                         if (!newId.isNullOrBlank()) {
                                             categoryMap[catName] = newId
                                         }
@@ -302,6 +327,7 @@ class ManageItemsActivity : AppCompatActivity() {
                             android.widget.Toast.makeText(this@ManageItemsActivity, "Unable to save items.", android.widget.Toast.LENGTH_LONG).show()
                             dialog.dismiss()
                         }
+                        LoadingOverlayHelper.hide(loadingOverlay)
                     }
                 }
             }

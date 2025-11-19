@@ -103,6 +103,19 @@
             app:layout_constraintTop_toTopOf="@+id/headerLabel"
             android:src="@drawable/icon_back" />
 
+        <!-- Tabs -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabsNotification"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/headerLabel"
+            android:layout_marginTop="8dp"
+            app:tabIndicatorColor="@color/presyo_orange"
+            app:tabSelectedTextColor="@color/presyo_orange"
+            app:tabTextColor="@color/presyo_darkblue" />
+
         <!-- Notifications RecyclerView -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewNotifications"
@@ -114,7 +127,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/headerLabel" />
+            app:layout_constraintTop_toBottomOf="@+id/tabsNotification" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

@@ -27,6 +27,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
     private lateinit var googleSignInClient: GoogleSignInClient
     private var hasRetriedInteractiveSignIn = false
     private var attemptedRevoke = false
+    private lateinit var loadingOverlay: android.view.View
     private val googleSignInLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -39,6 +40,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                     Toast.makeText(this, "Unable to retrieve ID token.", Toast.LENGTH_SHORT).show()
                     return@registerForActivityResult
                 }
+                LoadingOverlayHelper.show(loadingOverlay)
                 lifecycleScope.launch {
                     try {
                         SupabaseAuthService.signInWithGoogleIdToken(idToken)
@@ -47,6 +49,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                     } catch (e: Exception) {
                         Toast.makeText(this@LoginActivity, "Unable to sign in with Google.", Toast.LENGTH_SHORT).show()
                     }
+                    LoadingOverlayHelper.hide(loadingOverlay)
                 }
             } catch (e: com.google.android.gms.common.api.ApiException) {
                 Toast.makeText(this, "Unable to sign in with Google.", Toast.LENGTH_SHORT).show()
@@ -84,6 +87,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             val last = GoogleSignIn.getLastSignedInAccount(this)
             val idToken = last?.idToken
             if (!idToken.isNullOrBlank()) {
+                LoadingOverlayHelper.show(loadingOverlay)
                 lifecycleScope.launch {
                     try {
                         SupabaseAuthService.signInWithGoogleIdToken(idToken)
@@ -92,6 +96,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                     } catch (e: Exception) {
                         Toast.makeText(this@LoginActivity, "Unable to sign in with Google.", Toast.LENGTH_SHORT).show()
                     }
+                    LoadingOverlayHelper.hide(loadingOverlay)
                 }
             } else if (!hasRetriedInteractiveSignIn) {
                 hasRetriedInteractiveSignIn = true
@@ -107,6 +112,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
         // Configure native Google Sign-In (opens Google account picker)
         val webClientId = getString(R.string.default_web_client_id)
         android.util.Log.d("GoogleSignIn", "Using web client ID: $webClientId")
@@ -130,6 +136,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     SupabaseAuthService.signInEmail(email, password)
@@ -138,6 +145,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this@LoginActivity, "Unable to sign in.", Toast.LENGTH_SHORT).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 

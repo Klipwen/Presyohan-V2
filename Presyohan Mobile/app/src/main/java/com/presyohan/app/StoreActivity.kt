@@ -35,6 +35,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     private val stores = mutableListOf<Store>()
     private var storeRolesMap: Map<String, String> = emptyMap()
     private var lastBackPress: Long = 0
+    private lateinit var loadingOverlay: android.view.View
 
     private val createStoreLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -72,6 +73,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_store)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         drawerLayout = findViewById(R.id.drawerLayout)
@@ -206,6 +208,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val client = SupabaseProvider.client
         val userId = client.auth.currentUserOrNull()?.id ?: return
         val noStoreLabel = findViewById<TextView>(R.id.noStoreLabel)
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 // Server-side resolution of memberships and stores via resilient RPC
@@ -244,6 +247,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 adapter.updateStores(emptyList(), emptyMap())
                 noStoreLabel.visibility = View.VISIBLE
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
 
@@ -265,6 +269,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 return@setOnClickListener
             }
 
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val params = buildJsonObject { put("p_store_id", store.id) }
@@ -298,6 +303,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         ).show()
                     }
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
         // Update code UI: always show the code area; no expiry gating
@@ -482,15 +488,13 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         val btnDelete = view.findViewById<ImageView>(R.id.btnDelete)
         val labelDelete = view.findViewById<TextView>(R.id.labelDelete)
-
-        // Determine owner count via Supabase to decide Delete vs Leave
         lifecycleScope.launch {
             try {
                 val owners = SupabaseProvider.client.postgrest["store_members"].select {
                     filter { eq("store_id", store.id); eq("role", "owner") }
                 }.decodeList<StoreMemberRow>()
                 if (owners.size > 1) {
-                    // Change to leave store
+                    // Another owner exists: show Leave
                     btnDelete.setImageResource(R.drawable.icon_logout)
                     btnDelete.contentDescription = "Leave Store"
                     btnDelete.setColorFilter(resources.getColor(R.color.red, null))
@@ -529,15 +533,19 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         confirmDialog.show()
                     }
                 } else {
-                    // Only 1 owner, allow delete
+                    // Only one owner: show Delete
                     btnDelete.setImageResource(R.drawable.icon_delete)
                     btnDelete.contentDescription = "Delete Store"
+                    labelDelete.text = "Delete"
+                    labelDelete.setTextColor(android.graphics.Color.parseColor("#800000"))
+                    btnDelete.clearColorFilter()
                     btnDelete.setOnClickListener {
                         val confirmDialog = Dialog(this@StoreActivity)
                         val confirmView = LayoutInflater.from(this@StoreActivity).inflate(R.layout.dialog_confirm_delete, null)
                         confirmDialog.setContentView(confirmView)
                         confirmDialog.setCancelable(true)
                         confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+                        confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Delete Store"
                         confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this store? This action cannot be undone."
                         confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
                         confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
@@ -550,7 +558,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                                     fetchStores()
                                 } catch (e: Exception) {
                                     android.widget.Toast.makeText(this@StoreActivity, "Unable to delete store.", android.widget.Toast.LENGTH_SHORT).show()
-                                    android.util.Log.e("StoreDelete", "Delete failed", e)
                                 }
                             }
                             confirmDialog.dismiss()
@@ -560,9 +567,9 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     }
                 }
             } catch (_: Exception) {
-                // Fallback: default to delete when owner count unknown
-                btnDelete.setImageResource(R.drawable.icon_delete)
-                btnDelete.contentDescription = "Delete Store"
+                // Fallback to Leave to be safe
+                btnDelete.setImageResource(R.drawable.icon_logout)
+                labelDelete.text = "Leave"
             }
         }
 
@@ -591,6 +598,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             @kotlinx.serialization.Serializable
             data class StoreMemberUser(val user_id: String, val name: String, val role: String)
 
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val rows = SupabaseProvider.client.postgrest.rpc(
@@ -626,6 +634,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 } catch (e: Exception) {
                     android.widget.Toast.makeText(this@StoreActivity, "Unable to load members.", android.widget.Toast.LENGTH_SHORT).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
             dialog.dismiss()
         }
@@ -641,6 +650,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to leave this store? You will lose access to its products."
             confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
             confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
+                LoadingOverlayHelper.show(loadingOverlay)
                 lifecycleScope.launch {
                     try {
                         SupabaseProvider.client.postgrest.rpc(
@@ -657,6 +667,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         }
                         android.widget.Toast.makeText(this@StoreActivity, msg, android.widget.Toast.LENGTH_SHORT).show()
                     }
+                    LoadingOverlayHelper.hide(loadingOverlay)
                 }
                 confirmDialog.dismiss()
                 dialog.dismiss()

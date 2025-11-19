@@ -21,11 +21,13 @@ class ManageCategoryActivity : AppCompatActivity() {
     private lateinit var adapter: ManageCategoryAdapter
     private var storeId: String? = null
     private var storeName: String? = null
+    private lateinit var loadingOverlay: android.view.View
     
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manage_category)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName")
@@ -38,6 +40,7 @@ class ManageCategoryActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         val textStoreName = findViewById<TextView>(R.id.textStoreName)
         val textStoreBranch = findViewById<TextView>(R.id.textStoreBranch)
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 @Serializable
@@ -52,6 +55,7 @@ class ManageCategoryActivity : AppCompatActivity() {
                 textStoreBranch.text = s?.branch ?: "Branch Name"
                 SessionManager.markStoreHome(this@ManageCategoryActivity, storeId, storeName)
             } catch (_: Exception) { /* ignore */ }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
@@ -79,6 +83,7 @@ class ManageCategoryActivity : AppCompatActivity() {
 
     private fun fetchCategories() {
         val sId = storeId ?: return
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 @Serializable
@@ -117,6 +122,7 @@ class ManageCategoryActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to load categories.", android.widget.Toast.LENGTH_LONG).show()
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
 
@@ -139,6 +145,7 @@ class ManageCategoryActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             val sId = storeId ?: return@setOnClickListener
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     SupabaseProvider.client.postgrest.rpc(
@@ -153,8 +160,31 @@ class ManageCategoryActivity : AppCompatActivity() {
                     android.widget.Toast.makeText(this@ManageCategoryActivity, "Category renamed.", android.widget.Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                 } catch (e: Exception) {
-                    android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to rename category.", android.widget.Toast.LENGTH_LONG).show()
+                    try {
+                        @Serializable
+                        data class MinimalCategoryRow(val id: String, val store_id: String, val name: String)
+                        val cats = SupabaseProvider.client.postgrest["categories"].select {
+                            filter { eq("store_id", sId); eq("name", oldCategory) }
+                            limit(1)
+                        }.decodeList<MinimalCategoryRow>()
+                        val catId = cats.firstOrNull()?.id
+                        if (!catId.isNullOrBlank()) {
+                            SupabaseProvider.client.postgrest["categories"].update(
+                                buildJsonObject { put("name", newCategory) }
+                            ) {
+                                filter { eq("id", catId); eq("store_id", sId) }
+                            }
+                            fetchCategories()
+                            android.widget.Toast.makeText(this@ManageCategoryActivity, "Category renamed.", android.widget.Toast.LENGTH_SHORT).show()
+                            dialog.dismiss()
+                        } else {
+                            android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to rename category.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    } catch (_: Exception) {
+                        android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to rename category.", android.widget.Toast.LENGTH_LONG).show()
+                    }
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
         btnBack.setOnClickListener { dialog.dismiss() }
@@ -172,6 +202,7 @@ class ManageCategoryActivity : AppCompatActivity() {
         view.findViewById<Button>(R.id.btnCancel)?.setOnClickListener { dialog.dismiss() }
         view.findViewById<Button>(R.id.btnDelete)?.setOnClickListener {
             val sId = storeId ?: return@setOnClickListener
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     SupabaseProvider.client.postgrest.rpc(
@@ -185,8 +216,36 @@ class ManageCategoryActivity : AppCompatActivity() {
                     android.widget.Toast.makeText(this@ManageCategoryActivity, "Category and items deleted.", android.widget.Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                 } catch (e: Exception) {
-                    android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to delete category.", android.widget.Toast.LENGTH_LONG).show()
+                    try {
+                        @Serializable
+                        data class MinimalCategoryRow(val id: String)
+                        val cats = SupabaseProvider.client.postgrest["categories"].select {
+                            filter { eq("store_id", sId); eq("name", category) }
+                            limit(1)
+                        }.decodeList<MinimalCategoryRow>()
+                        val catId = cats.firstOrNull()?.id
+                        if (!catId.isNullOrBlank()) {
+                            // Dissociate products from category
+                            SupabaseProvider.client.postgrest["products"].update(
+                                buildJsonObject { put("category_id", kotlinx.serialization.json.JsonNull) }
+                            ) {
+                                filter { eq("store_id", sId); eq("category_id", catId) }
+                            }
+                            // Delete the category row
+                            SupabaseProvider.client.postgrest["categories"].delete {
+                                filter { eq("id", catId); eq("store_id", sId) }
+                            }
+                            fetchCategories()
+                            android.widget.Toast.makeText(this@ManageCategoryActivity, "Category deleted.", android.widget.Toast.LENGTH_SHORT).show()
+                            dialog.dismiss()
+                        } else {
+                            android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to delete category.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    } catch (_: Exception) {
+                        android.widget.Toast.makeText(this@ManageCategoryActivity, "Unable to delete category.", android.widget.Toast.LENGTH_LONG).show()
+                    }
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
         dialog.show()

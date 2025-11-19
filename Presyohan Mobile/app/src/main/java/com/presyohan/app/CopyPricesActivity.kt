@@ -20,6 +20,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 
 class CopyPricesActivity : AppCompatActivity() {
+    private lateinit var loadingOverlay: android.view.View
     private lateinit var btnBack: ImageView
     private lateinit var headerLabel: TextView
     private lateinit var stepIndicator1: TextView
@@ -89,6 +90,7 @@ class CopyPricesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_copy_prices)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         sourceStoreId = intent.getStringExtra("storeId")
         sourceStoreName = intent.getStringExtra("storeName")
@@ -269,6 +271,7 @@ class CopyPricesActivity : AppCompatActivity() {
     }
 
     private fun loadSourceProducts() {
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 val rows = SupabaseProvider.client.postgrest.rpc(
@@ -285,6 +288,7 @@ class CopyPricesActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@CopyPricesActivity, "Failed to load products: ${e.message}", Toast.LENGTH_LONG).show()
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
 
@@ -421,6 +425,7 @@ class CopyPricesActivity : AppCompatActivity() {
     private fun applyCopy() {
         if (validDestination == null || selectedProductIds.isEmpty()) return
         
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 btnConfirm.isEnabled = false
@@ -448,6 +453,7 @@ class CopyPricesActivity : AppCompatActivity() {
             } finally {
                 btnConfirm.isEnabled = true
                 btnConfirm.text = "Confirm & Copy"
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
     }

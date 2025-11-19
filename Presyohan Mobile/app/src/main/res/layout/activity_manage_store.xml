@@ -137,7 +137,7 @@
                             android:textStyle="bold"
                             android:textAlignment="center" />
 
-                        <com.google.android.material.button.MaterialButton
+                        <androidx.appcompat.widget.AppCompatButton
                             android:id="@+id/btnGenerateCode"
                             android:layout_width="100dp"
                             android:layout_height="32dp"
@@ -151,7 +151,7 @@
                             android:minWidth="0dp"
                             android:minHeight="0dp" />
 
-                        <com.google.android.material.button.MaterialButton
+                        <androidx.appcompat.widget.AppCompatButton
                             android:id="@+id/btnRevokeCode"
                             android:layout_width="100dp"
                             android:layout_height="32dp"
@@ -294,6 +294,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="40dp"
                         android:hint="Store name"
+                        android:enabled="false"
                         android:textColor="@color/presyo_darkblue"
                         android:textStyle="bold"
                         android:textSize="16sp"
@@ -307,6 +308,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="40dp"
                         android:hint="Branch"
+                        android:enabled="false"
                         android:textColor="@color/presyo_darkblue"
                         android:textSize="15sp"
                         android:background="@drawable/edittext_background"
@@ -318,6 +320,7 @@
                         android:id="@+id/spinnerStoreType"
                         android:layout_width="match_parent"
                         android:layout_height="40dp"
+                        android:enabled="false"
                         android:background="@drawable/edittext_background"
                         android:layout_marginBottom="14dp" />
 
@@ -326,6 +329,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="40dp"
                         android:hint="Enter store type"
+                        android:enabled="false"
                         android:textColor="@color/presyo_darkblue"
                         android:textSize="15sp"
                         android:background="@drawable/edittext_background"
@@ -336,22 +340,58 @@
                         android:visibility="gone" />
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnDone"
+                        android:id="@+id/btnEditStore"
                         style="@style/Widget.MaterialComponents.Button"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
-                        android:text="DONE"
+                        android:text="Edit Store"
                         android:textStyle="bold"
                         android:textColor="@color/white"
                         app:cornerRadius="24dp"
-                        app:iconPadding="0dp"
-                        app:iconGravity="textStart"
                         app:backgroundTint="@color/presyo_orange"
                         android:layout_marginTop="10dp"
                         android:layout_marginBottom="2dp"
                         android:elevation="6dp"
                         android:padding="0dp"
                         app:rippleColor="@color/presyo_teal" />
+
+                    <LinearLayout
+                        android:id="@+id/editActionRow"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp"
+                        android:visibility="gone"
+                        android:gravity="center">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCancelEdit"
+                            style="@style/Widget.MaterialComponents.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="Cancel"
+                            android:textStyle="bold"
+                            android:textColor="@color/presyo_teal"
+                            app:cornerRadius="24dp"
+                            app:backgroundTint="@android:color/white"
+                            app:strokeColor="@color/presyo_teal"
+                            app:strokeWidth="2dp"
+                            android:layout_marginEnd="8dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaveEdit"
+                            style="@style/Widget.MaterialComponents.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="Save"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            app:cornerRadius="24dp"
+                            app:backgroundTint="@color/presyo_orange"
+                            android:layout_marginStart="8dp" />
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -384,7 +424,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="@drawable/rounded_bg_store_employee"
+                    android:background="@drawable/rounded_button_teal"
                     android:padding="12dp"
                     android:gravity="center"
                     android:clickable="true"
@@ -396,7 +436,7 @@
                         android:layout_height="wrap_content"
                         android:text="Manage Members"
                         android:textStyle="bold"
-                        android:textColor="#888888"
+                        android:textColor="@android:color/white"
                         android:textSize="14sp" />
                 </LinearLayout>
 
@@ -406,7 +446,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="@drawable/rounded_bg_store_employee"
+                    android:background="@drawable/rounded_button_teal"
                     android:padding="12dp"
                     android:gravity="center"
                     android:clickable="true"
@@ -418,7 +458,7 @@
                         android:layout_height="wrap_content"
                         android:text="Manage Categories"
                         android:textStyle="bold"
-                        android:textColor="#888888"
+                        android:textColor="@android:color/white"
                         android:textSize="14sp" />
                 </LinearLayout>
             </LinearLayout>

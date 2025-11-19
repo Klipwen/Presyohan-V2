@@ -55,12 +55,15 @@ data class UserStoreLiteRow(
 
 class NotificationActivity : AppCompatActivity() {
     private val notifications = mutableListOf<Notification>()
+    private val allNotifications = mutableListOf<Notification>()
     private val notificationIds = mutableListOf<String>()
     private val notificationStoreIds = mutableListOf<String?>()
+    private lateinit var loadingOverlay: android.view.View
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_notification)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
         val navigationView = findViewById<NavigationView>(R.id.navigationView)
@@ -111,6 +114,15 @@ class NotificationActivity : AppCompatActivity() {
         )
         recyclerView.adapter = adapter
 
+        val tabs = findViewById<com.google.android.material.tabs.TabLayout>(R.id.tabsNotification)
+        listOf("All", "Requests", "Invites", "System").forEach { tabs.addTab(tabs.newTab().setText(it)) }
+        tabs.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) { applyTabFilter(tab.text?.toString() ?: "All") }
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab) { applyTabFilter(tab.text?.toString() ?: "All") }
+        })
+        tabs.getTabAt(0)?.select()
+
         // Add swipe-to-delete with confirmation
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
             override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
@@ -131,6 +143,7 @@ class NotificationActivity : AppCompatActivity() {
                     dialog.dismiss()
                 }
                 view.findViewById<Button>(R.id.btnDelete).setOnClickListener {
+                    LoadingOverlayHelper.show(loadingOverlay)
                     lifecycleScope.launch {
                         try {
                             SupabaseProvider.client.postgrest["notifications"]
@@ -150,6 +163,7 @@ class NotificationActivity : AppCompatActivity() {
                             adapter.notifyItemChanged(position)
                             dialog.dismiss()
                         }
+                        LoadingOverlayHelper.hide(loadingOverlay)
                     }
                 }
                 dialog.show()
@@ -162,6 +176,7 @@ class NotificationActivity : AppCompatActivity() {
     }
 
     private fun loadNotifications() {
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@launch
@@ -204,17 +219,29 @@ class NotificationActivity : AppCompatActivity() {
                     notificationStoreIds.add(row.store_id)
                 }
                 
-                runOnUiThread {
-                    findViewById<RecyclerView>(R.id.recyclerViewNotifications).adapter?.notifyDataSetChanged()
-                }
-                // Mark all notifications as read once loaded
+                allNotifications.clear()
+                allNotifications.addAll(notifications)
+                runOnUiThread { applyTabFilter(findViewById<com.google.android.material.tabs.TabLayout>(R.id.tabsNotification).getTabAt(0)?.text?.toString() ?: "All") }
                 markAllNotificationsAsRead()
             } catch (e: Exception) {
                 runOnUiThread {
                     Toast.makeText(this@NotificationActivity, "Failed to load notifications", Toast.LENGTH_SHORT).show()
                 }
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
+    }
+
+    private fun applyTabFilter(category: String) {
+        notifications.clear()
+        val filtered = when (category) {
+            "Requests" -> allNotifications.filter { it.type.contains("Request", true) }
+            "Invites" -> allNotifications.filter { it.type.contains("Invite", true) || it.type.contains("Invitation", true) }
+            "System" -> allNotifications.filter { !(it.type.contains("Request", true) || it.type.contains("Invite", true) || it.type.contains("Invitation", true)) }
+            else -> allNotifications
+        }
+        notifications.addAll(filtered)
+        findViewById<RecyclerView>(R.id.recyclerViewNotifications).adapter?.notifyDataSetChanged()
     }
 
     override fun onResume() {
@@ -319,6 +346,7 @@ class NotificationActivity : AppCompatActivity() {
             return
         }
         
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 val notificationId = notificationIds[notifications.indexOf(notification)]
@@ -336,6 +364,7 @@ class NotificationActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@NotificationActivity, "Failed to accept invitation", Toast.LENGTH_SHORT).show()
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
     
@@ -362,6 +391,7 @@ class NotificationActivity : AppCompatActivity() {
             return
         }
         
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 val notificationId = notificationIds[notifications.indexOf(notification)]
@@ -379,6 +409,7 @@ class NotificationActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@NotificationActivity, "Failed to reject invitation", Toast.LENGTH_SHORT).show()
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
     

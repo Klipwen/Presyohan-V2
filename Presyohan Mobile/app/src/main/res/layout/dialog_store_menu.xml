@@ -63,7 +63,7 @@
             android:gravity="center" />
     </LinearLayout>
 
-    <!-- Delete -->
+    <!-- Leave -->
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="wrap_content"
@@ -76,8 +76,8 @@
             android:id="@+id/btnDelete"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/icon_delete"
-            android:contentDescription="Delete" />
+            android:src="@drawable/icon_logout"
+            android:contentDescription="Leave" />
 
         <TextView
             android:id="@+id/labelDelete"
@@ -85,8 +85,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:gravity="center"
-            android:text="Delete"
-            android:textColor="#800000"
+            android:text="Leave"
+            android:textColor="@color/presyo_darkblue"
             android:textSize="14sp" />
     </LinearLayout>
 

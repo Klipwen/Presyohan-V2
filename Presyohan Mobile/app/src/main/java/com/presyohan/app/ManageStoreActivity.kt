@@ -30,15 +30,22 @@ import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import java.io.File
 import java.io.FileOutputStream
+import androidx.appcompat.app.AlertDialog
+import android.graphics.drawable.ColorDrawable
+import android.graphics.Color
 // Removed Apache POI imports; using FastExcel for writing XLSX
 import com.google.firebase.firestore.FirebaseFirestore
 import io.github.jan.supabase.auth.auth
 
 class ManageStoreActivity : AppCompatActivity() {
+    private lateinit var loadingOverlay: android.view.View
     private lateinit var inputStoreName: EditText
     private lateinit var inputBranchName: EditText
     private lateinit var spinnerStoreType: Spinner
-    private lateinit var btnDone: MaterialButton
+    private lateinit var btnEditStore: MaterialButton
+    private lateinit var btnCancelEdit: MaterialButton
+    private lateinit var btnSaveEdit: MaterialButton
+    private lateinit var editActionRow: LinearLayout
     private lateinit var btnBack: ImageView
     private lateinit var headerLabel: TextView
     private lateinit var inputCustomType: EditText
@@ -52,6 +59,7 @@ class ManageStoreActivity : AppCompatActivity() {
     private var storeName: String? = null
     private var branchName: String? = null
     private var storeType: String? = null
+    private var isEditingStore = false
 
     private var lastExportFilenamePending: String? = null
     private val requestNotifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -92,6 +100,7 @@ class ManageStoreActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manage_store)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         storeId = intent.getStringExtra("storeId")
         if (storeId.isNullOrBlank()) {
@@ -103,7 +112,10 @@ class ManageStoreActivity : AppCompatActivity() {
         inputStoreName = findViewById(R.id.inputStoreName)
         inputBranchName = findViewById(R.id.inputBranchName)
         spinnerStoreType = findViewById(R.id.spinnerStoreType)
-        btnDone = findViewById(R.id.btnDone)
+        btnEditStore = findViewById(R.id.btnEditStore)
+        btnCancelEdit = findViewById(R.id.btnCancelEdit)
+        btnSaveEdit = findViewById(R.id.btnSaveEdit)
+        editActionRow = findViewById(R.id.editActionRow)
         btnBack = findViewById(R.id.btnBack)
         headerLabel = findViewById(R.id.headerLabel)
         storeCodeTextView = findViewById(R.id.storeCodeText)
@@ -137,15 +149,7 @@ class ManageStoreActivity : AppCompatActivity() {
                 inputStoreName.setText(storeName)
                 inputBranchName.setText(branchName)
 
-                val typeIndex = storeTypes.indexOfFirst { it.equals(storeType, ignoreCase = true) }
-                if (typeIndex >= 0) {
-                    spinnerStoreType.setSelection(typeIndex)
-                    inputCustomType.visibility = View.GONE
-                } else {
-                    spinnerStoreType.setSelection(storeTypes.size - 1) // 'Other'
-                    inputCustomType.visibility = View.VISIBLE
-                    inputCustomType.setText(storeType)
-                }
+                applyStoreTypeSelection(storeType)
                 // Store name and branch are shown in input fields within this screen
                 // No header storeText/storeBranchText views exist in this layout
 
@@ -167,14 +171,26 @@ class ManageStoreActivity : AppCompatActivity() {
                     inputCustomType.visibility = View.VISIBLE
                 } else {
                     inputCustomType.visibility = View.GONE
+                    if (!isEditingStore) {
+                        inputCustomType.setText("")
+                    }
                 }
+                updateCustomTypeEnabledState()
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
 
         btnBack.setOnClickListener { finish() }
 
-        btnDone.setOnClickListener {
+        btnEditStore.setOnClickListener {
+            setEditingStore(true)
+        }
+
+        btnCancelEdit.setOnClickListener {
+            setEditingStore(false)
+        }
+
+        btnSaveEdit.setOnClickListener {
             val newName = inputStoreName.text.toString().trim()
             val newBranch = inputBranchName.text.toString().trim()
             val selectedType = spinnerStoreType.selectedItem?.toString() ?: storeTypes[0]
@@ -195,7 +211,6 @@ class ManageStoreActivity : AppCompatActivity() {
             view.findViewById<Button>(R.id.btnDelete).apply {
                 text = "Update"
                 setOnClickListener {
-                    // Update Supabase
                     lifecycleScope.launch {
                         try {
                             SupabaseProvider.client.postgrest["stores"].update(
@@ -207,9 +222,12 @@ class ManageStoreActivity : AppCompatActivity() {
                             ) {
                                 filter { eq("id", storeId!!) }
                             }
+                            storeName = newName
+                            branchName = newBranch
+                            storeType = newType
                             Toast.makeText(this@ManageStoreActivity, "Store updated.", Toast.LENGTH_SHORT).show()
                             dialog.dismiss()
-                            finish()
+                            setEditingStore(false)
                         } catch (e: Exception) {
                             Toast.makeText(this@ManageStoreActivity, "Unable to update store.", Toast.LENGTH_LONG).show()
                             dialog.dismiss()
@@ -265,6 +283,7 @@ class ManageStoreActivity : AppCompatActivity() {
         // Paste-code actions
         btnGenerateCode.setOnClickListener {
             if (storeId.isNullOrBlank()) return@setOnClickListener
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val result = SupabaseProvider.client.postgrest.rpc(
@@ -280,11 +299,13 @@ class ManageStoreActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageStoreActivity, "You must be the owner to generate.", Toast.LENGTH_LONG).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
         btnRevokeCode.setOnClickListener {
             if (storeId.isNullOrBlank()) return@setOnClickListener
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     SupabaseProvider.client.postgrest.rpc(
@@ -296,6 +317,7 @@ class ManageStoreActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageStoreActivity, "You must be the owner to revoke.", Toast.LENGTH_LONG).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
     }
@@ -311,6 +333,58 @@ class ManageStoreActivity : AppCompatActivity() {
         countdownJob?.cancel()
     }
 
+    private fun resetStoreFieldsToStored() {
+        inputStoreName.setText(storeName ?: "")
+        inputBranchName.setText(branchName ?: "")
+        applyStoreTypeSelection(storeType)
+    }
+
+    private fun setEditingStore(enabled: Boolean) {
+        isEditingStore = enabled
+        inputStoreName.isEnabled = enabled
+        inputBranchName.isEnabled = enabled
+        spinnerStoreType.isEnabled = enabled
+        updateCustomTypeEnabledState()
+        btnEditStore.visibility = if (enabled) View.GONE else View.VISIBLE
+        editActionRow.visibility = if (enabled) View.VISIBLE else View.GONE
+        if (!enabled) {
+            resetStoreFieldsToStored()
+        }
+    }
+
+    private fun updateCustomTypeEnabledState() {
+        val isOther = spinnerStoreType.selectedItem?.toString() == "Other"
+        inputCustomType.isEnabled = isEditingStore && isOther
+    }
+
+    private fun applyStoreTypeSelection(value: String?) {
+        val target = value ?: storeTypes[0]
+        val index = storeTypes.indexOfFirst { it.equals(target, true) }
+        var showCustom = false
+        if (index >= 0) {
+            spinnerStoreType.setSelection(index)
+            if (!storeTypes[index].equals("Other", true)) {
+                inputCustomType.setText("")
+            } else {
+                showCustom = true
+                if (inputCustomType.text.isNullOrBlank()) {
+                    inputCustomType.setText(target)
+                }
+            }
+        } else {
+            showCustom = true
+            val otherIndex = storeTypes.indexOf("Other").takeIf { it >= 0 } ?: storeTypes.lastIndex
+            spinnerStoreType.setSelection(otherIndex)
+            if (target.equals("Other", true)) {
+                inputCustomType.setText("")
+            } else {
+                inputCustomType.setText(target)
+            }
+        }
+        inputCustomType.visibility = if (showCustom) View.VISIBLE else View.GONE
+        updateCustomTypeEnabledState()
+    }
+
     private fun applyPasteCode(code: String, expiresAtIso: String) {
         storeCodeTextView.text = code
         countdownJob?.cancel()
@@ -321,7 +395,8 @@ class ManageStoreActivity : AppCompatActivity() {
                     val now = java.time.Instant.now()
                     val remaining = java.time.Duration.between(now, expiry).seconds
                     if (remaining <= 0) {
-                        storeCodeExpiryView.text = "Expired"
+                        storeCodeTextView.visibility = View.GONE
+                        storeCodeExpiryView.text = "No active code"
                         break
                     }
                     val hrs = remaining / 3600
@@ -355,7 +430,9 @@ class ManageStoreActivity : AppCompatActivity() {
 
     private fun exportPricelistToExcel() {
         if (storeId.isNullOrBlank()) return
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
+            var overlayVisible = true
             try {
                 val rows = SupabaseProvider.client.postgrest.rpc(
                     "get_store_products",
@@ -375,89 +452,137 @@ class ManageStoreActivity : AppCompatActivity() {
                     { (it.category ?: "").lowercase() },
                     { (it.name ?: "").lowercase() }
                 ))
- 
-                val filename = formatExportFilename()
-                val mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-                // Prepare output stream for the workbook
-                val output: java.io.OutputStream? = try {
-                    if (Build.VERSION.SDK_INT >= 29) {
-                        val values = ContentValues().apply {
-                            put(MediaStore.Downloads.DISPLAY_NAME, filename)
-                            put(MediaStore.Downloads.MIME_TYPE, mime)
-                            put(MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
-                        }
-                        val uri: Uri? = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                        if (uri != null) contentResolver.openOutputStream(uri) else null
-                    } else {
-                        val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-                        val file = File(dir, filename)
-                        FileOutputStream(file)
-                    }
-                } catch (_: Exception) { null }
-
-                if (output == null) {
-                    Toast.makeText(this@ManageStoreActivity, "Failed to create file.", Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-
-                // Write Excel using FastExcel (no XMLBeans/POI)
-                try {
-                    val wb = org.dhatim.fastexcel.Workbook(output, "Presyohan", "1.0")
-                    val ws = wb.newWorksheet("Pricelist")
-
-                    // Title
-                    ws.value(0, 0, "Presyohan")
-                    ws.style(0, 0).bold().set()
-
-                    // Store info and export meta
-                    ws.value(1, 0, "Store: ${storeName ?: ""} — Branch: ${branchName ?: ""}")
-                    val exporter = try { SupabaseAuthService.getDisplayNameImmediate() } catch (_: Exception) { "User" }
-                    val exportedAt = java.util.Date().toLocaleString()
-                    ws.value(2, 0, "Exported by: ${exporter}    |    Exported at: ${exportedAt}")
-
-                    // Blank line
-                    // Headers
-                    val headers = listOf("Category", "Name", "Description", "Unit", "Price")
-                    headers.forEachIndexed { idx, h ->
-                        ws.value(4, idx, h)
-                        ws.style(4, idx).bold().set()
-                    }
-
-                    // Data rows
-                    var rowIndex = 5
-                    sorted.forEach { r ->
-                        ws.value(rowIndex, 0, r.category ?: "")
-                        ws.value(rowIndex, 1, r.name ?: "")
-                        ws.value(rowIndex, 2, r.description ?: "")
-                        ws.value(rowIndex, 3, r.units ?: "")
-                        val priceNum = r.price ?: 0.0
-                        ws.value(rowIndex, 4, priceNum)
-                        ws.style(rowIndex, 4).format("\"₱\"#,##0.00").set()
-                        rowIndex++
-                    }
-
-                    // Column widths (best-effort)
-                    try {
-                        ws.width(0, 20.0)
-                        ws.width(1, 28.0)
-                        ws.width(2, 40.0)
-                        ws.width(3, 12.0)
-                        ws.width(4, 14.0)
-                    } catch (_: Throwable) { /* optional */ }
-
-                    wb.finish()
-                    output.flush()
-                    Toast.makeText(this@ManageStoreActivity, "Excel exported to Downloads.", Toast.LENGTH_SHORT).show()
-                    notifyExportSuccessOrRequest(filename)
-                } catch (e: Exception) {
-                    Toast.makeText(this@ManageStoreActivity, "Failed to export: ${e.message}", Toast.LENGTH_LONG).show()
-                } finally {
-                    try { output.close() } catch (_: Exception) {}
-                }
+                LoadingOverlayHelper.hide(loadingOverlay)
+                overlayVisible = false
+                showExportConfirmationDialog(sorted)
             } catch (e: Exception) {
                 Toast.makeText(this@ManageStoreActivity, "Failed to export.", Toast.LENGTH_LONG).show()
+            } finally {
+                if (overlayVisible) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                }
             }
+        }
+    }
+
+    private fun showExportConfirmationDialog(rows: List<StoreProductRow>) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_export_confirmation, null)
+        val rowsCountView = dialogView.findViewById<TextView>(R.id.rowsCount)
+        val rowsLabelView = dialogView.findViewById<TextView>(R.id.rowsLabel)
+        val scopeValueView = dialogView.findViewById<TextView>(R.id.scopeValue)
+        val subtitleView = dialogView.findViewById<TextView>(R.id.exportSubtitle)
+
+        rowsCountView.text = rows.size.toString()
+        rowsLabelView.text = if (rows.size == 1) "Row to export" else "Rows to export"
+        scopeValueView.text = "All products"
+        subtitleView.text = "Generate a professionally formatted Excel file of your store products."
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        dialogView.findViewById<View>(R.id.btnCancelExport).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<View>(R.id.btnConfirmExport).setOnClickListener {
+            dialog.dismiss()
+            lifecycleScope.launch {
+                LoadingOverlayHelper.show(loadingOverlay)
+                try {
+                    performPricelistExport(rows)
+                } finally {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                }
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun performPricelistExport(rows: List<StoreProductRow>) {
+        if (rows.isEmpty()) {
+            Toast.makeText(this, "No products to export.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val sorted = rows.sortedWith(compareBy(
+            { (it.category ?: "").lowercase() },
+            { (it.name ?: "").lowercase() }
+        ))
+
+        val filename = formatExportFilename()
+        val mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+        val output: java.io.OutputStream? = try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                    put(MediaStore.Downloads.MIME_TYPE, mime)
+                    put(MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                }
+                val uri: Uri? = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) contentResolver.openOutputStream(uri) else null
+            } else {
+                val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                val file = File(dir, filename)
+                FileOutputStream(file)
+            }
+        } catch (_: Exception) { null }
+
+        if (output == null) {
+            Toast.makeText(this, "Failed to create file.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        try {
+            val wb = org.dhatim.fastexcel.Workbook(output, "Presyohan", "1.0")
+            val ws = wb.newWorksheet("Pricelist")
+
+            ws.value(0, 0, "Presyohan")
+            ws.style(0, 0).bold().set()
+
+            ws.value(1, 0, "Store: ${storeName ?: ""} — Branch: ${branchName ?: ""}")
+            val exporter = try { SupabaseAuthService.getDisplayNameImmediate() } catch (_: Exception) { "User" }
+            val exportedAt = java.util.Date().toLocaleString()
+            ws.value(2, 0, "Exported by: ${exporter}    |    Exported at: ${exportedAt}")
+
+            val headers = listOf("Category", "Name", "Description", "Unit", "Price")
+            headers.forEachIndexed { idx, h ->
+                ws.value(4, idx, h)
+                ws.style(4, idx).bold().set()
+            }
+
+            var rowIndex = 5
+            sorted.forEach { r ->
+                ws.value(rowIndex, 0, r.category ?: "")
+                ws.value(rowIndex, 1, r.name ?: "")
+                ws.value(rowIndex, 2, r.description ?: "")
+                ws.value(rowIndex, 3, r.units ?: "")
+                val priceNum = r.price ?: 0.0
+                ws.value(rowIndex, 4, priceNum)
+                ws.style(rowIndex, 4).format("\"₱\"#,##0.00").set()
+                rowIndex++
+            }
+
+            try {
+                ws.width(0, 20.0)
+                ws.width(1, 28.0)
+                ws.width(2, 40.0)
+                ws.width(3, 12.0)
+                ws.width(4, 14.0)
+            } catch (_: Throwable) { /* optional */ }
+
+            wb.finish()
+            output.flush()
+            Toast.makeText(this, "Excel exported to Downloads.", Toast.LENGTH_SHORT).show()
+            notifyExportSuccessOrRequest(filename)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to export: ${e.message}", Toast.LENGTH_LONG).show()
+        } finally {
+            try { output.close() } catch (_: Exception) {}
         }
     }
 
@@ -543,6 +668,7 @@ class ManageStoreActivity : AppCompatActivity() {
         }
 
         generateBtn.setOnClickListener {
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val uid = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
@@ -567,6 +693,7 @@ class ManageStoreActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageStoreActivity, "Unable to update invite code.", Toast.LENGTH_SHORT).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 

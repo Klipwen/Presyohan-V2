@@ -11,10 +11,12 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 class SignupActivity : androidx.appcompat.app.AppCompatActivity() {
+    private lateinit var loadingOverlay: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_signup)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         val nameEditText = findViewById<EditText>(R.id.inputName)
         val emailEditText = findViewById<EditText>(R.id.inputEmail)
@@ -40,6 +42,7 @@ class SignupActivity : androidx.appcompat.app.AppCompatActivity() {
                     Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
                 }
                 else -> {
+                    LoadingOverlayHelper.show(loadingOverlay)
                     lifecycleScope.launch {
                         try {
                             SupabaseAuthService.signUpEmail(name, email, password)
@@ -53,6 +56,7 @@ class SignupActivity : androidx.appcompat.app.AppCompatActivity() {
                         } catch (e: Exception) {
                             Toast.makeText(this@SignupActivity, "Unable to sign up.", Toast.LENGTH_SHORT).show()
                         }
+                        LoadingOverlayHelper.hide(loadingOverlay)
                     }
                 }
             }

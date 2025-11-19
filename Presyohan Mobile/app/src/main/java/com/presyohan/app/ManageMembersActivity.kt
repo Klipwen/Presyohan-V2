@@ -22,11 +22,13 @@ class ManageMembersActivity : AppCompatActivity() {
     private lateinit var adapter: MembersAdapter
     private var storeId: String? = null
     private var storeName: String? = null
+    private lateinit var loadingOverlay: android.view.View
     
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manage_members)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName")
@@ -50,6 +52,7 @@ class ManageMembersActivity : AppCompatActivity() {
         // Set store name and branch in header via Supabase
         val textStoreName = findViewById<TextView>(R.id.textStoreName)
         val textStoreBranch = findViewById<TextView>(R.id.textStoreBranch)
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 @Serializable
@@ -66,6 +69,7 @@ class ManageMembersActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 // fallback labels already set
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
 
         val btnBack = findViewById<ImageView>(R.id.btnBack)
@@ -74,6 +78,7 @@ class ManageMembersActivity : AppCompatActivity() {
 
     private fun fetchMembers() {
         val sId = storeId ?: return
+        LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
                 @Serializable
@@ -91,6 +96,7 @@ class ManageMembersActivity : AppCompatActivity() {
                 Toast.makeText(this@ManageMembersActivity, "Unable to load members.", Toast.LENGTH_LONG).show()
                 adapter.setMembers(emptyList())
             }
+            LoadingOverlayHelper.hide(loadingOverlay)
         }
     }
 
@@ -109,6 +115,7 @@ class ManageMembersActivity : AppCompatActivity() {
         view.findViewById<Button>(R.id.btnChange).setOnClickListener {
             val newRoleUi = spinner.selectedItem.toString()
             val sId = storeId ?: return@setOnClickListener
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     // Map UI role to Supabase role keywords
@@ -127,6 +134,7 @@ class ManageMembersActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageMembersActivity, "Unable to update role.", Toast.LENGTH_LONG).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
         dialog.show()

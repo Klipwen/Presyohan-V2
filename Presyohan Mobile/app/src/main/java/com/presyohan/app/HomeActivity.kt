@@ -38,6 +38,7 @@ class HomeActivity : AppCompatActivity() {
     private var selectedCategory: String? = null
     private var currentQuery: String = ""
     private var reloadProductsFn: (() -> Unit)? = null
+    private lateinit var loadingOverlay: android.view.View
 
     @Serializable
     data class StoreMember(val store_id: String, val user_id: String, val role: String)
@@ -97,6 +98,7 @@ class HomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         // Removed Google Play Services client setup; logout handled via Supabase only
 
@@ -119,15 +121,29 @@ class HomeActivity : AppCompatActivity() {
                     true
                 }
                 R.id.nav_logout -> {
-                    lifecycleScope.launch {
-                        try {
-                            SupabaseAuthService.signOut()
-                        } catch (_: Exception) { }
-                        val intent = Intent(this@HomeActivity, LoginActivity::class.java)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        startActivity(intent)
-                        finish()
+                    val dialog = android.app.Dialog(this)
+                    val view = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
+                    dialog.setContentView(view)
+                    dialog.setCancelable(true)
+                    dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+                    view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
+                    view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
+                    view.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener { dialog.dismiss() }
+                    view.findViewById<android.widget.Button>(R.id.btnDelete).apply {
+                        text = "Log Out"
+                        setOnClickListener {
+                            lifecycleScope.launch {
+                                try { SupabaseAuthService.signOut() } catch (_: Exception) { }
+                                val intent = Intent(this@HomeActivity, LoginActivity::class.java)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                                startActivity(intent)
+                                finish()
+                            }
+                            dialog.dismiss()
+                            drawerLayout.close()
+                        }
                     }
+                    dialog.show()
                     true
                 }
                 R.id.nav_notifications -> {
@@ -168,6 +184,7 @@ class HomeActivity : AppCompatActivity() {
         }
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         if (storeId != null) {
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     // Use RPC to fetch user-visible stores (respects RLS/policies)
@@ -179,6 +196,7 @@ class HomeActivity : AppCompatActivity() {
                     android.util.Log.e("HomeActivity", "Store header load via RPC failed", e)
                     storeBranchText.text = ""
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         } else {
             storeBranchText.text = ""
@@ -207,6 +225,7 @@ class HomeActivity : AppCompatActivity() {
 
         // Fetch user role via Supabase
         if (userId != null && storeId != null) {
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val members = supabase.postgrest["store_members"]
@@ -230,6 +249,7 @@ class HomeActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     android.util.Log.e("HomeActivity", "Role fetch failed", e)
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
@@ -259,8 +279,9 @@ class HomeActivity : AppCompatActivity() {
         }
 
         // Supabase-driven product loading with server-side filters via resilient RPC
-        fun loadProductsFromSupabase() {
+        fun loadProductsFromSupabase(showLoading: Boolean = false) {
             val sId = storeId ?: return
+            if (showLoading) LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val query = currentQuery.takeIf { it.isNotBlank() }
@@ -298,13 +319,14 @@ class HomeActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Products load via RPC failed: ${e.message}", e)
                 }
+                if (showLoading) LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
         // Initial load
         if (storeId != null) {
-            reloadProductsFn = { loadProductsFromSupabase() }
-            loadProductsFromSupabase()
+            reloadProductsFn = { loadProductsFromSupabase(false) }
+            loadProductsFromSupabase(true)
         }
 
         val searchEditText = findViewById<android.widget.EditText>(R.id.searchEditText)
@@ -312,8 +334,8 @@ class HomeActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentQuery = s.toString().trim().lowercase()
-                // Re-query Supabase on search update
-                loadProductsFromSupabase()
+                // Re-query Supabase on search update, no overlay for search
+                loadProductsFromSupabase(false)
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
@@ -342,8 +364,8 @@ class HomeActivity : AppCompatActivity() {
                 selectedCategory = categories[position]
                 categoryLabel.text = categories[position].uppercase()
                 recyclerView.layoutManager = GridLayoutManager(this@HomeActivity, 2)
-                // Re-query Supabase on category change
-                loadProductsFromSupabase()
+                // Re-query Supabase on category change, brief overlay is OK
+                loadProductsFromSupabase(true)
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
         }
@@ -368,6 +390,7 @@ class HomeActivity : AppCompatActivity() {
 
         // Load categories from Supabase for the current store via resilient RPC
         if (storeId != null) {
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val rows = supabase.postgrest.rpc(
@@ -386,6 +409,7 @@ class HomeActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Categories load via RPC failed: ${e.message}", e)
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 

@@ -22,9 +22,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 class CreateStoreActivity : AppCompatActivity() {
+    private lateinit var loadingOverlay: android.view.View
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_store)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         // Drawer and menu logic
         val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
@@ -164,6 +166,7 @@ class CreateStoreActivity : AppCompatActivity() {
 
             // Create store via Supabase RPC. This inserts into public.stores and
             // public.store_members with the caller as 'owner'.
+            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     android.util.Log.d("CreateStore", "Starting store creation with name: $name, branch: $branch, type: $type")
@@ -188,6 +191,7 @@ class CreateStoreActivity : AppCompatActivity() {
                     // Professional, user-friendly fallback message without debug details
                     Toast.makeText(this@CreateStoreActivity, "Couldn’t create the store. Please try again.", Toast.LENGTH_LONG).show()
                 }
+                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
     }
