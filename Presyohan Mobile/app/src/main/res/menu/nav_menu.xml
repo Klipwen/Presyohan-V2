@@ -3,13 +3,16 @@
     <item
         android:id="@+id/nav_stores"
         android:title="Stores"
-        android:icon="@drawable/icon_store" />
+        android:icon="@drawable/icon_store"
+        android:iconTint="@color/presyo_orange"/>
     <item
         android:id="@+id/nav_notifications"
         android:title="Notifications"
-        android:icon="@drawable/icon_notification" />
+        android:icon="@drawable/icon_notification"
+        android:iconTint="@color/presyo_orange"/>
     <item
         android:id="@+id/nav_logout"
         android:title="Logout"
-        android:icon="@drawable/icon_logout" />
+        android:icon="@drawable/icon_logout"
+        android:iconTint="@color/red"/>
 </menu> 

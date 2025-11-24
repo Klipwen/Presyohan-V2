@@ -6,7 +6,7 @@
     android:padding="12dp"
     android:paddingStart="32dp"
     android:gravity="center_vertical"
-    android:background="@drawable/rounded_bg_store_employee"
+    android:background="@drawable/bg_store_employee"
     android:layout_marginTop="2dp">
 
     <CheckBox

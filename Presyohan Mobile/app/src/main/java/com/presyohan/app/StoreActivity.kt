@@ -16,15 +16,35 @@ import com.google.android.material.navigation.NavigationView
 import com.google.firebase.firestore.FirebaseFirestore
 import com.presyohan.app.adapter.Store
 import com.presyohan.app.adapter.StoreAdapter
- 
+import androidx.core.content.ContextCompat
+
 import io.github.jan.supabase.auth.auth
 import androidx.lifecycle.lifecycleScope
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+// Imports for Export
+import android.provider.MediaStore
+import android.content.ContentValues
+import android.os.Build
+import android.net.Uri
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.DownloadManager
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.pm.PackageManager
+import java.io.File
+import java.io.FileOutputStream
+import androidx.appcompat.app.AlertDialog
+import android.graphics.drawable.ColorDrawable
+import android.graphics.Color
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private val db = FirebaseFirestore.getInstance()
@@ -36,6 +56,21 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     private var storeRolesMap: Map<String, String> = emptyMap()
     private var lastBackPress: Long = 0
     private lateinit var loadingOverlay: android.view.View
+
+    // To track the countdown job inside the dialog
+    private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
+
+    // Export permission handler
+    private var lastExportFilenamePending: String? = null
+    private val requestNotifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val pending = lastExportFilenamePending
+        lastExportFilenamePending = null
+        if (granted && pending != null) {
+            postExportNotification(pending)
+        } else {
+            Toast.makeText(this, "Enable notifications to see download alerts.", Toast.LENGTH_LONG).show()
+        }
+    }
 
     private val createStoreLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -70,6 +105,26 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val invite_code_created_at: String
     )
 
+    @Serializable
+    data class StoreInviteFields(
+        val invite_code: String? = null,
+        val invite_code_created_at: String? = null
+    )
+
+    // For Export
+    @Serializable
+    data class StoreProductExportRow(
+        val category: String? = null,
+        val name: String? = null,
+        val description: String? = null,
+        val units: String? = null,
+        val price: Double? = null
+    )
+
+    // Data class for RPC response to ensure we get all members correctly (Owner check)
+    @Serializable
+    data class StoreMemberUser(val user_id: String, val name: String, val role: String)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_store)
@@ -100,6 +155,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             intent.putExtra("storeId", store.id)
             intent.putExtra("storeName", store.name)
             startActivity(intent)
+            // Don't finish() here if you want back button to return to list
         })
         recyclerView.adapter = adapter
 
@@ -117,8 +173,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         checkUserStore()
         fetchStores()
-
-        // Removed Google Play Services client setup; logout handled via Supabase only
 
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
         notifIcon.setOnClickListener {
@@ -138,15 +192,37 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         if (item.itemId == R.id.nav_logout) {
-            lifecycleScope.launch {
-                try {
-                    SupabaseAuthService.signOut()
-                } catch (_: Exception) { }
-                val intent = Intent(this@StoreActivity, LoginActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                startActivity(intent)
-                finish()
+            // --- LOGOUT CONFIRMATION DIALOG START ---
+            val dialog = Dialog(this)
+            val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
+            dialog.setContentView(view)
+            dialog.setCancelable(true)
+            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
+            view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
+
+            view.findViewById<Button>(R.id.btnCancel).setOnClickListener {
+                dialog.dismiss()
             }
+
+            view.findViewById<Button>(R.id.btnDelete).apply {
+                text = "Log Out"
+                setOnClickListener {
+                    lifecycleScope.launch {
+                        try {
+                            SupabaseAuthService.signOut()
+                        } catch (_: Exception) { }
+                        val intent = Intent(this@StoreActivity, LoginActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        startActivity(intent)
+                        finish()
+                    }
+                    dialog.dismiss()
+                    drawerLayout.closeDrawer(android.view.Gravity.START)
+                }
+            }
+            dialog.show()
             return true
         }
         if (item.itemId == R.id.nav_notifications) {
@@ -208,22 +284,19 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val client = SupabaseProvider.client
         val userId = client.auth.currentUserOrNull()?.id ?: return
         val noStoreLabel = findViewById<TextView>(R.id.noStoreLabel)
+
         LoadingOverlayHelper.show(loadingOverlay)
+
         lifecycleScope.launch {
             try {
-                // Server-side resolution of memberships and stores via resilient RPC
                 val rows = client.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
-                
+
                 Log.d("StoreActivity", "RPC get_user_stores returned ${rows.size} rows")
-                if (rows.isNotEmpty()) {
-                    Log.d("StoreActivity", "First store: id=${rows[0].store_id}, name='${rows[0].name}', role='${rows[0].role}'")
-                }
 
                 if (rows.isEmpty()) {
-                    Log.d("StoreActivity", "No stores found, showing empty state")
                     adapter.updateStores(emptyList(), emptyMap())
                     noStoreLabel.visibility = View.VISIBLE
-                    showStoreChoiceDialog()
+                    noStoreLabel.text = "You have no stores yet.\nTap the + button to create or join one."
                     return@launch
                 }
 
@@ -231,7 +304,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 val fetchedStores = rows.map { r ->
                     Store(r.store_id, r.name, r.branch ?: "", r.type ?: "")
                 }
-                // Persist roles for later checks (e.g., options menu)
                 storeRolesMap = roles
 
                 val sortedStores = fetchedStores.sortedWith(compareBy(
@@ -239,219 +311,16 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     { it.name.lowercase() }
                 ))
 
-                Log.d("StoreActivity", "Updating adapter with ${sortedStores.size} stores")
                 adapter.updateStores(sortedStores, roles)
                 noStoreLabel.visibility = View.GONE
+
             } catch (e: Exception) {
                 Log.e("StoreActivity", "Error fetching stores via RPC: ${e.message}", e)
                 adapter.updateStores(emptyList(), emptyMap())
                 noStoreLabel.visibility = View.VISIBLE
-            }
-            LoadingOverlayHelper.hide(loadingOverlay)
-        }
-    }
-
-    private fun showInviteStaffDialog(store: Store, inviteCode: String?, expiryMillis: Long?) {
-        val dialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_invite_staff, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val codeText = view.findViewById<TextView>(R.id.storeCodeText)
-        val copyBtn = view.findViewById<ImageView>(R.id.btnCopyCode)
-        val generateBtn = view.findViewById<Button>(R.id.btnGenerateCode)
-        generateBtn.setOnClickListener {
-            val role = storeRolesMap[store.id]?.lowercase()
-            val isOwner = role == "owner"
-            if (!isOwner) {
-                android.widget.Toast.makeText(this, "Only the owner can generate a code.", android.widget.Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            LoadingOverlayHelper.show(loadingOverlay)
-            lifecycleScope.launch {
-                try {
-                    val params = buildJsonObject { put("p_store_id", store.id) }
-                    val rows = SupabaseProvider.client.postgrest
-                        .rpc("regenerate_invite_code", params)
-                        .decodeList<InviteCodeReturn>()
-                    val row = rows.firstOrNull()
-                    val newCode = row?.invite_code
-                    runOnUiThread {
-                        if (newCode != null) {
-                            codeText.text = newCode
-                            android.widget.Toast.makeText(
-                                applicationContext,
-                                "Invite code updated.",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            android.widget.Toast.makeText(
-                                applicationContext,
-                                "No code returned. Try again.",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        android.widget.Toast.makeText(
-                            applicationContext,
-                            "Unable to update invite code.",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
+                noStoreLabel.text = "Failed to load stores.\nPlease check your connection."
+            } finally {
                 LoadingOverlayHelper.hide(loadingOverlay)
-            }
-        }
-        // Update code UI: always show the code area; no expiry gating
-        fun updateCodeUI(code: String?, expiryMillis: Long?) {
-            codeText.visibility = View.VISIBLE
-            copyBtn.visibility = View.VISIBLE
-            codeText.text = code ?: ""
-        }
-        // Initial UI state
-        updateCodeUI(inviteCode, expiryMillis)
-
-        // Copy code to clipboard
-        copyBtn.setOnClickListener {
-            val code = codeText.text.toString()
-            if (code.isNotEmpty()) {
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Store Code", code)
-                clipboard.setPrimaryClip(clip)
-                android.widget.Toast.makeText(this, "Invite code copied.", android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // Generate code button is wired above to Supabase RPC
-
-        // Populate role spinner with permission options only
-        val roleSpinner = view.findViewById<android.widget.Spinner>(R.id.roleSpinner)
-        val permissions = listOf("View only prices", "Manage prices")
-        val permissionAdapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, permissions)
-        roleSpinner.adapter = permissionAdapter
-
-        // Back button
-        view.findViewById<Button>(R.id.btnBack).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        // Invite button (implement your invite logic here)
-        view.findViewById<Button>(R.id.btnInvite).setOnClickListener {
-            val email = view.findViewById<android.widget.EditText>(R.id.usernameInput).text.toString().trim()
-            val selectedPermission = roleSpinner.selectedItem.toString().trim().lowercase()
-            val role = when (selectedPermission) {
-                "manage prices" -> "manager"
-                "view only prices" -> "sales staff"
-                else -> "sales staff"
-            }
-            if (email.isEmpty()) {
-                android.widget.Toast.makeText(this, "Enter an email address.", android.widget.Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            // Allow inviting by email regardless of code
-            // Look up userId by email
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            db.collection("users").whereEqualTo("email", email).get()
-                .addOnSuccessListener { querySnapshot ->
-                    if (!querySnapshot.isEmpty) {
-                        val userDoc = querySnapshot.documents[0]
-                        val staffUserId = userDoc.id
-                        // Check if user is already a staff member
-                        db.collection("stores").document(store.id)
-                            .collection("members")
-                            .document(staffUserId)
-                            .get()
-                            .addOnSuccessListener { memberDoc ->
-                                if (memberDoc.exists()) {
-                                    android.widget.Toast.makeText(this, "${userDoc.getString("name") ?: email} is already your store staff", android.widget.Toast.LENGTH_SHORT).show()
-                                } else {
-                                    // Check for existing pending invitation (if deleted, there will be none, so allow invite)
-                                    db.collection("users").document(staffUserId)
-                                        .collection("notifications")
-                                        .whereEqualTo("type", "Store Invitation")
-                                        .whereEqualTo("storeName", store.name)
-                                        .get()
-                                        .addOnSuccessListener { notifSnapshot ->
-                                            val hasPending = notifSnapshot.any { it.getString("status") == "Pending" }
-                                            val hasAccepted = notifSnapshot.any { it.getString("status") == "Accepted" }
-                                            if (hasAccepted) {
-                                                android.widget.Toast.makeText(this, "Already a staff member.", android.widget.Toast.LENGTH_SHORT).show()
-                                            } else if (hasPending) {
-                                                android.widget.Toast.makeText(this, "Invitation already sent.", android.widget.Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                // No pending or accepted invitation (either rejected or deleted) — allow invite
-                                                val senderName = SupabaseAuthService.getDisplayNameImmediate()
-                                                val senderId = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
-                                                val notification = hashMapOf(
-                                                    "type" to "Store Invitation",
-                                                    "status" to "Pending",
-                                                    "sender" to senderName,
-                                                    "senderId" to senderId,
-                                                    "storeName" to store.name,
-                                                    "role" to role,
-                                                    "timestamp" to System.currentTimeMillis(),
-                                                    "message" to "$senderName invited you to join their store, ${store.name} as $role."
-                                                )
-                                                db.collection("users").document(staffUserId)
-                                                    .collection("notifications")
-                                                    .add(notification)
-                                                // Do NOT add to store members here; only add when invitation is accepted
-                                                android.widget.Toast.makeText(this, "Invitation sent.", android.widget.Toast.LENGTH_SHORT).show()
-                                                dialog.dismiss()
-                                            }
-                                        }
-                                }
-                            }
-                    } else {
-                        android.widget.Toast.makeText(this, "User not found.", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-                .addOnFailureListener {
-                    android.widget.Toast.makeText(this, "Unable to send invitation.", android.widget.Toast.LENGTH_SHORT).show()
-                }
-        }
-
-        dialog.show()
-    }
-
-    // Helper to show invite staff dialog with Firestore-based code logic
-    private fun showInviteStaffWithCode(store: Store) {
-        val client = SupabaseProvider.client
-        lifecycleScope.launch {
-            try {
-                @kotlinx.serialization.Serializable
-                data class StoreInviteFields(
-                    val invite_code: String? = null,
-                    val invite_code_created_at: String? = null
-                )
-
-                val rows = client.postgrest["stores"].select {
-                    filter { eq("id", store.id) }
-                    limit(1)
-                }.decodeList<StoreInviteFields>()
-                val row = rows.firstOrNull()
-
-                val code = row?.invite_code
-                val createdIso = row?.invite_code_created_at
-                val expiryMillis = try {
-                    if (createdIso != null) {
-                        java.time.Instant.parse(createdIso).toEpochMilli() + 24L * 60L * 60L * 1000L
-                    } else 0L
-                } catch (_: Exception) { 0L }
-
-                runOnUiThread {
-                    // Revert: always show whatever code is present without hiding on expiry
-                    showInviteStaffDialog(store, code, expiryMillis)
-                }
-            } catch (_: Exception) {
-                runOnUiThread {
-                    android.widget.Toast.makeText(this@StoreActivity, "Unable to fetch invite code. Generate a new one.", android.widget.Toast.LENGTH_SHORT).show()
-                    showInviteStaffDialog(store, null, null)
-                }
             }
         }
     }
@@ -470,210 +339,203 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        view.findViewById<ImageView>(R.id.btnSettings).setOnClickListener {
+        // 1. Layout Fix: Set Dialog Width to 90% of Screen
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        // Bind Headers
+        view.findViewById<TextView>(R.id.menuStoreName).text = store.name
+        view.findViewById<TextView>(R.id.menuBranchName).text = "| ${store.branch}"
+
+        // Bind Grid Buttons
+        val btnCopyPrices = view.findViewById<LinearLayout>(R.id.btnCopyPrices)
+        val btnInviteStaff = view.findViewById<LinearLayout>(R.id.btnInviteStaff)
+        val btnExportPrices = view.findViewById<LinearLayout>(R.id.btnExportPrices)
+        val btnImportPrices = view.findViewById<LinearLayout>(R.id.btnImportPrices)
+
+        // Bind Footer Link
+        val btnSettings = view.findViewById<TextView>(R.id.btnSettings)
+
+        // Bind Top Right Action Icon (Leave/Delete)
+        val btnLeaveDelete = view.findViewById<ImageView>(R.id.btnLeaveDelete)
+
+        // 1. Settings
+        btnSettings.setOnClickListener {
             val intent = Intent(this, ManageStoreActivity::class.java)
             intent.putExtra("storeId", store.id)
+            intent.putExtra("storeName", store.name)
             startActivity(intent)
             dialog.dismiss()
         }
-        view.findViewById<ImageView>(R.id.btnInviteStaff).setOnClickListener {
+
+        // 2. Invite Staff
+        btnInviteStaff.setOnClickListener {
             dialog.dismiss()
-            showInviteStaffWithCode(store)
-        }
-        // Ensure tapping anywhere on the tile triggers the invite dialog
-        view.findViewById<android.widget.LinearLayout>(R.id.layoutInviteStaff).setOnClickListener {
-            dialog.dismiss()
-            showInviteStaffWithCode(store)
+            showInviteStaffWithCode(store) // Updated to pass 'store' object
         }
 
-        val btnDelete = view.findViewById<ImageView>(R.id.btnDelete)
-        val labelDelete = view.findViewById<TextView>(R.id.labelDelete)
+        // 3. Copy Prices
+        btnCopyPrices.setOnClickListener {
+            val intent = Intent(this, CopyPricesActivity::class.java)
+            intent.putExtra("storeId", store.id)
+            intent.putExtra("storeName", store.name)
+            startActivity(intent)
+            dialog.dismiss()
+        }
+
+        // 4. Import Prices
+        btnImportPrices.setOnClickListener {
+            Toast.makeText(this, "Import prices feature coming soon!", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        // 5. Export Prices
+        btnExportPrices.setOnClickListener {
+            dialog.dismiss()
+            exportPricelistToExcel(store.id, store.name, store.branch)
+        }
+
+        // 6. Leave/Delete Logic
         lifecycleScope.launch {
             try {
-                val owners = SupabaseProvider.client.postgrest["store_members"].select {
-                    filter { eq("store_id", store.id); eq("role", "owner") }
-                }.decodeList<StoreMemberRow>()
-                if (owners.size > 1) {
-                    // Another owner exists: show Leave
-                    btnDelete.setImageResource(R.drawable.icon_logout)
-                    btnDelete.contentDescription = "Leave Store"
-                    btnDelete.setColorFilter(resources.getColor(R.color.red, null))
-                    labelDelete.text = "Leave"
-                    labelDelete.setTextColor(resources.getColor(R.color.red, null))
-                    btnDelete.setOnClickListener {
-                        val confirmDialog = Dialog(this@StoreActivity)
-                        val confirmView = LayoutInflater.from(this@StoreActivity).inflate(R.layout.dialog_confirm_delete, null)
-                        confirmDialog.setContentView(confirmView)
-                        confirmDialog.setCancelable(true)
-                        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-                        confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Leave Store"
-                        confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to leave this store? You will lose access to its products."
-                        confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
-                        confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                            lifecycleScope.launch {
-                                try {
-                                    SupabaseProvider.client.postgrest.rpc(
-                                        "leave_store",
-                                        kotlinx.serialization.json.buildJsonObject { put("p_store_id", store.id) }
-                                    )
-                                    android.widget.Toast.makeText(this@StoreActivity, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
-                                    fetchStores()
-                                } catch (e: Exception) {
-                                    val msg = if (e.message?.contains("sole owner", true) == true) {
-                                        "You are the sole owner. Transfer ownership first."
-                                    } else {
-                                        "Unable to leave store."
-                                    }
-                                    android.widget.Toast.makeText(this@StoreActivity, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            confirmDialog.dismiss()
-                            dialog.dismiss()
-                        }
-                        confirmDialog.show()
+                val members = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", store.id) }
+                ).decodeList<StoreMemberUser>()
+
+                val ownerCount = members.count { it.role.equals("owner", ignoreCase = true) }
+                val isSoleOwner = ownerCount <= 1
+
+                if (isSoleOwner) {
+                    // Delete Mode
+                    btnLeaveDelete.setImageResource(R.drawable.icon_delete)
+                    btnLeaveDelete.setColorFilter(android.graphics.Color.parseColor("#D32F2F"))
+
+                    btnLeaveDelete.setOnClickListener {
+                        showLeaveDeleteConfirmation(store.id, store.name, isDelete = true, dialog)
                     }
                 } else {
-                    // Only one owner: show Delete
-                    btnDelete.setImageResource(R.drawable.icon_delete)
-                    btnDelete.contentDescription = "Delete Store"
-                    labelDelete.text = "Delete"
-                    labelDelete.setTextColor(android.graphics.Color.parseColor("#800000"))
-                    btnDelete.clearColorFilter()
-                    btnDelete.setOnClickListener {
-                        val confirmDialog = Dialog(this@StoreActivity)
-                        val confirmView = LayoutInflater.from(this@StoreActivity).inflate(R.layout.dialog_confirm_delete, null)
-                        confirmDialog.setContentView(confirmView)
-                        confirmDialog.setCancelable(true)
-                        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-                        confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Delete Store"
-                        confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this store? This action cannot be undone."
-                        confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
-                        confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                            lifecycleScope.launch {
-                                try {
-                                    SupabaseProvider.client.postgrest["stores"].delete {
-                                        filter { eq("id", store.id) }
-                                    }
-                                    android.widget.Toast.makeText(this@StoreActivity, "Store deleted.", android.widget.Toast.LENGTH_SHORT).show()
-                                    fetchStores()
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(this@StoreActivity, "Unable to delete store.", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            confirmDialog.dismiss()
-                            dialog.dismiss()
-                        }
-                        confirmDialog.show()
+                    // Leave Mode
+                    btnLeaveDelete.setImageResource(R.drawable.icon_leave_store)
+                    btnLeaveDelete.setColorFilter(ContextCompat.getColor(this@StoreActivity, R.color.presyo_teal))
+
+                    btnLeaveDelete.setOnClickListener {
+                        showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, dialog)
                     }
                 }
             } catch (_: Exception) {
-                // Fallback to Leave to be safe
-                btnDelete.setImageResource(R.drawable.icon_logout)
-                labelDelete.text = "Leave"
+                // Fallback
+                btnLeaveDelete.setImageResource(R.drawable.icon_logout)
+                btnLeaveDelete.setOnClickListener {
+                    showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, dialog)
+                }
             }
         }
 
         dialog.show()
     }
 
+    private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog) {
+        val confirmDialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
+        confirmDialog.setContentView(view)
+        confirmDialog.setCancelable(true)
+        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val title = view.findViewById<TextView>(R.id.dialogTitle)
+        val message = view.findViewById<TextView>(R.id.confirmMessage)
+        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
+        val btnAction = view.findViewById<Button>(R.id.btnDelete)
+
+        if (isDelete) {
+            title.text = "Delete Store"
+            message.text = "Are you sure you want to delete this store?.\n\nYour store \"$storeName\" permanently erase all products, members, and data. This cannot be undone."
+            btnAction.text = "Delete Store" // Red
+        } else {
+            title.text = "Leave Store"
+            message.text = "Are you sure you want to leave \"$storeName\"?\n\nYou will lose access to the dashboard and products unless invited back."
+            btnAction.text = "Leave Store"
+        }
+
+        btnCancel.setOnClickListener { confirmDialog.dismiss() }
+
+        btnAction.setOnClickListener {
+            lifecycleScope.launch {
+                try {
+                    if (isDelete) {
+                        SupabaseProvider.client.postgrest["stores"].delete { filter { eq("id", storeId) } }
+                        Toast.makeText(this@StoreActivity, "Store deleted successfully.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        SupabaseProvider.client.postgrest.rpc(
+                            "leave_store",
+                            buildJsonObject { put("p_store_id", storeId) }
+                        )
+                        Toast.makeText(this@StoreActivity, "You have left the store.", Toast.LENGTH_SHORT).show()
+                    }
+                    confirmDialog.dismiss()
+                    menuDialog.dismiss()
+                    fetchStores()
+                } catch (e: Exception) {
+                    val errorMsg = if (e.message?.contains("sole owner", true) == true)
+                        "You are the only owner. Delete the store instead."
+                    else "Action failed. Check internet."
+                    Toast.makeText(this@StoreActivity, errorMsg, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        confirmDialog.show()
+    }
+
     private fun showStoreMenuEmployee(store: Store) {
         val dialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_menu_employee, null)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_menu, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        view.findViewById<TextView>(R.id.textStoreName).text = store.name
-        // Set access message based on Supabase role map
-        val role = storeRolesMap[store.id]?.lowercase()
-        val accessText = when (role) {
-            "manager" -> "You can manage prices and view products in this store"
-            else -> "You can only view price on this store"
+        // 1. Layout Fix: Set Dialog Width to 90% of Screen
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        // Headers
+        view.findViewById<TextView>(R.id.menuStoreName).text = store.name
+        view.findViewById<TextView>(R.id.menuBranchName).text = "| ${store.branch}"
+
+        // Hide buttons restricted for employees
+        val btnCopyPrices = view.findViewById<LinearLayout>(R.id.btnCopyPrices)
+        val btnInviteStaff = view.findViewById<LinearLayout>(R.id.btnInviteStaff)
+        val btnExportPrices = view.findViewById<LinearLayout>(R.id.btnExportPrices)
+        val btnImportPrices = view.findViewById<LinearLayout>(R.id.btnImportPrices)
+        val btnSettings = view.findViewById<TextView>(R.id.btnSettings)
+
+        // Hide restricted items
+        btnInviteStaff.visibility = View.GONE
+        btnImportPrices.visibility = View.GONE
+        btnSettings.visibility = View.GONE
+
+        // Allow Export/Copy
+        btnExportPrices.setOnClickListener {
+            dialog.dismiss()
+            // Fix: Pass store name and branch to export function
+            exportPricelistToExcel(store.id, store.name, store.branch)
         }
-        view.findViewById<TextView>(R.id.textAccessLevel).text = accessText
-        // Set up view members and leave store actions as needed
-        // Example:
-        view.findViewById<ImageView>(R.id.btnViewMembers).setOnClickListener {
-            // Show members dialog using Supabase RPC get_store_members
-            @kotlinx.serialization.Serializable
-            data class StoreMemberUser(val user_id: String, val name: String, val role: String)
-
-            LoadingOverlayHelper.show(loadingOverlay)
-            lifecycleScope.launch {
-                try {
-                    val rows = SupabaseProvider.client.postgrest.rpc(
-                        "get_store_members",
-                        kotlinx.serialization.json.buildJsonObject { put("p_store_id", store.id) }
-                    ).decodeList<StoreMemberUser>()
-
-                    val ownerName = rows.firstOrNull { it.role == "owner" }?.name
-                    val members = rows.filter { it.role != "owner" }
-                        .map { it.name to it.role }
-                    val sortedMembers = members.sortedWith(
-                        compareBy({ if (it.second == "manager") 0 else 1 }, { it.first.lowercase() })
-                    )
-
-                    val dialogMembers = Dialog(this@StoreActivity)
-                    val dialogView = layoutInflater.inflate(R.layout.dialog_members, null)
-                    dialogView.findViewById<TextView>(R.id.dialogStoreName).text = store.name
-                    dialogView.findViewById<TextView>(R.id.dialogOwnerName).text = ownerName ?: ""
-                    val membersList = dialogView.findViewById<LinearLayout>(R.id.membersList)
-                    membersList.removeAllViews()
-                    for (member in sortedMembers) {
-                        val memberView = TextView(this@StoreActivity)
-                        memberView.text = member.first
-                        memberView.textSize = 15f
-                        memberView.setPadding(0, 0, 0, 4)
-                        memberView.setTextColor(resources.getColor(R.color.black, null))
-                        membersList.addView(memberView)
-                    }
-                    dialogMembers.setContentView(dialogView)
-                    dialogMembers.setCancelable(true)
-                    dialogMembers.window?.setBackgroundDrawableResource(android.R.color.transparent)
-                    dialogMembers.show()
-                } catch (e: Exception) {
-                    android.widget.Toast.makeText(this@StoreActivity, "Unable to load members.", android.widget.Toast.LENGTH_SHORT).show()
-                }
-                LoadingOverlayHelper.hide(loadingOverlay)
-            }
+        btnCopyPrices.setOnClickListener {
+            val intent = Intent(this, CopyPricesActivity::class.java)
+            intent.putExtra("storeId", store.id)
+            intent.putExtra("storeName", store.name)
+            startActivity(intent)
             dialog.dismiss()
         }
-        view.findViewById<ImageView>(R.id.btnLeaveStore).setOnClickListener {
-            // Show confirmation dialog before leaving store
-            val confirmDialog = Dialog(this)
-            val confirmView = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
-            confirmDialog.setContentView(confirmView)
-            confirmDialog.setCancelable(true)
-            confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-            confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Leave Store"
-            confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to leave this store? You will lose access to its products."
-            confirmView.findViewById<Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
-            confirmView.findViewById<Button>(R.id.btnDelete).setOnClickListener {
-                LoadingOverlayHelper.show(loadingOverlay)
-                lifecycleScope.launch {
-                    try {
-                        SupabaseProvider.client.postgrest.rpc(
-                            "leave_store",
-                            kotlinx.serialization.json.buildJsonObject { put("p_store_id", store.id) }
-                        )
-                        android.widget.Toast.makeText(this@StoreActivity, "Left store.", android.widget.Toast.LENGTH_SHORT).show()
-                        fetchStores()
-                    } catch (e: Exception) {
-                        val msg = if (e.message?.contains("sole owner", true) == true) {
-                            "You are the sole owner. Transfer ownership first."
-                        } else {
-                            "Unable to leave store."
-                        }
-                        android.widget.Toast.makeText(this@StoreActivity, msg, android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                    LoadingOverlayHelper.hide(loadingOverlay)
-                }
-                confirmDialog.dismiss()
-                dialog.dismiss()
-            }
-            confirmDialog.show()
+        // Leave Logic (Top Right)
+        val btnLeaveDelete = view.findViewById<ImageView>(R.id.btnLeaveDelete)
+        btnLeaveDelete.setImageResource(R.drawable.icon_logout)
+        btnLeaveDelete.setColorFilter(ContextCompat.getColor(this, R.color.presyo_teal))
+
+        btnLeaveDelete.setOnClickListener {
+            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, dialog)
         }
+
         dialog.show()
     }
 
@@ -693,7 +555,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     notifDot.visibility = if (rows.isNotEmpty()) View.VISIBLE else View.GONE
                 } catch (e: Exception) {
                     notifDot.visibility = View.GONE
-                    android.util.Log.e("SupabaseNotif", "Error loading notif badge", e)
                 }
             }
         } else if (notifDot != null) {
@@ -701,33 +562,391 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-    // Add a helper function to recursively delete all subcollections of a store
-    private fun deleteStoreAndSubcollections(storeId: String, onComplete: (Boolean) -> Unit) {
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val storeRef = db.collection("stores").document(storeId)
-        // List of subcollections to delete
-        val subcollections = listOf("products", "categories", "members")
-        val batch = db.batch()
-        var pending = subcollections.size
-        var failed = false
-        for (sub in subcollections) {
-            storeRef.collection(sub).get().addOnSuccessListener { snapshot ->
-                for (doc in snapshot.documents) {
-                    batch.delete(doc.reference)
+    // --- Export Logic ---
+    private fun exportPricelistToExcel(storeId: String, storeName: String, branch: String) {
+        LoadingOverlayHelper.show(loadingOverlay)
+        lifecycleScope.launch {
+            var overlayVisible = true
+            try {
+                val rows = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_products",
+                    buildJsonObject {
+                        put("p_store_id", storeId)
+                        put("p_category_filter", "PRICELIST")
+                        put("p_search_query", null as String?)
+                    }
+                ).decodeList<StoreProductExportRow>()
+
+                if (rows.isEmpty()) {
+                    Toast.makeText(this@StoreActivity, "No products to export.", Toast.LENGTH_SHORT).show()
+                    return@launch
                 }
-                pending--
-                if (pending == 0 && !failed) {
-                    // After all subcollections are deleted, delete the store doc
-                    batch.delete(storeRef)
-                    batch.commit().addOnSuccessListener { onComplete(true) }
-                        .addOnFailureListener { onComplete(false) }
+
+                val sorted = rows.sortedWith(compareBy(
+                    { (it.category ?: "").lowercase() },
+                    { (it.name ?: "").lowercase() }
+                ))
+
+                LoadingOverlayHelper.hide(loadingOverlay)
+                overlayVisible = false
+                // Fix: Pass storeName and branch to dialog
+                showExportConfirmationDialog(sorted, storeName, branch)
+            } catch (e: Exception) {
+                Toast.makeText(this@StoreActivity, "Failed to export.", Toast.LENGTH_LONG).show()
+            } finally {
+                if (overlayVisible) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
                 }
-            }.addOnFailureListener {
-                failed = true
-                onComplete(false)
             }
         }
     }
 
+    // Fix: Updated signature to accept storeName and branch
+    private fun showExportConfirmationDialog(rows: List<StoreProductExportRow>, storeName: String, branch: String) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_export_confirmation, null)
+        val rowsCountView = dialogView.findViewById<TextView>(R.id.rowsCount)
+        val rowsLabelView = dialogView.findViewById<TextView>(R.id.rowsLabel)
+        val scopeValueView = dialogView.findViewById<TextView>(R.id.scopeValue)
+        val subtitleView = dialogView.findViewById<TextView>(R.id.exportSubtitle)
 
+        rowsCountView.text = rows.size.toString()
+        rowsLabelView.text = if (rows.size == 1) "Row to export" else "Rows to export"
+        scopeValueView.text = "All products"
+        subtitleView.text = "Generate a professionally formatted Excel file of your store products."
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+        dialogView.findViewById<View>(R.id.btnCancelExport).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<View>(R.id.btnConfirmExport).setOnClickListener {
+            dialog.dismiss()
+            lifecycleScope.launch {
+                LoadingOverlayHelper.show(loadingOverlay)
+                try {
+                    // Fix: Pass storeName and branch to export function
+                    performPricelistExport(rows, storeName, branch)
+                } finally {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                }
+            }
+        }
+
+        dialog.show()
+    }
+
+    // Fix: Updated signature to accept storeName and branch
+    private fun performPricelistExport(rows: List<StoreProductExportRow>, storeName: String, branch: String) {
+        if (rows.isEmpty()) {
+            Toast.makeText(this, "No products to export.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Fix: Use passed storeName and branch
+        val filename = formatExportFilename(storeName, branch)
+        val mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+        val output: java.io.OutputStream? = try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                    put(MediaStore.Downloads.MIME_TYPE, mime)
+                    put(MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                }
+                val uri: Uri? = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) contentResolver.openOutputStream(uri) else null
+            } else {
+                val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                val file = File(dir, filename)
+                FileOutputStream(file)
+            }
+        } catch (_: Exception) { null }
+
+        if (output == null) {
+            Toast.makeText(this, "Failed to create file.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        try {
+            val wb = org.dhatim.fastexcel.Workbook(output, "Presyohan", "1.0")
+            val ws = wb.newWorksheet("Pricelist")
+
+            ws.value(0, 0, "Presyohan")
+            ws.style(0, 0).bold().set()
+
+            // Fix: Use passed storeName and branch
+            ws.value(1, 0, "Store: $storeName — Branch: $branch")
+            val exporter = try { SupabaseAuthService.getDisplayNameImmediate() } catch (_: Exception) { "User" }
+            val exportedAt = java.util.Date().toLocaleString()
+            ws.value(2, 0, "Exported by: ${exporter}    |    Exported at: ${exportedAt}")
+
+            val headers = listOf("Category", "Name", "Description", "Unit", "Price")
+            headers.forEachIndexed { idx, h ->
+                ws.value(4, idx, h)
+                ws.style(4, idx).bold().set()
+            }
+
+            var rowIndex = 5
+            rows.forEach { r ->
+                ws.value(rowIndex, 0, r.category ?: "")
+                ws.value(rowIndex, 1, r.name ?: "")
+                ws.value(rowIndex, 2, r.description ?: "")
+                ws.value(rowIndex, 3, r.units ?: "")
+                val priceNum = r.price ?: 0.0
+                ws.value(rowIndex, 4, priceNum)
+                ws.style(rowIndex, 4).format("\"₱\"#,##0.00").set()
+                rowIndex++
+            }
+
+            try {
+                ws.width(0, 20.0)
+                ws.width(1, 28.0)
+                ws.width(2, 40.0)
+                ws.width(3, 12.0)
+                ws.width(4, 14.0)
+            } catch (_: Throwable) { /* optional */ }
+
+            wb.finish()
+            output.flush()
+            Toast.makeText(this, "Excel exported to Downloads.", Toast.LENGTH_SHORT).show()
+            notifyExportSuccessOrRequest(filename)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to export: ${e.message}", Toast.LENGTH_LONG).show()
+        } finally {
+            try { output.close() } catch (_: Exception) {}
+        }
+    }
+
+    // Fix: Updated signature to accept storeName and branch
+    private fun formatExportFilename(storeName: String, branch: String): String {
+        val sName = storeName.trim()
+        val bName = branch.trim()
+        val slug = "${sName}_${bName}".lowercase()
+            .replace("\n", " ")
+            .replace("\\s+".toRegex(), "-")
+            .replace("[^a-z0-9\\-]".toRegex(), "")
+        val d = java.util.Calendar.getInstance()
+        val y = d.get(java.util.Calendar.YEAR)
+        val m = String.format("%02d", d.get(java.util.Calendar.MONTH) + 1)
+        val day = String.format("%02d", d.get(java.util.Calendar.DAY_OF_MONTH))
+        val hh = String.format("%02d", d.get(java.util.Calendar.HOUR_OF_DAY))
+        val mm = String.format("%02d", d.get(java.util.Calendar.MINUTE))
+        val ss = String.format("%02d", d.get(java.util.Calendar.SECOND))
+        return "presyohan_${slug}_pricelist_${y}${m}${day}_${hh}${mm}${ss}.xlsx"
+    }
+
+    private fun ensureExportNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "presyohan.exports"
+            val name = "File Exports"
+            val descriptionText = "Notifications when files are saved to Downloads"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(channelId, name, importance)
+            channel.description = descriptionText
+            val nm = getSystemService(NotificationManager::class.java)
+            if (nm.getNotificationChannel(channelId) == null) {
+                nm.createNotificationChannel(channel)
+            }
+        }
+    }
+
+    private fun notifyExportSuccessOrRequest(filename: String) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                postExportNotification(filename)
+            } else {
+                lastExportFilenamePending = filename
+                requestNotifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            postExportNotification(filename)
+        }
+    }
+
+    private fun postExportNotification(filename: String) {
+        try {
+            ensureExportNotificationChannel()
+            val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) "presyohan.exports" else ""
+            val intent = android.content.Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE else PendingIntent.FLAG_UPDATE_CURRENT
+            val pendingIntent = PendingIntent.getActivity(this, 0, intent, flags)
+
+            val builder = NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("File downloaded")
+                .setContentText("Saved to Downloads: $filename")
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+
+            NotificationManagerCompat.from(this)
+                .notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), builder.build())
+        } catch (se: SecurityException) {
+            Toast.makeText(this, "Enable notifications for Presyohan to see download alerts.", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {
+            // ignore
+        }
+    }
+
+    // --- Invite Logic & Date Parsing ---
+
+    private fun parseInviteCreatedMillis(createdIso: String?): Long? {
+        if (createdIso.isNullOrBlank()) return null
+        return try {
+            java.time.Instant.parse(createdIso).toEpochMilli()
+        } catch (_: Exception) {
+            try {
+                java.time.OffsetDateTime.parse(createdIso).toInstant().toEpochMilli()
+            } catch (_: Exception) {
+                try {
+                    val normalized = if (createdIso.contains("T")) createdIso else createdIso.replace(" ", "T")
+                    java.time.LocalDateTime.parse(normalized).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                } catch (_: Exception) { null }
+            }
+        }
+    }
+
+    private fun startInviteCountdown(expiryText: TextView, codeText: TextView, copyBtn: ImageView, expiryMillis: Long) {
+        inviteCodeCountdownJob?.cancel()
+        inviteCodeCountdownJob = lifecycleScope.launch {
+            try {
+                while (true) {
+                    val remaining = expiryMillis - System.currentTimeMillis()
+                    if (remaining <= 0) {
+                        codeText.visibility = View.VISIBLE
+                        copyBtn.visibility = View.VISIBLE
+                        expiryText.text = "Code expired"
+                        break
+                    }
+                    val hrs = remaining / 3600000
+                    val mins = (remaining % 3600000) / 60000
+                    val secs = (remaining % 60000) / 1000
+                    expiryText.text = String.format("Expires in %02d:%02d:%02d", hrs, mins, secs)
+                    kotlinx.coroutines.delay(1000)
+                }
+            } catch (_: Exception) {
+                expiryText.text = "Expires soon"
+            }
+        }
+    }
+
+    private fun showInviteStaffWithCode(store: Store) {
+        lifecycleScope.launch {
+            try {
+                val rows = SupabaseProvider.client.postgrest["stores"].select {
+                    filter { eq("id", store.id) }
+                    limit(1)
+                }.decodeList<StoreInviteFields>()
+                val row = rows.firstOrNull()
+                val code = row?.invite_code
+                val createdIso = row?.invite_code_created_at
+
+                val createdMillis = parseInviteCreatedMillis(createdIso)
+                val expiryMillis = createdMillis?.plus(86400000L)
+
+                runOnUiThread {
+                    showInviteStaffDialog(store, code, expiryMillis)
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this@StoreActivity, "Unable to fetch code.", Toast.LENGTH_SHORT).show()
+                    showInviteStaffDialog(store, null, null)
+                }
+            }
+        }
+    }
+
+    private fun showInviteStaffDialog(store: Store, inviteCode: String?, expiryMillis: Long?) {
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_invite_staff, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val codeText = view.findViewById<TextView>(R.id.storeCodeText)
+        val expiryText = view.findViewById<TextView>(R.id.inviteCodeExpiry)
+        val copyBtn = view.findViewById<ImageView>(R.id.btnCopyCode)
+        val generateBtn = view.findViewById<Button>(R.id.btnGenerateCode)
+
+        fun updateCodeUI(code: String?, expiresAt: Long?) {
+            codeText.text = code ?: "No Code"
+            inviteCodeCountdownJob?.cancel()
+
+            val now = System.currentTimeMillis()
+            if (code != null && expiresAt != null) {
+                if (expiresAt > now) {
+                    startInviteCountdown(expiryText, codeText, copyBtn, expiresAt)
+                } else {
+                    expiryText.text = "Code expired"
+                }
+            } else {
+                expiryText.text = if (code == null) "" else "Code expired"
+            }
+        }
+        updateCodeUI(inviteCode, expiryMillis)
+
+        copyBtn.setOnClickListener {
+            val code = codeText.text.toString()
+            if (code.isNotEmpty() && code != "No Code") {
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Store Code", code)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Code copied.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        generateBtn.setOnClickListener {
+            val role = storeRolesMap[store.id]?.lowercase()
+            val isOwner = role == "owner"
+            if (!isOwner) {
+                Toast.makeText(this, "Only owner can generate codes.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            LoadingOverlayHelper.show(loadingOverlay)
+            lifecycleScope.launch {
+                try {
+                    val params = buildJsonObject { put("p_store_id", store.id) }
+                    val rows = SupabaseProvider.client.postgrest
+                        .rpc("regenerate_invite_code", params)
+                        .decodeList<InviteCodeReturn>()
+                    val row = rows.firstOrNull()
+                    val newCode = row?.invite_code
+                    val newCreated = row?.invite_code_created_at
+
+                    val newCreatedMillis = parseInviteCreatedMillis(newCreated)
+                    val newExpiry = newCreatedMillis?.plus(86400000L)
+
+                    runOnUiThread {
+                        updateCodeUI(newCode, newExpiry)
+                        Toast.makeText(applicationContext, "Code updated.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(applicationContext, "Failed to generate code.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                LoadingOverlayHelper.hide(loadingOverlay)
+            }
+        }
+
+        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
+
+        view.findViewById<Button>(R.id.btnInvite).setOnClickListener {
+            Toast.makeText(this, "Invite via email coming soon.", Toast.LENGTH_SHORT).show()
+        }
+
+        // Populate roles
+        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
+        val perms = listOf("View only prices", "Manage prices")
+        val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, perms)
+        roleSpinner.adapter = adp
+
+        dialog.setOnDismissListener { inviteCodeCountdownJob?.cancel() }
+        dialog.show()
+    }
 }

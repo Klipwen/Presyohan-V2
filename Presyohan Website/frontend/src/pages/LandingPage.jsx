@@ -273,24 +273,28 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Outlined box that follows requested layout (top corners rounded, no fill) */}
+          {/* Hero content box with professional layout */}
           <div className="lp-hero-right">
             <div className="lp-hero-box">
               <div className="lp-hero-content">
-                <h3 className="lp-eyebrow">Atong</h3>
-
-                <h1 className="lp-title">
-                  <span className="lp-title-white">presyo</span>
-                  <span className="lp-title-accent">han?</span>
-                </h1>
+                {/* Logo text: "atong" aligned with "presyohan?" */}
+                <div className="lp-logo-text">
+                  <span className="lp-logo-eyebrow">atong</span>
+                  <h1 className="lp-title">
+                    <span className="lp-title-white">presyo</span>
+                    <span className="lp-title-accent">han?</span>
+                  </h1>
+                </div>
 
                 <p className="lp-lead">
                   We make it fast and easy to manage your store's entire price list, guaranteeing consistency across all staff and locations.
                 </p>
 
-                <h2 className="lp-subtitle">Wala Kahibaw sa Presyo?</h2>
-
-                <button className="lp-btn-primary" onClick={() => navigate('/login')}>Get Started</button>
+                {/* Subtitle grouped with Get Started button */}
+                <div className="lp-cta-group">
+                  <h2 className="lp-subtitle">Wala Kahibaw sa Presyo?</h2>
+                  <button className="lp-btn-primary" onClick={() => navigate('/login')}>Get Started</button>
+                </div>
               </div>
             </div>
           </div>

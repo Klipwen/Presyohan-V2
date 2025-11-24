@@ -53,6 +53,8 @@ class ManageStoreActivity : AppCompatActivity() {
     private lateinit var storeCodeExpiryView: TextView
     private lateinit var btnGenerateCode: Button
     private lateinit var btnRevokeCode: Button
+    // Added for Copy Button
+    private lateinit var btnCopyPasteCode: ImageView
 
     private val storeTypes = arrayOf("Laundry Shop", "Car Wash", "Water Refilling Station", "Other")
     private var storeId: String? = null
@@ -122,6 +124,8 @@ class ManageStoreActivity : AppCompatActivity() {
         storeCodeExpiryView = findViewById(R.id.storeCodeExpiry)
         btnGenerateCode = findViewById(R.id.btnGenerateCode)
         btnRevokeCode = findViewById(R.id.btnRevokeCode)
+        // Bind Copy Button
+        btnCopyPasteCode = findViewById(R.id.btnCopyPasteCode)
 
         // Set up spinner before fetching store data
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, storeTypes)
@@ -320,6 +324,17 @@ class ManageStoreActivity : AppCompatActivity() {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
+
+        // Implement Copy Paste Code Logic
+        btnCopyPasteCode.setOnClickListener {
+            val code = storeCodeTextView.text.toString()
+            if (code.isNotEmpty() && code != "------") {
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Paste Code", code)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Code copied to clipboard", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // Extension function for dp to px
@@ -330,6 +345,7 @@ class ManageStoreActivity : AppCompatActivity() {
     private fun clearPasteCodeUi() {
         storeCodeTextView.text = "------"
         storeCodeExpiryView.text = "No active code"
+        btnCopyPasteCode.visibility = View.GONE
         countdownJob?.cancel()
     }
 
@@ -387,6 +403,8 @@ class ManageStoreActivity : AppCompatActivity() {
 
     private fun applyPasteCode(code: String, expiresAtIso: String) {
         storeCodeTextView.text = code
+        storeCodeTextView.visibility = View.VISIBLE
+        btnCopyPasteCode.visibility = View.VISIBLE
         countdownJob?.cancel()
         countdownJob = lifecycleScope.launch {
             try {
@@ -396,6 +414,7 @@ class ManageStoreActivity : AppCompatActivity() {
                     val remaining = java.time.Duration.between(now, expiry).seconds
                     if (remaining <= 0) {
                         storeCodeTextView.visibility = View.GONE
+                        btnCopyPasteCode.visibility = View.GONE
                         storeCodeExpiryView.text = "No active code"
                         break
                     }

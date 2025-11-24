@@ -2,5 +2,5 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="@color/presyo_bg" />
-    <corners android:topRightRadius="38dp" android:topLeftRadius="0dp" android:bottomLeftRadius="0dp" android:bottomRightRadius="0dp" />
+    <corners android:topRightRadius="38dp" android:topLeftRadius="0dp" android:bottomLeftRadius="0dp" android:bottomRightRadius="12dp" />
 </shape> 

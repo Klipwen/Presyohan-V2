@@ -26,7 +26,7 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:src="@drawable/icon_back"
-            android:background="@drawable/rounded_button_teal"
+            android:background="@drawable/button_round_teal"
             android:padding="6dp"
             android:tint="@color/white"
             android:contentDescription="Back" />

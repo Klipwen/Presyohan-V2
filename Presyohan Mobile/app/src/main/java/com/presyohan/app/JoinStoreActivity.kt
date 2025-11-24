@@ -20,6 +20,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
+import android.app.Dialog
+import android.view.LayoutInflater
+import android.content.Intent
 
 @Serializable
 data class StoreByInviteCodeRow(
@@ -58,8 +61,11 @@ class JoinStoreActivity : AppCompatActivity() {
         val backButton = findViewById<Button?>(R.id.buttonBack)
         backButton?.setOnClickListener { finish() }
 
+        // Initialize Drawer Layout
+        val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
+
         // Set real user name and email in navigation drawer header (Supabase)
-        val navigationView = findViewById<com.google.android.material.navigation.NavigationView>(R.id.navigationView)
+        val navigationView = findViewById<NavigationView>(R.id.navigationView)
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
         val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
@@ -70,14 +76,40 @@ class JoinStoreActivity : AppCompatActivity() {
             val name = SupabaseAuthService.getDisplayName() ?: "User"
             userNameText.text = name
         }
+
         // Make menuIcon open drawer
-        val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
         findViewById<ImageView>(R.id.menuIcon).setOnClickListener {
             drawerLayout.open()
         }
+
+        // --- NAVIGATION LISTENER ADDED HERE ---
+        navigationView.setNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_stores -> {
+                    // Navigate to StoreActivity
+                    val intent = Intent(this, StoreActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(intent)
+                    finish()
+                    true
+                }
+                R.id.nav_notifications -> {
+                    val intent = Intent(this, NotificationActivity::class.java)
+                    startActivity(intent)
+                    drawerLayout.close()
+                    true
+                }
+                R.id.nav_logout -> {
+                    showLogoutDialog()
+                    true
+                }
+                else -> false
+            }
+        }
+
         // Make notifIcon open NotificationActivity
         findViewById<ImageView>(R.id.notifIcon).setOnClickListener {
-            val intent = android.content.Intent(this, NotificationActivity::class.java)
+            val intent = Intent(this, NotificationActivity::class.java)
             startActivity(intent)
         }
 
@@ -199,8 +231,8 @@ class JoinStoreActivity : AppCompatActivity() {
 
                     runOnUiThread {
                         Toast.makeText(this@JoinStoreActivity, "Join request sent successfully!", Toast.LENGTH_SHORT).show()
-                        val intent = android.content.Intent(this@JoinStoreActivity, com.presyohan.app.StoreActivity::class.java)
-                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        val intent = Intent(this@JoinStoreActivity, com.presyohan.app.StoreActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(intent)
                         finish()
                     }
@@ -214,5 +246,37 @@ class JoinStoreActivity : AppCompatActivity() {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
+    }
+
+    private fun showLogoutDialog() {
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
+        view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
+
+        view.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        view.findViewById<android.widget.Button>(R.id.btnDelete).apply {
+            text = "Log Out"
+            setOnClickListener {
+                lifecycleScope.launch {
+                    try {
+                        SupabaseAuthService.signOut()
+                    } catch (_: Exception) { }
+                    val intent = Intent(this@JoinStoreActivity, LoginActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(intent)
+                    finish()
+                }
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 }

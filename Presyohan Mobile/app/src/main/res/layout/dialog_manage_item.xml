@@ -3,7 +3,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="24dp"
-    android:background="@drawable/rounded_bg"
+    android:background="@drawable/bg_rounded"
     android:minWidth="400dp">
 
     <!-- Left: Product Info -->

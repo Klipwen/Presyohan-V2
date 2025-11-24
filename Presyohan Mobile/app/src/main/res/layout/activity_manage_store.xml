@@ -11,7 +11,7 @@
         android:id="@+id/headerBar"
         android:layout_width="0dp"
         android:layout_height="56dp"
-        android:background="@drawable/rounded_header_yellow"
+        android:background="@drawable/bg_header_yellow"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
@@ -104,14 +104,36 @@
                             android:textColor="#888888"
                             android:textSize="10sp" />
 
-                        <TextView
-                            android:id="@+id/storeCodeText"
+                        <!-- Updated Layout for Code and Copy Icon -->
+                        <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="999999"
-                            android:textColor="@color/presyo_teal"
-                            android:textSize="24sp"
-                            android:textStyle="bold" />
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="2dp">
+
+                            <TextView
+                                android:id="@+id/storeCodeText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="999999"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="24sp"
+                                android:textStyle="bold" />
+
+                            <ImageView
+                                android:id="@+id/btnCopyPasteCode"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_marginStart="16dp"
+                                android:padding="2dp"
+                                android:src="@drawable/icon_copy"
+                                app:tint="@color/presyo_teal"
+                                android:contentDescription="Copy Code"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?attr/selectableItemBackgroundBorderless" />
+                        </LinearLayout>
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -142,7 +164,7 @@
                             android:layout_width="100dp"
                             android:layout_height="32dp"
                             android:layout_marginTop="8dp"
-                            android:background="@drawable/rounded_button_orange"
+                            android:background="@drawable/button_round_orange"
                             android:text="Generate Code"
                             android:textColor="@color/white"
                             android:textSize="10sp"
@@ -156,7 +178,7 @@
                             android:layout_width="100dp"
                             android:layout_height="32dp"
                             android:layout_marginTop="8dp"
-                            android:background="@drawable/rounded_button"
+                            android:background="@drawable/button_round"
                             android:backgroundTint="@color/white"
                             android:text="Revoke"
                             android:textColor="@color/presyo_orange"
@@ -260,7 +282,7 @@
                     <ImageView
                         android:layout_width="28dp"
                         android:layout_height="28dp"
-                        android:src="@drawable/icon_download"
+                        android:src="@drawable/icon_import_prices"
                         android:tint="@color/presyo_orange"
                         android:contentDescription="Import Prices" />
                     <TextView
@@ -298,7 +320,7 @@
                         android:textColor="@color/presyo_darkblue"
                         android:textStyle="bold"
                         android:textSize="16sp"
-                        android:background="@drawable/edittext_background"
+                        android:background="@drawable/bg_edittext"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
                         android:layout_marginBottom="10dp" />
@@ -311,7 +333,7 @@
                         android:enabled="false"
                         android:textColor="@color/presyo_darkblue"
                         android:textSize="15sp"
-                        android:background="@drawable/edittext_background"
+                        android:background="@drawable/bg_edittext"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
                         android:layout_marginBottom="10dp" />
@@ -321,7 +343,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="40dp"
                         android:enabled="false"
-                        android:background="@drawable/edittext_background"
+                        android:background="@drawable/bg_edittext"
                         android:layout_marginBottom="14dp" />
 
                     <EditText
@@ -332,7 +354,7 @@
                         android:enabled="false"
                         android:textColor="@color/presyo_darkblue"
                         android:textSize="15sp"
-                        android:background="@drawable/edittext_background"
+                        android:background="@drawable/bg_edittext"
                         android:textColorHint="@color/edittext_hint"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
@@ -424,7 +446,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="@drawable/rounded_button_teal"
+                    android:background="@drawable/button_round_teal"
                     android:padding="12dp"
                     android:gravity="center"
                     android:clickable="true"
@@ -446,7 +468,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:background="@drawable/rounded_button_teal"
+                    android:background="@drawable/button_round_teal"
                     android:padding="12dp"
                     android:gravity="center"
                     android:clickable="true"

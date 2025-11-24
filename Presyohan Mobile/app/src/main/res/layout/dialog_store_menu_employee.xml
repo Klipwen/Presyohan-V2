@@ -5,7 +5,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:gravity="center"
-    android:background="@drawable/rounded_bg"
+    android:background="@drawable/bg_rounded"
     android:elevation="8dp">
 
     <!-- Store name -->

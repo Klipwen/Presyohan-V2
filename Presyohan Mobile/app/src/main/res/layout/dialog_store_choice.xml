@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="@drawable/rounded_bg"
+    android:background="@drawable/bg_rounded"
     android:minWidth="400dp"
     android:gravity="center_horizontal">
 
@@ -40,7 +40,7 @@
             android:layout_weight="1"
             android:text="Join Store"
             android:textColor="@color/white"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_teal"
             android:layout_marginEnd="8dp"
             android:textSize="16sp"
@@ -57,7 +57,7 @@
             android:layout_weight="1"
             android:text="Create Store"
             android:textColor="@color/white"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_orange"
             android:layout_marginStart="8dp"
             android:textSize="16sp"

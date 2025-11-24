@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="@drawable/rounded_bg"
+    android:background="@drawable/bg_rounded"
     android:minWidth="400dp"
     android:gravity="center_horizontal">
 
@@ -40,7 +40,7 @@
             android:layout_height="wrap_content"
             android:text="Cancel"
             android:textColor="@color/presyo_teal"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/button_round"
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginEnd="8dp" />
@@ -51,7 +51,7 @@
             android:layout_height="wrap_content"
             android:text="Delete"
             android:textColor="@color/presyo_orange"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/button_round"
             android:textSize="14sp"
             android:textStyle="bold"/>
     </LinearLayout>

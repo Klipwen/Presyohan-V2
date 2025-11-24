@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="24dp"
-    android:background="@drawable/rounded_bg"
+    android:background="@drawable/bg_rounded"
     android:minWidth="400dp"
     android:gravity="center"
     android:elevation="8dp">
@@ -29,6 +29,17 @@
         android:layout_marginTop="8dp"
         android:layout_marginBottom="16dp"
         android:layout_gravity="center_horizontal"/>
+
+    <!-- Expiry Text Added Here -->
+    <TextView
+        android:id="@+id/inviteCodeExpiry"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Expires in --:--:--"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="4dp"
+        android:gravity="center"/>
 
     <!-- Store Code Row -->
     <LinearLayout
@@ -128,7 +139,7 @@
         android:hint="Input email"
         android:textColorHint="#B0B0B0"
         android:textColor="@color/presyo_darkblue"
-        android:background="@drawable/edittext_background"
+        android:background="@drawable/bg_edittext"
         android:padding="14dp"
         android:textSize="16sp" />
 
@@ -146,7 +157,7 @@
         android:id="@+id/roleSpinner"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:background="@drawable/edittext_background"
+        android:background="@drawable/bg_edittext"
         android:textColorHint="@color/edittext_hint"
         android:textColor="@color/presyo_darkblue"
         android:paddingStart="12dp"
@@ -167,7 +178,7 @@
             android:layout_height="48dp"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_teal"
             android:text="Back"
             android:textColor="@android:color/white"
@@ -179,7 +190,7 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_orange"
             android:text="Invite"
             android:textColor="@android:color/white"

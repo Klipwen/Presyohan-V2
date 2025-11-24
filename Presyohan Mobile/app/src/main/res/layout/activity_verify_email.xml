@@ -11,8 +11,8 @@
     <View
         android:id="@+id/topCurve"
         android:layout_width="411dp"
-        android:layout_height="465dp"
-        android:background="@drawable/logo_background_curve"
+        android:layout_height="524dp"
+        android:background="@drawable/bg_curve_logo"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="MissingConstraints" />
@@ -94,7 +94,7 @@
         android:layout_marginStart="32dp"
         android:layout_marginTop="12dp"
         android:layout_marginEnd="32dp"
-        android:background="@drawable/rounded_button"
+        android:background="@drawable/button_round"
         android:backgroundTint="@color/presyo_orange"
         android:text="Verify Code"
         android:textColor="@android:color/white"
@@ -102,7 +102,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/textResendCode" />
-    
+
     <TextView
         android:id="@+id/feedbackMessage"
         android:layout_width="0dp"
@@ -128,7 +128,7 @@
         android:layout_marginStart="32dp"
         android:layout_marginTop="12dp"
         android:layout_marginEnd="32dp"
-        android:background="@drawable/rounded_button"
+        android:background="@drawable/button_round"
         android:backgroundTint="@color/presyo_teal"
         android:text="Back to Login"
         android:textColor="@android:color/white"

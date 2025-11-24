@@ -10,203 +10,301 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/white">
+        android:background="#E5E5E5">
 
-        <!-- Yellow Rounded Header -->
-        <ImageView
-            android:id="@+id/imgHeader"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:scaleType="fitXY"
-            android:src="@drawable/rounded_header_yellow"
-            app:layout_constraintTop_toBottomOf="@id/branchRow"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="8dp" />
-
-        <!-- Menu Icon -->
-        <ImageView
-            android:id="@+id/menuIcon"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginStart="16dp"
-            android:contentDescription="Menu"
-            android:src="@drawable/icon_menu"
-            app:layout_constraintBottom_toBottomOf="@+id/branchRow"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/storeText" />
-
-        <!-- Store Name -->
-        <TextView
-            android:id="@+id/storeText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="6dp"
-            android:fontFamily="sans-serif"
-            android:text="Store name"
-            android:textColor="@color/presyo_orange"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toEndOf="@id/menuIcon"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Divider and Branch Row -->
-        <LinearLayout
-            android:id="@+id/branchRow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginStart="12dp"
-            app:layout_constraintStart_toEndOf="@id/menuIcon"
-            app:layout_constraintTop_toBottomOf="@id/storeText">
-
-            <TextView
-                android:id="@+id/textDivider"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="| "
-                android:textColor="#B0B0B0"
-                android:textSize="12sp"
-                android:paddingEnd="4dp" />
-
-            <TextView
-                android:id="@+id/storeBranchText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif"
-                android:text="Branch name"
-                android:textColor="#888888"
-                android:textSize="12sp"/>
-        </LinearLayout>
-
-        <!-- Notification Icon -->
-        <ImageView
-            android:id="@+id/notifIcon"
-            android:layout_width="24dp"
-            android:layout_height="32dp"
-            android:layout_marginEnd="16dp"
-            android:contentDescription="Notifications"
-            android:src="@drawable/icon_notification"
-            app:layout_constraintBottom_toBottomOf="@+id/branchRow"
-            app:layout_constraintEnd_toStartOf="@id/profileIcon"
-            app:layout_constraintTop_toTopOf="@+id/storeText" />
-
-        <!-- Profile Icon -->
-        <ImageView
-            android:id="@+id/profileIcon"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginEnd="16dp"
-            android:contentDescription="Profile"
-            android:src="@drawable/icon_profile"
-            app:layout_constraintBottom_toBottomOf="@+id/branchRow"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/storeText" />
-
-        <!-- Search Bar in Header -->
-        <LinearLayout
-            android:id="@+id/searchBarContainer"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="16dp"
-            android:background="@drawable/edittext_background"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="@+id/imgHeader"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/imgHeader">
-
-            <EditText
-                android:id="@+id/searchEditText"
-                android:layout_width="241dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:textColorHint="@color/edittext_hint"
-                android:textColor="@color/presyo_darkblue"
-                android:hint="Search item"
-                android:paddingStart="12dp"
-                android:textSize="16sp" />
-
-            <ImageView
-                android:id="@+id/imageView4"
-                android:layout_width="61dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:src="@drawable/icon_search" />
-        </LinearLayout>
-
-        <!-- Add Button -->
-        <ImageView
-            android:id="@+id/addButton"
-            android:layout_width="60dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            app:layout_constraintBottom_toBottomOf="@+id/imgHeader"
-            app:layout_constraintStart_toEndOf="@+id/searchBarContainer"
-            app:layout_constraintTop_toTopOf="@+id/imgHeader"
-            android:src="@drawable/icon_add_item" />
-
-        <!-- Category Section -->
-        <LinearLayout
-            android:id="@+id/linearLayout2"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/headerPresyohan"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/presyo_orange"
-            android:gravity="center"
-            android:orientation="horizontal"
+            android:background="@drawable/bg_header_presyohan"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/menuIcon"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="16dp"
+                android:contentDescription="Menu"
+                android:src="@drawable/icon_menu"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <TextView
+                android:id="@+id/logoText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:fontFamily="sans-serif"
+                android:text="presyo"
+                android:textColor="@color/presyo_orange"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toEndOf="@id/menuIcon"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <TextView
+                android:id="@+id/logoTextBlue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="0dp"
+                android:fontFamily="sans-serif"
+                android:text="han?"
+                android:textColor="@color/presyo_teal"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toEndOf="@id/logoText"
+                app:layout_constraintTop_toTopOf="@id/logoText"
+                app:layout_constraintBottom_toBottomOf="@id/logoText" />
+
+            <ImageView
+                android:id="@+id/notifIcon"
+                android:layout_width="24dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="16dp"
+                android:contentDescription="Notifications"
+                android:src="@drawable/icon_notification"
+                app:layout_constraintEnd_toStartOf="@id/profileIcon"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <View
+                android:id="@+id/notifDot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/indicator_dot"
+                android:visibility="gone"
+                app:layout_constraintEnd_toStartOf="@id/profileIcon"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageView
+                android:id="@+id/profileIcon"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="16dp"
+                android:contentDescription="Profile"
+                android:src="@drawable/icon_profile"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/imgHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_header_yellow"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/headerPresyohan">
+
+            <ImageView
+                android:id="@+id/btnBack"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/icon_back"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/white" />
+
+            <ImageView
+                android:id="@+id/iconStoreSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="12dp"
+                android:src="@drawable/icon_store"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@id/btnBack"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/white" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnStoreOptions"
+                app:layout_constraintStart_toEndOf="@id/iconStoreSmall"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <TextView
+                    android:id="@+id/textStoreName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Store"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="4dp"
+                    android:text=" | "
+                    android:textColor="@color/white"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/textBranchName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Branch name"
+                    android:textColor="@color/white"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/btnStoreOptions"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="12dp"
+                android:src="@drawable/icon_options"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/white" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <RelativeLayout
+            android:id="@+id/containerControls"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_white"
+            android:elevation="4dp"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="8dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/imgHeader">
 
-            <TextView
-                android:id="@+id/categoryLabel"
+            <LinearLayout
+                android:id="@+id/searchBarContainer"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Category"
-                android:textColor="@color/white"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:layout_marginEnd="8dp" />
+                android:layout_height="42dp"
+                android:layout_toStartOf="@id/addButton"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentTop="true"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="2dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_edittext"
+                android:paddingStart="12dp"
+                android:paddingEnd="8dp"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/searchEditText"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:hint="Search item..."
+                    android:paddingStart="8dp"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textColorHint="@color/edittext_hint"
+                    android:textSize="14sp"
+                    android:minWidth="150dp" />
+
+                <ImageView
+                    android:id="@+id/btnPerformSearch"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:padding="6dp"
+                    android:src="@drawable/icon_search"
+                    app:tint="@color/presyo_teal" />
+            </LinearLayout>
 
             <Spinner
                 android:id="@+id/categorySpinner"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp" />
-        </LinearLayout>
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_alignParentTop="true" />
 
-        <!-- Product Recycler View -->
+            <LinearLayout
+                android:id="@+id/layoutPricelistTrigger"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_centerHorizontal="true"
+                android:orientation="horizontal"
+                android:paddingEnd="8dp"
+                android:paddingTop="4dp"
+                android:paddingStart="8dp">
+
+                <TextView
+                    android:id="@+id/categoryLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="8dp"
+                    android:text="PRICELIST"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/categoryDrawerButton"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:paddingTop="4dp"
+                    android:src="@drawable/icon_category_drawer"
+                    app:tint="@color/presyo_orange" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/addButton"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentTop="true"
+                android:src="@drawable/icon_add_item"
+                app:tint="@color/presyo_teal" />
+
+        </RelativeLayout>
+
+        <View
+            android:id="@+id/divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="6dp"
+            android:background="@color/light_gray"
+            app:layout_constraintTop_toBottomOf="@id/containerControls" />
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/productRecyclerView"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:clipToPadding="false"
-            android:paddingTop="8dp"
+            android:padding="8dp"
             app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/linearLayout2"
+            app:layout_constraintTop_toBottomOf="@+id/divider"
+            app:layout_constraintVertical_bias="0.0"
             app:spanCount="2" />
 
-        <!-- Category Drawer Button -->
-        <ImageView
-            android:id="@+id/categoryDrawerButton"
-            android:layout_width="24dp"
-            android:layout_height="18dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            app:layout_constraintBottom_toBottomOf="@+id/linearLayout2"
-            app:layout_constraintStart_toStartOf="@+id/notifIcon"
-            app:layout_constraintTop_toBottomOf="@+id/imgHeader"
-            android:src="@drawable/icon_category_drawer" />
-
-        <!-- Floating Search Button -->
         <ImageButton
             android:id="@+id/searchItemButton"
-            android:layout_width="100dp"
-            android:layout_height="119dp"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
             android:layout_marginEnd="24dp"
             android:layout_marginBottom="32dp"
             android:background="@android:color/transparent"
@@ -218,7 +316,6 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Navigation Drawer -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navigationView"
         android:layout_width="wrap_content"

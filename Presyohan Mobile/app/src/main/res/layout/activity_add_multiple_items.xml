@@ -99,7 +99,7 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="32dp"
             android:backgroundTint="@color/presyo_teal"
-            android:background="@drawable/rounded_button_teal"
+            android:background="@drawable/button_round_teal"
             android:elevation="8dp"
             android:text="Select Category"
             android:textColor="@android:color/white"

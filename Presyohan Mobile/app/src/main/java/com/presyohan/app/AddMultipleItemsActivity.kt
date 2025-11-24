@@ -26,6 +26,10 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.put
 import io.github.jan.supabase.postgrest.postgrest
+// Added Imports for Navigation and Drawer
+import androidx.drawerlayout.widget.DrawerLayout
+import com.google.android.material.navigation.NavigationView
+import io.github.jan.supabase.auth.auth
 
 class AddMultipleItemsActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
@@ -40,6 +44,9 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private var storeId: String? = null
     private var storeName: String? = null
     private lateinit var loadingOverlay: android.view.View
+    // Drawer variables
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var navigationView: NavigationView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -127,17 +134,102 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 btnCancel.setOnClickListener { dialog.dismiss() }
                 btnDelete.setOnClickListener {
                     dialog.dismiss()
-            saveAllItemsToSupabase()
+                    saveAllItemsToSupabase()
                 }
                 dialog.show()
             } else {
-            saveAllItemsToSupabase()
+                saveAllItemsToSupabase()
             }
         }
         val btnBack = findViewById<ImageView>(R.id.btnBack)
         btnBack.setOnClickListener {
             onBackPressed()
         }
+
+        // --- NAVIGATION DRAWER & LOGOUT LOGIC ---
+        try {
+            drawerLayout = findViewById(R.id.drawerLayout)
+            navigationView = findViewById(R.id.navigationView)
+            val menuIcon = findViewById<ImageView>(R.id.menuIcon)
+
+            if (menuIcon != null && drawerLayout != null && navigationView != null) {
+                menuIcon.setOnClickListener {
+                    drawerLayout.open()
+                }
+
+                // Header Info
+                val headerView = navigationView.getHeaderView(0)
+                val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
+                val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
+                val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
+                userEmailText.text = supaUser?.email ?: ""
+                userNameText.text = "User"
+                lifecycleScope.launch {
+                    try {
+                        val name = SupabaseAuthService.getDisplayName() ?: "User"
+                        userNameText.text = name
+                    } catch (_: Exception) { }
+                }
+
+                // Drawer Listener
+                navigationView.setNavigationItemSelectedListener { item ->
+                    when (item.itemId) {
+                        R.id.nav_stores -> {
+                            val intent = android.content.Intent(this, StoreActivity::class.java)
+                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            startActivity(intent)
+                            finish()
+                            true
+                        }
+                        R.id.nav_notifications -> {
+                            val intent = android.content.Intent(this, NotificationActivity::class.java)
+                            startActivity(intent)
+                            drawerLayout.close()
+                            true
+                        }
+                        R.id.nav_logout -> {
+                            showLogoutDialog()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore if drawer views are missing in XML layout for now
+        }
+    }
+
+    private fun showLogoutDialog() {
+        val dialog = Dialog(this)
+        val view = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
+        view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
+
+        view.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        view.findViewById<android.widget.Button>(R.id.btnDelete).apply {
+            text = "Log Out"
+            setOnClickListener {
+                lifecycleScope.launch {
+                    try {
+                        SupabaseAuthService.signOut()
+                    } catch (_: Exception) { }
+                    val intent = android.content.Intent(this@AddMultipleItemsActivity, LoginActivity::class.java)
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(intent)
+                    finish()
+                }
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
     override fun onResume() {

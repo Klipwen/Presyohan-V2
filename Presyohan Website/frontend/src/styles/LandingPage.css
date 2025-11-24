@@ -122,15 +122,23 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr 1.25fr;
-  gap: 28px;
+  grid-template-columns: 1fr 1.3fr;
+  gap: clamp(24px, 4vw, 40px);
   align-items: flex-start;
   width: 100%;
   max-width: 1200px;
-  padding: 0 12px;
+  padding: 0 clamp(12px, 2vw, 24px);
 }
-.lp-hero-left { display: flex; justify-content: flex-start; align-items: flex-start; }
-.lp-hero-right { display: flex; justify-content: flex-end; align-items: flex-start; }
+.lp-hero-left {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+.lp-hero-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
 
 /* Soft grocery background behind orange backdrop */
 .lp-hero::before {
@@ -158,82 +166,102 @@
   z-index: 1; /* keep content above backdrop */
   max-width: 800px;
   text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
-/* Outlined hero box for Get Started layout */
+/* Hero content box */
 .lp-hero-box {
   position: relative;
   z-index: 1;
-  max-width: 980px;
+  max-width: 900px;
   width: 90%;
-  margin-top: 80px;
+  margin-top: 60px;
   margin-left: auto;
-  padding: 50px 60px;
-  background: transparent;
-  border: none; /* remove white stroke */
+  padding: clamp(32px, 5vw, 56px) clamp(32px, 6vw, 64px);
+  background: #ffffff;
   border-radius: 10px 56px 10px 56px;
-  background: #ffffff; /* white background */
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12); /* subtle elevation for readability */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   box-sizing: border-box;
 }
 
 .lp-logo-box img {
-  width: 220px;
-  height: 220px;
-  margin-top: 80px;
+  width: clamp(180px, 20vw, 240px);
+  height: clamp(180px, 20vw, 240px);
+  margin-top: 60px;
   object-fit: contain;
 }
 
-.lp-eyebrow {
-  font-size: 1.2rem;
+/* Logo text container: "atong" aligned with "presyohan?" */
+.lp-logo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.lp-logo-eyebrow {
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   font-weight: 600;
-  color: #ff8c00; /* readable on white */
-  text-align: left;
-  margin-bottom: -18px;
-  text-transform: lowercase; /* Makes "atong" lowercase */
+  color: #ff8c00;
+  text-transform: lowercase;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
 }
 
 .lp-title {
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 800;
-  margin: 0 0 20px 0;
-  margin-bottom: 42px;
+  margin: 0;
   text-align: left;
+  line-height: 1.1;
 }
 .lp-title-white { color: #ff8c00; }
 .lp-title-accent { color: #00a8cc; }
 
+/* CTA Group: Subtitle and button grouped together */
+.lp-cta-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 8px;
+}
+
 .lp-subtitle {
-  font-size: clamp(1.2rem, 4vw, 1.0rem);
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
   font-weight: 600;
-  color: #00a8cc; /* readable on white */
-  margin-bottom: 8px;
-  text-align: center;
+  color: #00a8cc;
+  margin: 0;
+  text-align: left;
+  line-height: 1.3;
 }
 
 .lp-lead {
   font-size: clamp(0.95rem, 2.5vw, 1.1rem);
-  color: #555555; /* readable on white */
+  color: #555555;
   max-width: 100%;
-  margin: 0 0 32px 0;
-  margin-bottom: 80px;
+  margin: 0;
   line-height: 1.7;
   text-align: left;
 }
 
 .lp-btn-primary {
-  display: block; /* center horizontally within box */
+  display: inline-block;
   background: #00bcd4;
   color: #ffffff;
   border: none;
-  padding: 14px 166px; /* widen CTA */
+  padding: 14px 48px;
   border-radius: 30px;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(0, 188, 212, 0.4);
   transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
-  margin: 0 auto; /* center horizontally */
+  min-width: 180px;
+  text-align: center;
 }
 .lp-btn-primary:hover {
   transform: translateY(-2px);
@@ -747,27 +775,76 @@
 /* About overrides */
 .lp-about { background: #ffffff; }
 
-/* Responsive tweaks */
+/* Responsive tweaks for 100% zoom and mobile */
 @media (max-width: 640px) {
-  .lp-logo-box { width: 120px; height: 120px; }
-  .lp-btn-primary { padding: 14px 30px; font-size: 1rem; }
-  .lp-hero-box { 
-    padding: 32px 28px;
-    border-radius: 24px;
+  .lp-hero-content {
+    gap: 24px;
   }
-  .lp-scroll-arrow { width: 40px; height: 40px; bottom: 12px; }
-  .lp-eyebrow { font-size: 1rem; }
+  .lp-logo-box img {
+    width: clamp(140px, 25vw, 180px);
+    height: clamp(140px, 25vw, 180px);
+    margin-top: 40px;
+  }
+  .lp-logo-eyebrow {
+    font-size: 0.95rem;
+  }
+  .lp-btn-primary {
+    padding: 12px 36px;
+    font-size: 1rem;
+    min-width: 160px;
+    width: 100%;
+  }
+  .lp-hero-box {
+    padding: clamp(28px, 4vw, 40px) clamp(24px, 5vw, 32px);
+    border-radius: 20px 40px 20px 40px;
+    margin-top: 40px;
+  }
+  .lp-scroll-arrow {
+    width: 40px;
+    height: 40px;
+    bottom: 12px;
+  }
+  .lp-cta-group {
+    gap: 14px;
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
-  .lp-hero-grid { grid-template-columns: 1fr; gap: 20px; }
-  .lp-hero-left, .lp-hero-right { justify-content: center; }
-  .lp-hero { align-items: center; }
-  .lp-hero-box { 
+  .lp-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .lp-hero-left,
+  .lp-hero-right {
+    justify-content: center;
+  }
+  .lp-hero {
+    align-items: center;
+    padding: 40px 16px;
+  }
+  .lp-hero-box {
     max-width: 95%;
     width: 95%;
     margin: 0 auto;
-    padding: 40px 35px;
+    padding: clamp(32px, 4vw, 44px) clamp(28px, 5vw, 40px);
+  }
+  .lp-logo-text {
+    align-items: center;
+    width: 100%;
+  }
+  .lp-title {
+    text-align: center;
+  }
+  .lp-lead {
+    text-align: center;
+  }
+  .lp-cta-group {
+    align-items: center;
+    width: 100%;
+  }
+  .lp-subtitle {
+    text-align: center;
   }
 }
 

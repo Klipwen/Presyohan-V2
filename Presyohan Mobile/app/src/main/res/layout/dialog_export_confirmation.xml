@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="@drawable/rounded_bg"
+    android:background="@drawable/bg_rounded"
     android:minWidth="320dp"
     android:gravity="center_horizontal">
 
@@ -33,7 +33,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/dialog_info_background"
+        android:background="@drawable/bg_dialog_info"
         android:padding="16dp">
 
         <LinearLayout
@@ -118,7 +118,7 @@
             android:textAllCaps="false"
             android:textColor="@color/presyo_teal"
             android:textSize="15sp"
-            android:background="@drawable/dialog_button_outline"
+            android:background="@drawable/button_outline_dialog"
             android:layout_marginEnd="12dp" />
 
         <androidx.appcompat.widget.AppCompatButton
@@ -130,7 +130,7 @@
             android:textAllCaps="false"
             android:textColor="@android:color/white"
             android:textSize="15sp"
-            android:background="@drawable/rounded_button_orange" />
+            android:background="@drawable/button_round_orange" />
     </LinearLayout>
 
 </LinearLayout>

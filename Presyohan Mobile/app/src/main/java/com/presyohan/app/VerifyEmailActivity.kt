@@ -21,10 +21,8 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import io.github.jan.supabase.auth.OtpType
-import io.github.jan.supabase.auth.providers.builtin.Email
 
 // IMPORTANT: Replace this with your actual method to get the Supabase Client
 // For production, the SupabaseClient should be initialized once in your Application class
@@ -116,7 +114,7 @@ class VerifyEmailActivity : AppCompatActivity() {
                     setMargins(pxMargin, 0, pxMargin, 0)
                 }
                 // NOTE: otp_input_background must be created in your drawable folder
-                setBackgroundResource(R.drawable.otp_input_background) 
+                setBackgroundResource(R.drawable.bg_code)
                 gravity = Gravity.CENTER
                 inputType = InputType.TYPE_CLASS_NUMBER
                 filters = arrayOf(InputFilter.LengthFilter(1))

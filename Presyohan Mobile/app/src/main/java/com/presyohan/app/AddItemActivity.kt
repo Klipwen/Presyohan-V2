@@ -15,6 +15,8 @@ import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.widget.TextView
 import android.widget.ImageView
+import android.view.MotionEvent
+import android.widget.AdapterView
 
 class AddItemActivity : AppCompatActivity() {
     private var storeId: String? = null
@@ -30,6 +32,7 @@ class AddItemActivity : AppCompatActivity() {
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName") ?: "Store name"
 
+        // Helper function to show the dialog
         fun showAddCategoryDialog(onCategoryAdded: (String, String) -> Unit) {
             val dialog = android.app.Dialog(this)
             val view = layoutInflater.inflate(R.layout.dialog_add_category, null)
@@ -77,7 +80,7 @@ class AddItemActivity : AppCompatActivity() {
         val spinner = findViewById<android.widget.Spinner>(R.id.spinnerItemCategory)
         val priceEditText = findViewById<android.widget.EditText>(R.id.inputItemPrice)
         val priceDisplay = findViewById<TextView>(R.id.priceDisplay)
-        priceDisplay.visibility = View.GONE // Hide by default
+        priceDisplay.visibility = View.GONE
         priceDisplay.textSize = 18f
         priceDisplay.setTextColor(resources.getColor(R.color.presyo_orange, null))
 
@@ -111,41 +114,40 @@ class AddItemActivity : AppCompatActivity() {
             }
         }
 
-        // Show dialog on touch if only 'Add Category' exists
+        // --- FIXED SPINNER LOGIC START ---
+
+        // 1. Handle touch: If list is empty (only "Add Category"), open dialog immediately without dropdown.
+        // We check ACTION_UP to ensure it only fires once (fixes double dialog).
         spinner.setOnTouchListener { v, event ->
-            if (categories.size == 1) {
+            if (event.action == MotionEvent.ACTION_UP && categories.size == 1) {
                 showAddCategoryDialog { newCategory, newCategoryId ->
                     categories.add(newCategory)
                     categoryIdByName[newCategory] = newCategoryId
                     adapter.notifyDataSetChanged()
                     spinner.setSelection(categories.indexOf(newCategory))
                 }
-                true // consume the touch event
+                v.performClick()
+                true // Consume event
             } else {
-                false
+                false // Allow dropdown to open
             }
         }
 
-        var isSpinnerInitialized = false
-        spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
-                if (!isSpinnerInitialized) {
-                    isSpinnerInitialized = true
-                    return
-                }
-                if (position == 0 && categories.size > 1) { // Only show dialog if there are other categories
+        // 2. Handle selection: If list has items, wait for user to select "Add Category" (Index 0).
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (position == 0 && categories.size > 1) {
                     showAddCategoryDialog { newCategory, newCategoryId ->
                         categories.add(newCategory)
                         categoryIdByName[newCategory] = newCategoryId
                         adapter.notifyDataSetChanged()
                         spinner.setSelection(categories.indexOf(newCategory))
                     }
-                    // Reset selection to previous valid category if needed
-                    spinner.setSelection(1)
                 }
             }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+            override fun onNothingSelected(parent: AdapterView<*>) {}
         }
+        // --- FIXED SPINNER LOGIC END ---
 
         // Back button logic
         findViewById<ImageView>(R.id.btnBack).setOnClickListener {
@@ -183,8 +185,8 @@ class AddItemActivity : AppCompatActivity() {
             }
 
             val price = priceText.toDoubleOrNull() ?: 0.0
-                    val storeId = this@AddItemActivity.storeId ?: return@setOnClickListener
-                    val storeName = this@AddItemActivity.storeName ?: "Store"
+            val storeId = this@AddItemActivity.storeId ?: return@setOnClickListener
+            val storeName = this@AddItemActivity.storeName ?: "Store"
 
             val categoryId = categoryIdByName[category]
             if (categoryId.isNullOrBlank()) {
@@ -226,7 +228,6 @@ class AddItemActivity : AppCompatActivity() {
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         storeNameText.text = storeName
         if (storeId != null) {
-            // Make a stable local copy to avoid smart-cast issues inside lambdas/coroutines
             val sid: String = storeId!!
             LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
@@ -238,7 +239,6 @@ class AddItemActivity : AppCompatActivity() {
                     val branch = rows.firstOrNull()?.branch ?: ""
                     storeBranchText.text = branch
                 } catch (_: Exception) {
-                    // Fallback to blank if fetch fails
                     storeBranchText.text = ""
                 }
                 LoadingOverlayHelper.hide(loadingOverlay)
@@ -253,7 +253,6 @@ class AddItemActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Set real store name
         storeNameText.text = storeName
 
         // Navigation menu icon functionality
@@ -282,6 +281,61 @@ class AddItemActivity : AppCompatActivity() {
                 userNameText.text = name
             } catch (_: Exception) { /* noop */ }
         }
+
+        navigationView.setNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_stores -> {
+                    val intent = android.content.Intent(this, StoreActivity::class.java)
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(intent)
+                    finish()
+                    true
+                }
+                R.id.nav_notifications -> {
+                    val intent = android.content.Intent(this, NotificationActivity::class.java)
+                    startActivity(intent)
+                    drawerLayout.close()
+                    true
+                }
+                R.id.nav_logout -> {
+                    showLogoutDialog()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun showLogoutDialog() {
+        val dialog = android.app.Dialog(this)
+        val view = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
+        view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
+
+        view.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        view.findViewById<android.widget.Button>(R.id.btnDelete).apply {
+            text = "Log Out"
+            setOnClickListener {
+                lifecycleScope.launch {
+                    try {
+                        SupabaseAuthService.signOut()
+                    } catch (_: Exception) { }
+                    val intent = android.content.Intent(this@AddItemActivity, LoginActivity::class.java)
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(intent)
+                    finish()
+                }
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
     override fun onResume() {
@@ -293,35 +347,8 @@ class AddItemActivity : AppCompatActivity() {
     data class MinimalCategoryRow(val id: String, val store_id: String, val name: String)
     @kotlinx.serialization.Serializable
     data class MinimalProductRow(val id: String, val store_id: String, val category_id: String)
-
-    // Top-level serializers for RPC decoding
     @kotlinx.serialization.Serializable
     data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
-
     @kotlinx.serialization.Serializable
     data class StoreBranchRow(val branch: String?)
-
-    private fun deleteCategoryIfEmpty(storeId: String, categoryName: String) {
-        lifecycleScope.launch {
-            try {
-                val supabase = SupabaseProvider.client
-                // Find category id by name
-                val cats = supabase.postgrest["categories"].select {
-                    filter { eq("store_id", storeId); eq("name", categoryName) }
-                    limit(1)
-                }.decodeList<MinimalCategoryRow>()
-                val catId = cats.firstOrNull()?.id ?: return@launch
-                // Check if any products exist for this category
-                val prods = supabase.postgrest["products"].select {
-                    filter { eq("store_id", storeId); eq("category_id", catId) }
-                    limit(1)
-                }.decodeList<MinimalProductRow>()
-                if (prods.isEmpty()) {
-                    supabase.postgrest["categories"].delete {
-                        filter { eq("id", catId); eq("store_id", storeId) }
-                    }
-                }
-            } catch (_: Exception) { /* noop */ }
-        }
-    }
 }

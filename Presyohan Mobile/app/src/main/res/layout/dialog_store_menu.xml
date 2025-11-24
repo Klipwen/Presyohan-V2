@@ -1,93 +1,213 @@
-<!-- res/layout/dialog_store_menu.xml -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal"
-    android:padding="20dp"
-    android:layout_width="wrap_content"
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:gravity="center"
-    android:background="@drawable/rounded_bg"
-    android:elevation="8dp">
+    app:cardCornerRadius="24dp"
+    app:cardElevation="8dp"
+    android:backgroundTint="@android:color/white">
 
-    <!-- Settings -->
-    <LinearLayout
-        android:id="@+id/layoutSettings"
-        android:orientation="vertical"
-        android:layout_width="wrap_content"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:gravity="center"
-        android:layout_gravity="center">
+        android:paddingVertical="20dp"
+        android:paddingHorizontal="24dp">
 
+        <!-- Header Section -->
+        <TextView
+            android:id="@+id/menuStoreName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Store Name"
+            android:textColor="@color/presyo_orange"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btnLeaveDelete" />
+
+        <TextView
+            android:id="@+id/menuBranchName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="| Branch name"
+            android:textColor="@color/presyo_teal"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/menuStoreName"
+            app:layout_constraintEnd_toStartOf="@+id/btnLeaveDelete" />
+
+        <!-- Top Right Action Icon (Leave/Delete) -->
         <ImageView
+            android:id="@+id/btnLeaveDelete"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/icon_leave_store"
+            app:tint="@color/presyo_teal"
+            android:contentDescription="Leave Store"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="@+id/menuBranchName" />
+
+        <!-- Divider -->
+        <View
+            android:id="@+id/divider"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:background="#D9D9D9"
+            android:layout_marginTop="16dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/menuBranchName" />
+
+        <!-- Buttons Grid -->
+        <LinearLayout
+            android:id="@+id/gridButtons"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/divider">
+
+            <!-- Copy Prices -->
+            <LinearLayout
+                android:id="@+id/btnCopyPrices"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_copy_prices"
+                    app:tint="@color/presyo_orange" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Copy Prices"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="12sp"
+                    android:textAlignment="center"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- Invite -->
+            <LinearLayout
+                android:id="@+id/btnInviteStaff"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_invite_staff"
+                    app:tint="@color/presyo_orange" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Invite"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="12sp"
+                    android:textAlignment="center"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- Export -->
+            <LinearLayout
+                android:id="@+id/btnExportPrices"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_convert"
+                    app:tint="@color/presyo_orange" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Export"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="12sp"
+                    android:textAlignment="center"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- Import -->
+            <LinearLayout
+                android:id="@+id/btnImportPrices"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_import_prices"
+                    app:tint="@color/presyo_orange" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Import"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="12sp"
+                    android:textAlignment="center"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- More Settings -->
+        <TextView
             android:id="@+id/btnSettings"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/icon_settings"
-            android:contentDescription="Settings"
-            android:tint="@color/presyo_orange" />
-
-        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Settings"
-            android:textSize="14sp"
-            android:layout_marginTop="8dp"
+            android:text="More Settings"
             android:textColor="@color/presyo_orange"
-            android:gravity="center" />
-    </LinearLayout>
-
-    <!-- Invite Staff -->
-    <LinearLayout
-        android:id="@+id/layoutInviteStaff"
-        android:orientation="vertical"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:gravity="center"
-        android:layout_gravity="center">
-
-        <ImageView
-            android:id="@+id/btnInviteStaff"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/icon_invite_staff"
-            android:contentDescription="Invite Staff" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Invite Staff"
+            android:textStyle="bold"
             android:textSize="14sp"
-            android:layout_marginTop="8dp"
-            android:textColor="@color/presyo_orange"
-            android:gravity="center" />
-    </LinearLayout>
+            android:layout_marginTop="16dp"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/gridButtons" />
 
-    <!-- Leave -->
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:gravity="center"
-        android:layout_gravity="center">
-
-        <ImageView
-            android:id="@+id/btnDelete"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/icon_logout"
-            android:contentDescription="Leave" />
-
-        <TextView
-            android:id="@+id/labelDelete"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center"
-            android:text="Leave"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="14sp" />
-    </LinearLayout>
-
-</LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>

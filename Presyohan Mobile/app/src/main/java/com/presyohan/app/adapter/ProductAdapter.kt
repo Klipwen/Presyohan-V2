@@ -31,7 +31,6 @@ class ProductAdapter(
         val description: TextView = itemView.findViewById(R.id.textProductDescription)
         val price: TextView = itemView.findViewById(R.id.textProductPrice)
         val volume: TextView = itemView.findViewById(R.id.textProductVolume)
-        val options: ImageView = itemView.findViewById(R.id.buttonProductOptions)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductViewHolder {
@@ -45,13 +44,6 @@ class ProductAdapter(
         holder.description.text = product.description
         holder.price.text = "₱%.2f".format(product.price)
         holder.volume.text = product.volume
-        // Hide options if userRole is 'sales staff'
-        if (userRole == "sales staff") {
-            holder.options.visibility = View.GONE
-        } else {
-            holder.options.visibility = View.VISIBLE
-            holder.options.setOnClickListener { onOptionsClick(product, holder.options) }
-        }
         holder.itemView.setOnLongClickListener {
             onLongPress(product, holder.itemView)
             true

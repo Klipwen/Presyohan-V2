@@ -11,7 +11,7 @@
         android:id="@+id/headerBar"
         android:layout_width="0dp"
         android:layout_height="56dp"
-        android:background="@drawable/rounded_header_yellow"
+        android:background="@drawable/bg_header_yellow"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
@@ -67,7 +67,7 @@
                 android:textColor="@color/white"
                 android:textStyle="bold"
                 android:gravity="center"
-                android:background="@drawable/rounded_button_orange" />
+                android:background="@drawable/button_round_orange" />
 
             <TextView
                 android:id="@+id/stepLabel1"
@@ -96,7 +96,7 @@
                 android:textColor="@color/white"
                 android:textStyle="bold"
                 android:gravity="center"
-                android:background="@drawable/rounded_button" />
+                android:background="@drawable/button_round" />
 
             <TextView
                 android:id="@+id/stepLabel2"
@@ -125,7 +125,7 @@
                 android:textColor="@color/white"
                 android:textStyle="bold"
                 android:gravity="center"
-                android:background="@drawable/rounded_button" />
+                android:background="@drawable/button_round" />
 
             <TextView
                 android:id="@+id/stepLabel3"
@@ -173,7 +173,7 @@
                         android:layout_height="40dp"
                         android:layout_weight="1"
                         android:hint="Search products"
-                        android:background="@drawable/edittext_background"
+                        android:background="@drawable/bg_edittext"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
                         android:layout_marginEnd="8dp" />
@@ -195,7 +195,7 @@
                     android:id="@+id/productsRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="400dp"
-                    android:background="@drawable/rounded_bg_store_employee"
+                    android:background="@drawable/bg_store_employee"
                     android:padding="8dp" />
 
                 <TextView
@@ -223,7 +223,6 @@
                     android:textColor="@color/presyo_darkblue"
                     android:textSize="14sp"
                     android:padding="8dp"
-                    android:background="@drawable/rounded_bg_store_employee"
                     android:layout_marginBottom="12dp" />
 
                 <EditText
@@ -236,7 +235,7 @@
                     android:textSize="20sp"
                     android:letterSpacing="0.1"
                     android:gravity="center"
-                    android:background="@drawable/edittext_background"
+                    android:background="@drawable/bg_edittext"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginBottom="12dp" />
 
@@ -247,7 +246,7 @@
                     android:text=""
                     android:textSize="12sp"
                     android:padding="8dp"
-                    android:background="@drawable/rounded_bg_store_employee"
+                    android:background="@drawable/bg_store_employee"
                     android:visibility="gone"
                     android:layout_marginBottom="8dp" />
             </LinearLayout>
@@ -268,14 +267,14 @@
                     android:textColor="@color/presyo_darkblue"
                     android:textSize="12sp"
                     android:padding="8dp"
-                    android:background="@drawable/rounded_bg_store_employee"
+                    android:background="@drawable/bg_store_employee"
                     android:layout_marginBottom="12dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/reviewRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="400dp"
-                    android:background="@drawable/rounded_bg_store_employee"
+                    android:background="@drawable/bg_store_employee"
                     android:padding="8dp" />
             </LinearLayout>
 
@@ -300,7 +299,7 @@
             android:layout_height="48dp"
             android:layout_weight="1"
             android:text="Back"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_teal"
             android:textColor="@android:color/white"
             android:textStyle="bold"
@@ -315,7 +314,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:text="Next"
-            android:background="@drawable/rounded_button_orange"
+            android:background="@drawable/button_round_orange"
             android:backgroundTint="@color/presyo_orange"
             android:textColor="@android:color/white"
             android:textStyle="bold"
@@ -328,7 +327,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:text="Confirm &amp; Copy"
-            android:background="@drawable/rounded_button_orange"
+            android:background="@drawable/button_round_orange"
             android:backgroundTint="@color/presyo_orange"
             android:textColor="@android:color/white"
             android:textStyle="bold"

@@ -50,6 +50,10 @@ class CreateStoreActivity : AppCompatActivity() {
                     drawerLayout.closeDrawer(android.view.Gravity.START)
                     true
                 }
+                R.id.nav_logout -> {
+                    showLogoutDialog()
+                    true
+                }
                 // Handle other menu items if needed
                 else -> false
             }
@@ -171,17 +175,17 @@ class CreateStoreActivity : AppCompatActivity() {
                 try {
                     android.util.Log.d("CreateStore", "Starting store creation with name: $name, branch: $branch, type: $type")
                     android.util.Log.d("CreateStore", "User ID: $uid")
-                    
+
                     val payload = buildJsonObject {
                         put("p_name", name)
                         put("p_branch", branch)
                         put("p_type", type)
                     }
-                    
+
                     android.util.Log.d("CreateStore", "Calling create_store RPC with payload: $payload")
                     val result = client.postgrest.rpc("create_store", payload)
                     android.util.Log.d("CreateStore", "RPC call successful, result: $result")
-                    
+
                     // The RPC returns the new store id (UUID). StoreActivity fetches memberships.
                     Toast.makeText(this@CreateStoreActivity, "Store created successfully.", Toast.LENGTH_SHORT).show()
                     setResult(RESULT_OK)
@@ -194,5 +198,37 @@ class CreateStoreActivity : AppCompatActivity() {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
+    }
+
+    private fun showLogoutDialog() {
+        val dialog = android.app.Dialog(this)
+        val view = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
+        view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
+
+        view.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        view.findViewById<android.widget.Button>(R.id.btnDelete).apply {
+            text = "Log Out"
+            setOnClickListener {
+                lifecycleScope.launch {
+                    try {
+                        SupabaseAuthService.signOut()
+                    } catch (_: Exception) { }
+                    val intent = Intent(this@CreateStoreActivity, LoginActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(intent)
+                    finish()
+                }
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 }

@@ -29,6 +29,7 @@ class StoreAdapter(
         val branch: TextView = itemView.findViewById(R.id.textStoreBranch)
         val type: TextView = itemView.findViewById(R.id.textStoreType)
         val menu: ImageView = itemView.findViewById(R.id.buttonOptions)
+        val roleIndicator: androidx.cardview.widget.CardView = itemView.findViewById(R.id.viewRoleIndicator)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -38,8 +39,7 @@ class StoreAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StoreViewHolder {
-        val layoutId = if (viewType == 1) R.layout.item_store_employee else R.layout.item_store
-        val view = LayoutInflater.from(parent.context).inflate(layoutId, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_store, parent, false)
         return StoreViewHolder(view)
     }
 
@@ -55,7 +55,10 @@ class StoreAdapter(
             onMenuClick(store, holder.menu)
             true
         }
-        // Remove background setting from onBindViewHolder, as it's now handled by layout
+        val role = storeRoles[store.id]
+        val ctx = holder.itemView.context
+        val color = if (role == "owner") ctx.getColor(R.color.presyo_yellow) else android.graphics.Color.parseColor("#D9D9D9")
+        holder.roleIndicator.setCardBackgroundColor(color)
     }
 
     override fun getItemCount(): Int = stores.size
