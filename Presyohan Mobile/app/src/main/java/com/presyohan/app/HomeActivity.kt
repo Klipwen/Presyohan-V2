@@ -195,7 +195,6 @@ class HomeActivity : AppCompatActivity() {
         val menuIcon = findViewById<ImageView>(R.id.menuIcon)
         val btnBack = findViewById<ImageView>(R.id.btnBack)
         val storeText = findViewById<TextView>(R.id.textStoreName)
-        val storeBranchText = findViewById<TextView>(R.id.textBranchName)
         val productRecyclerView = findViewById<RecyclerView>(R.id.productRecyclerView)
         val categoryLabel = findViewById<TextView>(R.id.categoryLabel)
         val categorySpinner = findViewById<Spinner>(R.id.categorySpinner)
@@ -258,12 +257,6 @@ class HomeActivity : AppCompatActivity() {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
             finish()
-        }
-
-        if (currentStoreId != null) {
-            loadStoreDetails(currentStoreId!!, currentStoreName, storeText, storeBranchText)
-        } else {
-            storeBranchText.text = ""
         }
 
         // --- Product List & Role Logic ---
@@ -427,6 +420,7 @@ class HomeActivity : AppCompatActivity() {
             productRecyclerView.layoutManager = GridLayoutManager(this, 2)
             loadProductsFromSupabase(true)
         }
+        categoryLabel.setOnClickListener { categorySpinner.performClick() }
 
         // --- Actions ---
         addButton.setOnClickListener {

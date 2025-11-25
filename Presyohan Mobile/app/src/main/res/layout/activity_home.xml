@@ -142,28 +142,17 @@
 
                 <TextView
                     android:id="@+id/textStoreName"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:text="Store"
                     android:textColor="@color/white"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingHorizontal="4dp"
-                    android:text=" | "
-                    android:textColor="@color/white"
-                    android:textSize="16sp" />
 
-                <TextView
-                    android:id="@+id/textBranchName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Branch name"
-                    android:textColor="@color/white"
-                    android:textSize="14sp" />
             </LinearLayout>
 
             <ImageView

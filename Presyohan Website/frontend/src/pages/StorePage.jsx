@@ -168,24 +168,22 @@ export default function StorePage() {
   }, [currentRole]);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#f5f5f5', fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden' }}>
       <StoreHeader stores={stores} includeAllStoresLink={true} />
-      {/* Store Header Banner */}
       <StoreBanner storeName={storeName} storeBranch={storeBranch} onOptionsClick={() => setOptionsOpen(true)} />
 
-      {/* Search Bar */}
-      <StoreSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f5f5f5' }}>
+        <StoreSearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      </div>
 
-      {/* Main Content Layout */}
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 180px)' }}>
-        {/* Categories Sidebar */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <CategorySidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />
 
-        {/* Products Grid */}
-        <ProductsGrid 
-          products={products} 
-          categories={categories}
-          onEditItem={async (updatedItem) => {
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <ProductsGrid 
+            products={products} 
+            categories={categories}
+            onEditItem={async (updatedItem) => {
             if (!storeId) return;
             try {
               // Find category ID if category is provided
@@ -254,7 +252,7 @@ export default function StorePage() {
               alert(e.message || 'Failed to update item');
             }
           }}
-          onDeleteItem={async (itemId) => {
+            onDeleteItem={async (itemId) => {
             if (!storeId) return;
             try {
               const catName = products.find(p => p.id === itemId)?.category;
@@ -294,7 +292,7 @@ export default function StorePage() {
               alert(e.message || 'Failed to delete item');
             }
           }}
-          onAddCategory={async (newName) => {
+            onAddCategory={async (newName) => {
             if (!storeId) return;
             try {
               const upper = newName.trim().toUpperCase();
@@ -311,8 +309,9 @@ export default function StorePage() {
             } catch (e) {
               alert(e.message || 'Unexpected error adding category');
             }
-          }}
-        />
+            }}
+          />
+        </div>
       </div>
 
       {/* Floating Action Button (hidden for sales staff) */}

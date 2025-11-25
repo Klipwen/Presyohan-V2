@@ -183,13 +183,61 @@ class CreateStoreActivity : AppCompatActivity() {
                     }
 
                     android.util.Log.d("CreateStore", "Calling create_store RPC with payload: $payload")
-                    val result = client.postgrest.rpc("create_store", payload)
-                    android.util.Log.d("CreateStore", "RPC call successful, result: $result")
+                    client.postgrest.rpc("create_store", payload)
+                    android.util.Log.d("CreateStore", "RPC call successful")
 
-                    // The RPC returns the new store id (UUID). StoreActivity fetches memberships.
-                    Toast.makeText(this@CreateStoreActivity, "Store created successfully.", Toast.LENGTH_SHORT).show()
-                    setResult(RESULT_OK)
-                    finish()
+                    // Resolve newly created store id by querying accessible stores
+                    // Prefer role=owner and matching name/branch; fallback to newest store by name/branch
+                    @kotlinx.serialization.Serializable
+                    data class UserStoreRow(
+                        val store_id: String,
+                        val name: String,
+                        val branch: String? = null,
+                        val type: String? = null,
+                        val role: String
+                    )
+                    @kotlinx.serialization.Serializable
+                    data class StoreRow(val id: String, val name: String, val branch: String? = null)
+
+                    var newStoreId: String? = null
+                    try {
+                        val rows = client.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
+                        newStoreId = rows.firstOrNull {
+                            it.role == "owner" &&
+                            it.name.equals(name, ignoreCase = true) &&
+                            ((it.branch ?: "").equals(branch, ignoreCase = true))
+                        }?.store_id
+                    } catch (_: Exception) { /* fallback below */ }
+
+                    if (newStoreId.isNullOrBlank()) {
+                        try {
+                            val stores = client.postgrest["stores"].select {
+                                filter {
+                                    eq("name", name)
+                                    if (branch.isNotEmpty()) eq("branch", branch)
+                                }
+                                order("created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                                limit(1)
+                            }.decodeList<StoreRow>()
+                            newStoreId = stores.firstOrNull()?.id
+                        } catch (_: Exception) { }
+                    }
+
+                    if (!newStoreId.isNullOrBlank()) {
+                        Toast.makeText(this@CreateStoreActivity, "Store created successfully.", Toast.LENGTH_SHORT).show()
+                        val goHome = Intent(this@CreateStoreActivity, HomeActivity::class.java)
+                        goHome.putExtra("storeId", newStoreId)
+                        goHome.putExtra("storeName", name)
+                        // Clear back stack so user lands in new store cleanly
+                        goHome.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        startActivity(goHome)
+                        finish()
+                    } else {
+                        // Fallback: complete without redirect if id couldn’t be resolved
+                        Toast.makeText(this@CreateStoreActivity, "Store created. Opening stores list...", Toast.LENGTH_SHORT).show()
+                        setResult(Activity.RESULT_OK)
+                        finish()
+                    }
                 } catch (e: Exception) {
                     android.util.Log.e("CreateStore", "Store creation failed", e)
                     // Professional, user-friendly fallback message without debug details
