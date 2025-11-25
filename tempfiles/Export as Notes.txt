@@ -1,0 +1,182 @@
+# Presyohan: Export to Google Keep — Project Plan (Web Version)
+
+## 1. Project Purpose / Business Justification
+
+The **Export to Google Keep** feature allows users to quickly turn the store's pricelist into a clean, readable text note that can be saved directly to Google Keep through copy/share actions. This makes price referencing extremely accessible for staff and store owners, especially on mobile.
+
+This aligns with Presyohan’s mission to provide:
+
+* A centralized and easy-to-access pricing reference.
+* Fast sharing capabilities for teams.
+* Cross-device compatibility without complex integrations.
+
+This approach is chosen because:
+
+* Google Keep does *not* support direct API integration.
+* Exporting formatted text and letting users save it to Keep is the most practical, reliable, and professional solution for a web app.
+
+---
+
+## 2. Objectives
+
+1. Provide a button that exports the pricelist as a well-formatted text note.
+2. Present a **Preview Modal** showing the final note layout.
+3. Implement a **Copy to Clipboard** feature for desktop and mobile.
+4. Use the **Web Share API** on supported browsers (Android Chrome).
+5. Provide fallback instructions for browsers where sharing is not supported.
+6. Maintain a clear, readable structure in the exported text.
+
+---
+
+## 3. Scope
+
+### 3.1 In-Scope
+
+* "Export as Note" button in the Pricelist tools.
+* Preview modal containing:
+
+  * Formatted text note
+  * Copy to Clipboard button
+  * Share button (when supported)
+* Text formatting rules:
+
+  * Group by category
+  * Clean bullet formatting
+  * Simplified spacing and alignment
+* Optional backend endpoint to generate note text.
+* Mobile-first experience.
+
+### 3.2 Out-of-Scope
+
+* Direct integration with Google Keep API (does not exist).
+* Automatic saving into Google Keep.
+* Rich formatting (Keep only supports minimal formatting).
+* Export to PDF/Word (separate feature).
+
+---
+
+## 4. Deliverables
+
+### 4.1 UI/UX Deliverables
+
+**1. Export Button (Pricelist Tools)**
+
+* Positioned beside existing Copy Prices and Convert to Excel.
+* Text: "Export to Google Keep" or short version: "Export Note".
+
+**2. Export Preview Modal** (2 Steps)
+
+#### Step 1 — Preview
+
+* Shows formatted text inside a scrollable area.
+* Shows category headers and bullet list items.
+* Shows estimated character count.
+
+#### Actions:
+
+* **Copy Note** (primary)
+* **Share** (only visible on supported browsers)
+* **Close**
+
+#### Step 2 — Sharing Guide (fallback)
+
+* Appears when Share API is unavailable.
+* Simple instructions:
+
+  1. Copy the note.
+  2. Open Google Keep.
+  3. Paste and save.
+
+---
+
+### 4.2 Functional Deliverables
+
+**1. Text Formatter**
+
+* Builds the structured text:
+
+```
+[Category]
+• Item Name — ₱Price
+• Item Name — ₱Price
+
+[Another Category]
+• Item Name — ₱Price
+```
+
+**2. Clipboard API Integration**
+
+* Modern, async clipboard copy.
+* Shows success toast.
+
+**3. Web Share API (mobile only)**
+
+* Shares text data.
+* If unsupported → fallback instructions.
+
+**4. Fallback Guide**
+
+* Desktop: copy text → open Google Keep → paste.
+* Safari iOS: copy text → open Keep → paste.
+
+---
+
+### 4.3 Backend (Optional)
+
+**Endpoint:** `GET /api/store/{id}/export-note`
+
+Returns preformatted text.
+
+Alternatively: Frontend can build formatting directly from fetched JSON.
+
+---
+
+## 5. Professional Workflow (Step-by-Step)
+
+### Step 1 — User Clicks Export
+
+1. User opens Pricelist.
+2. Clicks **Export to Google Keep**.
+3. App fetches product data or calls export endpoint.
+
+### Step 2 — Generate Note
+
+1. Text formatter groups items by category.
+2. Formatter builds bullet lists.
+3. Modal shows a clean preview.
+
+### Step 3 — User Copies or Shares
+
+1. **If Web Share API supported:**
+
+   * User taps **Share**, selects Google Keep.
+2. **If unsupported:**
+
+   * User taps **Copy Note**, then manually pastes into Keep.
+
+### Step 4 — Completion
+
+* Show toast: "Note copied to clipboard!"
+* User pastes into Google Keep.
+
+---
+
+## 6. UX Guidelines & Best Practices
+
+* Use monochrome formatting (no emojis unless user adds manually).
+* Keep bullets simple to ensure compatibility across devices.
+* Use short category headers.
+* Limit text width to maximize readability.
+* Provide success feedback for copy/share actions.
+
+---
+
+## 7. Final Recommendations
+
+* Keep the export text layout identical across web and mobile.
+* Offer one-click **Copy** as default.
+* Use Web Share API to maximize convenience for Android users.
+* Make preview modal responsive and scrollable.
+* Always show fallback guide.
+
+This feature makes sharing prices simple, universal, and highly accessible for all staff—supporting Presyohan’s goal of fast, centralized pricing management.
