@@ -1,6 +1,8 @@
 package com.presyohan.app
 
 import android.app.Dialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -8,7 +10,9 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.widget.*
+import android.widget.RadioGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatButton
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -45,6 +49,10 @@ import java.io.FileOutputStream
 import androidx.appcompat.app.AlertDialog
 import android.graphics.drawable.ColorDrawable
 import android.graphics.Color
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private val db = FirebaseFirestore.getInstance()
@@ -120,6 +128,11 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val units: String? = null,
         val price: Double? = null
     )
+
+    private enum class ExportType {
+        EXCEL,
+        NOTES
+    }
 
     // Data class for RPC response to ensure we get all members correctly (Owner check)
     @Serializable
@@ -608,11 +621,46 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val rowsLabelView = dialogView.findViewById<TextView>(R.id.rowsLabel)
         val scopeValueView = dialogView.findViewById<TextView>(R.id.scopeValue)
         val subtitleView = dialogView.findViewById<TextView>(R.id.exportSubtitle)
+        val exportDetailsCard = dialogView.findViewById<View>(R.id.exportDetailsCard)
+        val exportTypeGroup = dialogView.findViewById<RadioGroup>(R.id.exportTypeGroup)
+        val notePreviewContainer = dialogView.findViewById<View>(R.id.notePreviewContainer)
+        val notePreviewText = dialogView.findViewById<TextView>(R.id.notePreviewText)
+        val noteMetaText = dialogView.findViewById<TextView>(R.id.noteMetaText)
+        val btnCopyNote = dialogView.findViewById<AppCompatButton>(R.id.btnCopyNote)
+        val btnConfirmExport = dialogView.findViewById<AppCompatButton>(R.id.btnConfirmExport)
 
         rowsCountView.text = rows.size.toString()
         rowsLabelView.text = if (rows.size == 1) "Row to export" else "Rows to export"
         scopeValueView.text = "All products"
-        subtitleView.text = "Generate a professionally formatted Excel file of your store products."
+        subtitleView.text = "Generate a professionally formatted Excel file or a sharable note."
+
+        val noteText = buildNoteText(rows, storeName, branch)
+        notePreviewText.text = if (noteText.isNotBlank()) noteText else "No products available. Add items to generate a note."
+        noteMetaText.text = "${rows.size} items • ${noteText.length} characters"
+        btnCopyNote.isEnabled = noteText.isNotBlank()
+        btnCopyNote.setOnClickListener {
+            if (noteText.isNotBlank()) {
+                copyNoteToClipboard(noteText)
+            } else {
+                Toast.makeText(this, "Nothing to copy.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        var selectedExportType = ExportType.EXCEL
+        fun refreshExportTypeUi() {
+            val isExcel = selectedExportType == ExportType.EXCEL
+            exportDetailsCard.visibility = if (isExcel) View.VISIBLE else View.GONE
+            notePreviewContainer.visibility = if (isExcel) View.GONE else View.VISIBLE
+            btnConfirmExport.text = if (isExcel) "Export Excel" else "Share Note"
+            btnConfirmExport.isEnabled = if (isExcel) true else noteText.isNotBlank()
+        }
+
+        exportTypeGroup.setOnCheckedChangeListener { _, checkedId ->
+            selectedExportType = if (checkedId == R.id.rbExportNotes) ExportType.NOTES else ExportType.EXCEL
+            refreshExportTypeUi()
+        }
+        exportTypeGroup.check(R.id.rbExportExcel)
+        refreshExportTypeUi()
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
@@ -623,15 +671,22 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             dialog.dismiss()
         }
 
-        dialogView.findViewById<View>(R.id.btnConfirmExport).setOnClickListener {
-            dialog.dismiss()
-            lifecycleScope.launch {
-                LoadingOverlayHelper.show(loadingOverlay)
-                try {
-                    // Fix: Pass storeName and branch to export function
-                    performPricelistExport(rows, storeName, branch)
-                } finally {
-                    LoadingOverlayHelper.hide(loadingOverlay)
+        btnConfirmExport.setOnClickListener {
+            if (selectedExportType == ExportType.EXCEL) {
+                dialog.dismiss()
+                lifecycleScope.launch {
+                    LoadingOverlayHelper.show(loadingOverlay)
+                    try {
+                        performPricelistExport(rows, storeName, branch)
+                    } finally {
+                        LoadingOverlayHelper.hide(loadingOverlay)
+                    }
+                }
+            } else {
+                if (noteText.isBlank()) {
+                    Toast.makeText(this, "No products available for notes.", Toast.LENGTH_SHORT).show()
+                } else {
+                    shareNoteText(noteText)
                 }
             }
         }
@@ -718,6 +773,75 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             Toast.makeText(this, "Failed to export: ${e.message}", Toast.LENGTH_LONG).show()
         } finally {
             try { output.close() } catch (_: Exception) {}
+        }
+    }
+
+    private fun buildNoteText(rows: List<StoreProductExportRow>, storeName: String?, branchName: String?): String {
+        if (rows.isEmpty()) return ""
+        val priceFormat = NumberFormat.getNumberInstance(Locale("en", "PH")).apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }
+        val grouped = rows.groupBy { row ->
+            val cat = row.category?.trim()
+            if (cat.isNullOrBlank()) "General" else cat
+        }
+        val sortedCategories = grouped.keys.sortedWith(compareBy<String> { it.lowercase(Locale.getDefault()) }.thenBy { it })
+        val dateFormatter = SimpleDateFormat("MM/dd/yyyy", Locale.US)
+        val lines = mutableListOf<String>()
+        lines.add("PRICELIST:")
+        val cleanStore = storeName?.trim().orEmpty()
+        val cleanBranch = branchName?.trim().orEmpty()
+        val storeLine = when {
+            cleanStore.isNotEmpty() && cleanBranch.isNotEmpty() -> "$cleanStore — $cleanBranch"
+            cleanStore.isNotEmpty() -> cleanStore
+            cleanBranch.isNotEmpty() -> cleanBranch
+            else -> ""
+        }
+        if (storeLine.isNotBlank()) lines.add(storeLine)
+        lines.add(dateFormatter.format(Date()))
+        lines.add("")
+
+        sortedCategories.forEachIndexed { index, category ->
+            lines.add("[$category]")
+            grouped[category].orEmpty()
+                .sortedWith(compareBy<StoreProductExportRow> { (it.name ?: "").lowercase(Locale.getDefault()) })
+                .forEach { row ->
+                    val name = row.name?.takeIf { it.isNotBlank() } ?: "Unnamed Item"
+                    val desc = row.description?.trim().orEmpty()
+                    val descPart = if (desc.isNotEmpty()) " ($desc)" else ""
+                    val priceValue = row.price ?: 0.0
+                    lines.add("• $name$descPart — ₱${priceFormat.format(priceValue)}")
+                }
+            if (index != sortedCategories.lastIndex) {
+                lines.add("")
+            }
+        }
+        lines.add("")
+        lines.add("Shared via Presyohan")
+        return lines.joinToString("\n").trim()
+    }
+
+    private fun copyNoteToClipboard(noteText: String) {
+        try {
+            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Presyohan Note", noteText))
+            Toast.makeText(this, "Note copied to clipboard.", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "Unable to copy note.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun shareNoteText(noteText: String) {
+        try {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "Presyohan Pricelist")
+                putExtra(Intent.EXTRA_TEXT, noteText)
+            }
+            startActivity(Intent.createChooser(intent, "Share note"))
+        } catch (_: Exception) {
+            Toast.makeText(this, "Unable to share note.", Toast.LENGTH_SHORT).show()
         }
     }
 

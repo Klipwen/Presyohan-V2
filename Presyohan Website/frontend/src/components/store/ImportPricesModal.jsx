@@ -14,6 +14,9 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
   const [applySummary, setApplySummary] = useState({ created: 0, updated: 0 })
 
   const fileInputRef = useRef(null)
+  const txtInputRef = useRef(null)
+  const [textInput, setTextInput] = useState('')
+  const [textCharCount, setTextCharCount] = useState(0)
 
   useEffect(() => {
     if (!open) {
@@ -25,12 +28,15 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       setIssues([])
       setPreview({ creates: [], updates: [] })
       setApplySummary({ created: 0, updated: 0 })
+      setTextInput('')
+      setTextCharCount(0)
     }
   }, [open])
 
   const canImport = useMemo(() => role === 'owner' || role === 'manager', [role])
 
   const handlePick = () => fileInputRef.current?.click()
+  const handlePickTxt = () => txtInputRef.current?.click()
 
   const handleFile = async (file) => {
     if (!file) return
@@ -87,6 +93,40 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       setStep('validate')
     } catch (e) {
       setError(e.message || 'Failed to read file')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const handleTxtFile = async (file) => {
+    if (!file) return
+    setError('')
+    setIsBusy(true)
+    setFileName(file.name)
+    try {
+      const text = await file.text()
+      const { parsed, issues } = parseNoteText(text)
+      setRows(parsed)
+      setIssues(issues)
+      setStep('validate')
+    } catch (e) {
+      setError(e.message || 'Failed to read TXT file')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const handleParseText = () => {
+    if (!textInput.trim()) return
+    setError('')
+    setIsBusy(true)
+    try {
+      const { parsed, issues } = parseNoteText(textInput)
+      setRows(parsed)
+      setIssues(issues)
+      setStep('validate')
+    } catch (e) {
+      setError(e.message || 'Failed to parse text')
     } finally {
       setIsBusy(false)
     }
@@ -208,21 +248,39 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
       <div style={{ background: 'white', borderRadius: 16, width: 'min(860px, 96vw)', padding: 20, boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
         <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#ff8c00' }}>Import Prices</h2>
-        <p style={{ marginTop: 6, color: '#555' }}>Follow the steps to import your Excel pricelist. Only .xlsx exported by Convert are accepted.</p>
+        <p style={{ marginTop: 6, color: '#555' }}>Import your pricelist from Excel, TXT, or pasted text.</p>
 
         {step === 'upload' && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ border: '2px dashed #ffcc80', borderRadius: 14, padding: 22, textAlign: 'center', background: '#fffaf3' }}>
-              <div style={{ marginBottom: 8, color: '#7a4a12' }}>Drop your file here or choose a file</div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+            <div style={{ border: '2px dashed #ffcc80', borderRadius: 14, padding: 22, background: '#fffaf3' }}>
+              <div style={{ marginBottom: 10, color: '#7a4a12', fontWeight: 700 }}>Upload from file</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button onClick={handlePick} disabled={!canImport || isBusy} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ff8c00', background: canImport ? 'white' : '#ffd8ae', color: '#ff8c00', fontWeight: 700, cursor: canImport ? 'pointer' : 'not-allowed' }}>Choose .xlsx</button>
+                <button onClick={handlePickTxt} disabled={!canImport || isBusy} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ff8c00', background: canImport ? 'white' : '#ffd8ae', color: '#ff8c00', fontWeight: 700, cursor: canImport ? 'pointer' : 'not-allowed' }}>Choose .txt</button>
               </div>
               {fileName && <div style={{ marginTop: 8, color: '#777' }}>Selected: {fileName}</div>}
               <input ref={fileInputRef} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style={{ display: 'none' }} onChange={(e) => handleFile(e.target.files?.[0])} />
+              <input ref={txtInputRef} type="file" accept=".txt,text/plain" style={{ display: 'none' }} onChange={(e) => handleTxtFile(e.target.files?.[0])} />
             </div>
-            {error && <div style={{ marginTop: 10, color: '#d32f2f' }}>{error}</div>}
-            {!canImport && <div style={{ marginTop: 10, color: '#d32f2f' }}>Only owners and managers can import.</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+
+            <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
+              <div style={{ marginBottom: 10, color: '#7a4a12', fontWeight: 700 }}>Paste raw text</div>
+              <textarea
+                value={textInput}
+                onChange={(e) => { setTextInput(e.target.value); setTextCharCount(e.target.value.length) }}
+                placeholder="Paste your note here (supports: PRICELIST header, [CATEGORY], • Name (desc) — ₱Price)"
+                rows={8}
+                style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+              />
+              <div style={{ marginTop: 6, color: '#777', fontSize: '0.85rem' }}>{textCharCount} characters</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+                <button onClick={handleParseText} disabled={!canImport || !textInput.trim() || isBusy} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: canImport && textInput.trim() ? 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)' : '#ffd8ae', color: 'white', fontWeight: 700, cursor: canImport && textInput.trim() ? 'pointer' : 'not-allowed' }}>Parse Text</button>
+              </div>
+            </div>
+
+            {error && <div style={{ color: '#d32f2f' }}>{error}</div>}
+            {!canImport && <div style={{ color: '#d32f2f' }}>Only owners and managers can import.</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={onClose} disabled={isBusy} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', background: 'white', color: '#555' }}>Cancel</button>
               <button onClick={() => setStep('validate')} disabled={!rows.length || !!issues.length || isBusy} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: rows.length && !issues.length ? 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)' : '#ffd8ae', color: 'white', fontWeight: 700, cursor: rows.length && !issues.length ? 'pointer' : 'not-allowed' }}>Next</button>
             </div>
@@ -367,4 +425,60 @@ function SuccessIcon() {
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"/>
     </svg>
   )
+}
+
+function parseNoteText(text) {
+  const lines = String(text || '').split(/\r?\n/)
+  let category = ''
+  const parsed = []
+  const issues = []
+  const seen = new Set()
+
+  const isHeader = (s) => /^\s*PRICELIST:?\s*$/i.test(s)
+  const isDateLine = (s) => /^\s*\d{2}\/\d{2}\/\d{4}\s*$/.test(s)
+  const catMatch = (s) => s.match(/^\s*\[(.+?)\]\s*$/)
+  const splitItem = (s) => {
+    const norm = s.replace(/^\s*[•\-]\s*/, '')
+    const parts = norm.split(/\s+[—-]\s+/)
+    if (parts.length < 2) return null
+    const left = parts[0].trim()
+    const right = parts.slice(1).join(' — ').trim()
+    const m = left.match(/^(.+?)(?:\s*\((.*?)\))?$/)
+    const name = (m?.[1] || '').trim()
+    const desc = (m?.[2] || '').trim()
+    const priceStr = right.replace(/₱/g, '').replace(/,/g, '').trim()
+    const price = Number(priceStr)
+    if (!name || Number.isNaN(price)) return null
+    return { name, desc, price }
+  }
+
+  for (const raw of lines) {
+    const s = String(raw || '').trim()
+    if (!s) continue
+    if (isHeader(s)) continue
+    if (isDateLine(s)) continue
+    const cm = catMatch(s)
+    if (cm) { category = cm[1].trim(); continue }
+    const item = splitItem(s)
+    if (item) {
+      const cat = category || 'PRICELIST'
+      const key = `${cat}||${item.name.toUpperCase()}`
+      if (seen.has(key)) {
+        issues.push({ rowIndex: parsed.length + 1, message: 'Duplicate item under same category' })
+      } else {
+        seen.add(key)
+      }
+      parsed.push({ rowIndex: parsed.length + 1, category: cat, name: item.name, description: item.desc, unit: 'pc', price: item.price })
+      continue
+    }
+    issues.push({ rowIndex: parsed.length + 1, message: 'Unrecognized line format' })
+  }
+
+  for (const p of parsed) {
+    if (!p.name) issues.push({ rowIndex: p.rowIndex, message: 'Name is required' })
+    if (!p.category) issues.push({ rowIndex: p.rowIndex, message: 'Category is required' })
+    if (Number.isNaN(p.price)) issues.push({ rowIndex: p.rowIndex, message: 'Price must be numeric' })
+  }
+
+  return { parsed, issues }
 }

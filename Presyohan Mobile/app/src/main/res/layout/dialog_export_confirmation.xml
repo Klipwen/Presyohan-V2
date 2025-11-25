@@ -22,11 +22,37 @@
         android:id="@+id/exportSubtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Generate a professionally formatted Excel file of your store products."
+        android:text="Generate a professionally formatted Excel file or a sharable note."
         android:textColor="#6B6B6B"
         android:textSize="14sp"
         android:gravity="center"
-        android:layout_marginBottom="18dp" />
+        android:layout_marginBottom="16dp" />
+
+    <RadioGroup
+        android:id="@+id/exportTypeGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/rbExportExcel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Export as Excel"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="15sp"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/rbExportNotes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Export as Notes"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="15sp"
+            android:layout_marginTop="4dp" />
+    </RadioGroup>
 
     <LinearLayout
         android:id="@+id/exportDetailsCard"
@@ -100,6 +126,72 @@
             android:textColor="#8A8A8A"
             android:textSize="13sp"
             android:layout_marginTop="12dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/notePreviewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_dialog_info"
+        android:padding="16dp"
+        android:visibility="gone"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/notePreviewLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Preview note"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:background="@drawable/bg_white"
+            android:padding="12dp"
+            android:overScrollMode="ifContentScrolls">
+
+            <TextView
+                android:id="@+id/notePreviewText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#5B4631"
+                android:textSize="13sp"
+                android:lineSpacingExtra="2dp" />
+        </ScrollView>
+
+        <TextView
+            android:id="@+id/noteMetaText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#8A8A8A"
+            android:textSize="12sp"
+            android:layout_marginTop="8dp"
+            android:text="0 items • 0 characters" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCopyNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Copy Note"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/button_round_orange" />
+
+        <TextView
+            android:id="@+id/noteHintText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tip: After copying, open Google Keep or any notes app and paste the text."
+            android:textColor="#6B6B6B"
+            android:textSize="12sp"
+            android:layout_marginTop="6dp" />
     </LinearLayout>
 
     <LinearLayout
