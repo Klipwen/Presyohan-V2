@@ -306,6 +306,20 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
+        // Load store branch name from database
+        if (currentStoreId != null) {
+            lifecycleScope.launch {
+                try {
+                    val rows = supabase.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
+                    val row = rows.firstOrNull { it.store_id == currentStoreId }
+                    currentBranchName = row?.branch ?: ""
+                } catch (e: Exception) {
+                    Log.e("HomeActivity", "Store branch load failed", e)
+                    currentBranchName = ""
+                }
+            }
+        }
+
         // --- Search Functionality (Supabase) ---
         fun loadProductsFromSupabase(showLoading: Boolean = false) {
             val sId = currentStoreId ?: return
@@ -551,7 +565,7 @@ class HomeActivity : AppCompatActivity() {
                         }
                     } else {
                         // Multiple Owners -> LEAVE
-                        btnLeaveDelete.setImageResource(R.drawable.icon_logout)
+                        btnLeaveDelete.setImageResource(R.drawable.icon_leave_store)
                         btnLeaveDelete.setColorFilter(ContextCompat.getColor(this@HomeActivity, R.color.presyo_teal))
 
                         btnLeaveDelete.setOnClickListener {
@@ -561,7 +575,7 @@ class HomeActivity : AppCompatActivity() {
                     dialog.show()
                 } catch(e: Exception) {
                     // Fallback
-                    btnLeaveDelete.setImageResource(R.drawable.icon_logout)
+                    btnLeaveDelete.setImageResource(R.drawable.icon_leave_store)
                     btnLeaveDelete.setOnClickListener {
                         showLeaveDeleteConfirmation(sId, sName, isDelete = false, dialog)
                     }

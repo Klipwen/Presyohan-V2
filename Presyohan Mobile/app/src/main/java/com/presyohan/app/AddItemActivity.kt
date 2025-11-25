@@ -74,7 +74,7 @@ class AddItemActivity : AppCompatActivity() {
         priceDisplay.setTextColor(resources.getColor(R.color.presyo_orange, null))
 
         val storeId = intent.getStringExtra("storeId")
-        val categories = mutableListOf("Add Category")
+        val categories = mutableListOf("Choose category...", "Add Category")
         val categoryIdByName = mutableMapOf<String, String>()
         val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, categories)
         spinner.adapter = adapter
@@ -89,27 +89,20 @@ class AddItemActivity : AppCompatActivity() {
                     ).decodeList<UserCategoryRow>()
                     for (row in rows) {
                         if (!categories.contains(row.name)) {
-                            categories.add(row.name)
+                            // Insert categories between "Choose category..." and "Add Category"
+                            val addCategoryIndex = categories.indexOf("Add Category")
+                            if (addCategoryIndex >= 0) {
+                                categories.add(addCategoryIndex, row.name)
+                            } else {
+                                categories.add(row.name)
+                            }
                             categoryIdByName[row.name] = row.category_id
                         }
                     }
                     adapter.notifyDataSetChanged()
-                } catch (_: Exception) { /* noop */ }
-            }
-        }
-
-        // Show dialog on touch if only 'Add Category' exists
-        spinner.setOnTouchListener { v, event ->
-            if (categories.size == 1) {
-                showAddCategoryDialog { newCategory, newCategoryId ->
-                    categories.add(newCategory)
-                    categoryIdByName[newCategory] = newCategoryId
-                    adapter.notifyDataSetChanged()
-                    spinner.setSelection(categories.indexOf(newCategory))
+                } catch (_: Exception) { 
+                    // Error loading categories, but "Add Category" is already available
                 }
-                true // consume the touch event
-            } else {
-                false
             }
         }
 
@@ -120,15 +113,23 @@ class AddItemActivity : AppCompatActivity() {
                     isSpinnerInitialized = true
                     return
                 }
-                if (position == 0 && categories.size > 1) { // Only show dialog if there are other categories
+                val selectedItem = categories.getOrNull(position) ?: return
+                
+                // If user selects "Add Category" (last item), show dialog
+                if (selectedItem == "Add Category") {
                     showAddCategoryDialog { newCategory, newCategoryId ->
-                        categories.add(newCategory)
+                        // Insert new category before "Add Category"
+                        val addCategoryIndex = categories.indexOf("Add Category")
+                        if (addCategoryIndex >= 0) {
+                            categories.add(addCategoryIndex, newCategory)
+                        } else {
+                            categories.add(newCategory)
+                        }
                         categoryIdByName[newCategory] = newCategoryId
                         adapter.notifyDataSetChanged()
+                        // Select the newly added category
                         spinner.setSelection(categories.indexOf(newCategory))
                     }
-                    // Reset selection to previous valid category if needed
-                    spinner.setSelection(1)
                 }
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
@@ -164,8 +165,8 @@ class AddItemActivity : AppCompatActivity() {
             val spinner = findViewById<android.widget.Spinner>(R.id.spinnerItemCategory)
             val category = spinner.selectedItem?.toString() ?: ""
 
-            if (itemName.isEmpty() || priceText.isEmpty() || units.isEmpty() || category == "Add Category" || category.isEmpty()) {
-                android.widget.Toast.makeText(this, "Complete all fields.", android.widget.Toast.LENGTH_SHORT).show()
+            if (itemName.isEmpty() || priceText.isEmpty() || units.isEmpty() || category == "Choose category..." || category == "Add Category" || category.isEmpty()) {
+                android.widget.Toast.makeText(this, "Please select a category.", android.widget.Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -212,8 +213,19 @@ class AddItemActivity : AppCompatActivity() {
         val storeBranchText = findViewById<TextView>(R.id.storeBranchText)
         storeNameText.text = storeName
         if (storeId != null) {
-            // Branch shown elsewhere; leaving as empty here to avoid Firestore dependency
-            storeBranchText.text = ""
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest["stores"].select {
+                        filter { eq("id", storeId) }
+                        limit(1)
+                    }.decodeList<StoreBranchRow>()
+                    val branch = rows.firstOrNull()?.branch ?: ""
+                    storeBranchText.text = branch
+                } catch (e: Exception) {
+                    android.util.Log.e("AddItemActivity", "Failed to load store branch: ${e.localizedMessage}")
+                    storeBranchText.text = ""
+                }
+            }
         } else {
             storeBranchText.text = ""
         }
@@ -263,6 +275,9 @@ class AddItemActivity : AppCompatActivity() {
     // Top-level serializers for RPC decoding
     @kotlinx.serialization.Serializable
     data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
+
+    @kotlinx.serialization.Serializable
+    data class StoreBranchRow(val branch: String?)
 
     private fun deleteCategoryIfEmpty(storeId: String, categoryName: String) {
         lifecycleScope.launch {

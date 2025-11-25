@@ -64,16 +64,16 @@ export default function ExportPricelistModal({ open, onClose, storeId, storeName
   }, [open])
 
   useEffect(() => {
-    const text = buildNoteText(products)
+    const text = buildNoteText(products, storeName, branch)
     setNoteText(text)
     setNoteCharCount(text.length)
-  }, [products])
+  }, [products, storeName, branch])
 
   const formatFilename = () => {
     const slug = `${(storeName || 'store').trim()}_${(branch || 'main').trim()}`
       .toLowerCase()
       .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9\-]/g, '')
+      .replace(/[^a-z0-9-]/g, '')
     const pad = (n) => String(n).padStart(2, '0')
     const d = new Date()
     const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
@@ -201,7 +201,7 @@ export default function ExportPricelistModal({ open, onClose, storeId, storeName
         document.body.removeChild(textarea)
       }
       setNoteFeedback({ type: 'success', text: 'Note copied to clipboard!' })
-    } catch (e) {
+    } catch {
       setNoteFeedback({ type: 'error', text: 'Copy failed. Please try again.' })
     } finally {
       setIsCopyingNote(false)
@@ -456,12 +456,20 @@ function OptionCard({ label, description, checked, onSelect }) {
   )
 }
 
-function buildNoteText(items = []) {
+function buildNoteText(items = [], storeName = '', branch = '') {
   if (!items.length) return ''
   const priceFormatter = new Intl.NumberFormat('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })
+
+  const formatDateMMDDYYYY = (d) => {
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    const yyyy = d.getFullYear()
+    return `${mm}/${dd}/${yyyy}`
+  }
+
   const grouped = items.reduce((acc, item) => {
     const category = (item.category || 'General').trim() || 'General'
     if (!acc[category]) acc[category] = []
@@ -471,14 +479,18 @@ function buildNoteText(items = []) {
 
   const sortedCategories = Object.keys(grouped).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
 
-  const lines = ['Presyohan Pricelist', `${new Date().toLocaleDateString()}`, '']
+  const storeLine = `${storeName || ''}${branch ? ` — ${branch}` : ''}`.trim()
+  const lines = ['PRICELIST:', storeLine, formatDateMMDDYYYY(new Date()), '']
 
   sortedCategories.forEach((category, index) => {
     lines.push(`[${category}]`)
     const itemsInCategory = grouped[category].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
     itemsInCategory.forEach((item) => {
       const priceValue = typeof item.price === 'number' ? item.price : Number(item.price || 0)
-      lines.push(`• ${item.name || 'Unnamed Item'} — ₱${priceFormatter.format(priceValue)}`)
+      const name = item.name || 'Unnamed Item'
+      const desc = (item.description || '').trim()
+      const descPart = desc ? ` (${desc})` : ''
+      lines.push(`• ${name}${descPart} — ₱${priceFormatter.format(priceValue)}`)
     })
     if (index !== sortedCategories.length - 1) lines.push('')
   })
