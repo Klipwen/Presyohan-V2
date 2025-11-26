@@ -384,7 +384,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
 valid format:
 
 [Category name]
-- Item name (Item Description) —  ₱999.99"
+- Item name (Item Description) —  ₱999.99 | unit"
                 rows={8}
                 style={{  width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif' }}
               />
