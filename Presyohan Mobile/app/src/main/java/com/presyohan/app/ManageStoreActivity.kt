@@ -297,6 +297,15 @@ class ManageStoreActivity : AppCompatActivity() {
             exportPricelistToExcel()
         }
 
+        // Import Prices action
+        findViewById<View>(R.id.btnImportPrices).setOnClickListener {
+            val intent = Intent(this, ImportPricesActivity::class.java)
+            intent.putExtra("storeId", storeId)
+            intent.putExtra("storeName", storeName)
+            intent.putExtra("storeBranch", branchName)
+            startActivity(intent)
+        }
+
         // Paste-code actions
         btnGenerateCode.setOnClickListener {
             if (storeId.isNullOrBlank()) return@setOnClickListener

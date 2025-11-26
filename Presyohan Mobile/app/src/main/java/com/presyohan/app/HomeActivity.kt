@@ -533,7 +533,11 @@ class HomeActivity : AppCompatActivity() {
 
         // 4. Import Prices
         btnImportPrices.setOnClickListener {
-            Toast.makeText(this, "Import prices feature coming soon!", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ImportPricesActivity::class.java)
+            intent.putExtra("storeId", sId)
+            intent.putExtra("storeName", currentStoreName)
+            intent.putExtra("storeBranch", sName)
+            startActivity(intent)
             dialog.dismiss()
         }
 

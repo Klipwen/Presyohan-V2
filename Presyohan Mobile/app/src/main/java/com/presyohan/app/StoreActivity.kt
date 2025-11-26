@@ -398,7 +398,11 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         // 4. Import Prices
         btnImportPrices.setOnClickListener {
-            Toast.makeText(this, "Import prices feature coming soon!", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ImportPricesActivity::class.java)
+            intent.putExtra("storeId", store.id)
+            intent.putExtra("storeName", store.name)
+            intent.putExtra("storeBranch", store.branch ?: "")
+            startActivity(intent)
             dialog.dismiss()
         }
 

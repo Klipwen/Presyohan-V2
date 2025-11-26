@@ -78,6 +78,9 @@
         <activity
             android:name=".CopyPricesActivity"
             android:exported="false" />
+        <activity
+            android:name=".ImportPricesActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

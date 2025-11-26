@@ -180,14 +180,15 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       const categoryRegex = /^\s*\[([^\]]+)\]\s*$/
       const simpleCategoryRegex = /^\s*([^\-•*].*)$/ // line without bullet/dash; will validate that it also doesn't contain price
       const itemBulletRegex = /^\s*[-•*]\s*/
-      const priceLineRegex = /[:=\-—>]?:\s*₱?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:\|\s*([^|]+))?\s*$/
+      // Updated regex to allow optional pipe or space for unit
+      const priceLineRegex = /[:=\-—>]?:\s*₱?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:(?:\|)?\s*(.+))?\s*$/
       const inlineItemRegex = new RegExp(
         String.raw`^\s*[-•*]\s*` + // bullet
         String.raw`([^\(\|\n]+?)` + // name (lazy, until '(' or '|' or end)
         String.raw`(?:\s*\(([^\)]*)\))?` + // optional (desc)
         String.raw`\s*(?:[—\-=>:]?\s*)?` + // optional separator
         String.raw`₱?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)` + // price numeric (commas supported)
-        String.raw`(?:\s*\|\s*([^|]+))?\s*$`,
+        String.raw`(?:\s*(?:\|)?\s*(.+))?\s*$`, // unit (optional pipe or space)
         'i'
       )
 
@@ -442,7 +443,9 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
 valid format:
 
 [Category name]
-- Item name (Item Description) —  ₱999.99 | unit"
+- Item name (Item Description) —  ₱999.99 | unit
+  or
+- Item name 22 can"
                 rows={8}
                 style={{  width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif' }}
               />
