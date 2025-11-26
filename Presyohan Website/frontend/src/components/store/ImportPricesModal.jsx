@@ -8,12 +8,15 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
 
   const [fileName, setFileName] = useState('')
   const [rows, setRows] = useState([])
-  const [issues, setIssues] = useState([])
+  const [issues, setIssues] = useState([]) // errors only
+  const [warnings, setWarnings] = useState([]) // non-blocking issues (e.g., duplicates)
 
   const [preview, setPreview] = useState({ creates: [], updates: [] })
   const [applySummary, setApplySummary] = useState({ created: 0, updated: 0 })
 
   const fileInputRef = useRef(null)
+  const [textInput, setTextInput] = useState('')
+  const [textCharCount, setTextCharCount] = useState(0)
 
   useEffect(() => {
     if (!open) {
@@ -23,8 +26,11 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       setFileName('')
       setRows([])
       setIssues([])
+      setWarnings([])
       setPreview({ creates: [], updates: [] })
       setApplySummary({ created: 0, updated: 0 })
+      setTextInput('')
+      setTextCharCount(0)
     }
   }, [open])
 
@@ -89,6 +95,148 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       setError(e.message || 'Failed to read file')
     } finally {
       setIsBusy(false)
+    }
+  }
+
+  // ===== RAW TEXT PARSER =====
+  const handleParseText = () => {
+    try {
+      setError('')
+      const text = String(textInput || '')
+      const lines = text.split(/\r?\n/)
+      const cleaned = []
+      for (let i = 0; i < lines.length; i++) {
+        let ln = lines[i]
+        if (!ln) { cleaned.push(''); continue }
+        // Normalize spacing
+        ln = ln.replace(/\u00A0/g, ' ')
+        // Ignore headers and metadata
+        const ignorePatterns = [/^\s*PRICELIST:?\s*$/i, /Shared via Presyohan/i, /^\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\s*$/]
+        if (ignorePatterns.some((re) => re.test(ln))) continue
+        // Ignore lines that look like a store header (Store — Branch)
+        if (/^\s*.+\s+—\s+.+\s*$/.test(ln) && !/[\[\]]/.test(ln)) continue
+        cleaned.push(ln)
+      }
+
+      const categoryRegex = /^\s*\[([^\]]+)\]\s*$/
+      const simpleCategoryRegex = /^\s*([^\-•*].*)$/ // line without bullet/dash; will validate that it also doesn't contain price
+      const itemBulletRegex = /^\s*[-•*]\s*/
+      const priceLineRegex = /[:=\-—>]?\s*₱?\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:\|\s*([^|]+))?\s*$/
+      const inlineItemRegex = new RegExp(
+        String.raw`^\s*[-•*]\s*` + // bullet
+        String.raw`([^\(\|\n]+?)` + // name (lazy, until '(' or '|' or end)
+        String.raw`(?:\s*\(([^\)]*)\))?` + // optional (desc)
+        String.raw`\s*(?:[—\-=>:]?\s*)?` + // optional separator
+        String.raw`₱?\s*([0-9]+(?:\.[0-9]{1,2})?)` + // price numeric
+        String.raw`(?:\s*\|\s*([^|]+))?\s*$`,
+        'i'
+      )
+
+      const parsed = []
+      const errs = []
+      const warns = []
+      let currentCategory = ''
+
+      for (let i = 0; i < cleaned.length; i++) {
+        const line = (cleaned[i] || '').trim()
+        if (!line) continue
+
+        // Category detection: [Category]
+        let mCat = line.match(categoryRegex)
+        if (mCat) {
+          currentCategory = String(mCat[1] || '').trim().toUpperCase()
+          continue
+        }
+        // Category detection: plain line without bullet or price; must be alone
+        if (!itemBulletRegex.test(line)) {
+          const hasPriceNumber = /[0-9]+(?:\.[0-9]{1,2})?/.test(line)
+          const looksLikeCategory = !hasPriceNumber && !/[:=\-—>|]/.test(line)
+          if (looksLikeCategory) {
+            currentCategory = String(line).trim().toUpperCase()
+            continue
+          }
+        }
+
+        // Item: inline single-line
+        let mItem = line.match(inlineItemRegex)
+        if (mItem) {
+          if (!currentCategory) {
+            warns.push({ rowIndex: i + 1, message: 'Line skipped — item has no category context.' })
+            continue
+          }
+          const name = String(mItem[1] || '').trim()
+          const desc = String(mItem[2] || '').trim()
+          const priceStr = String(mItem[3] || '').trim()
+          const unitRaw = (mItem[4] || '').trim()
+          const priceNum = Number(priceStr)
+          if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(priceStr)) {
+            warns.push({ rowIndex: i + 1, message: 'Line skipped — price is not a valid number.' })
+            continue
+          }
+          parsed.push({ rowIndex: i + 1, category: currentCategory, name, description: desc, unit: unitRaw || '1pc', price: priceNum })
+          continue
+        }
+
+        // Item: multi-line (name on line i, price on line i+1)
+        if (itemBulletRegex.test(line)) {
+          // Extract name and optional (desc) from first line
+          const stripped = line.replace(itemBulletRegex, '').trim()
+          const nameMatch = /^([^\(\|]+?)(?:\s*\(([^\)]*)\))?\s*$/.exec(stripped)
+          const name = nameMatch ? String(nameMatch[1] || '').trim() : stripped
+          const desc = nameMatch ? String(nameMatch[2] || '').trim() : ''
+
+          // Look ahead for price line
+          const nextLine = String(cleaned[i + 1] || '').trim()
+          const priceMatch = nextLine.match(priceLineRegex)
+          if (priceMatch) {
+            if (!currentCategory) {
+              warns.push({ rowIndex: i + 1, message: 'Line skipped — item has no category context.' })
+              continue
+            }
+            const priceNum = Number(priceMatch[1])
+            const unitRaw = String(priceMatch[2] || '').trim()
+            parsed.push({ rowIndex: i + 1, category: currentCategory, name, description: desc, unit: unitRaw || '1pc', price: priceNum })
+            i += 1 // consume next line
+            continue
+          }
+        }
+
+        // If line looks like a price-only continuation, attempt to merge with previous item
+        const priceOnly = line.match(priceLineRegex)
+        if (priceOnly && parsed.length > 0) {
+          // Ambiguous continuation; skip with friendly message
+          warns.push({ rowIndex: i + 1, message: 'Line skipped — ambiguous price without item name.' })
+          continue
+        }
+
+        // Unrecognized structured line: mark skipped for clarity
+        warns.push({ rowIndex: i + 1, message: 'Line skipped — unrecognized format.' })
+      }
+
+      // Deduplicate by category+name (case-insensitive). Keep last occurrence.
+      const seen = new Map()
+      const deduped = []
+      for (let idx = 0; idx < parsed.length; idx++) {
+        const p = parsed[idx]
+        const key = `${String(p.category).toUpperCase()}::${String(p.name).toUpperCase()}`
+        if (seen.has(key)) {
+          warns.push({ rowIndex: p.rowIndex, message: `Duplicate item under same category — kept latest value for “${p.name}”.` })
+          // Replace previous with this one (latest wins)
+          const prevIndex = seen.get(key)
+          deduped[prevIndex] = p
+          seen.set(key, prevIndex)
+        } else {
+          seen.set(key, deduped.length)
+          deduped.push(p)
+        }
+      }
+
+      setRows(deduped)
+      setIssues(errs)
+      setWarnings(warns)
+      setStep('validate')
+    } catch (e) {
+      setError(e.message || 'Failed to parse text')
     }
   }
 
@@ -253,18 +401,19 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
               <div style={{ color: '#777' }}>Valid rows</div>
-              <strong>{rows.length - issues.length}</strong>
+              <strong>{rows.length}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ color: '#777' }}>Rows with issues</div>
-              <strong style={{ color: issues.length ? '#b32626' : '#1d7a33' }}>{issues.length}</strong>
+              <div style={{ color: '#777' }}>Skipped lines</div>
+              <strong style={{ color: warnings.length ? '#7a4a12' : '#1d7a33' }}>{warnings.length}</strong>
             </div>
-            {!!issues.length && (
-              <div style={{ marginTop: 8, padding: 10, border: '1px solid #f2c7c7', borderRadius: 10, background: '#fff5f5', color: '#b32626' }}>
-                {issues.slice(0, 10).map((i, idx) => (
-                  <div key={idx}>Row {i.rowIndex}: {i.message}</div>
+            {!!warnings.length && (
+              <div style={{ marginTop: 8, padding: 10, border: '1px solid #ffe6b3', borderRadius: 10, background: '#fff9e6', color: '#7a4a12' }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Some lines were skipped</div>
+                {warnings.slice(0, 10).map((w, idx) => (
+                  <div key={idx}>Row {w.rowIndex}: {w.message}</div>
                 ))}
-                {issues.length > 10 && <div>…and {issues.length - 10} more</div>}
+                {warnings.length > 10 && <div>…and {warnings.length - 10} more</div>}
               </div>
             )}
             <div style={{ maxHeight: 260, overflow: 'auto', border: '1px solid #eee', borderRadius: 10, marginTop: 12 }}>
@@ -292,10 +441,19 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
               </table>
             </div>
             {error && <div style={{ marginTop: 10, color: '#d32f2f' }}>{error}</div>}
+            {!!warnings.length && (
+              <div style={{ marginTop: 8, padding: 10, border: '1px solid #ffe6b3', borderRadius: 10, background: '#fff9e6', color: '#7a4a12' }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Warnings (not blocking)</div>
+                {warnings.slice(0, 10).map((w, idx) => (
+                  <div key={idx}>Row {w.rowIndex}: {w.message}</div>
+                ))}
+                {warnings.length > 10 && <div>…and {warnings.length - 10} more</div>}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 16 }}>
               <button onClick={() => setStep('upload')} disabled={isBusy} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', background: 'white', color: '#555' }}>Back</button>
               <div>
-                <button onClick={computeDryRun} disabled={!!issues.length || !rows.length || isBusy} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: !issues.length && rows.length ? 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)' : '#ffd8ae', color: 'white', fontWeight: 700, cursor: !issues.length && rows.length ? 'pointer' : 'not-allowed' }}>Next</button>
+                <button onClick={computeDryRun} disabled={!rows.length || isBusy} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: rows.length ? 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)' : '#ffd8ae', color: 'white', fontWeight: 700, cursor: rows.length ? 'pointer' : 'not-allowed' }}>Next</button>
               </div>
             </div>
           </div>
