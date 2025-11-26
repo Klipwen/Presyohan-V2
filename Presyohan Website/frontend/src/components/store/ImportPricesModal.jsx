@@ -81,9 +81,11 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
         }
       } catch (excelErr) {
         // Fallback parser: sheetjs/xlsx — more tolerant to XML differences
-        const [{ default: XLSX }] = await Promise.all([
-          import('xlsx')
-        ])
+        const XLSXMod = await import('xlsx')
+        const XLSX = XLSXMod.read ? XLSXMod : (XLSXMod.default || XLSXMod)
+        if (!XLSX || typeof XLSX.read !== 'function') {
+          throw new Error('xlsx_read_unavailable')
+        }
         const wb2 = XLSX.read(buf, { type: 'array' })
         const sheetName = wb2.SheetNames[0]
         const sheet = wb2.Sheets[sheetName]
@@ -110,7 +112,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
           const gotAll = Object.values(idx).every(v => v >= 0)
           if (gotAll) { headerRowIndex = r; col = idx; break }
         }
-        if (headerRowIndex === -1) throw excelErr // bubble original error
+        if (headerRowIndex === -1) throw new Error('headers_not_found')
 
         parsed = []
         for (let r = headerRowIndex + 1; r < rowsArr.length; r++) {
@@ -144,6 +146,8 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
         setError('This Excel file has a format mobile Excel sometimes produces. I added support, but if you still see this, please re-export or paste the text instead.')
       } else if (String(e.message || '') === 'headers_not_found') {
         setError('Invalid template: could not find headers. Expected columns: Category, Name, Description, Unit, Price.')
+      } else if (String(e.message || '') === 'xlsx_read_unavailable') {
+        setError('Excel import module failed to load. Please refresh the page and try again, or paste the text format as a fallback.')
       } else {
         setError(e.message || 'Failed to read file')
       }
