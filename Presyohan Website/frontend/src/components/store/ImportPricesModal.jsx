@@ -334,7 +334,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
             name: u.name,
             description: u.next.description || null,
             price: Number(u.next.price),
-            units: u.next.unit,
+            unit: u.next.unit,
             ...(categoryId ? { category_id: categoryId } : {})
           })
           .eq('store_id', storeId)
