@@ -270,10 +270,10 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
                 onChange={(e) => { setTextInput(e.target.value); setTextCharCount(e.target.value.length) }}
                 placeholder="type or paste your note here...
 
-              format:
+format:
 
-              [Category name]
-              - Item name (Item Description) —  ₱999.99"
+[Category name]
+- Item name (Item Description) —  ₱999.99"
                 rows={8}
                 style={{ 
                   width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif'}}
