@@ -512,7 +512,7 @@ export default function LandingPage() {
                 <div className="lp-download-label">Download the app now!</div>
                 <a href={apkUrl} className="lp-download-btn" target="_blank" rel="noopener noreferrer">
                   <div>
-                    <div className="lp-store-title">presyohan.apk</div>
+                    <div className="lp-store-title">presyohan v2.0</div>
                   </div>
                 </a>
               </div>
