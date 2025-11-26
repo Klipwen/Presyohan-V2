@@ -276,7 +276,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
               - Item name (Item Description) —  ₱999.99"
                 rows={8}
                 style={{ 
-                  width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif',whiteSpace: 'pre' }}
+                  width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif'}}
               />
               <div style={{ marginTop: 6, color: '#777', fontSize: '0.85rem' }}>{textCharCount} characters</div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
