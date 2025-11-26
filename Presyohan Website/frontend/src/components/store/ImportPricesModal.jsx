@@ -113,21 +113,22 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
         // Ignore headers and metadata
         const ignorePatterns = [/^\s*PRICELIST:?\s*$/i, /Shared via Presyohan/i, /^\s*\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\s*$/]
         if (ignorePatterns.some((re) => re.test(ln))) continue
-        // Ignore lines that look like a store header (Store — Branch)
-        if (/^\s*.+\s+—\s+.+\s*$/.test(ln) && !/[\[\]]/.test(ln)) continue
+        // Ignore lines that look like a store header (Store — Branch), but keep item lines with prices
+        const looksLikeHeader = /^\s*[^-•*].*—.*$/.test(ln) && !/[₱0-9]/.test(ln) && !/[\[\]]/.test(ln)
+        if (looksLikeHeader) continue
         cleaned.push(ln)
       }
 
       const categoryRegex = /^\s*\[([^\]]+)\]\s*$/
       const simpleCategoryRegex = /^\s*([^\-•*].*)$/ // line without bullet/dash; will validate that it also doesn't contain price
       const itemBulletRegex = /^\s*[-•*]\s*/
-      const priceLineRegex = /[:=\-—>]?\s*₱?\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:\|\s*([^|]+))?\s*$/
+      const priceLineRegex = /[:=\-—>]?:\s*₱?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:\|\s*([^|]+))?\s*$/
       const inlineItemRegex = new RegExp(
         String.raw`^\s*[-•*]\s*` + // bullet
         String.raw`([^\(\|\n]+?)` + // name (lazy, until '(' or '|' or end)
         String.raw`(?:\s*\(([^\)]*)\))?` + // optional (desc)
         String.raw`\s*(?:[—\-=>:]?\s*)?` + // optional separator
-        String.raw`₱?\s*([0-9]+(?:\.[0-9]{1,2})?)` + // price numeric
+        String.raw`₱?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)` + // price numeric (commas supported)
         String.raw`(?:\s*\|\s*([^|]+))?\s*$`,
         'i'
       )
@@ -168,8 +169,9 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
           const desc = String(mItem[2] || '').trim()
           const priceStr = String(mItem[3] || '').trim()
           const unitRaw = (mItem[4] || '').trim()
-          const priceNum = Number(priceStr)
-          if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(priceStr)) {
+          const priceClean = priceStr.replace(/,/g, '')
+          const priceNum = Number(priceClean)
+          if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(priceClean)) {
             warns.push({ rowIndex: i + 1, message: 'Line skipped — price is not a valid number.' })
             continue
           }
@@ -193,7 +195,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
               warns.push({ rowIndex: i + 1, message: 'Line skipped — item has no category context.' })
               continue
             }
-            const priceNum = Number(priceMatch[1])
+            const priceNum = Number(String(priceMatch[1]).replace(/,/g, ''))
             const unitRaw = String(priceMatch[2] || '').trim()
             parsed.push({ rowIndex: i + 1, category: currentCategory, name, description: desc, unit: unitRaw || '1pc', price: priceNum })
             i += 1 // consume next line
