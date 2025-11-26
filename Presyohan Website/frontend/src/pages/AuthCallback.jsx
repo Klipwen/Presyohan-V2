@@ -39,7 +39,6 @@ export default function AuthCallback() {
         .from('app_users')
         .upsert({
           id: session.user.id,
-          auth_uid: session.user.id,
           email,
           name: session.user.user_metadata?.name || null
         }, { onConflict: 'id' });

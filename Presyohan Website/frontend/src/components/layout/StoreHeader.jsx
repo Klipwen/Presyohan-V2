@@ -23,21 +23,14 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
 
   const fetchAppUserRow = async (userId) => {
     if (!userId) return null;
-    const columns = 'id, auth_uid, name, email, phone, avatar_url';
-    const { data: byAuth, error: authErr } = await supabase
-      .from('app_users')
-      .select(columns)
-      .eq('auth_uid', userId)
-      .maybeSingle();
-    if (authErr && authErr.code !== 'PGRST116') throw authErr;
-    if (byAuth) return byAuth;
-    const { data: byId, error: idErr } = await supabase
+    const columns = 'id, name, email, avatar_url';
+    const { data, error } = await supabase
       .from('app_users')
       .select(columns)
       .eq('id', userId)
       .maybeSingle();
-    if (idErr && idErr.code !== 'PGRST116') throw idErr;
-    return byId;
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
   };
 
   useEffect(() => {

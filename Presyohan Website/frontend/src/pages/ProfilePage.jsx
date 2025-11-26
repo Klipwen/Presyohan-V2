@@ -85,21 +85,14 @@ export default function ProfilePage() {
 
   const fetchAppUserRow = async (authId) => {
     if (!authId) return null;
-    const columns = 'id, auth_uid, name, email, phone, avatar_url, phone_normalized';
-    const { data: byAuth, error: authErr } = await supabase
-      .from('app_users')
-      .select(columns)
-      .eq('auth_uid', authId)
-      .maybeSingle();
-    if (authErr && authErr.code !== 'PGRST116') throw authErr;
-    if (byAuth) return byAuth;
-    const { data: byId, error: idErr } = await supabase
+    const columns = 'id, name, email, avatar_url';
+    const { data, error } = await supabase
       .from('app_users')
       .select(columns)
       .eq('id', authId)
       .maybeSingle();
-    if (idErr && idErr.code !== 'PGRST116') throw idErr;
-    return byId;
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
   };
 
   const upsertAppUserFields = async (fields) => {
@@ -109,7 +102,6 @@ export default function ProfilePage() {
     const recordId = profile.id || authId;
     const payload = {
       id: recordId,
-      auth_uid: authId,
       ...fields
     };
     const { error } = await supabase

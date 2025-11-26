@@ -77,10 +77,7 @@ export default function StorePage() {
 
   const getCurrentUserId = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    const authId = session?.user?.id;
-    if (!authId) return null;
-    const { data: userRow } = await supabase.from('app_users').select('id, auth_uid').eq('auth_uid', authId).maybeSingle();
-    return userRow?.id || authId;
+    return session?.user?.id || null;
   };
 
   const triggerConfirm = (type) => {

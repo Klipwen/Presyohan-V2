@@ -131,13 +131,10 @@ export default function StoresPage() {
     navigate('/login', { replace: true });
   };
 
-  // Helper to resolve current app_users.id if present, else use auth.uid()
+  // Helper to resolve current user id; app_users uses id = auth.uid()
   const getCurrentUserId = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    const authId = session?.user?.id;
-    if (!authId) return null;
-    const { data: userRow } = await supabase.from('app_users').select('id, auth_uid').eq('auth_uid', authId).maybeSingle();
-    return userRow?.id || authId;
+    return session?.user?.id || null;
   };
 
   const openStoreOptions = (store) => {

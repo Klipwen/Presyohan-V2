@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import AuthHeader from '../components/layout/AuthHeader';
 import Footer from '../components/layout/Footer';
 import '../styles/VerifyEmailPage.css';
@@ -137,12 +137,12 @@ export default function VerifyEmailPage() {
               .from('app_users')
               .upsert(
                 {
-                  uid: user.id,
+                  id: user.id,
                   email: user.email,
                   name: pendingName || user.user_metadata?.name || null,
                   avatar_url: user.user_metadata?.avatar_url || null
                 },
-                { onConflict: 'uid' }
+                { onConflict: 'id' }
               );
           }
         } catch (err) {
