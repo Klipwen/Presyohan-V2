@@ -270,7 +270,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
                 onChange={(e) => { setTextInput(e.target.value); setTextCharCount(e.target.value.length) }}
                 placeholder="type or paste your note here...
 
-format:
+valid format:
 
 [Category name]
 - Item name (Item Description) —  ₱999.99"
