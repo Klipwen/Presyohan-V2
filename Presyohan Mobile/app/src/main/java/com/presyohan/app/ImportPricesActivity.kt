@@ -177,7 +177,7 @@ class ImportPricesActivity : AppCompatActivity() {
         cardDone.visibility = if (step == Step.DONE) View.VISIBLE else View.GONE
     }
 
-    // ===== RAW TEXT PARSER (aligned with import update.md and web modal) =====
+    // ===== RAW TEXT PARSER (Updated to match web logic) =====
     private fun parseRawText(textRaw: String) {
         try {
             warnings.clear(); issues.clear(); rows.clear()
@@ -201,9 +201,19 @@ class ImportPricesActivity : AppCompatActivity() {
 
             val categoryRegex = """^\s*\[([^\]]+)]\s*$""".toRegex()
             val itemBulletRegex = """^\s*[-•*]\s*""".toRegex()
-            val priceLineRegex = "[:=\\-—>]?\\s*₱?\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)\\s*(?:\\|\\s*([^|]+)|\\s+([^|\\n]+))?\\s*$".toRegex()
+
+            // Updated to allow optional pipe or space for unit
+            // Group 1: Price number
+            // Group 2: Unit (optional)
+            val priceLineRegex = "[:=\\-—>]?\\s*₱?\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)\\s*(?:(?:\\|)?\\s*(.+))?\\s*$".toRegex()
+
+            // Updated inline regex
+            // Group 1: Name
+            // Group 2: Description (optional)
+            // Group 3: Price
+            // Group 4: Unit (optional, captures rest of line allowing space or pipe)
             val inlineItemRegex = Regex(
-                pattern = """^\n?\s*[-•*]\s*([^(|\n]+?)(?:\s*\(([^)]*)\))?\n?\s*(?:[—\-=>:]?\s*)?₱?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*\|\s*([^|]+)|\s+([^|\n]+))?\s$""",
+                pattern = """^\n?\s*[-•*]\s*([^(|\n]+?)(?:\s*\(([^)]*)\))?\s*(?:[—\-=>:]?\s*)?₱?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(?:\|)?\s*(.+))?\s*$""",
                 option = RegexOption.IGNORE_CASE
             )
 
@@ -222,7 +232,6 @@ class ImportPricesActivity : AppCompatActivity() {
 
                 if (!itemBulletRegex.containsMatchIn(line)) {
                     val hasPriceNumber = "[0-9]+(?:\\.[0-9]{1,2})?".toRegex().containsMatchIn(line)
-                    // Escape hyphen in a normal string or use a raw string to avoid unsupported escape sequences
                     val looksLikeCategory = !hasPriceNumber && !"[:=\\-—>|]".toRegex().containsMatchIn(line)
                     if (looksLikeCategory) {
                         currentCategory = line.trim().uppercase()
@@ -239,8 +248,8 @@ class ImportPricesActivity : AppCompatActivity() {
                     val name = inline.groupValues[1].trim()
                     val desc = inline.groupValues[2].trim().ifEmpty { null }
                     val priceStr = inline.groupValues[3].trim()
-                    val unitRaw = listOf(inline.groupValues.getOrNull(4), inline.groupValues.getOrNull(5))
-                        .firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+                    val unitRaw = inline.groupValues.getOrNull(4)?.trim().orEmpty()
+
                     val priceClean = priceStr.replace(",", "")
                     if (!"^[0-9]+(\\.[0-9]{1,2})?$".toRegex().matches(priceClean)) {
                         warnings.add(Warn(idx + 1, "Line skipped — price is not a valid number."))
@@ -265,8 +274,7 @@ class ImportPricesActivity : AppCompatActivity() {
                             continue
                         }
                         val priceNum = priceMatch.groupValues[1].replace(",", "").toDouble()
-                        val unitRaw = listOf(priceMatch.groupValues.getOrNull(2), priceMatch.groupValues.getOrNull(3))
-                            .firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+                        val unitRaw = priceMatch.groupValues.getOrNull(2)?.trim().orEmpty()
                         parsed.add(ParsedRow(idx + 1, currentCategory, name, desc.ifEmpty { null }, if (unitRaw.isEmpty()) "1pc" else unitRaw, priceNum))
                         continue
                     }
