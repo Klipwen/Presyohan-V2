@@ -15,7 +15,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
   const [applySummary, setApplySummary] = useState({ created: 0, updated: 0 })
 
   const fileInputRef = useRef(null)
-  const [textInput, setTextInput] = useState('')
+  const [rawText, setRawText] = useState('')
   const [textCharCount, setTextCharCount] = useState(0)
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       setWarnings([])
       setPreview({ creates: [], updates: [] })
       setApplySummary({ created: 0, updated: 0 })
-      setTextInput('')
+      setRawText('')
       setTextCharCount(0)
     }
   }, [open])
@@ -102,7 +102,7 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
   const handleParseText = () => {
     try {
       setError('')
-      const text = String(textInput || '')
+      const text = String(rawText || '')
       const lines = text.split(/\r?\n/)
       const cleaned = []
       for (let i = 0; i < lines.length; i++) {
@@ -372,15 +372,15 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
             <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
               <div style={{ marginBottom: 10, color: '#7a4a12', fontWeight: 700 }}>Paste raw text</div>
               <textarea
-                value={textInput}
-                onChange={(e) => { setTextInput(e.target.value); setTextCharCount(e.target.value.length) }}
+                value={rawText}
+                onChange={(e) => { setRawText(e.target.value); setTextCharCount(e.target.value.length) }}
                 placeholder="Paste your note here (supports: PRICELIST header, [CATEGORY], • Name (desc) — ₱Price)"
                 rows={8}
                 style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif' }}
               />
               <div style={{ marginTop: 6, color: '#777', fontSize: '0.85rem' }}>{textCharCount} characters</div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
-                <button onClick={handleParseText} disabled={!canImport || !textInput.trim() || isBusy} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: canImport && textInput.trim() ? 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)' : '#ffd8ae', color: 'white', fontWeight: 700, cursor: canImport && textInput.trim() ? 'pointer' : 'not-allowed' }}>Parse Text</button>
+                <button onClick={handleParseText} disabled={!canImport || !rawText.trim() || isBusy} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: canImport && rawText.trim() ? 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)' : '#ffd8ae', color: 'white', fontWeight: 700, cursor: canImport && rawText.trim() ? 'pointer' : 'not-allowed' }}>Parse Text</button>
               </div>
             </div>
 
