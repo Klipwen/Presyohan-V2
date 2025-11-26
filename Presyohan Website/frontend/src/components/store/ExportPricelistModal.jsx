@@ -334,7 +334,7 @@ export default function ExportPricelistModal({ open, onClose, storeId, storeName
                 }}
               >
                 {isCopyingNote && <Spinner small />}
-                {isCopyingNote ? 'Copying…' : 'Copy Note'}
+                {isCopyingNote ? 'Copying…' : 'Copy'}
               </button>
               <button
                 onClick={handleShareNote}
@@ -353,7 +353,7 @@ export default function ExportPricelistModal({ open, onClose, storeId, storeName
                 }}
               >
                 {isSharingNote && <Spinner small />}
-                {shareSupported ? (isSharingNote ? 'Sharing…' : 'Share to Keep') : 'Share not supported'}
+                {shareSupported ? (isSharingNote ? 'Sharing…' : 'Share') : 'Share not supported'}
               </button>
             </div>
             {noteFeedback?.text && (

@@ -544,7 +544,7 @@ export default function StoreSettingsPage() {
                 </div>
 
                 {/* Paste-Code generator */}
-                <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #eee', borderRadius: '12px', background: '#fffdf7' }}>
+                <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #eee', borderRadius: '12px', background: '#ffffff', marginBottom: '14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <div style={{ fontWeight: 700, color: '#7a4a12' }}>Paste-Code (for copying prices to this store)</div>
                     {pasteCode ? (
@@ -867,7 +867,7 @@ export default function StoreSettingsPage() {
                   }
                 }}
                 style={{ padding: '12px 14px', borderRadius: 14, border: '1px solid #e0e0e0', background: '#fff', color: '#333', fontWeight: 700 }}
-              >All access on store (owner role)</button>
+              >All access on store</button>
 
               <button
                 onClick={() => {
