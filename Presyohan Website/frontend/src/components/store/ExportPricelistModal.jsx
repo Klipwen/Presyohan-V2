@@ -490,7 +490,8 @@ function buildNoteText(items = [], storeName = '', branch = '') {
       const name = item.name || 'Unnamed Item'
       const desc = (item.description || '').trim()
       const descPart = desc ? ` (${desc})` : ''
-      lines.push(`• ${name}${descPart} — ₱${priceFormatter.format(priceValue)}`)
+      const unitPart = item.units ? ` | ${item.units}` : ''
+      lines.push(`• ${name}${descPart} — ₱${priceFormatter.format(priceValue)}${unitPart}`)
     })
     if (index !== sortedCategories.length - 1) lines.push('')
   })

@@ -265,42 +265,60 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section id="home" className="lp-hero">
         <div className="lp-hero-pattern" />
-        {/* Hero grid: logo left, content box right */}
-        <div className="lp-hero-grid">
-          <div className="lp-hero-left">
-            <div className="lp-logo-box">
-              <img src={presyohanLogo} alt="Presyohan Logo" />
-            </div>
-          </div>
-
-          {/* Hero content box with professional layout */}
-          <div className="lp-hero-right">
-            <div className="lp-hero-box">
-              <div className="lp-hero-content">
-                {/* Logo text: "atong" aligned with "presyohan?" */}
-                <div className="lp-logo-text">
-                  <span className="lp-logo-eyebrow">atong</span>
-                  <h1 className="lp-title">
-                    <span className="lp-title-white">presyo</span>
-                    <span className="lp-title-accent">han?</span>
-                  </h1>
+        <div className="lp-hero-background-overlay" />
+        
+        {/* Hero container with improved layout */}
+        <div className="lp-hero-container">
+          <div className="lp-hero-grid">
+            {/* Left: Logo section with enhanced presentation */}
+            <div className="lp-hero-left">
+              <div className="lp-logo-wrapper">
+                <div className="lp-logo-box">
+                  <img src={presyohanLogo} alt="Presyohan Logo" className="lp-logo-image" />
                 </div>
+                <div className="lp-logo-glow" />
+              </div>
+            </div>
 
-                <p className="lp-lead">
-                  We make it fast and easy to manage your store's entire price list, guaranteeing consistency across all staff and locations.
-                </p>
+            {/* Right: Content section with professional card design */}
+            <div className="lp-hero-right">
+              <div className="lp-hero-box">
+                <div className="lp-hero-content">
+                  {/* Eyebrow text */}
+                  <div className="lp-logo-text">
+                    <span className="lp-logo-eyebrow">atong</span>
+                    <h1 className="lp-title">
+                      <span className="lp-title-orange">presyo</span>
+                      <span className="lp-title-accent">han?</span>
+                    </h1>
+                  </div>
 
-                {/* Subtitle grouped with Get Started button */}
-                <div className="lp-cta-group">
-                  <h2 className="lp-subtitle">Wala Kahibaw sa Presyo?</h2>
-                  <button className="lp-btn-primary" onClick={() => navigate('/login')}>Get Started</button>
+                  {/* Main description */}
+                  <p className="lp-lead">
+                    We make it fast and easy to manage your store's entire price list, guaranteeing consistency across all staff and locations.
+                  </p>
+
+                  {/* CTA section with improved layout */}
+                  <div className="lp-cta-group">
+                    <h2 className="lp-subtitle">Wala Kahibaw sa Presyo?</h2>
+                    <button 
+                      className="lp-btn-primary" 
+                      onClick={() => navigate('/login')}
+                      aria-label="Get Started with Presyohan"
+                    >
+                      <span>Get Started</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Arrow down to About section with smooth scroll */}
+        {/* Scroll indicator with improved design */}
         <a
           href="#about"
           className="lp-scroll-arrow"
@@ -311,8 +329,8 @@ export default function LandingPage() {
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
         >
-          <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
-            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </a>
       </section>
