@@ -44,40 +44,87 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
     setIsBusy(true)
     setFileName(file.name)
     try {
+      // Primary parser: exceljs
       const [{ default: ExcelJS }] = await Promise.all([
         import('exceljs')
       ])
       const wb = new ExcelJS.Workbook()
       const buf = await file.arrayBuffer()
-      await wb.xlsx.load(buf)
-      const ws = wb.worksheets[0]
-      if (!ws) throw new Error('Worksheet not found')
+      let parsed = []
+      try {
+        await wb.xlsx.load(buf)
+        const ws = wb.worksheets[0]
+        if (!ws) throw new Error('Worksheet not found')
 
-      const expected = ['Category', 'Name', 'Description', 'Unit', 'Price']
-      let headerRowIndex = -1
-      for (let r = 1; r <= Math.min(ws.rowCount, 15); r++) {
-        const vals = (ws.getRow(r).values || []).slice(1).map(v => String(v || '').trim())
-        if (vals.length >= 5) {
+        const expected = ['Category', 'Name', 'Description', 'Unit', 'Price']
+        let headerRowIndex = -1
+        for (let r = 1; r <= Math.min(ws.rowCount, 20); r++) {
+          const vals = (ws.getRow(r).values || []).slice(1).map(v => String(v || '').trim())
           const head = vals.slice(0, 5)
-          const match = head.every((v, i) => v === expected[i])
+          const match = head.length >= 5 && head.every((v, i) => v.toLowerCase() === expected[i].toLowerCase())
           if (match) { headerRowIndex = r; break }
         }
-      }
-      if (headerRowIndex === -1) throw new Error('Invalid template: headers not found')
+        if (headerRowIndex === -1) throw new Error('headers_not_found')
 
-      const parsed = []
-      for (let r = headerRowIndex + 1; r <= ws.rowCount; r++) {
-        const row = ws.getRow(r)
-        const vals = (row.values || []).slice(1)
-        const category = String(vals[0] ?? '').trim()
-        const name = String(vals[1] ?? '').trim()
-        const description = String(vals[2] ?? '').trim()
-        const unit = String(vals[3] ?? '').trim()
-        const priceRaw = vals[4]
-        const price = typeof priceRaw === 'number' ? priceRaw : Number(String(priceRaw ?? '').replace(/[^0-9.\-]/g, ''))
-        const emptyRow = !category && !name && !description && !unit && (price === 0 || Number.isNaN(price))
-        if (emptyRow) continue
-        parsed.push({ rowIndex: r, category, name, description, unit, price })
+        for (let r = headerRowIndex + 1; r <= ws.rowCount; r++) {
+          const row = ws.getRow(r)
+          const vals = (row.values || []).slice(1)
+          const category = String(vals[0] ?? '').trim()
+          const name = String(vals[1] ?? '').trim()
+          const description = String(vals[2] ?? '').trim()
+          const unit = String(vals[3] ?? '').trim()
+          const priceRaw = vals[4]
+          const price = typeof priceRaw === 'number' ? priceRaw : Number(String(priceRaw ?? '').replace(/[^0-9.,\-]/g, '').replace(/,/g, ''))
+          const emptyRow = !category && !name && !description && !unit && (price === 0 || Number.isNaN(price))
+          if (emptyRow) continue
+          parsed.push({ rowIndex: r, category, name, description, unit, price })
+        }
+      } catch (excelErr) {
+        // Fallback parser: sheetjs/xlsx — more tolerant to XML differences
+        const [{ default: XLSX }] = await Promise.all([
+          import('xlsx')
+        ])
+        const wb2 = XLSX.read(buf, { type: 'array' })
+        const sheetName = wb2.SheetNames[0]
+        const sheet = wb2.Sheets[sheetName]
+        const rowsArr = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false })
+        const aliases = {
+          category: ['category', 'cat'],
+          name: ['name', 'item', 'item name', 'product'],
+          description: ['description', 'desc', 'details'],
+          unit: ['unit', 'units', 'uom'],
+          price: ['price', 'amount', 'cost']
+        }
+        const norm = (v) => String(v || '').trim().toLowerCase()
+        let headerRowIndex = -1
+        let col = { category: -1, name: -1, description: -1, unit: -1, price: -1 }
+        for (let r = 0; r < Math.min(rowsArr.length, 25); r++) {
+          const row = rowsArr[r] || []
+          const idx = { category: -1, name: -1, description: -1, unit: -1, price: -1 }
+          for (let c = 0; c < row.length; c++) {
+            const cell = norm(row[c])
+            for (const key of Object.keys(aliases)) {
+              if (aliases[key].some(a => cell === a)) idx[key] = c
+            }
+          }
+          const gotAll = Object.values(idx).every(v => v >= 0)
+          if (gotAll) { headerRowIndex = r; col = idx; break }
+        }
+        if (headerRowIndex === -1) throw excelErr // bubble original error
+
+        parsed = []
+        for (let r = headerRowIndex + 1; r < rowsArr.length; r++) {
+          const row = rowsArr[r] || []
+          const category = String(row[col.category] ?? '').trim()
+          const name = String(row[col.name] ?? '').trim()
+          const description = String(row[col.description] ?? '').trim()
+          const unit = String(row[col.unit] ?? '').trim()
+          const priceCell = row[col.price]
+          const price = typeof priceCell === 'number' ? priceCell : Number(String(priceCell ?? '').replace(/[^0-9.,\-]/g, '').replace(/,/g, ''))
+          const emptyRow = !category && !name && !description && !unit && (price === 0 || Number.isNaN(price))
+          if (emptyRow) continue
+          parsed.push({ rowIndex: r + 1, category, name, description, unit, price })
+        }
       }
 
       const issues = []
@@ -92,7 +139,14 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       setIssues(issues)
       setStep('validate')
     } catch (e) {
-      setError(e.message || 'Failed to read file')
+      // Friendly error messaging
+      if (String(e.message || '').includes('unexpected close tag')) {
+        setError('This Excel file has a format mobile Excel sometimes produces. I added support, but if you still see this, please re-export or paste the text instead.')
+      } else if (String(e.message || '') === 'headers_not_found') {
+        setError('Invalid template: could not find headers. Expected columns: Category, Name, Description, Unit, Price.')
+      } else {
+        setError(e.message || 'Failed to read file')
+      }
     } finally {
       setIsBusy(false)
     }
