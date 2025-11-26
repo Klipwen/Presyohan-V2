@@ -215,14 +215,16 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
         warns.push({ rowIndex: i + 1, message: 'Line skipped — unrecognized format.' })
       }
 
-      // Deduplicate by category+name (case-insensitive). Keep last occurrence.
+      // Deduplicate by category+name+description+unit (case-insensitive). Keep last occurrence of exact duplicates.
       const seen = new Map()
       const deduped = []
       for (let idx = 0; idx < parsed.length; idx++) {
         const p = parsed[idx]
-        const key = `${String(p.category).toUpperCase()}::${String(p.name).toUpperCase()}`
+        const key = `${String(p.category).toUpperCase()}::${String(p.name).toUpperCase()}::${String(p.description||'').toUpperCase()}::${String(p.unit||'').toUpperCase()}`
         if (seen.has(key)) {
-          warns.push({ rowIndex: p.rowIndex, message: `Duplicate item under same category — kept latest value for “${p.name}”.` })
+          const labelDesc = p.description ? ` (${p.description})` : ''
+          const labelUnit = p.unit ? ` / ${p.unit}` : ''
+          warns.push({ rowIndex: p.rowIndex, message: `Duplicate item — kept latest for “${p.name}${labelDesc}${labelUnit}”.` })
           // Replace previous with this one (latest wins)
           const prevIndex = seen.get(key)
           deduped[prevIndex] = p
@@ -249,16 +251,17 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
       const { data, error: rpcErr } = await supabase.rpc('get_store_products', { p_store_id: storeId })
       if (rpcErr) throw rpcErr
       const existing = Array.isArray(data) ? data : []
-      const byName = new Map()
+      const bySignature = new Map()
       for (const e of existing) {
-        const key = String(e.name || '').trim().toUpperCase()
-        if (!byName.has(key)) byName.set(key, e)
+        const sig = `${String(e.name||'').trim().toUpperCase()}::${String(e.description||'').trim().toUpperCase()}::${String(e.units||'').trim().toUpperCase()}`
+        // Keep the first occurrence for a given signature; multiple matches mean data already has duplicates
+        if (!bySignature.has(sig)) bySignature.set(sig, e)
       }
       const creates = []
       const updates = []
       for (const r of rows) {
-        const key = r.name.trim().toUpperCase()
-        const match = byName.get(key)
+        const sig = `${String(r.name).trim().toUpperCase()}::${String(r.description||'').trim().toUpperCase()}::${String(r.unit||'').trim().toUpperCase()}`
+        const match = bySignature.get(sig)
         if (!match) {
           creates.push({ action: 'create', name: r.name, category: r.category, unit: r.unit, price: r.price, description: r.description })
         } else {
