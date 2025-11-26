@@ -220,7 +220,7 @@ export default function ExportPricelistModal({ open, onClose, storeId, storeName
         title: 'Presyohan Pricelist',
         text: noteText
       })
-      setNoteFeedback({ type: 'success', text: 'Shared successfully! Check Google Keep to finalize.' })
+      setNoteFeedback({ type: 'success', text: 'Shared successfully!' })
     } catch (e) {
       if (e?.name !== 'AbortError') {
         setNoteFeedback({ type: 'error', text: 'Share failed. Please copy and paste manually.' })
@@ -290,13 +290,13 @@ export default function ExportPricelistModal({ open, onClose, storeId, storeName
 
         {selectedExport === 'note' && (
           <div style={{ marginTop: 18 }}>
-            <div style={{ fontWeight: 700, color: '#ff8c00', marginBottom: 8 }}>Step 1 — Preview</div>
+            <div style={{ fontWeight: 700, color: '#ff8c00', marginBottom: 8 }}>Preview</div>
             <div style={{
               maxHeight: 240,
               padding: 14,
               borderRadius: 12,
               border: '1px solid #f5d3a7',
-              background: '#fffdf7',
+              background: '#ffffff',
               fontFamily: "'Inter', 'Segoe UI', sans-serif",
               fontSize: '0.9rem',
               color: '#5b4631',
@@ -359,7 +359,7 @@ export default function ExportPricelistModal({ open, onClose, storeId, storeName
             {noteFeedback?.text && (
               <div style={{
                 marginTop: 10,
-                color: noteFeedback.type === 'success' ? '#2e7d32' : '#c62828',
+                color: noteFeedback.type === 'success' ? '#ff8c00' : '#c62828',
                 fontSize: '0.85rem'
               }}>
                 {noteFeedback.text}
