@@ -379,9 +379,14 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
               <textarea
                 value={rawText}
                 onChange={(e) => { setRawText(e.target.value); setTextCharCount(e.target.value.length) }}
-                placeholder="Paste your note here (supports: PRICELIST header, [CATEGORY], • Name (desc) — ₱Price)"
+                placeholder="type or paste your note here...
+
+valid format:
+
+[Category name]
+- Item name (Item Description) —  ₱999.99"
                 rows={8}
-                style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                style={{  width: '100%', padding: 10, borderRadius: 10, border: '1px solid #ddd', fontFamily: 'system-ui, -apple-system, sans-serif' }}
               />
               <div style={{ marginTop: 6, color: '#777', fontSize: '0.85rem' }}>{textCharCount} characters</div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
