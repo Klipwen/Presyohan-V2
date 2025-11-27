@@ -1,519 +1,331 @@
 package com.presyohan.app
 
-import android.app.AlertDialog
-import android.app.Dialog
+import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.EditText
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
+import android.widget.ViewFlipper
 import androidx.appcompat.app.AppCompatActivity
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.presyohan.app.adapter.CategoryAdapter
-import com.presyohan.app.adapter.CategoryWithItems
-import com.presyohan.app.adapter.ItemFormData
-import androidx.appcompat.widget.AppCompatButton
-import android.widget.TextView
-import android.os.Handler
-import android.os.Looper
-import android.widget.ImageView
 import com.google.android.material.button.MaterialButton
-import androidx.lifecycle.lifecycleScope
+import com.google.android.material.navigation.NavigationView
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.put
-import io.github.jan.supabase.postgrest.postgrest
-// Added Imports for Navigation and Drawer
-import androidx.drawerlayout.widget.DrawerLayout
-import com.google.android.material.navigation.NavigationView
-import io.github.jan.supabase.auth.auth
+import kotlinx.serialization.json.JsonPrimitive
 
 class AddMultipleItemsActivity : AppCompatActivity() {
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: CategoryAdapter
-    private lateinit var buttonSelectCategory: AppCompatButton
-    private lateinit var itemCounter: TextView
-    private val categories = mutableListOf<CategoryWithItems>()
-    private val categoryNames = mutableListOf<String>()
-    private val categoryIdByName = mutableMapOf<String, String>()
-    private val createdCategories = mutableSetOf<String>()
-    private val emptiedCategories = mutableSetOf<String>()
+
+    // UI Components
+    private lateinit var viewFlipper: ViewFlipper
+    private lateinit var inputRawText: android.widget.EditText
+    private lateinit var btnPreview: MaterialButton
+    private lateinit var btnEditRaw: MaterialButton
+    private lateinit var btnConfirmImport: MaterialButton
+    private lateinit var previewRecyclerView: RecyclerView
+    private lateinit var previewSummary: TextView
+    private lateinit var btnBack: ImageView
+    private lateinit var loadingOverlay: View
+
+    // Data
     private var storeId: String? = null
     private var storeName: String? = null
-    private lateinit var loadingOverlay: android.view.View
-    // Drawer variables
-    private lateinit var drawerLayout: DrawerLayout
-    private lateinit var navigationView: NavigationView
+
+    // Logic
+    private var parsedItems: List<PreviewItem> = emptyList()
+    private var parsedCategories: List<ParsedCategory> = emptyList()
+    private val categoryIdByName = mutableMapOf<String, String>()
+    private var existingProductNames = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_multiple_items)
+
         loadingOverlay = LoadingOverlayHelper.attach(this)
-
-        recyclerView = findViewById(R.id.recyclerViewItems)
-        buttonSelectCategory = findViewById(R.id.buttonSelectCategory)
-        itemCounter = findViewById(R.id.itemCounter)
-        adapter = CategoryAdapter(categories,
-            onAddItem = { categoryPos ->
-                val items = categories[categoryPos].items
-                val recyclerView = recyclerView.findViewHolderForAdapterPosition(categoryPos)?.itemView?.findViewById<RecyclerView>(R.id.recyclerViewItems)
-                val lastItem = items.lastOrNull()
-                if (lastItem != null && recyclerView != null) {
-                    val lastIndex = items.size - 1
-                    val holder = recyclerView.findViewHolderForAdapterPosition(lastIndex)
-                    if (holder != null) {
-                        val name = holder.itemView.findViewById<EditText>(R.id.inputItemName).text.toString().trim()
-                        val unit = holder.itemView.findViewById<EditText>(R.id.inputItemUnit).text.toString().trim()
-                        val price = holder.itemView.findViewById<EditText>(R.id.inputItemPrice).text.toString().trim()
-                        if (name.isBlank() || unit.isBlank() || price.isBlank()) {
-                            Toast.makeText(this, "Complete all required fields before adding another item.", Toast.LENGTH_SHORT).show()
-                            return@CategoryAdapter
-                        }
-                        lastItem.name = name
-                        lastItem.unit = unit
-                        lastItem.price = price
-                    }
-                }
-                items.add(ItemFormData(items.size + 1))
-                adapter.notifyItemChanged(categoryPos)
-                updateItemCounter()
-            },
-            onDeleteItem = { categoryPos, itemPos ->
-                val items = categories[categoryPos].items
-                val categoryName = categories[categoryPos].categoryName
-                items.removeAt(itemPos)
-                items.forEachIndexed { idx, item -> item.itemNumber = idx + 1 }
-                // If no items left, remove the category card
-                if (items.isEmpty()) {
-                    // Track that this category became empty in this session
-                    emptiedCategories.add(categoryName)
-                    categories.removeAt(categoryPos)
-                    adapter.notifyDataSetChanged()
-                } else {
-                    adapter.notifyItemChanged(categoryPos)
-                }
-                updateItemCounter()
-            }
-        )
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = adapter
-
-        recyclerView.visibility = View.GONE
-
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName")
-        // Only update the counter, do not show dialog here
-        updateItemCounter()
-        // Show dialog with fetch on screen open
-        showCategoryDialogWithFetch()
 
-        buttonSelectCategory.setOnClickListener {
-            showCategoryDialogWithFetch()
-        }
-        val buttonDone = findViewById<AppCompatButton>(R.id.buttonDone)
-        buttonDone.setOnClickListener {
-            val hasItems = categories.any { it.items.isNotEmpty() }
-            if (hasItems) {
-                val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
-                val dialog = AlertDialog.Builder(this)
-                    .setView(dialogView)
-                    .setCancelable(false)
-                    .create()
-                val title = dialogView.findViewById<TextView>(R.id.dialogTitle)
-                val message = dialogView.findViewById<TextView>(R.id.confirmMessage)
-                val btnCancel = dialogView.findViewById<AppCompatButton>(R.id.btnCancel)
-                val btnDelete = dialogView.findViewById<AppCompatButton>(R.id.btnDelete)
-                title.text = "Save Items?"
-                message.text = "Are you sure you want to save all entered items? This will add them to your store."
-                btnDelete.text = "Save"
-                btnDelete.setTextColor(resources.getColor(R.color.presyo_orange, null))
-                btnCancel.text = "Cancel"
-                btnCancel.setOnClickListener { dialog.dismiss() }
-                btnDelete.setOnClickListener {
-                    dialog.dismiss()
-                    saveAllItemsToSupabase()
-                }
-                dialog.show()
+        initViews()
+        setupDrawer()
+
+        // Initial Fetch for "Update" detection
+        fetchExistingData()
+    }
+
+    private fun initViews() {
+        viewFlipper = findViewById(R.id.viewFlipper)
+        inputRawText = findViewById(R.id.inputRawText)
+        btnPreview = findViewById(R.id.btnPreview)
+        btnEditRaw = findViewById(R.id.btnEditRaw)
+        btnConfirmImport = findViewById(R.id.btnConfirmImport)
+        previewRecyclerView = findViewById(R.id.previewRecyclerView)
+        previewSummary = findViewById(R.id.previewSummary)
+        btnBack = findViewById(R.id.btnBack)
+
+        previewRecyclerView.layoutManager = LinearLayoutManager(this)
+
+        btnBack.setOnClickListener { onBackPressed() }
+
+        btnPreview.setOnClickListener {
+            val raw = inputRawText.text.toString()
+            if (raw.isBlank()) {
+                Toast.makeText(this, "Please type or paste items first.", Toast.LENGTH_SHORT).show()
             } else {
-                saveAllItemsToSupabase()
+                performParse(raw)
             }
         }
-        val btnBack = findViewById<ImageView>(R.id.btnBack)
-        btnBack.setOnClickListener {
-            onBackPressed()
+
+        btnEditRaw.setOnClickListener {
+            viewFlipper.displayedChild = 0 // Go back to input
         }
 
-        // --- NAVIGATION DRAWER & LOGOUT LOGIC ---
-        try {
-            drawerLayout = findViewById(R.id.drawerLayout)
-            navigationView = findViewById(R.id.navigationView)
-            val menuIcon = findViewById<ImageView>(R.id.menuIcon)
-
-            if (menuIcon != null && drawerLayout != null && navigationView != null) {
-                menuIcon.setOnClickListener {
-                    drawerLayout.open()
-                }
-
-                // Header Info
-                val headerView = navigationView.getHeaderView(0)
-                val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-                val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
-                val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
-                userEmailText.text = supaUser?.email ?: ""
-                userNameText.text = "User"
-                lifecycleScope.launch {
-                    try {
-                        val name = SupabaseAuthService.getDisplayName() ?: "User"
-                        userNameText.text = name
-                    } catch (_: Exception) { }
-                }
-
-                // Drawer Listener
-                navigationView.setNavigationItemSelectedListener { item ->
-                    when (item.itemId) {
-                        R.id.nav_stores -> {
-                            val intent = android.content.Intent(this, StoreActivity::class.java)
-                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            startActivity(intent)
-                            finish()
-                            true
-                        }
-                        R.id.nav_notifications -> {
-                            val intent = android.content.Intent(this, NotificationActivity::class.java)
-                            startActivity(intent)
-                            drawerLayout.close()
-                            true
-                        }
-                        R.id.nav_logout -> {
-                            showLogoutDialog()
-                            true
-                        }
-                        else -> false
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            // Ignore if drawer views are missing in XML layout for now
+        btnConfirmImport.setOnClickListener {
+            performImport()
         }
     }
 
-    private fun showLogoutDialog() {
-        val dialog = Dialog(this)
-        val view = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+    // --- LOGIC: Parsing ---
 
-        view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
-        view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
+    private fun performParse(rawText: String) {
+        LoadingOverlayHelper.show(loadingOverlay)
+        lifecycleScope.launch(Dispatchers.Default) {
+            val categories = AddMultipleItemsParser.parseRawToCategories(rawText, existingProductNames)
 
-        view.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        view.findViewById<android.widget.Button>(R.id.btnDelete).apply {
-            text = "Log Out"
-            setOnClickListener {
-                lifecycleScope.launch {
-                    try {
-                        SupabaseAuthService.signOut()
-                    } catch (_: Exception) { }
-                    val intent = android.content.Intent(this@AddMultipleItemsActivity, LoginActivity::class.java)
-                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(intent)
-                    finish()
+            // Build preview list from parsed categories (include invalid items for visibility)
+            val finalDisplayList = mutableListOf<PreviewItem>()
+            var validCount = 0
+            categories.forEach { cat ->
+                finalDisplayList.add(PreviewItem.Header(cat.name))
+                cat.items.forEach { itm ->
+                    finalDisplayList.add(
+                        PreviewItem.Product(
+                            name = itm.name,
+                            description = itm.description,
+                            price = itm.price ?: 0.0,
+                            unit = itm.unit,
+                            category = cat.name,
+                            status = itm.status
+                        )
+                    )
+                    if (itm.status == ItemStatus.NEW || itm.status == ItemStatus.UPDATE) validCount++
                 }
-                dialog.dismiss()
+            }
+
+            parsedCategories = categories
+            parsedItems = finalDisplayList
+
+            withContext(Dispatchers.Main) {
+                LoadingOverlayHelper.hide(loadingOverlay)
+                updatePreviewUI(finalDisplayList, validCount, categories.size)
             }
         }
-        dialog.show()
     }
 
-    override fun onResume() {
-        super.onResume()
-        SessionManager.markStoreHome(this, storeId, storeName)
+    private fun updatePreviewUI(items: List<PreviewItem>, validItems: Int, catCount: Int) {
+        previewSummary.text = "Found $validItems valid items in $catCount categories."
+        previewRecyclerView.adapter = PreviewAdapter(items)
+        viewFlipper.displayedChild = 1 // Show Preview
     }
 
-    override fun onBackPressed() {
-        val hasItems = categories.any { it.items.isNotEmpty() }
-        if (hasItems) {
-            val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
-            val dialog = AlertDialog.Builder(this)
-                .setView(dialogView)
-                .setCancelable(false)
-                .create()
-            val title = dialogView.findViewById<TextView>(R.id.dialogTitle)
-            val message = dialogView.findViewById<TextView>(R.id.confirmMessage)
-            val btnCancel = dialogView.findViewById<AppCompatButton>(R.id.btnCancel)
-            val btnDelete = dialogView.findViewById<AppCompatButton>(R.id.btnDelete)
-            title.text = "Discard Items?"
-            message.text = "You have unsaved items. Are you sure you want to leave? All entered data will be lost."
-            btnDelete.text = "Discard"
-            btnDelete.setTextColor(resources.getColor(R.color.presyo_orange, null))
-            btnCancel.text = "Cancel"
-            btnCancel.setOnClickListener { dialog.dismiss() }
-            btnDelete.setOnClickListener {
-                dialog.dismiss()
-                val intent = android.content.Intent(this, HomeActivity::class.java)
+    // --- LOGIC: Importing ---
+
+    private fun performImport() {
+        // Count valid items
+        val validItemsCount = parsedCategories.sumOf { cat ->
+            cat.items.count { it.status == ItemStatus.NEW || it.status == ItemStatus.UPDATE }
+        }
+        if (validItemsCount == 0) {
+            Toast.makeText(this, "No valid items to save.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        LoadingOverlayHelper.show(loadingOverlay)
+        lifecycleScope.launch {
+            try {
+                val sId = storeId ?: return@launch
+                val manager = ImportManager(SupabaseImportRepository())
+                val result = manager.performImport(sId, parsedCategories, categoryIdByName)
+
+                val msg = "Saved ${result.savedCount} of ${result.attemptedCount} items across ${result.categoryCount} categories."
+                Toast.makeText(this@AddMultipleItemsActivity, msg, Toast.LENGTH_LONG).show()
+                if (result.failures.isNotEmpty()) {
+                    android.util.Log.w("Import", "Failures: ${result.failures.map { it.first.name to it.second }}")
+                }
+
+                // Return to Home
+                val intent = Intent(this@AddMultipleItemsActivity, HomeActivity::class.java)
                 intent.putExtra("storeId", storeId)
                 intent.putExtra("storeName", storeName)
                 startActivity(intent)
                 finish()
-            }
-            dialog.show()
-        } else {
-            val intent = android.content.Intent(this, HomeActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-            finish()
-        }
-    }
-
-    private fun showCategoryDialogWithFetch() {
-        fetchCategoriesFromSupabase {
-            showCategorySelectionDialog()
-        }
-    }
-
-    @Serializable
-    private data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
-
-    private fun fetchCategoriesFromSupabase(onFetched: () -> Unit) {
-        val id = storeId ?: return
-        LoadingOverlayHelper.show(loadingOverlay)
-        lifecycleScope.launch {
-            try {
-                val rows = SupabaseProvider.client.postgrest.rpc(
-                    "get_user_categories",
-                    buildJsonObject { put("p_store_id", id) }
-                ).decodeList<UserCategoryRow>()
-                categoryNames.clear()
-                categoryIdByName.clear()
-                for (row in rows) {
-                    if (!categoryNames.contains(row.name)) {
-                        categoryNames.add(row.name)
-                        categoryIdByName[row.name] = row.category_id
-                    }
-                }
-                categoryNames.add("Add new Category")
-                onFetched()
             } catch (e: Exception) {
-                android.util.Log.e("AddMultipleItems", "Fetch categories error: ${e.localizedMessage}", e)
-                categoryNames.clear()
-                categoryNames.add("Add new Category")
-                onFetched()
-            }
-            LoadingOverlayHelper.hide(loadingOverlay)
-        }
-    }
-
-    private fun showCategorySelectionDialog() {
-        val categoriesArray = categoryNames.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("Select Category")
-            .setItems(categoriesArray) { _, which ->
-                val selected = categoriesArray[which]
-                if (selected == "Add new Category") {
-                    showAddCategoryDialog { newCategory ->
-                        categoryNames.add(categoryNames.size - 1, newCategory)
-                        // Immediately show the new category card and begin item entry
-                        showCategoryCard(newCategory)
-                    }
-                } else {
-                    showCategoryCard(selected)
-                }
-            }
-            .show()
-    }
-
-    private fun showAddCategoryDialog(onCategoryAdded: (String) -> Unit) {
-        val dialog = android.app.Dialog(this)
-        val view = layoutInflater.inflate(R.layout.dialog_add_category, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val input = view.findViewById<android.widget.EditText>(R.id.inputCategoryName)
-        val btnAdd = view.findViewById<android.widget.Button>(R.id.btnAdd)
-        val btnBack = view.findViewById<android.widget.Button>(R.id.btnBack)
-
-        @Serializable
-        data class NewCategoryRow(val category_id: String, val store_id: String, val name: String)
-
-        btnAdd.setOnClickListener {
-            val category = input.text.toString().trim()
-            if (category.isNotEmpty()) {
-                val sId = storeId ?: return@setOnClickListener
-                LoadingOverlayHelper.show(loadingOverlay)
-                lifecycleScope.launch {
-                    try {
-                        val inserted = SupabaseProvider.client.postgrest.rpc(
-                            "add_category",
-                            buildJsonObject {
-                                put("p_store_id", sId)
-                                put("p_name", category)
-                            }
-                        ).decodeList<NewCategoryRow>()
-                        val newId = inserted.firstOrNull()?.category_id
-                        if (!newId.isNullOrBlank()) {
-                            categoryIdByName[category] = newId
-                        }
-                        // Track categories created in this session
-                        createdCategories.add(category)
-                        onCategoryAdded(category)
-                        dialog.dismiss()
-                    } catch (e: Exception) {
-                        android.util.Log.e("AddMultipleItems", "add_category RPC failed: ${e.localizedMessage}", e)
-                        input.error = "Failed to add category"
-                    }
-                    LoadingOverlayHelper.hide(loadingOverlay)
-                }
-            } else {
-                input.error = "Enter a category name"
-            }
-        }
-        btnBack.setOnClickListener { dialog.dismiss() }
-        dialog.show()
-    }
-
-    private fun showCategoryCard(category: String) {
-        // Prevent duplicate cards for the same category
-        if (categories.any { it.categoryName == category }) return
-        categories.add(CategoryWithItems(category, mutableListOf(ItemFormData(1))))
-        adapter.notifyDataSetChanged()
-        recyclerView.visibility = View.VISIBLE
-        updateItemCounter()
-    }
-
-    private fun updateItemCounter() {
-        val totalItems = categories.sumOf { it.items.size }
-        if (totalItems == 0) {
-            itemCounter.visibility = View.GONE
-        } else {
-            itemCounter.visibility = View.VISIBLE
-            itemCounter.text = when (totalItems) {
-                1 -> "1 Item"
-                else -> "$totalItems Items"
-            }
-        }
-    }
-
-    private fun saveAllItemsToSupabase() {
-        val sId = storeId ?: return
-        val sName = storeName
-        LoadingOverlayHelper.show(loadingOverlay)
-        lifecycleScope.launch {
-            try {
-                var totalCount = 0
-                for (category in categories) {
-                    val catName = category.categoryName
-                    // Ensure category_id is available; create if missing
-                    var catId = categoryIdByName[catName]
-                    if (catId.isNullOrBlank()) {
-                        @Serializable
-                        data class NewCategoryRow(val category_id: String, val store_id: String, val name: String)
-                        val inserted = SupabaseProvider.client.postgrest.rpc(
-                            "add_category",
-                            buildJsonObject { put("p_store_id", sId); put("p_name", catName) }
-                        ).decodeList<NewCategoryRow>()
-                        catId = inserted.firstOrNull()?.category_id
-                        if (!catId.isNullOrBlank()) {
-                            categoryIdByName[catName] = catId
-                        }
-                        // Track categories created in this session when auto-creating
-                        createdCategories.add(catName)
-                    }
-                    for (item in category.items) {
-                        val name = item.name.trim()
-                        val unit = item.unit.trim()
-                        val priceStr = item.price.trim()
-                        if (name.isBlank() || unit.isBlank() || priceStr.isBlank()) {
-                            Toast.makeText(this@AddMultipleItemsActivity, "Complete all required fields for every item.", Toast.LENGTH_SHORT).show()
-                            // Abort saving gracefully
-                            totalCount = 0
-                            throw IllegalStateException("Validation failed")
-                        }
-                        val priceVal = priceStr.toDoubleOrNull() ?: 0.0
-                        val desc = item.description.trim().takeIf { it.isNotBlank() }
-                        val payload = buildJsonObject {
-                            put("p_store_id", sId)
-                            put("p_name", name)
-                            if (desc != null) put("p_description", desc) else put("p_description", JsonNull)
-                            put("p_price", priceVal)
-                            put("p_unit", unit)
-                            if (!catId.isNullOrBlank()) put("p_category_id", catId!!) else put("p_category_id", JsonNull)
-                        }
-                        try {
-                            SupabaseProvider.client.postgrest.rpc("add_product", payload)
-                            totalCount += 1
-                        } catch (e: Exception) {
-                            android.util.Log.e("AddMultipleItems", "add_product RPC failed: ${e.localizedMessage}", e)
-                            Toast.makeText(this@AddMultipleItemsActivity, "Unable to add items.", Toast.LENGTH_SHORT).show()
-                            return@launch
-                        }
-                    }
-                }
-                // After saving, delete any categories that ended up with no items (new or existing)
-                try {
-                    @Serializable
-                    data class MinimalProductRow(val id: String)
-                    @Serializable
-                    data class MinimalCategoryRow(val id: String)
-                    val candidateNames = mutableSetOf<String>()
-                    candidateNames.addAll(createdCategories)
-                    candidateNames.addAll(emptiedCategories)
-                    // Also include any current cards that are empty
-                    candidateNames.addAll(categories.filter { it.items.isEmpty() }.map { it.categoryName })
-
-                    for (name in candidateNames) {
-                        // Resolve category id by name; fallback to DB lookup if missing
-                        var catId = categoryIdByName[name]
-                        if (catId.isNullOrBlank()) {
-                            val cats = SupabaseProvider.client.postgrest["categories"].select {
-                                filter { eq("store_id", sId); eq("name", name) }
-                                limit(1)
-                            }.decodeList<MinimalCategoryRow>()
-                            catId = cats.firstOrNull()?.id
-                            if (!catId.isNullOrBlank()) {
-                                categoryIdByName[name] = catId
-                            }
-                        }
-                        if (!catId.isNullOrBlank()) {
-                            val prods = SupabaseProvider.client.postgrest["products"].select {
-                                filter { eq("store_id", sId); eq("category_id", catId!!) }
-                                limit(1)
-                            }.decodeList<MinimalProductRow>()
-                            if (prods.isEmpty()) {
-                                SupabaseProvider.client.postgrest["categories"].delete {
-                                    filter { eq("id", catId!!); eq("store_id", sId) }
-                                }
-                                android.util.Log.d("AddMultipleItems", "Deleted empty category: $name")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("AddMultipleItems", "Cleanup empty categories failed: ${e.localizedMessage}", e)
-                }
-                if (totalCount == 0) {
-                    Toast.makeText(this@AddMultipleItemsActivity, "No items to save.", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                Toast.makeText(this@AddMultipleItemsActivity, "Items added.", Toast.LENGTH_SHORT).show()
-                val intent = android.content.Intent(this@AddMultipleItemsActivity, HomeActivity::class.java)
-                intent.putExtra("storeId", sId)
-                intent.putExtra("storeName", sName)
-                startActivity(intent)
-                finish()
-            } catch (e: Exception) {
-                android.util.Log.e("AddMultipleItems", "Save items error: ${e.localizedMessage}", e)
-                Toast.makeText(this@AddMultipleItemsActivity, "Unable to add items.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@AddMultipleItemsActivity, "Error saving: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
     }
+
+    // --- HELPERS ---
+
+    private fun fetchExistingData() {
+        val sId = storeId ?: return
+        lifecycleScope.launch {
+            try {
+                // Fetch Categories
+                @Serializable data class CatRow(val category_id: String, val name: String)
+                val cats = SupabaseProvider.client.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", JsonPrimitive(sId)) }
+                ).decodeList<CatRow>()
+                cats.forEach { categoryIdByName[it.name] = it.category_id }
+
+                // Fetch Products for Update Detection
+                @Serializable data class ProdRow(val name: String)
+                val prods = SupabaseProvider.client.postgrest["products"]
+                    .select(Columns.list("name")) { filter { eq("store_id", sId) } }
+                    .decodeList<ProdRow>()
+
+                existingProductNames.clear()
+                existingProductNames.addAll(prods.map { it.name.lowercase() })
+
+            } catch (e: Exception) {
+                // Silent fail, just means status checks might be inaccurate
+            }
+        }
+    }
+
+    private fun setupDrawer() {
+        val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
+        val navigationView = findViewById<NavigationView>(R.id.navigationView)
+        findViewById<ImageView>(R.id.menuIcon).setOnClickListener { drawerLayout.open() }
+
+        navigationView.setNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_stores -> startActivity(Intent(this, StoreActivity::class.java))
+                R.id.nav_logout -> { /* Handle logout */ }
+            }
+            drawerLayout.close()
+            true
+        }
+    }
+
+    override fun onBackPressed() {
+        if (viewFlipper.displayedChild == 1) {
+            // If in preview, go back to edit
+            viewFlipper.displayedChild = 0
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    // --- INNER CLASSES FOR PREVIEW ---
+
+    sealed class PreviewItem {
+        data class Header(val title: String) : PreviewItem()
+        data class Product(
+            val name: String,
+            val description: String?,
+            val price: Double,
+            val unit: String,
+            val category: String,
+            val status: ItemStatus
+        ) : PreviewItem()
+    }
+
+    inner class PreviewAdapter(private val items: List<PreviewItem>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+        inner class HeaderHolder(v: View) : RecyclerView.ViewHolder(v) {
+            val title: TextView = v.findViewById(android.R.id.text1)
+        }
+
+        inner class ProductHolder(v: View) : RecyclerView.ViewHolder(v) {
+            val name: TextView = v.findViewById(R.id.itemName)
+            val details: TextView = v.findViewById(R.id.itemDetails)
+            val price: TextView = v.findViewById(R.id.itemPrice)
+            val tag: TextView = v.findViewById(R.id.itemTag)
+        }
+
+        override fun getItemViewType(position: Int): Int = when(items[position]) {
+            is PreviewItem.Header -> 0
+            is PreviewItem.Product -> 1
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            return if (viewType == 0) {
+                val v = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_1, parent, false)
+                v.findViewById<TextView>(android.R.id.text1).apply {
+                    setTextColor(Color.parseColor("#E65100")) // Presyo Orange
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    textSize = 18f
+                }
+                HeaderHolder(v)
+            } else {
+                val v = LayoutInflater.from(parent.context).inflate(R.layout.item_product_simple, parent, false)
+                ProductHolder(v)
+            }
+        }
+
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            if (holder is HeaderHolder) {
+                holder.title.text = (items[position] as PreviewItem.Header).title
+            } else if (holder is ProductHolder) {
+                val item = items[position] as PreviewItem.Product
+                holder.name.text = item.name
+                holder.details.text = "${item.unit} ${if(item.description != null) "(${item.description})" else ""}"
+                holder.price.text = "₱${String.format("% ,.2f", item.price)}"
+
+                // Status Tag Logic
+                when(item.status) {
+                    ItemStatus.NEW -> {
+                        holder.tag.text = "NEW"
+                        holder.tag.setTextColor(Color.parseColor("#4CAF50")) // Green
+                        holder.tag.visibility = View.VISIBLE
+                    }
+                    ItemStatus.UPDATE -> {
+                        holder.tag.text = "UPDATE"
+                        holder.tag.setTextColor(Color.parseColor("#FF9800")) // Orange
+                        holder.tag.visibility = View.VISIBLE
+                    }
+                    ItemStatus.DUPLICATE -> {
+                        holder.tag.text = "DUPLICATE (In List)"
+                        holder.tag.setTextColor(Color.GRAY)
+                        holder.tag.visibility = View.VISIBLE
+                    }
+                    ItemStatus.ERROR_NO_PRICE -> {
+                        holder.tag.text = "MISSING PRICE"
+                        holder.tag.setTextColor(Color.RED)
+                        holder.tag.visibility = View.VISIBLE
+                    }
+                    ItemStatus.ERROR_INVALID_FORMAT -> {
+                        holder.tag.text = "INVALID FORMAT"
+                        holder.tag.setTextColor(Color.RED)
+                        holder.tag.visibility = View.VISIBLE
+                    }
+                    ItemStatus.ERROR_NO_CATEGORY -> {
+                        holder.tag.text = "NO CATEGORY CONTEXT"
+                        holder.tag.setTextColor(Color.RED)
+                        holder.tag.visibility = View.VISIBLE
+                    }
+                    else -> holder.tag.visibility = View.GONE
+                }
+            }
+        }
+
+        override fun getItemCount(): Int = items.size
+    }
 }
+

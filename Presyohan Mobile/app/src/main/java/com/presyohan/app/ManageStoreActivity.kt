@@ -297,13 +297,9 @@ class ManageStoreActivity : AppCompatActivity() {
             exportPricelistToExcel()
         }
 
-        // Import Prices action
+        // Import Prices action -> Show dialog with options (Excel, Paste-Code)
         findViewById<View>(R.id.btnImportPrices).setOnClickListener {
-            val intent = Intent(this, ImportPricesActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            intent.putExtra("storeBranch", branchName)
-            startActivity(intent)
+            showImportDialog()
         }
 
         // Paste-code actions
@@ -357,6 +353,42 @@ class ManageStoreActivity : AppCompatActivity() {
                 Toast.makeText(this, "Code copied to clipboard", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun showImportDialog() {
+        val dialog = android.app.Dialog(this)
+        val view = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_import_prices, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val btnImportExcel = view.findViewById<android.widget.LinearLayout>(R.id.btnImportExcel)
+        val btnCopyWithCode = view.findViewById<android.widget.LinearLayout>(R.id.btnCopyWithCode)
+        val btnCancel = view.findViewById<android.widget.Button>(R.id.btnCancel)
+
+        btnImportExcel.setOnClickListener {
+            android.widget.Toast.makeText(
+                this,
+                "Excel import is available on the web version.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            dialog.dismiss()
+        }
+
+        btnCopyWithCode.setOnClickListener {
+            val intent = android.content.Intent(this, CopyPricesActivity::class.java)
+            intent.putExtra("storeId", storeId)
+            intent.putExtra("storeName", storeName)
+            startActivity(intent)
+            dialog.dismiss()
+        }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
+        dialog.show()
     }
 
     // Extension function for dp to px
@@ -705,7 +737,9 @@ class ManageStoreActivity : AppCompatActivity() {
                     val desc = row.description?.trim().orEmpty()
                     val descPart = if (desc.isNotEmpty()) " ($desc)" else ""
                     val priceValue = row.price ?: 0.0
-                    lines.add("• $name$descPart — ₱${priceFormat.format(priceValue)}")
+                    val unit = row.units?.trim().orEmpty()
+                    val unitPart = if (unit.isNotEmpty()) " | $unit" else ""
+                    lines.add("• $name$descPart — ₱${priceFormat.format(priceValue)}$unitPart")
                 }
             if (index != sortedCategories.lastIndex) {
                 lines.add("")

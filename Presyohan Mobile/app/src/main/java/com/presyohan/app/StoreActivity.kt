@@ -396,14 +396,10 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             dialog.dismiss()
         }
 
-        // 4. Import Prices
+        // 4. Import Prices -> Show dialog with options
         btnImportPrices.setOnClickListener {
-            val intent = Intent(this, ImportPricesActivity::class.java)
-            intent.putExtra("storeId", store.id)
-            intent.putExtra("storeName", store.name)
-            intent.putExtra("storeBranch", store.branch ?: "")
-            startActivity(intent)
             dialog.dismiss()
+            showImportDialogForStore(store.id, store.name)
         }
 
         // 5. Export Prices
@@ -501,6 +497,38 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             }
         }
         confirmDialog.show()
+    }
+
+    private fun showImportDialogForStore(storeId: String, storeName: String) {
+        val dlg = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_import_prices, null)
+        dlg.setContentView(view)
+        dlg.setCancelable(true)
+        dlg.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dlg.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val btnImportExcel = view.findViewById<LinearLayout>(R.id.btnImportExcel)
+        val btnCopyWithCode = view.findViewById<LinearLayout>(R.id.btnCopyWithCode)
+        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
+
+        btnImportExcel.setOnClickListener {
+            Toast.makeText(this, "Excel import is available on the web version.", Toast.LENGTH_LONG).show()
+            dlg.dismiss()
+        }
+
+        btnCopyWithCode.setOnClickListener {
+            val intent = Intent(this, CopyPricesActivity::class.java)
+            intent.putExtra("storeId", storeId)
+            intent.putExtra("storeName", storeName)
+            startActivity(intent)
+            dlg.dismiss()
+        }
+
+        btnCancel.setOnClickListener { dlg.dismiss() }
+
+        dlg.show()
     }
 
     private fun showStoreMenuEmployee(store: Store) {
@@ -815,7 +843,9 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     val desc = row.description?.trim().orEmpty()
                     val descPart = if (desc.isNotEmpty()) " ($desc)" else ""
                     val priceValue = row.price ?: 0.0
-                    lines.add("• $name$descPart — ₱${priceFormat.format(priceValue)}")
+                    val unit = row.units?.trim().orEmpty()
+                    val unitPart = if (unit.isNotEmpty()) " | $unit" else ""
+                    lines.add("• $name$descPart — ₱${priceFormat.format(priceValue)}$unitPart")
                 }
             if (index != sortedCategories.lastIndex) {
                 lines.add("")
