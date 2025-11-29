@@ -85,7 +85,7 @@ export default function ProfilePage() {
 
   const fetchAppUserRow = async (authId) => {
     if (!authId) return null;
-    const columns = 'id, name, email, avatar_url';
+    const columns = 'id, name, email, avatar_url, phone';
     const { data, error } = await supabase
       .from('app_users')
       .select(columns)

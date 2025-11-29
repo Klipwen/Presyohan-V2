@@ -1,7 +1,19 @@
+2. Frontend Implementation
+Here is the updated InviteStaffModal.jsx. This replaces the simple email input with a unified search field, implements the debounce logic, and displays the user card upon a successful find.
+
+JavaScript
+
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../config/supabaseClient';
 import addStaffIcon from '../../assets/icon_add_staff.png';
 import storeIcon from '../../assets/icon_store.png';
+
+// Simple default avatar if user has none
+const DefaultAvatar = () => (
+  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+  </div>
+);
 
 export default function InviteStaffModal({ open, onClose, storeId, storeName, isOwner }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -10,16 +22,18 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
   const [codeCreatedAt, setCodeCreatedAt] = useState(null);
   const [loadingCode, setLoadingCode] = useState(false);
   const [inviting, setInviting] = useState(false);
+  
+  // Search State
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchStatus, setSearchStatus] = useState('idle'); // idle, searching, found, not-found, error
+  const [inviteError, setInviteError] = useState('');
+  
   const searchInputRef = useRef(null);
   const CODE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
   const [timeLeftMs, setTimeLeftMs] = useState(null);
-  const [inviteError, setInviteError] = useState('');
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchStatus, setSearchStatus] = useState('idle');
-  // Some Supabase drivers return TIMESTAMP WITHOUT TIME ZONE strings (no 'Z'),
-  // which JS interprets as local time. To avoid timezone offset shrinking the
-  // countdown (e.g., showing ~16h left for UTC+8), normalize to UTC when needed.
+
+  // Helper to handle timestamps
   const parseInviteTimestampMs = (ts) => {
     if (!ts) return null;
     try {
@@ -43,6 +57,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
     return `${h}:${m}:${s}`;
   };
 
+  // Load existing invite code
   useEffect(() => {
     const loadCode = async () => {
       if (!open || !storeId) return;
@@ -63,10 +78,6 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
           setTimeLeftMs(null);
         }
       } catch (e) {
-        // Keep empty if failed
-        setCode('');
-        setCodeCreatedAt(null);
-        setTimeLeftMs(null);
         console.warn('Failed to load invite code', e);
       } finally {
         setLoadingCode(false);
@@ -75,6 +86,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
     loadCode();
   }, [open, storeId]);
 
+  // Reset state on open/close
   useEffect(() => {
     if (open) {
       searchInputRef.current?.focus();
@@ -87,7 +99,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
     }
   }, [open]);
 
-  // Tick countdown every second and clear code on expiry
+  // Timer tick
   useEffect(() => {
     if (!codeCreatedAt) {
       setTimeLeftMs(null);
@@ -97,15 +109,12 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
     const tick = () => {
       const remaining = CODE_EXPIRY_MS - (Date.now() - created);
       setTimeLeftMs(Math.max(0, remaining));
-      if (remaining <= 0) {
-        // Clear code display when expired
-        setCode('');
-      }
+      if (remaining <= 0) setCode('');
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [codeCreatedAt, CODE_EXPIRY_MS]);
+  }, [codeCreatedAt]);
 
   const regenerateCode = async () => {
     if (!storeId) return;
@@ -119,8 +128,6 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
       if (row?.invite_code_created_at) {
         const created = parseInviteTimestampMs(row.invite_code_created_at);
         setTimeLeftMs(Math.max(0, CODE_EXPIRY_MS - (Date.now() - created)));
-      } else {
-        setTimeLeftMs(null);
       }
     } catch (e) {
       console.warn('Failed to regenerate code', e);
@@ -129,6 +136,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
     }
   };
 
+  // Debounced Search Logic
   useEffect(() => {
     setInviteError('');
     if (!searchTerm.trim()) {
@@ -136,15 +144,22 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
       setSelectedUser(null);
       return;
     }
+
     setSearchStatus('searching');
     setIsSearching(true);
     setSelectedUser(null);
+
     const timerId = setTimeout(async () => {
       try {
-        const { data, error } = await supabase.rpc('search_app_user', { search_term: searchTerm.trim() });
+        const { data, error } = await supabase.rpc('search_app_user', { 
+          search_term: searchTerm.trim() 
+        });
+
         if (error) throw error;
+
+        // data is an array because the RPC returns a table
         if (data && data.length > 0) {
-          setSelectedUser(data[0]);
+          setSelectedUser(data[0]); // Take the first match
           setSearchStatus('found');
         } else {
           setSearchStatus('not-found');
@@ -155,14 +170,14 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
       } finally {
         setIsSearching(false);
       }
-    }, 500);
+    }, 500); // 500ms debounce
+
     return () => clearTimeout(timerId);
   }, [searchTerm]);
 
   const copyCode = async () => {
     try {
-      if (!code) return;
-      await navigator.clipboard.writeText(code);
+      if (code) await navigator.clipboard.writeText(code);
     } catch (e) {
       console.error('Failed to copy', e);
     }
@@ -171,12 +186,15 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
   const sendInvite = async (e) => {
     e?.preventDefault();
     if (!storeId || !selectedUser) return;
+    
     try {
       setInviting(true);
       setInviteError('');
+      // We use the email from the found user to maintain compatibility 
+      // with the existing 'send_store_invitation' RPC
       const { error } = await supabase.rpc('send_store_invitation', {
         p_store_id: storeId,
-        p_email: selectedUser.email,
+        p_email: selectedUser.email, 
         p_role: role
       });
       if (error) throw error;
@@ -193,176 +211,74 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
   return (
     <div style={{
       position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+      top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      padding: '20px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 9999, padding: '20px'
     }} onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+      
       <div style={{
-        background: 'white',
-        borderRadius: '20px',
-        maxWidth: '500px',
-        width: '100%',
+        background: 'white', borderRadius: '20px',
+        maxWidth: '500px', width: '100%',
         boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
         overflow: 'hidden'
       }}>
         {/* Header */}
         <div style={{
           background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
-          padding: '20px',
-          textAlign: 'center',
+          padding: '20px', textAlign: 'center',
         }}>
-          <h2 style={{
-            margin: 0,
-            fontSize: '1.5rem',
-            color: 'white',
-            fontWeight: '700'
-          }}>Invite Staff</h2>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'white', fontWeight: '700' }}>Invite Staff</h2>
         </div>
 
         {/* Content */}
         <div style={{ padding: '30px' }}>
-          {/* Icon and Store Name */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            marginBottom: '25px'
-          }}>
-            {/* Real icon: add staff inside orange circle */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '15px',
-              position: 'relative'
-            }}>
+          
+          {/* Store Name & Icon */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '25px' }}>
+            <div style={{ marginBottom: '15px' }}>
               <img src={addStaffIcon} alt="Invite Staff" style={{ width: '100px', height: '100px'}} />
             </div>
-            <div style={{
-              fontSize: '1.2rem',
-              fontWeight: '700',
-              color: '#ff8c00'
-            }}>{storeName || 'Store'}</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#ff8c00' }}>{storeName || 'Store'}</div>
           </div>
 
-          {/* Store Code Section */}
-          <div style={{
-            background: '#f5f4f3ff',
-            padding: '20px',
-            borderRadius: '15px',
-            marginBottom: '25px'
-          }}>
-            <div style={{
-              fontSize: '0.85rem',
-              color: '#666',
-              marginBottom: '10px',
-              fontWeight: '600'
-            }}>Store Code</div>
-            
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '15px',
-              flexWrap: 'wrap'
-            }}>
-              {/* Real store icon: white on orange background */}
-              <div style={{
-                width: '50px',
-                height: '50px',
-                background: '#ff8c00',
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+          {/* Store Code Block */}
+          <div style={{ background: '#f5f4f3', padding: '20px', borderRadius: '15px', marginBottom: '25px' }}>
+            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '10px', fontWeight: '600' }}>Store Code</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ width: '50px', height: '50px', background: '#ff8c00', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <img src={storeIcon} alt="Store" style={{ width: '28px', height: '28px', filter: 'brightness(0) invert(1)' }} />
               </div>
-
-              {/* Code Display with top counter */}
-              <div style={{ flex: 1, minWidth: '120px' }}>
+              <div style={{ flex: 1 }}>
                 <div style={{ position: 'relative' }}>
                   {isCodeValid && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 6,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      fontSize: '0.8rem',
-                      color: '#666'
-                    }}>
+                    <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', fontSize: '0.8rem', color: '#666' }}>
                       Expires in {formatDuration(timeLeftMs)}
                     </div>
                   )}
                   <div style={{
-                    background: 'white',
-                    color: '#00bcd4',
-                    padding: '12px 20px',
-                    paddingTop: isCodeValid ? '28px' : '12px',
-                    borderRadius: '10px',
-                    fontSize: '1.5rem',
-                    fontWeight: '700',
-                    letterSpacing: '3px',
-                    textAlign: 'center'
+                    background: 'white', color: '#00bcd4', padding: '12px', paddingTop: isCodeValid ? '28px' : '12px',
+                    borderRadius: '10px', fontSize: '1.5rem', fontWeight: '700', letterSpacing: '3px', textAlign: 'center'
                   }}>
                     {loadingCode ? '...' : (isCodeValid ? code : '')}
                   </div>
                 </div>
               </div>
-
-              {/* Copy Button */}
-              <button
-                onClick={copyCode}
-                disabled={!isCodeValid}
-                style={{
-                  width: '45px',
-                  height: '45px',
-                  background: '#00bcd4',
-                  border: 'none',
-                  borderRadius: '10px',
-                  cursor: isCodeValid ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: isCodeValid ? 1 : 0.5
-                }}
-              >
-                <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
-                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                </svg>
+              <button onClick={copyCode} disabled={!isCodeValid} style={{ width: '45px', height: '45px', background: '#00bcd4', border: 'none', borderRadius: '10px', cursor: isCodeValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isCodeValid ? 1 : 0.5 }}>
+                <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
               </button>
             </div>
-
-            {/* Regenerate Button */}
             {isOwner && (
-              <button
-                onClick={regenerateCode}
-                disabled={loadingCode}
-                style={{
-                  marginTop: '15px',
-                  width: '100%',
-                  padding: '10px',
-                  background: 'transparent',
-                  border: '2px solid #ff8c00',
-                  borderRadius: '10px',
-                  color: '#ff8c00',
-                  fontWeight: '600',
-                  cursor: loadingCode ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem'
-                }}
-              >
+              <button onClick={regenerateCode} disabled={loadingCode} style={{ marginTop: '15px', width: '100%', padding: '10px', background: 'transparent', border: '2px solid #ff8c00', borderRadius: '10px', color: '#ff8c00', fontWeight: '600', cursor: loadingCode ? 'not-allowed' : 'pointer', fontSize: '0.9rem' }}>
                 {loadingCode ? 'Regenerating...' : 'Regenerate Code'}
               </button>
             )}
           </div>
 
+          {/* Invitation Form */}
           <form onSubmit={sendInvite} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* User Search Input */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#666', marginBottom: '8px' }}>
                 User ID or Email Address
@@ -371,7 +287,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="enter valid user ID or email"
+                  placeholder="enter valid user ID (PH25-xxxx) or email"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   style={{
@@ -380,6 +296,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
                     borderRadius: '10px', fontSize: '1rem', outline: 'none', boxSizing: 'border-box'
                   }}
                 />
+                {/* Search Icon / Loader */}
                 <div style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
                   {isSearching ? (
                     <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #ccc', borderTopColor: '#ff8c00', animation: 'spin 1s linear infinite' }} />
@@ -391,12 +308,14 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
                 </div>
               </div>
 
+              {/* Feedback States */}
               {searchStatus === 'not-found' && (
                 <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#d32f2f' }}>
                   No user found with this ID or Email.
                 </div>
               )}
 
+              {/* User Found Card */}
               {selectedUser && (
                 <div style={{ 
                   marginTop: '10px', 
@@ -411,9 +330,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
                   {selectedUser.avatar_url ? (
                     <img src={selectedUser.avatar_url} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
                   ) : (
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                    </div>
+                    <DefaultAvatar />
                   )}
                   <div style={{ overflow: 'hidden' }}>
                     <div style={{ fontWeight: '700', color: '#333', fontSize: '0.95rem' }}>{selectedUser.name || 'Unnamed User'}</div>
@@ -425,90 +342,39 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
               )}
             </div>
 
-            {/* Role Selector */}
+            {/* Role Selection */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                color: '#666',
-                marginBottom: '8px'
-              }}>Staff Role</label>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#666', marginBottom: '8px' }}>Staff Role</label>
               <div style={{ position: 'relative' }}>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   style={{
-                    width: '100%',
-                    padding: '14px',
-                    border: '2px solid #e0e0e0',
-                    borderRadius: '10px',
-                    fontSize: '1rem',
-                    outline: 'none',
-                    appearance: 'none',
-                    background: 'white',
-                    cursor: 'pointer',
-                    boxSizing: 'border-box',
-                    color: '#ff8c00',
-                    fontWeight: '500'
+                    width: '100%', padding: '14px', border: '2px solid #e0e0e0', borderRadius: '10px',
+                    fontSize: '1rem', outline: 'none', appearance: 'none', background: 'white',
+                    cursor: 'pointer', boxSizing: 'border-box', color: '#ff8c00', fontWeight: '500'
                   }}
                 >
                   <option value="employee">View only price list</option>
                   <option value="manager">Manage prices</option>
                 </select>
-                <svg
-                  style={{
-                    position: 'absolute',
-                    right: '15px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    pointerEvents: 'none'
-                  }}
-                  width="20"
-                  height="20"
-                  fill="#ff8c00"
-                  viewBox="0 0 24 24"
-                >
+                <svg style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="20" height="20" fill="#ff8c00" viewBox="0 0 24 24">
                   <path d="M7 10l5 5 5-5z"/>
                 </svg>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div style={{
-              display: 'flex',
-              gap: '15px',
-              marginTop: '10px'
-            }}>
-              <button
-                type="button"
-                onClick={onClose}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  background: '#00bcd4',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '25px',
-                  fontSize: '1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+              <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', background: '#00bcd4', color: 'white', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: '700', cursor: 'pointer' }}>
                 Back
               </button>
               <button
                 type="submit"
                 disabled={inviting || !selectedUser}
                 style={{
-                  flex: 1,
-                  padding: '14px',
-                  background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '25px',
-                  fontSize: '1rem',
-                  fontWeight: '700',
+                  flex: 1, padding: '14px', background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
+                  color: 'white', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: '700',
                   cursor: (inviting || !selectedUser) ? 'not-allowed' : 'pointer',
                   opacity: (inviting || !selectedUser) ? 0.7 : 1
                 }}
@@ -516,27 +382,18 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
                 {inviting ? 'Inviting...' : 'Invite'}
               </button>
             </div>
+            
             {inviteError && (
-              <div style={{
-                marginTop: '8px',
-                color: '#d32f2f',
-                fontSize: '0.9rem',
-                textAlign: 'center'
-              }}>
+              <div style={{ marginTop: '8px', color: '#d32f2f', fontSize: '0.9rem', textAlign: 'center' }}>
                 {inviteError}
               </div>
             )}
           </form>
         </div>
       </div>
-
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @media (max-width: 480px) {
-          input, select {
-            font-size: 16px !important;
-          }
-        }
+        @media (max-width: 480px) { input, select { font-size: 16px !important; } }
       `}</style>
     </div>
   );
