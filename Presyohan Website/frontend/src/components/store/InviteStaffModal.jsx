@@ -4,17 +4,19 @@ import addStaffIcon from '../../assets/icon_add_staff.png';
 import storeIcon from '../../assets/icon_store.png';
 
 export default function InviteStaffModal({ open, onClose, storeId, storeName, isOwner }) {
-  const [email, setEmail] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [role, setRole] = useState('employee');
   const [code, setCode] = useState('');
   const [codeCreatedAt, setCodeCreatedAt] = useState(null);
   const [loadingCode, setLoadingCode] = useState(false);
   const [inviting, setInviting] = useState(false);
-  const emailRef = useRef(null);
+  const searchInputRef = useRef(null);
   const CODE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
   const [timeLeftMs, setTimeLeftMs] = useState(null);
   const [inviteError, setInviteError] = useState('');
-  const [emailStatus, setEmailStatus] = useState({ valid: false, exists: null, checking: false, message: '' });
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchStatus, setSearchStatus] = useState('idle');
   // Some Supabase drivers return TIMESTAMP WITHOUT TIME ZONE strings (no 'Z'),
   // which JS interprets as local time. To avoid timezone offset shrinking the
   // countdown (e.g., showing ~16h left for UTC+8), normalize to UTC when needed.
@@ -75,11 +77,13 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
 
   useEffect(() => {
     if (open) {
-      emailRef.current?.focus();
+      searchInputRef.current?.focus();
     } else {
-      setEmail('');
+      setSearchTerm('');
+      setSelectedUser(null);
+      setSearchStatus('idle');
       setRole('employee');
-      setEmailStatus({ valid: false, exists: null, checking: false, message: '' });
+      setInviteError('');
     }
   }, [open]);
 
@@ -101,7 +105,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [codeCreatedAt]);
+  }, [codeCreatedAt, CODE_EXPIRY_MS]);
 
   const regenerateCode = async () => {
     if (!storeId) return;
@@ -125,34 +129,35 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
     }
   };
 
-  // Validate email and check existence (debounced)
   useEffect(() => {
     setInviteError('');
-    if (!email) {
-      setEmailStatus({ valid: false, exists: null, checking: false, message: '' });
+    if (!searchTerm.trim()) {
+      setSearchStatus('idle');
+      setSelectedUser(null);
       return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const valid = emailRegex.test(email);
-    if (!valid) {
-      setEmailStatus({ valid: false, exists: null, checking: false, message: 'Enter a valid email' });
-      return;
-    }
-    let active = true;
-    setEmailStatus((s) => ({ ...s, valid: true, checking: true, message: '' }));
-    const id = setTimeout(async () => {
+    setSearchStatus('searching');
+    setIsSearching(true);
+    setSelectedUser(null);
+    const timerId = setTimeout(async () => {
       try {
-        const { data, error } = await supabase.rpc('email_exists', { p_email: email });
-        if (!active) return;
+        const { data, error } = await supabase.rpc('search_app_user', { search_term: searchTerm.trim() });
         if (error) throw error;
-        const exists = !!data;
-        setEmailStatus({ valid: true, exists, checking: false, message: exists ? '' : 'No account found. Ask them to sign up.' });
+        if (data && data.length > 0) {
+          setSelectedUser(data[0]);
+          setSearchStatus('found');
+        } else {
+          setSearchStatus('not-found');
+        }
       } catch (e) {
-        setEmailStatus({ valid: true, exists: null, checking: false, message: 'Could not verify email right now' });
+        console.error(e);
+        setSearchStatus('error');
+      } finally {
+        setIsSearching(false);
       }
-    }, 400);
-    return () => { active = false; clearTimeout(id); };
-  }, [email]);
+    }, 500);
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
 
   const copyCode = async () => {
     try {
@@ -165,14 +170,13 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
 
   const sendInvite = async (e) => {
     e?.preventDefault();
-    if (!storeId) return;
-    if (!emailStatus.valid || emailStatus.checking || emailStatus.exists === false) return;
+    if (!storeId || !selectedUser) return;
     try {
       setInviting(true);
       setInviteError('');
       const { error } = await supabase.rpc('send_store_invitation', {
         p_store_id: storeId,
-        p_email: email,
+        p_email: selectedUser.email,
         p_role: role
       });
       if (error) throw error;
@@ -358,39 +362,65 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
             )}
           </div>
 
-          {/* Email Input */}
           <form onSubmit={sendInvite} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                color: '#666',
-                marginBottom: '8px'
-              }}>Email</label>
-              <input
-                ref={emailRef}
-                type="email"
-                placeholder="Input email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  border: '2px solid #e0e0e0',
-                  borderRadius: '10px',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-              {email && (
-                <div style={{
-                  marginTop: '6px',
-                  fontSize: '0.85rem',
-                  color: emailStatus.checking ? '#666' : (emailStatus.valid && emailStatus.exists) ? '#2e7d32' : '#d32f2f'
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#666', marginBottom: '8px' }}>
+                User ID or Email Address
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="enter valid user ID (PH25-xxxx) or email"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%', padding: '14px', paddingRight: '40px',
+                    border: `2px solid ${searchStatus === 'found' ? '#ff8c00' : searchStatus === 'not-found' ? '#d32f2f' : '#e0e0e0'}`,
+                    borderRadius: '10px', fontSize: '1rem', outline: 'none', boxSizing: 'border-box'
+                  }}
+                />
+                <div style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
+                  {isSearching ? (
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #ccc', borderTopColor: '#ff8c00', animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill={searchStatus === 'found' ? '#ff8c00' : '#999'}>
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                  )}
+                </div>
+              </div>
+
+              {searchStatus === 'not-found' && (
+                <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#d32f2f' }}>
+                  No user found with this ID or Email.
+                </div>
+              )}
+
+              {selectedUser && (
+                <div style={{ 
+                  marginTop: '10px', 
+                  padding: '12px', 
+                  background: '#fffbe6', 
+                  border: '1px solid #ffe8b3', 
+                  borderRadius: '12px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px' 
                 }}>
-                  {emailStatus.checking ? 'Checking email…' : (emailStatus.message || (emailStatus.valid && emailStatus.exists ? 'Account found' : ''))}
+                  {selectedUser.avatar_url ? (
+                    <img src={selectedUser.avatar_url} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    </div>
+                  )}
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: '700', color: '#333', fontSize: '0.95rem' }}>{selectedUser.name || 'Unnamed User'}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ fontWeight: '600', color: '#ff8c00' }}>{selectedUser.user_code}</span> • {selectedUser.email}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -469,7 +499,7 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
               </button>
               <button
                 type="submit"
-                disabled={inviting || !emailStatus.valid || emailStatus.checking || emailStatus.exists === false}
+                disabled={inviting || !selectedUser}
                 style={{
                   flex: 1,
                   padding: '14px',
@@ -479,8 +509,8 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
                   borderRadius: '25px',
                   fontSize: '1rem',
                   fontWeight: '700',
-                  cursor: (inviting || !emailStatus.valid || emailStatus.checking || emailStatus.exists === false) ? 'not-allowed' : 'pointer',
-                  opacity: (inviting || !emailStatus.valid || emailStatus.checking || emailStatus.exists === false) ? 0.7 : 1
+                  cursor: (inviting || !selectedUser) ? 'not-allowed' : 'pointer',
+                  opacity: (inviting || !selectedUser) ? 0.7 : 1
                 }}
               >
                 {inviting ? 'Inviting...' : 'Invite'}
@@ -500,8 +530,8 @@ export default function InviteStaffModal({ open, onClose, storeId, storeName, is
         </div>
       </div>
 
-      {/* Responsive Styles */}
       <style>{`
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @media (max-width: 480px) {
           input, select {
             font-size: 16px !important;
