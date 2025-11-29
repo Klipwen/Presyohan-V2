@@ -126,30 +126,44 @@ object SupabaseAuthService {
         return client.auth.currentUserOrNull()?.email ?: ""
     }
 
-    // Helper to fetch display name for headers: prefer auth metadata, fallback to app_users
-    suspend fun getDisplayName(): String? = withContext(Dispatchers.IO) {
-        val metaAny: Any? = client.auth.currentUserOrNull()?.userMetadata
-        val metaName = when (metaAny) {
-            is Map<*, *> -> metaAny["name"] as? String
-            is JsonObject -> metaAny["name"]?.jsonPrimitive?.contentOrNull
-            else -> null
-        }
-        if (!metaName.isNullOrBlank()) return@withContext metaName
-
+    // Fetch full profile for header display (name + user_code)
+    suspend fun getUserProfile(): AppUserRow? = withContext(Dispatchers.IO) {
         val uid = client.auth.currentUserOrNull()?.id ?: return@withContext null
         return@withContext try {
             val rows = client.postgrest["app_users"].select {
                 filter { eq("id", uid) }
                 limit(1)
             }.decodeList<AppUserRow>()
-            rows.firstOrNull()?.name
+            val row = rows.firstOrNull()
+
+            // Fallback to metadata for name if DB is empty but row exists
+            val metaAny: Any? = client.auth.currentUserOrNull()?.userMetadata
+            val metaName = when (metaAny) {
+                is Map<*, *> -> metaAny["name"] as? String
+                is JsonObject -> metaAny["name"]?.jsonPrimitive?.contentOrNull
+                else -> null
+            }
+
+            if (row != null && row.name.isNullOrBlank() && !metaName.isNullOrBlank()) {
+                row.copy(name = metaName)
+            } else {
+                row
+            }
         } catch (_: Exception) { null }
+    }
+
+    // Deprecated wrapper for backward compatibility if used elsewhere
+    suspend fun getDisplayName(): String? {
+        val profile = getUserProfile()
+        return profile?.name
     }
 }
 
+// Made public for header usage
 @kotlinx.serialization.Serializable
-private data class AppUserRow(
+data class AppUserRow(
     val id: String,
     val name: String? = null,
-    val email: String? = null
+    val email: String? = null,
+    val user_code: String? = null
 )

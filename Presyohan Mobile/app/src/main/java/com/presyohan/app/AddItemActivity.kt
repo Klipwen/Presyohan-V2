@@ -251,18 +251,27 @@ class AddItemActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Set user name and email in navigation drawer header via Supabase
+        // Set user name and ID in navigation drawer header via Supabase
         val navigationView = findViewById<com.google.android.material.navigation.NavigationView>(R.id.navigationView)
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-        val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
+        val userCodeText = headerView.findViewById<TextView>(R.id.drawerUserCode)
         val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
-        userEmailText.text = supaUser?.email ?: ""
         userNameText.text = "User"
+        userCodeText?.visibility = View.GONE
         lifecycleScope.launch {
             try {
-                val name = SupabaseAuthService.getDisplayName() ?: "User"
-                userNameText.text = name
+                val profile = SupabaseAuthService.getUserProfile()
+                if (profile != null) {
+                    userNameText.text = profile.name ?: (supaUser?.email ?: "User")
+                    if (!profile.user_code.isNullOrBlank()) {
+                        userCodeText?.text = "ID: ${profile.user_code!!.uppercase()}"
+                        userCodeText?.visibility = View.VISIBLE
+                    }
+                } else {
+                    val name = SupabaseAuthService.getDisplayName() ?: "User"
+                    userNameText.text = name
+                }
             } catch (_: Exception) { /* noop */ }
         }
     }

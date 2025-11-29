@@ -292,13 +292,23 @@ class EditItemActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Set real user name and email in navigation drawer header
+        // Set real user name and ID in navigation drawer header
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-        val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
+        val userCodeText = headerView.findViewById<TextView>(R.id.drawerUserCode)
         val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
         userNameText.text = currentUser?.userMetadata?.get("name")?.toString() ?: "User"
-        userEmailText.text = currentUser?.email ?: ""
+        userCodeText?.visibility = View.GONE
+        lifecycleScope.launch {
+            val profile = SupabaseAuthService.getUserProfile()
+            if (profile != null) {
+                userNameText.text = profile.name ?: (currentUser?.email ?: "User")
+                if (!profile.user_code.isNullOrBlank()) {
+                    userCodeText?.text = "ID: ${profile.user_code!!.uppercase()}"
+                    userCodeText?.visibility = View.VISIBLE
+                }
+            }
+        }
     }
 
     override fun onResume() {

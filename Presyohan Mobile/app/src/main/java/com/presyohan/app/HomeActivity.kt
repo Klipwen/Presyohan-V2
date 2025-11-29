@@ -1120,13 +1120,28 @@ class HomeActivity : AppCompatActivity() {
     private fun updateDrawerHeader(navView: NavigationView) {
         val h = navView.getHeaderView(0)
         val uT = h.findViewById<TextView>(R.id.drawerUserName)
-        val eT = h.findViewById<TextView>(R.id.drawerUserEmail)
+        val codeT = h.findViewById<TextView>(R.id.drawerUserCode)
         val u = SupabaseProvider.client.auth.currentUserOrNull()
+
+        // Default state
         uT.text = "User"
-        eT.text = u?.email ?: ""
+        codeT?.visibility = View.GONE
+
         lifecycleScope.launch {
-            val n = SupabaseAuthService.getDisplayName()
-            if(n!=null) uT.text = n
+            // Fetch full profile (name + user_code)
+            val profile = SupabaseAuthService.getUserProfile()
+            if (profile != null) {
+                uT.text = profile.name ?: (u?.email ?: "User")
+                if (!profile.user_code.isNullOrBlank()) {
+                    val formattedId = profile.user_code.uppercase()
+                    codeT?.text = "ID: $formattedId"
+                    codeT?.visibility = View.VISIBLE
+                }
+            } else {
+                // Fallback name from metadata if DB fails
+                val simpleName = SupabaseAuthService.getDisplayName()
+                if (simpleName != null) uT.text = simpleName
+            }
         }
     }
 

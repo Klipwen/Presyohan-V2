@@ -1,3 +1,10 @@
+Frontend Update: StoreHeader.jsx
+I have updated the fetchAppUserRow to select the new column, added it to the state, and placed the display element exactly where you requested in the side menu.
+
+File: Presyohan Website/frontend/src/components/layout/StoreHeader.jsx
+
+JavaScript
+
 import React, { useState, useEffect } from 'react';
 import storeHeaderLogo from '../../assets/presyohan_logo.png';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,18 +20,21 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [storesExpanded, setStoresExpanded] = useState(false);
+  
+  // 1. Update state to include userCode
   const [userProfile, setUserProfile] = useState({
     name: 'User Name',
     email: '',
     phone: '',
     avatarUrl: null,
-    userCode: ''
+    userCode: '' // Added userCode field
   });
   const [requireContactModal, setRequireContactModal] = useState(false);
 
   const fetchAppUserRow = async (userId) => {
     if (!userId) return null;
-    const columns = 'id, name, email, phone, avatar_url, user_code';
+    // 2. Add 'user_code' to the select query
+    const columns = 'id, name, email, avatar_url, user_code';
     const { data, error } = await supabase
       .from('app_users')
       .select(columns)
@@ -40,18 +50,17 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const user = session.user;
-          // Prefer Google/Gmail metadata from OAuth for name and avatar
           let displayName = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
           let avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-          let userCode = '';
+          let userCode = ''; // Default empty
 
-          // Try to get more complete profile from app_users table (schema: id = auth.uid())
           let appUser = null;
           try {
             appUser = await fetchAppUserRow(user.id);
             if (appUser) {
               displayName = appUser.name || displayName;
               avatarUrl = appUser.avatar_url || avatarUrl;
+              // 3. Get the code from the DB response
               userCode = appUser.user_code || '';
             }
           } catch (err) {
@@ -61,12 +70,13 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
           const resolvedEmail = appUser?.email || user.email || '';
           const resolvedPhone = appUser?.phone || '';
           setRequireContactModal(!resolvedEmail && !resolvedPhone);
+          
           setUserProfile({
             name: displayName,
             email: resolvedEmail,
             phone: resolvedPhone,
             avatarUrl: avatarUrl,
-            userCode: userCode
+            userCode: userCode // Set it in state
           });
         }
       } catch (error) {
@@ -77,7 +87,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
     fetchUserProfile();
   }, []);
 
-  // Fetch unread notifications count
+  // ... (keep existing useEffect for unread counts) ...
   useEffect(() => {
     const loadUnread = async () => {
       try {
@@ -101,7 +111,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
   const toggleSideMenu = () => setSideMenuOpen((v) => !v);
   const closeSideMenu = () => setSideMenuOpen(false);
 
-  // Generate avatar from email using a simple hash-based color
   const getAvatarFromEmail = (seed) => {
     const basis = seed || userProfile.name || 'User';
     if (!basis) return 'U';
@@ -127,7 +136,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
 
   return (
     <>
-      {/* Top header */}
       <header>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <button className="hamburger-btn" onClick={toggleSideMenu} aria-label="Open menu">
@@ -160,14 +168,12 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
                   if (ids.length > 0) {
                     await supabase.rpc('mark_notifications_read', { p_notification_ids: ids });
                   }
-                  // Confirm server-side state and update badge
                   const { count } = await supabase
                     .from('notifications')
                     .select('id', { count: 'exact', head: true })
                     .eq('receiver_user_id', userId)
                     .eq('read', false);
                   setUnreadCount(count || 0);
-                  // Pass initial unread IDs to panel via window event for simplicity
                   window.dispatchEvent(new CustomEvent('presyohan:initialUnreadIds', { detail: ids }));
                 }
               } catch (e) {
@@ -214,7 +220,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
         {/* Menu Header */}
         <div className="side-menu-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {/* Profile pic - use avatar URL or generated avatar */}
             {userProfile.avatarUrl ? (
               <img 
                 src={userProfile.avatarUrl} 
@@ -229,10 +234,12 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
             )}
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userProfile.name}</h3>
+              
+              {/* 4. Display the User Code here */}
               {userProfile.userCode && (
                 <div style={{ 
                   fontSize: '0.85rem', 
-                  color: 'rgba(255, 255, 255, 0.85)', 
+                  color: 'rgba(255, 255, 255, 0.85)', /* Light color, not bold */
                   fontWeight: 'normal',
                   marginTop: '2px',
                   marginBottom: '2px',
@@ -241,14 +248,14 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
                   ID: {userProfile.userCode.toUpperCase()}
                 </div>
               )}
+
               <Link to="/profile" onClick={closeSideMenu} style={{ color: 'white', textDecoration: 'underline', fontSize: '0.9rem' }}>View Profile</Link>
             </div>
           </div>
         </div>
 
-        {/* Menu Items */}
+        {/* ... Rest of the component (Menu Items, etc.) remains exactly the same ... */}
         <div className="side-menu-items">
-          {/* Stores with dropdown */}
           <button className="menu-item" onClick={() => setStoresExpanded((v) => !v)} style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left' }}>
             <svg fill="currentColor" viewBox="0 0 24 24">
               <path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V3H3z"/>
@@ -295,7 +302,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
             </div>
           )}
 
-          {/* Notifications */}
           <a href="#" className="menu-item">
             <svg fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
@@ -303,7 +309,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
             <span>Notifications</span>
           </a>
 
-          {/* Settings */}
           <a href="#" className="menu-item">
             <svg fill="currentColor" viewBox="0 0 24 24">
               <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17 .47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22 .08 .47 0 .59-.22l1.92-3.32c.12-.22 .07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
@@ -311,7 +316,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
             <span>Settings</span>
           </a>
 
-          {/* Support */}
           <a href="#" className="menu-item">
             <svg fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
@@ -321,7 +325,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
 
           <div className="menu-divider"></div>
 
-          {/* Logout */}
           <a
             href="#"
             className="menu-item"
@@ -336,7 +339,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
                 }
               } catch (err) {
                 console.error('Logout failed', err);
-                // Fallback redirect even if signOut fails
                 window.location.href = '/login';
               }
             }}
@@ -349,6 +351,7 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
         </div>
       </div>
 
+      {/* Modal and Panel implementations... */}
       {requireContactModal && (
         <div style={{
           position: 'fixed',
@@ -397,7 +400,6 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
         </div>
       )}
 
-      {/* Notifications Panel */}
       <NotificationsPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </>
   );

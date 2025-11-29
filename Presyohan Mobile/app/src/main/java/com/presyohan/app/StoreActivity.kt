@@ -172,16 +172,25 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         })
         recyclerView.adapter = adapter
 
-        // Set user name in drawer header
+        // Set user name and ID in drawer header
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-        val userEmailText = headerView.findViewById<TextView>(R.id.drawerUserEmail)
+        val userCodeText = headerView.findViewById<TextView>(R.id.drawerUserCode)
         val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
         userNameText.text = "User"
-        userEmailText.text = supaUser?.email ?: ""
+        userCodeText?.visibility = View.GONE
         lifecycleScope.launch {
-            val name = SupabaseAuthService.getDisplayName() ?: "User"
-            userNameText.text = name
+            val profile = SupabaseAuthService.getUserProfile()
+            if (profile != null) {
+                userNameText.text = profile.name ?: (supaUser?.email ?: "User")
+                if (!profile.user_code.isNullOrBlank()) {
+                    userCodeText?.text = "ID: ${profile.user_code!!.uppercase()}"
+                    userCodeText?.visibility = View.VISIBLE
+                }
+            } else {
+                val name = SupabaseAuthService.getDisplayName() ?: "User"
+                userNameText.text = name
+            }
         }
 
         checkUserStore()
