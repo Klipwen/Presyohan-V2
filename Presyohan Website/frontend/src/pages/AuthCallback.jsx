@@ -80,17 +80,24 @@ export default function AuthCallback() {
             setStatus('Facebook signed in. Please provide your email to continue.');
             return;
           }
-          await supabase
+          const { data: existing } = await supabase
             .from('app_users')
-            .upsert(
-              {
-                id: user.id,
-                email: finalEmail,
-                name: user.user_metadata?.name || null,
-                avatar_url: user.user_metadata?.avatar_url || null
-              },
-              { onConflict: 'id' }
-            );
+            .select('id, name, email, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle();
+          const finalName = existing?.name ?? (user.user_metadata?.name || null);
+          const finalAvatar = existing?.avatar_url ?? (user.user_metadata?.avatar_url || null);
+          if (existing?.id) {
+            await supabase
+              .from('app_users')
+              .update({ email: finalEmail ?? existing.email })
+              .eq('id', user.id);
+          } else {
+            await supabase
+              .from('app_users')
+              .insert({ id: user.id, email: finalEmail, name: finalName, avatar_url: finalAvatar });
+          }
+          await supabase.auth.updateUser({ data: { name: finalName, avatar_url: finalAvatar } });
         } catch (err) {
           // Non-fatal: proceed even if profile upsert fails
           console.warn('Profile upsert failed in OAuth callback:', err);
@@ -112,17 +119,24 @@ export default function AuthCallback() {
               setStatus('Facebook signed in. Please provide your email to continue.');
               return;
             }
-            await supabase
+            const { data: existing } = await supabase
               .from('app_users')
-              .upsert(
-                {
-                  id: session.user.id,
-                  email: userEmail,
-                  name: session.user.user_metadata?.name || null,
-                  avatar_url: session.user.user_metadata?.avatar_url || null
-                },
-                { onConflict: 'id' }
-              );
+              .select('id, name, email, avatar_url')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            const finalName = existing?.name ?? (session.user.user_metadata?.name || null);
+            const finalAvatar = existing?.avatar_url ?? (session.user.user_metadata?.avatar_url || null);
+            if (existing?.id) {
+              await supabase
+                .from('app_users')
+                .update({ email: userEmail ?? existing.email })
+                .eq('id', session.user.id);
+            } else {
+              await supabase
+                .from('app_users')
+                .insert({ id: session.user.id, email: userEmail, name: finalName, avatar_url: finalAvatar });
+            }
+            await supabase.auth.updateUser({ data: { name: finalName, avatar_url: finalAvatar } });
           } catch (e) {
             console.warn('Profile upsert failed in auth state change:', e);
           }
@@ -154,17 +168,24 @@ export default function AuthCallback() {
         setSavingEmail(false);
         return;
       }
-      await supabase
+      const { data: existing } = await supabase
         .from('app_users')
-        .upsert(
-          {
-            id: userId,
-            email: emailInput,
-            name: session.user.user_metadata?.name || null,
-            avatar_url: session.user.user_metadata?.avatar_url || null
-          },
-          { onConflict: 'id' }
-        );
+        .select('id, name, email, avatar_url')
+        .eq('id', userId)
+        .maybeSingle();
+      const finalName = existing?.name ?? (session.user.user_metadata?.name || null);
+      const finalAvatar = existing?.avatar_url ?? (session.user.user_metadata?.avatar_url || null);
+      if (existing?.id) {
+        await supabase
+          .from('app_users')
+          .update({ email: emailInput })
+          .eq('id', userId);
+      } else {
+        await supabase
+          .from('app_users')
+          .insert({ id: userId, email: emailInput, name: finalName, avatar_url: finalAvatar });
+      }
+      await supabase.auth.updateUser({ data: { name: finalName, avatar_url: finalAvatar } });
       navigate('/stores', { replace: true });
     } catch (e) {
       setStatus(e.message || 'Failed to save email. Please try again.');

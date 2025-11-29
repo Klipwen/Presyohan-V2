@@ -129,24 +129,30 @@ export default function VerifyEmailPage() {
           }
         }
 
-        // Persist or update the user's profile in public.app_users.
         try {
           const user = sessionRes?.data?.session?.user;
           if (user) {
-            await supabase
+            const { data: existing } = await supabase
               .from('app_users')
-              .upsert(
-                {
-                  id: user.id,
-                  email: user.email,
-                  name: pendingName || user.user_metadata?.name || null,
-                  avatar_url: user.user_metadata?.avatar_url || null
-                },
-                { onConflict: 'id' }
-              );
+              .select('id, name, email, avatar_url')
+              .eq('id', user.id)
+              .maybeSingle();
+            const finalName = existing?.name ?? (pendingName || user.user_metadata?.name || null);
+            const finalAvatar = existing?.avatar_url ?? (user.user_metadata?.avatar_url || null);
+            if (existing?.id) {
+              await supabase
+                .from('app_users')
+                .update({ email: user.email ?? existing.email })
+                .eq('id', user.id);
+            } else {
+              await supabase
+                .from('app_users')
+                .insert({ id: user.id, email: user.email, name: finalName, avatar_url: finalAvatar });
+            }
+            await supabase.auth.updateUser({ data: { name: finalName, avatar_url: finalAvatar } });
           }
         } catch (err) {
-          console.warn('Failed to upsert app_users profile:', err);
+          console.warn('Failed to persist app_users profile:', err);
         }
 
         // If we just set a password, verify it by signing out and signing back in.
