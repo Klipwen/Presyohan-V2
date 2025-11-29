@@ -25,12 +25,23 @@ export default function StoreHeader({ stores = [], onLogout, includeAllStoresLin
   const fetchAppUserRow = async (userId) => {
     if (!userId) return null;
     const columns = 'id, name, email, phone, avatar_url, user_code';
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('app_users')
       .select(columns)
       .eq('id', userId)
       .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
+    if (!data) {
+      try {
+        const res2 = await supabase
+          .from('app_users')
+          .select(columns)
+          .eq('auth_uid', userId)
+          .maybeSingle();
+        if (res2.error && res2.error.code !== 'PGRST116') throw res2.error;
+        data = res2.data || null;
+      } catch (_) {}
+    }
     return data || null;
   };
 

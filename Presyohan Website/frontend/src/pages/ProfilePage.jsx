@@ -85,13 +85,24 @@ export default function ProfilePage() {
 
   const fetchAppUserRow = async (authId) => {
     if (!authId) return null;
-    const columns = 'id, name, email, avatar_url, phone';
-    const { data, error } = await supabase
+    const columns = 'id, name, email, avatar_url, phone, user_code';
+    let { data, error } = await supabase
       .from('app_users')
       .select(columns)
       .eq('id', authId)
       .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
+    if (!data) {
+      try {
+        const res2 = await supabase
+          .from('app_users')
+          .select(columns)
+          .eq('auth_uid', authId)
+          .maybeSingle();
+        if (res2.error && res2.error.code !== 'PGRST116') throw res2.error;
+        data = res2.data || null;
+      } catch (_) {}
+    }
     return data || null;
   };
 
@@ -100,14 +111,27 @@ export default function ProfilePage() {
     const authId = session?.user?.id || profile.authId;
     if (!authId) throw new Error('Not signed in.');
     const recordId = profile.id || authId;
-    const payload = {
-      id: recordId,
-      ...fields
-    };
-    const { error } = await supabase
-      .from('app_users')
-      .upsert(payload, { onConflict: 'id' });
-    if (error) throw error;
+    const payload = { id: recordId, ...fields };
+    let upsertError = null;
+    try {
+      const { error } = await supabase
+        .from('app_users')
+        .upsert(payload, { onConflict: 'id' });
+      if (error) upsertError = error;
+    } catch (e) {
+      upsertError = e;
+    }
+    if (upsertError) {
+      try {
+        const payload2 = { id: recordId, auth_uid: recordId, ...fields };
+        const { error: err2 } = await supabase
+          .from('app_users')
+          .upsert(payload2, { onConflict: 'id' });
+        if (err2) throw err2;
+      } catch (e2) {
+        throw e2;
+      }
+    }
     if (!profile.id) {
       setProfile((prev) => ({ ...prev, id: recordId, authId }));
     }
