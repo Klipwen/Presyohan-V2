@@ -47,7 +47,8 @@ export default function ProfilePage() {
     name: '',
     email: '',
     phone: '',
-    avatar_url: ''
+    avatar_url: '',
+    user_code: ''
   });
 
   const [preferences, setPreferences] = useState({
@@ -201,7 +202,8 @@ export default function ProfilePage() {
         name: row?.name || authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || '',
         email: row?.email ?? authUser?.email ?? '',
         phone: normalizePhoneForState(row?.phone || authUser?.user_metadata?.phone || ''),
-        avatar_url: row?.avatar_url || authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || ''
+        avatar_url: row?.avatar_url || authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || '',
+        user_code: row?.user_code || ''
       };
       setProfile(base);
     } catch (e) {
@@ -503,6 +505,13 @@ export default function ProfilePage() {
     }
   };
 
+  const copyToClipboard = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setActionStatus({ kind: 'success', text: 'User ID copied to clipboard' });
+    setTimeout(() => setActionStatus(null), 2000);
+  };
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -547,24 +556,6 @@ export default function ProfilePage() {
           }}>
             Profile Settings
           </h1>
-          
-          {/* Mobile Hamburger Menu */}
-          <button 
-            className="mobile-menu-toggle"
-            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            style={{
-              marginLeft: 'auto',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '5px',
-              color: '#ff8c00'
-            }}
-          >
-            <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -672,6 +663,25 @@ export default function ProfilePage() {
             padding: '30px',
             boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
           }}>
+            {/* Action Status Toast */}
+            {actionStatus && (
+              <div style={{
+                position: 'fixed',
+                bottom: '20px',
+                right: '20px',
+                background: actionStatus.kind === 'error' ? '#ff4444' : '#00bcd4',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                zIndex: 3000,
+                fontWeight: '500',
+                animation: 'fadeIn 0.3s ease-in-out'
+              }}>
+                {actionStatus.text}
+              </div>
+            )}
+
             {/* Profile Overview */}
             {activeTab === 'overview' && (
               <div>
@@ -713,6 +723,43 @@ export default function ProfilePage() {
                       </svg>
                     )}
                   </div>
+
+                  {/* User ID Display */}
+                  {profile.user_code && (
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      marginBottom: '15px', 
+                      color: '#666', 
+                      fontSize: '0.9rem',
+                      fontWeight: '500'
+                    }}>
+                      <span>ID: {profile.user_code}</span>
+                      <button 
+                        onClick={() => copyToClipboard(profile.user_code)}
+                        title="Copy ID"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#999',
+                          transition: 'color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#ff8c00'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#999'}
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeWidth="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" strokeWidth="2"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+
                   <input
                     id="avatar-input"
                     type="file"

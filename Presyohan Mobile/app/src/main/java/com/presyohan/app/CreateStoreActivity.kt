@@ -35,6 +35,7 @@ class CreateStoreActivity : AppCompatActivity() {
         menuIcon.setOnClickListener {
             drawerLayout.open()
         }
+        HeaderUtils.updateHeader(this, navigationView)
         navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_stores -> {

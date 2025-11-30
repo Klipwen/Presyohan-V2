@@ -1,400 +1,560 @@
-2. Frontend Implementation
-Here is the updated InviteStaffModal.jsx. This replaces the simple email input with a unified search field, implements the debounce logic, and displays the user card upon a successful find.
+Here is the complete implementation to bring the website's "Invite Staff" logic (unified search, debouncing, user card display, and direct invitation) to your Android app.
 
-JavaScript
+1. Update dialog_invite_staff.xml
+I have redesigned the input section to be a search bar and added the "User Found" card layout, which is hidden by default.
 
-import React, { useEffect, useRef, useState } from 'react';
-import { supabase } from '../../config/supabaseClient';
-import addStaffIcon from '../../assets/icon_add_staff.png';
-import storeIcon from '../../assets/icon_store.png';
+File: app/src/main/res/layout/dialog_invite_staff.xml
 
-// Simple default avatar if user has none
-const DefaultAvatar = () => (
-  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-  </div>
-);
+XML
 
-export default function InviteStaffModal({ open, onClose, storeId, storeName, isOwner }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [role, setRole] = useState('employee');
-  const [code, setCode] = useState('');
-  const [codeCreatedAt, setCodeCreatedAt] = useState(null);
-  const [loadingCode, setLoadingCode] = useState(false);
-  const [inviting, setInviting] = useState(false);
-  
-  // Search State
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchStatus, setSearchStatus] = useState('idle'); // idle, searching, found, not-found, error
-  const [inviteError, setInviteError] = useState('');
-  
-  const searchInputRef = useRef(null);
-  const CODE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
-  const [timeLeftMs, setTimeLeftMs] = useState(null);
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="24dp"
+    android:background="@drawable/bg_rounded"
+    android:minWidth="350dp"
+    android:gravity="center_horizontal"
+    android:elevation="8dp">
 
-  // Helper to handle timestamps
-  const parseInviteTimestampMs = (ts) => {
-    if (!ts) return null;
-    try {
-      const s = typeof ts === 'string' ? ts : ts.toString();
-      const looksZoned = /[zZ]|[+-]\d{2}:?\d{2}$/.test(s);
-      const d = new Date(looksZoned ? s : s + 'Z');
-      const ms = d.getTime();
-      return Number.isNaN(ms) ? null : ms;
-    } catch {
-      return null;
-    }
-  };
+    <TextView
+        android:id="@+id/inviteStaffTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Invite Staff"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/presyo_orange"
+        android:layout_marginBottom="4dp"/>
 
-  const isCodeValid = !!codeCreatedAt && timeLeftMs !== null && timeLeftMs > 0 && !!code;
+    <ImageView
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:src="@drawable/icon_invite_staff"
+        android:layout_marginBottom="16dp"/>
 
-  const formatDuration = (ms) => {
-    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-    const s = (totalSeconds % 60).toString().padStart(2, '0');
-    return `${h}:${m}:${s}`;
-  };
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#F5F4F3"
+        android:padding="16dp"
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/bg_rounded">
 
-  // Load existing invite code
-  useEffect(() => {
-    const loadCode = async () => {
-      if (!open || !storeId) return;
-      setLoadingCode(true);
-      try {
-        const { data, error } = await supabase
-          .from('stores')
-          .select('invite_code, invite_code_created_at')
-          .eq('id', storeId)
-          .maybeSingle();
-        if (error) throw error;
-        setCode(data?.invite_code || '');
-        setCodeCreatedAt(data?.invite_code_created_at || null);
-        if (data?.invite_code_created_at) {
-          const created = parseInviteTimestampMs(data.invite_code_created_at);
-          setTimeLeftMs(Math.max(0, CODE_EXPIRY_MS - (Date.now() - created)));
-        } else {
-          setTimeLeftMs(null);
-        }
-      } catch (e) {
-        console.warn('Failed to load invite code', e);
-      } finally {
-        setLoadingCode(false);
-      }
-    };
-    loadCode();
-  }, [open, storeId]);
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Store Code"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#666666"
+            android:layout_marginBottom="8dp"/>
 
-  // Reset state on open/close
-  useEffect(() => {
-    if (open) {
-      searchInputRef.current?.focus();
-    } else {
-      setSearchTerm('');
-      setSelectedUser(null);
-      setSearchStatus('idle');
-      setRole('employee');
-      setInviteError('');
-    }
-  }, [open]);
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical">
 
-  // Timer tick
-  useEffect(() => {
-    if (!codeCreatedAt) {
-      setTimeLeftMs(null);
-      return;
-    }
-    const created = parseInviteTimestampMs(codeCreatedAt);
-    const tick = () => {
-      const remaining = CODE_EXPIRY_MS - (Date.now() - created);
-      setTimeLeftMs(Math.max(0, remaining));
-      if (remaining <= 0) setCode('');
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [codeCreatedAt]);
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_rounded"
+                android:backgroundTint="@color/presyo_orange">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/icon_store"
+                    android:layout_gravity="center"
+                    app:tint="@android:color/white"/>
+            </FrameLayout>
 
-  const regenerateCode = async () => {
-    if (!storeId) return;
-    try {
-      setLoadingCode(true);
-      const { data, error } = await supabase.rpc('regenerate_invite_code', { p_store_id: storeId });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      setCode(row?.invite_code || '');
-      setCodeCreatedAt(row?.invite_code_created_at || null);
-      if (row?.invite_code_created_at) {
-        const created = parseInviteTimestampMs(row.invite_code_created_at);
-        setTimeLeftMs(Math.max(0, CODE_EXPIRY_MS - (Date.now() - created)));
-      }
-    } catch (e) {
-      console.warn('Failed to regenerate code', e);
-    } finally {
-      setLoadingCode(false);
-    }
-  };
+            <View android:layout_width="12dp" android:layout_height="1dp"/>
 
-  // Debounced Search Logic
-  useEffect(() => {
-    setInviteError('');
-    if (!searchTerm.trim()) {
-      setSearchStatus('idle');
-      setSelectedUser(null);
-      return;
-    }
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-    setSearchStatus('searching');
-    setIsSearching(true);
-    setSelectedUser(null);
+                <TextView
+                    android:id="@+id/inviteCodeExpiry"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Expires in 23:59:00"
+                    android:textSize="10sp"
+                    android:textColor="#888888"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginBottom="2dp"/>
 
-    const timerId = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase.rpc('search_app_user', { 
-          search_term: searchTerm.trim() 
-        });
+                <TextView
+                    android:id="@+id/storeCodeText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="..."
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/presyo_teal"
+                    android:gravity="center"
+                    android:background="@drawable/bg_white"
+                    android:paddingVertical="8dp"/>
+            </LinearLayout>
 
-        if (error) throw error;
+            <View android:layout_width="12dp" android:layout_height="1dp"/>
 
-        // data is an array because the RPC returns a table
-        if (data && data.length > 0) {
-          setSelectedUser(data[0]); // Take the first match
-          setSearchStatus('found');
-        } else {
-          setSearchStatus('not-found');
-        }
-      } catch (e) {
-        console.error(e);
-        setSearchStatus('error');
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500); // 500ms debounce
+            <FrameLayout
+                android:id="@+id/btnCopyCode"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_rounded"
+                android:backgroundTint="@color/presyo_teal"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/icon_copy"
+                    android:layout_gravity="center"
+                    app:tint="@android:color/white"/>
+            </FrameLayout>
+        </LinearLayout>
 
-    return () => clearTimeout(timerId);
-  }, [searchTerm]);
+        <TextView
+            android:id="@+id/btnGenerateCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Regenerate Code"
+            android:textColor="@color/presyo_orange"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_gravity="center_horizontal"
+            android:padding="8dp"
+            android:layout_marginTop="8dp"/>
+    </LinearLayout>
 
-  const copyCode = async () => {
-    try {
-      if (code) await navigator.clipboard.writeText(code);
-    } catch (e) {
-      console.error('Failed to copy', e);
-    }
-  };
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="User ID or Email Address"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#666666"
+        android:layout_marginBottom="6dp"/>
 
-  const sendInvite = async (e) => {
-    e?.preventDefault();
-    if (!storeId || !selectedUser) return;
-    
-    try {
-      setInviting(true);
-      setInviteError('');
-      // We use the email from the found user to maintain compatibility 
-      // with the existing 'send_store_invitation' RPC
-      const { error } = await supabase.rpc('send_store_invitation', {
-        p_store_id: storeId,
-        p_email: selectedUser.email, 
-        p_role: role
-      });
-      if (error) throw error;
-      onClose?.();
-    } catch (e) {
-      setInviteError(e.message || 'Failed to send invitation');
-    } finally {
-      setInviting(false);
-    }
-  };
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-  if (!open) return null;
+        <EditText
+            android:id="@+id/searchInput"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="@drawable/bg_edittext"
+            android:hint="Enter valid user ID or email"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="40dp"
+            android:maxLines="1"
+            android:inputType="textEmailAddress"/>
 
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 9999, padding: '20px'
-    }} onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      
-      <div style={{
-        background: 'white', borderRadius: '20px',
-        maxWidth: '500px', width: '100%',
-        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-        overflow: 'hidden'
-      }}>
-        {/* Header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
-          padding: '20px', textAlign: 'center',
-        }}>
-          <h2 style={{ margin: 0, fontSize: '1.5rem', color: 'white', fontWeight: '700' }}>Invite Staff</h2>
-        </div>
+        <ProgressBar
+            android:id="@+id/searchLoader"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="12dp"
+            android:visibility="gone"
+            android:indeterminateTint="@color/presyo_orange"/>
 
-        {/* Content */}
-        <div style={{ padding: '30px' }}>
-          
-          {/* Store Name & Icon */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '25px' }}>
-            <div style={{ marginBottom: '15px' }}>
-              <img src={addStaffIcon} alt="Invite Staff" style={{ width: '100px', height: '100px'}} />
-            </div>
-            <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#ff8c00' }}>{storeName || 'Store'}</div>
-          </div>
+        <ImageView
+            android:id="@+id/searchIconStatic"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/icon_search"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="12dp"
+            app:tint="#999999"/>
+    </FrameLayout>
 
-          {/* Store Code Block */}
-          <div style={{ background: '#f5f4f3', padding: '20px', borderRadius: '15px', marginBottom: '25px' }}>
-            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '10px', fontWeight: '600' }}>Store Code</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div style={{ width: '50px', height: '50px', background: '#ff8c00', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={storeIcon} alt="Store" style={{ width: '28px', height: '28px', filter: 'brightness(0) invert(1)' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ position: 'relative' }}>
-                  {isCodeValid && (
-                    <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', fontSize: '0.8rem', color: '#666' }}>
-                      Expires in {formatDuration(timeLeftMs)}
-                    </div>
-                  )}
-                  <div style={{
-                    background: 'white', color: '#00bcd4', padding: '12px', paddingTop: isCodeValid ? '28px' : '12px',
-                    borderRadius: '10px', fontSize: '1.5rem', fontWeight: '700', letterSpacing: '3px', textAlign: 'center'
-                  }}>
-                    {loadingCode ? '...' : (isCodeValid ? code : '')}
-                  </div>
-                </div>
-              </div>
-              <button onClick={copyCode} disabled={!isCodeValid} style={{ width: '45px', height: '45px', background: '#00bcd4', border: 'none', borderRadius: '10px', cursor: isCodeValid ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isCodeValid ? 1 : 0.5 }}>
-                <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-              </button>
-            </div>
-            {isOwner && (
-              <button onClick={regenerateCode} disabled={loadingCode} style={{ marginTop: '15px', width: '100%', padding: '10px', background: 'transparent', border: '2px solid #ff8c00', borderRadius: '10px', color: '#ff8c00', fontWeight: '600', cursor: loadingCode ? 'not-allowed' : 'pointer', fontSize: '0.9rem' }}>
-                {loadingCode ? 'Regenerating...' : 'Regenerate Code'}
-              </button>
-            )}
-          </div>
+    <TextView
+        android:id="@+id/textNotFound"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No user found with this ID or Email."
+        android:textColor="#D32F2F"
+        android:textSize="12sp"
+        android:layout_marginTop="4dp"
+        android:visibility="gone"/>
 
-          {/* Invitation Form */}
-          <form onSubmit={sendInvite} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <LinearLayout
+        android:id="@+id/userResultContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFBE6"
+        android:padding="12dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+        <com.google.android.material.image.ShapeableImageView
+            android:id="@+id/foundUserAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/icon_profile"
+            app:shapeAppearanceOverlay="@style/CircularImage"
+            android:scaleType="centerCrop"
+            android:background="#E0E0E0"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
             
-            {/* User Search Input */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#666', marginBottom: '8px' }}>
-                User ID or Email Address
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="enter valid user ID (PH25-xxxx) or email"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{
-                    width: '100%', padding: '14px', paddingRight: '40px',
-                    border: `2px solid ${searchStatus === 'found' ? '#ff8c00' : searchStatus === 'not-found' ? '#d32f2f' : '#e0e0e0'}`,
-                    borderRadius: '10px', fontSize: '1rem', outline: 'none', boxSizing: 'border-box'
-                  }}
-                />
-                {/* Search Icon / Loader */}
-                <div style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
-                  {isSearching ? (
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #ccc', borderTopColor: '#ff8c00', animation: 'spin 1s linear infinite' }} />
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill={searchStatus === 'found' ? '#ff8c00' : '#999'}>
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
-                  )}
-                </div>
-              </div>
+            <TextView
+                android:id="@+id/foundUserName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User Name"
+                android:textStyle="bold"
+                android:textColor="#333333"
+                android:textSize="14sp"/>
 
-              {/* Feedback States */}
-              {searchStatus === 'not-found' && (
-                <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#d32f2f' }}>
-                  No user found with this ID or Email.
-                </div>
-              )}
+            <TextView
+                android:id="@+id/foundUserDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PH25-0001 • email@example.com"
+                android:textColor="#666666"
+                android:textSize="12sp"
+                android:ellipsize="end"
+                android:maxLines="1"/>
+        </LinearLayout>
+    </LinearLayout>
 
-              {/* User Found Card */}
-              {selectedUser && (
-                <div style={{ 
-                  marginTop: '10px', 
-                  padding: '12px', 
-                  background: '#fffbe6', 
-                  border: '1px solid #ffe8b3', 
-                  borderRadius: '12px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px' 
-                }}>
-                  {selectedUser.avatar_url ? (
-                    <img src={selectedUser.avatar_url} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
-                  ) : (
-                    <DefaultAvatar />
-                  )}
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontWeight: '700', color: '#333', fontSize: '0.95rem' }}>{selectedUser.name || 'Unnamed User'}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span style={{ fontWeight: '600', color: '#ff8c00' }}>{selectedUser.user_code}</span> • {selectedUser.email}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Staff Role"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#666666"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="6dp"/>
 
-            {/* Role Selection */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#666', marginBottom: '8px' }}>Staff Role</label>
-              <div style={{ position: 'relative' }}>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  style={{
-                    width: '100%', padding: '14px', border: '2px solid #e0e0e0', borderRadius: '10px',
-                    fontSize: '1rem', outline: 'none', appearance: 'none', background: 'white',
-                    cursor: 'pointer', boxSizing: 'border-box', color: '#ff8c00', fontWeight: '500'
-                  }}
-                >
-                  <option value="employee">View only price list</option>
-                  <option value="manager">Manage prices</option>
-                </select>
-                <svg style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="20" height="20" fill="#ff8c00" viewBox="0 0 24 24">
-                  <path d="M7 10l5 5 5-5z"/>
-                </svg>
-              </div>
-            </div>
+    <Spinner
+        android:id="@+id/roleSpinner"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="@drawable/bg_edittext"
+        android:paddingStart="4dp"
+        android:layout_marginBottom="24dp"/>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-              <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', background: '#00bcd4', color: 'white', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: '700', cursor: 'pointer' }}>
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={inviting || !selectedUser}
-                style={{
-                  flex: 1, padding: '14px', background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
-                  color: 'white', border: 'none', borderRadius: '25px', fontSize: '1rem', fontWeight: '700',
-                  cursor: (inviting || !selectedUser) ? 'not-allowed' : 'pointer',
-                  opacity: (inviting || !selectedUser) ? 0.7 : 1
-                }}
-              >
-                {inviting ? 'Inviting...' : 'Invite'}
-              </button>
-            </div>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <android.widget.Button
+            android:id="@+id/btnBack"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Back"
+            android:background="@drawable/button_round_teal"
+            android:textColor="@color/white"
+            android:layout_marginEnd="8dp"/>
+
+        <android.widget.Button
+            android:id="@+id/btnInvite"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Invite"
+            android:background="@drawable/button_round_orange"
+            android:textColor="@color/white"
+            android:enabled="false"
+            android:alpha="0.5"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/inviteErrorText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#D32F2F"
+        android:textSize="12sp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"/>
+
+</LinearLayout>
+2. Update HomeActivity.kt
+I will add the data class for the search result, the debounced search logic using Handler and TextWatcher, and the updated invitation logic.
+
+Add these imports:
+
+Kotlin
+
+import android.text.Editable
+import android.text.TextWatcher
+import io.coil.load
+import io.coil.transform.CircleCropTransformation
+Add this data class inside HomeActivity (or at file level):
+
+Kotlin
+
+    @Serializable
+    data class SearchedUser(
+        val id: String,
+        val name: String? = null,
+        val email: String? = null,
+        val user_code: String? = null,
+        val avatar_url: String? = null
+    )
+Replace the showInviteStaffDialog function with this updated version:
+
+Kotlin
+
+    private fun showInviteStaffDialog(inviteCode: String?, expiryMillis: Long?) {
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_invite_staff, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        // Dynamic width adjustment
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        // UI References
+        val codeText = view.findViewById<TextView>(R.id.storeCodeText)
+        val expiryText = view.findViewById<TextView>(R.id.inviteCodeExpiry)
+        val copyBtn = view.findViewById<View>(R.id.btnCopyCode) // Changed to View to match FrameLayout
+        val generateBtn = view.findViewById<TextView>(R.id.btnGenerateCode)
+        
+        // Search UI References
+        val searchInput = view.findViewById<EditText>(R.id.searchInput)
+        val searchLoader = view.findViewById<View>(R.id.searchLoader)
+        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
+        val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
+        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundName = view.findViewById<TextView>(R.id.foundUserName)
+        val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
+        val btnInvite = view.findViewById<Button>(R.id.btnInvite)
+        val inviteErrorText = view.findViewById<TextView>(R.id.inviteErrorText)
+
+        // Logic State
+        var selectedUser: SearchedUser? = null
+        val searchHandler = Handler(Looper.getMainLooper())
+        var searchRunnable: Runnable? = null
+
+        // --- Store Code Logic (Keep Existing) ---
+        fun updateCodeUI(code: String?, expiresAt: Long?) {
+            codeText.text = code ?: "No Code"
+            inviteCodeCountdownJob?.cancel()
+
+            val now = System.currentTimeMillis()
+            if (code != null && expiresAt != null) {
+                if (expiresAt > now) {
+                    startInviteCountdown(expiryText, codeText, copyBtn.findViewById(R.id.btnCopyCode), expiresAt) // Check ID if needed
+                } else {
+                    expiryText.text = "Code expired"
+                }
+            } else {
+                expiryText.text = if (code == null) "" else "Code expired"
+            }
+        }
+        updateCodeUI(inviteCode, expiryMillis)
+
+        copyBtn.setOnClickListener {
+            val code = codeText.text.toString()
+            if (code.isNotEmpty() && code != "No Code") {
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Store Code", code)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Code copied.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        generateBtn.setOnClickListener {
+            if (userRole != "owner") {
+                Toast.makeText(this, "Only owner can generate codes.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val sId = currentStoreId ?: return@setOnClickListener
+            // Show loading on the text itself
+            generateBtn.text = "Regenerating..."
+            generateBtn.isEnabled = false
             
-            {inviteError && (
-              <div style={{ marginTop: '8px', color: '#d32f2f', fontSize: '0.9rem', textAlign: 'center' }}>
-                {inviteError}
-              </div>
-            )}
-          </form>
-        </div>
-      </div>
-      <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @media (max-width: 480px) { input, select { font-size: 16px !important; } }
-      `}</style>
-    </div>
-  );
-}
+            lifecycleScope.launch {
+                try {
+                    val params = buildJsonObject { put("p_store_id", sId) }
+                    val rows = supabase.postgrest.rpc("regenerate_invite_code", params).decodeList<InviteCodeReturn>()
+                    val row = rows.firstOrNull()
+                    val newCode = row?.invite_code
+                    val created = row?.invite_code_created_at
+
+                    val newCreatedMillis = parseInviteCreatedMillis(created)
+                    val newExpiry = newCreatedMillis?.plus(86400000L)
+
+                    runOnUiThread {
+                        updateCodeUI(newCode, newExpiry)
+                        Toast.makeText(this@HomeActivity, "Code updated.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this@HomeActivity, "Failed to generate code.", Toast.LENGTH_SHORT).show()
+                } finally {
+                    generateBtn.text = "Regenerate Code"
+                    generateBtn.isEnabled = true
+                }
+            }
+        }
+
+        // --- New Search Logic ---
+        
+        fun toggleInviteButton() {
+            btnInvite.isEnabled = selectedUser != null
+            btnInvite.alpha = if (selectedUser != null) 1.0f else 0.5f
+        }
+
+        val performSearch = { query: String ->
+            searchLoader.visibility = View.VISIBLE
+            searchIcon.visibility = View.GONE
+            textNotFound.visibility = View.GONE
+            userResultContainer.visibility = View.GONE
+            selectedUser = null
+            toggleInviteButton()
+
+            lifecycleScope.launch {
+                try {
+                    val results = supabase.postgrest.rpc("search_app_user", buildJsonObject {
+                        put("search_term", query)
+                    }).decodeList<SearchedUser>()
+
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+
+                    if (results.isNotEmpty()) {
+                        val user = results[0]
+                        selectedUser = user
+                        
+                        // Update User Card
+                        userResultContainer.visibility = View.VISIBLE
+                        foundName.text = user.name ?: "Unnamed User"
+                        val code = user.user_code ?: "NO-ID"
+                        val email = user.email ?: ""
+                        foundDetails.text = "$code • $email"
+                        
+                        // Load Avatar
+                        if (!user.avatar_url.isNullOrBlank()) {
+                            foundAvatar.load(user.avatar_url) {
+                                crossfade(true)
+                                transformations(CircleCropTransformation())
+                            }
+                        } else {
+                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                        }
+                        
+                        // Highlight border (Optional: change background color logic if needed)
+                    } else {
+                        textNotFound.visibility = View.VISIBLE
+                    }
+                } catch (e: Exception) {
+                    Log.e("InviteStaff", "Search failed", e)
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.text = "Error searching user."
+                    textNotFound.visibility = View.VISIBLE
+                }
+                toggleInviteButton()
+            }
+        }
+
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Remove pending search
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                
+                inviteErrorText.visibility = View.GONE
+                val query = s.toString().trim()
+
+                if (query.isEmpty()) {
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.visibility = View.GONE
+                    userResultContainer.visibility = View.GONE
+                    selectedUser = null
+                    toggleInviteButton()
+                    return
+                }
+
+                // Debounce 500ms
+                searchRunnable = Runnable { performSearch(query) }
+                searchHandler.postDelayed(searchRunnable!!, 500)
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        // --- Role Spinner ---
+        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
+        // Map display names to internal values
+        val rolesDisplay = listOf("View only price list", "Manage prices")
+        val rolesValue = listOf("employee", "manager")
+        
+        val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, rolesDisplay)
+        roleSpinner.adapter = adp
+
+        // --- Button Actions ---
+        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
+
+        btnInvite.setOnClickListener {
+            val user = selectedUser ?: return@setOnClickListener
+            val sId = currentStoreId ?: return@setOnClickListener
+            val roleIdx = roleSpinner.selectedItemPosition
+            val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
+
+            btnInvite.text = "Inviting..."
+            btnInvite.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    // Use the email from the found user object
+                    val params = buildJsonObject {
+                        put("p_store_id", sId)
+                        put("p_email", user.email)
+                        put("p_role", selectedRole)
+                    }
+                    supabase.postgrest.rpc("send_store_invitation", params)
+                    
+                    Toast.makeText(this@HomeActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    val msg = e.message ?: "Failed to invite."
+                    inviteErrorText.text = if(msg.contains("already a member")) "User is already a member." else "Failed to send invitation."
+                    inviteErrorText.visibility = View.VISIBLE
+                    btnInvite.text = "Invite"
+                    btnInvite.isEnabled = true
+                }
+            }
+        }
+
+        dialog.setOnDismissListener { inviteCodeCountdownJob?.cancel() }
+        dialog.show()
+    }
+This updates the HomeActivity.kt to fully replicate the website's flow:
+
+Typing in the search bar waits 500ms (debounce).
+
+Calls search_app_user RPC.
+
+Displays result in a card with the user's avatar, name, and code.
+
+Disables the invite button until a valid user is selected.
+
+Calls send_store_invitation on click.

@@ -126,7 +126,6 @@ object SupabaseAuthService {
         return client.auth.currentUserOrNull()?.email ?: ""
     }
 
-    // Fetch full profile for header display (name + user_code)
     suspend fun getUserProfile(): AppUserRow? = withContext(Dispatchers.IO) {
         val uid = client.auth.currentUserOrNull()?.id ?: return@withContext null
         return@withContext try {
@@ -134,21 +133,46 @@ object SupabaseAuthService {
                 filter { eq("id", uid) }
                 limit(1)
             }.decodeList<AppUserRow>()
-            val row = rows.firstOrNull()
+            var row = rows.firstOrNull()
 
-            // Fallback to metadata for name if DB is empty but row exists
             val metaAny: Any? = client.auth.currentUserOrNull()?.userMetadata
             val metaName = when (metaAny) {
                 is Map<*, *> -> metaAny["name"] as? String
                 is JsonObject -> metaAny["name"]?.jsonPrimitive?.contentOrNull
                 else -> null
             }
-
-            if (row != null && row.name.isNullOrBlank() && !metaName.isNullOrBlank()) {
-                row.copy(name = metaName)
-            } else {
-                row
+            val metaAvatar = when (metaAny) {
+                is Map<*, *> -> {
+                    val m = metaAny as Map<*, *>
+                    (m["avatar_url"] as? String)
+                        ?: (m["picture"] as? String)
+                        ?: (m["photo_url"] as? String)
+                        ?: (m["photoURL"] as? String)
+                        ?: (m["image"] as? String)
+                        ?: (m["avatar"] as? String)
+                }
+                is JsonObject -> {
+                    metaAny["avatar_url"]?.jsonPrimitive?.contentOrNull
+                        ?: metaAny["picture"]?.jsonPrimitive?.contentOrNull
+                        ?: metaAny["photo_url"]?.jsonPrimitive?.contentOrNull
+                        ?: metaAny["photoURL"]?.jsonPrimitive?.contentOrNull
+                        ?: metaAny["image"]?.jsonPrimitive?.contentOrNull
+                        ?: metaAny["avatar"]?.jsonPrimitive?.contentOrNull
+                }
+                else -> null
             }
+
+            if (row == null) {
+                row = AppUserRow(id = uid, name = metaName, avatar_url = metaAvatar)
+            } else {
+                if (row.name.isNullOrBlank() && !metaName.isNullOrBlank()) {
+                    row = row.copy(name = metaName)
+                }
+                if (row.avatar_url.isNullOrBlank() && !metaAvatar.isNullOrBlank()) {
+                    row = row.copy(avatar_url = metaAvatar)
+                }
+            }
+            row
         } catch (_: Exception) { null }
     }
 
@@ -165,5 +189,6 @@ data class AppUserRow(
     val id: String,
     val name: String? = null,
     val email: String? = null,
-    val user_code: String? = null
+    val user_code: String? = null,
+    val avatar_url: String? = null
 )

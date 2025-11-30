@@ -41,6 +41,7 @@ class EditItemActivity : AppCompatActivity() {
         val navigationView = findViewById<NavigationView>(R.id.navigationView)
         val menuIcon = findViewById<ImageView>(R.id.menuIcon)
         menuIcon.setOnClickListener { drawerLayout.open() }
+        HeaderUtils.updateHeader(this, navigationView)
         navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_stores -> {
@@ -292,23 +293,7 @@ class EditItemActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Set real user name and ID in navigation drawer header
-        val headerView = navigationView.getHeaderView(0)
-        val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-        val userCodeText = headerView.findViewById<TextView>(R.id.drawerUserCode)
-        val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
-        userNameText.text = currentUser?.userMetadata?.get("name")?.toString() ?: "User"
-        userCodeText?.visibility = View.GONE
-        lifecycleScope.launch {
-            val profile = SupabaseAuthService.getUserProfile()
-            if (profile != null) {
-                userNameText.text = profile.name ?: (currentUser?.email ?: "User")
-                if (!profile.user_code.isNullOrBlank()) {
-                    userCodeText?.text = "ID: ${profile.user_code!!.uppercase()}"
-                    userCodeText?.visibility = View.VISIBLE
-                }
-            }
-        }
+        HeaderUtils.updateHeader(this, navigationView)
     }
 
     override fun onResume() {

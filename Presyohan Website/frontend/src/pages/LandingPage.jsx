@@ -40,8 +40,6 @@ export default function LandingPage() {
     triggerGlow(e.currentTarget);
   };
 
-  
-
   // Scroll to section when hash present (e.g., /#about, /#features, /#download)
   useEffect(() => {
     if (location.hash) {
@@ -61,6 +59,7 @@ export default function LandingPage() {
       } catch (_) {}
     }
   }, [apkUrl]);
+
   const comparisonRows = [
     {
       feature: 'Price Updates',
@@ -150,10 +149,6 @@ export default function LandingPage() {
   const pageCount = Math.max(1, totalSlides - slidesPerView + 1);
   const prevSlide = () => setCurrentSlide((i) => Math.max(0, i - 1));
   const nextSlide = () => setCurrentSlide((i) => Math.min(pageCount - 1, i + 1));
-
-  // Normal bounded sliding (no loop resets, no autoplay)
-
-  // Autoplay removed as requested
 
   const roles = [
     {
@@ -251,74 +246,54 @@ export default function LandingPage() {
     }
   ];
 
-  const collageCards = [
-    { cls: 'dark1', label: 'Price Lookup' },
-    { cls: 'dark2', label: 'Catalog' },
-    { cls: 'dark1', label: 'Categories' },
-    { cls: 'dark2', label: 'Promotions' }
-  ];
-
   return (
     <div className="lp-root">
       {/* Global Header */}
       <AuthHeader />
-      {/* Hero Section */}
+
+      {/* --- HERO SECTION: Clean Orange + White Card (Restored) --- */}
       <section id="home" className="lp-hero">
-        <div className="lp-hero-pattern" />
-        <div className="lp-hero-background-overlay" />
-        
-        {/* Hero container with improved layout */}
         <div className="lp-hero-container">
           <div className="lp-hero-grid">
-            {/* Left: Logo section with enhanced presentation */}
+            
+            {/* LEFT: Logo in White Card */}
             <div className="lp-hero-left">
-              <div className="lp-logo-wrapper">
-                <div className="lp-logo-box">
-                  <img src={presyohanLogo} alt="Presyohan Logo" className="lp-logo-image" />
+              <div className="lp-logo-card">
+                <img src={presyohanLogo} alt="Presyohan Logo" className="lp-card-logo-img" />
+                <div className="lp-card-text-group">
+                  <span className="lp-card-eyebrow">atong</span>
+                  <h1 className="lp-card-title">
+                    <span className="lp-text-orange">presyo</span>
+                    <span className="lp-text-teal">han?</span>
+                  </h1>
                 </div>
-                <div className="lp-logo-glow" />
               </div>
             </div>
 
-            {/* Right: Content section with professional card design */}
+            {/* RIGHT: Text & CTA */}
             <div className="lp-hero-right">
-              <div className="lp-hero-box">
-                <div className="lp-hero-content">
-                  {/* Eyebrow text */}
-                  <div className="lp-logo-text">
-                    <span className="lp-logo-eyebrow">atong</span>
-                    <h1 className="lp-title">
-                      <span className="lp-title-orange">presyo</span>
-                      <span className="lp-title-accent">han?</span>
-                    </h1>
-                  </div>
-
-                  {/* Main description */}
-                  <p className="lp-lead">
-                    We make it fast and easy to manage your store's entire price list, guaranteeing consistency across all staff and locations.
-                  </p>
-
-                  {/* CTA section with improved layout */}
-                  <div className="lp-cta-group">
-                    <h2 className="lp-subtitle">Wala Kahibaw sa Presyo?</h2>
-                    <button 
-                      className="lp-btn-primary" 
-                      onClick={() => navigate('/login')}
-                      aria-label="Get Started with Presyohan"
-                    >
-                      <span>Get Started</span>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                      </svg>
-                    </button>
-                  </div>
+              <div className="lp-hero-content">
+                <p className="lp-main-text">
+                  We make it fast and easy to manage your store's entire price list, guaranteeing consistency across all staff and locations.
+                </p>
+                
+                <div className="lp-cta-wrapper">
+                  <h2 className="lp-cta-label">wala kahibaw sa presyo?</h2>
+                  <button
+                    className="lp-btn-get-started"
+                    type="button"
+                    onClick={() => navigate('/login')}
+                    aria-label="Get Started"
+                  >
+                    Get Started
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Scroll indicator with improved design */}
+        {/* Scroll Indicator */}
         <a
           href="#about"
           className="lp-scroll-arrow"
@@ -335,7 +310,7 @@ export default function LandingPage() {
         </a>
       </section>
 
-      {/* About Section */}
+      {/* About Section (Original Carousel) */}
       <section id="about" className="lp-section lp-about">
         <div className="lp-container">
           <h2 className="lp-section-title">About Presyohan: Your Smart Pricing Command Center</h2>
@@ -359,7 +334,7 @@ export default function LandingPage() {
                 className="lp-carousel-track"
                 style={{
                   transform: (() => {
-                    const GAP_PX = 16; // must match CSS track gap
+                    const GAP_PX = 16; 
                     const gapPercent = viewportWidth > 0 ? (GAP_PX * 100) / viewportWidth : 0;
                     const perSlidePercent = 100 / slidesPerView + gapPercent;
                     return `translateX(-${currentSlide * perSlidePercent}%)`;
@@ -532,8 +507,8 @@ export default function LandingPage() {
         </div>
       </section>
       
-  {/* Global Footer */}
-  <Footer />
-  </div>
+      {/* Global Footer */}
+      <Footer />
+    </div>
   );
 }

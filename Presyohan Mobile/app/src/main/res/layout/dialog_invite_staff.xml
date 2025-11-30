@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="24dp"
     android:background="@drawable/bg_rounded"
-    android:minWidth="400dp"
-    android:gravity="center"
+    android:minWidth="350dp"
+    android:gravity="center_horizontal"
     android:elevation="8dp">
 
     <!-- Title and Icon -->
@@ -32,6 +33,15 @@
 
     <!-- Expiry Text Added Here -->
     <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="Join store code"
+        android:textColor="@color/presyo_teal"
+        android:textSize="12sp" />
+
+    <TextView
         android:id="@+id/inviteCodeExpiry"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -46,7 +56,7 @@
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:layout_marginBottom="16dp">
 
         <!-- Store icon and label -->
@@ -55,28 +65,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
-            android:layout_marginEnd="8dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Join store code"
-                android:textColor="@color/presyo_teal"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:layout_marginTop="2dp"/>
-
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/icon_store"/>
-        </LinearLayout>
+            android:layout_marginEnd="8dp"/>
 
         <!-- Spacer -->
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
 
         <!-- Code box with copy and generate button -->
         <LinearLayout
@@ -87,7 +78,7 @@
             android:gravity="center_vertical"
             android:paddingStart="12dp"
             android:elevation="2dp"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="0dp"
             android:backgroundTint="@android:color/white"
             android:backgroundTintMode="src_in">
 
@@ -107,63 +98,141 @@
                 android:layout_height="24dp"
                 android:src="@drawable/icon_copy"
                 android:layout_marginEnd="8dp"/>
+
+            <Button
+                android:id="@+id/btnGenerateCode"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/presyo_teal"
+                android:minWidth="140dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="Generate"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
         </LinearLayout>
 
         <!-- Generate Button -->
-        <Button
-            android:id="@+id/btnGenerateCode"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:text="Generate"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:backgroundTint="@color/presyo_teal"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"/>
     </LinearLayout>
 
-    <!-- Email -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Email"
-        android:textColor="@color/presyo_teal"
-        android:textSize="14sp"
+        android:text="User ID or Email Address"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#666666"
+        android:layout_marginBottom="6dp"/>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <EditText
+            android:id="@+id/searchInput"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="@drawable/bg_edittext"
+            android:hint="Enter valid user ID or email"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="40dp"
+            android:maxLines="1"
+            android:inputType="textEmailAddress"/>
+
+        <ProgressBar
+            android:id="@+id/searchLoader"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="12dp"
+            android:visibility="gone"
+            android:indeterminateTint="@color/presyo_orange"/>
+
+        <ImageView
+            android:id="@+id/searchIconStatic"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/icon_search"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="12dp"
+            app:tint="#999999"/>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/textNotFound"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No user found with this ID or Email."
+        android:textColor="@color/edittext_hint"
+        android:textSize="12sp"
         android:layout_marginTop="4dp"
-        android:layout_marginBottom="2dp" />
+        android:visibility="gone"/>
 
-    <EditText
-        android:id="@+id/usernameInput"
+    <LinearLayout
+        android:id="@+id/userResultContainer"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:hint="Input email"
-        android:textColorHint="#B0B0B0"
-        android:textColor="@color/presyo_darkblue"
-        android:background="@drawable/bg_edittext"
-        android:padding="14dp"
-        android:textSize="16sp" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFBE6"
+        android:padding="12dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+        <ImageView
+            android:id="@+id/foundUserAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/icon_profile"
+            android:scaleType="centerCrop"
+            android:background="#E0E0E0"/>
 
-    <!-- Role -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
+            
+            <TextView
+                android:id="@+id/foundUserName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User Name"
+                android:textStyle="bold"
+                android:textColor="#333333"
+                android:textSize="14sp"/>
+
+            <TextView
+                android:id="@+id/foundUserDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PH25-0001 • email@example.com"
+                android:textColor="#666666"
+                android:textSize="12sp"
+                android:ellipsize="end"
+                android:maxLines="1"/>
+        </LinearLayout>
+    </LinearLayout>
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Staff role"
-        android:textColor="@color/presyo_teal"
-        android:textSize="14sp"
-        android:layout_marginTop="14dp"
-        android:layout_marginBottom="2dp" />
+        android:text="Staff Role"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#666666"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="6dp"/>
 
     <Spinner
         android:id="@+id/roleSpinner"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="50dp"
         android:background="@drawable/bg_edittext"
-        android:textColorHint="@color/edittext_hint"
-        android:textColor="@color/presyo_darkblue"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:spinnerMode="dropdown"
-        android:layout_marginBottom="34dp" />
+        android:paddingStart="4dp"
+        android:layout_marginBottom="24dp"/>
 
     <!-- Buttons -->
     <LinearLayout
@@ -196,5 +265,15 @@
             android:textColor="@android:color/white"
             android:textStyle="bold"
             android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/inviteErrorText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#D32F2F"
+        android:textSize="12sp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"/>
     </LinearLayout>
+
 </LinearLayout>

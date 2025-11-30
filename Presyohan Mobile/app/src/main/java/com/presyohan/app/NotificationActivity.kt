@@ -71,6 +71,7 @@ class NotificationActivity : AppCompatActivity() {
         menuIcon.setOnClickListener {
             drawerLayout.openDrawer(Gravity.START)
         }
+        HeaderUtils.updateHeader(this, navigationView)
         navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_stores -> {

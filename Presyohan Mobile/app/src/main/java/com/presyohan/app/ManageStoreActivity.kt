@@ -44,6 +44,10 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.os.Handler
+import android.os.Looper
+import coil.load
+import coil.transform.CircleCropTransformation
 
 class ManageStoreActivity : AppCompatActivity() {
     private lateinit var loadingOverlay: android.view.View
@@ -832,15 +836,17 @@ class ManageStoreActivity : AppCompatActivity() {
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val codeText = view.findViewById<TextView>(R.id.storeCodeText)
-        val copyBtn = view.findViewById<ImageView>(R.id.btnCopyCode)
-        val generateBtn = view.findViewById<Button>(R.id.btnGenerateCode)
+        val copyBtn = view.findViewById<View>(R.id.btnCopyCode)
+        val generateBtn = view.findViewById<TextView>(R.id.btnGenerateCode)
 
         fun updateCodeUI(code: String?) {
+            codeText.text = code ?: ""
             codeText.visibility = View.VISIBLE
             copyBtn.visibility = View.VISIBLE
-            codeText.text = code ?: ""
         }
         updateCodeUI(inviteCode)
 
@@ -884,84 +890,140 @@ class ManageStoreActivity : AppCompatActivity() {
             }
         }
 
-        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
+        val searchInput = view.findViewById<EditText>(R.id.searchInput)
+        val searchLoader = view.findViewById<View>(R.id.searchLoader)
+        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
+        val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
+        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundName = view.findViewById<TextView>(R.id.foundUserName)
+        val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
+        val btnInvite = view.findViewById<Button>(R.id.btnInvite)
+        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
+        val inviteErrorText = view.findViewById<TextView>(R.id.inviteErrorText)
 
-        view.findViewById<Button>(R.id.btnInvite).setOnClickListener {
-            val email = view.findViewById<EditText>(R.id.usernameInput).text.toString().trim()
-            val roleSpinner = view.findViewById<android.widget.Spinner>(R.id.roleSpinner)
-            val selectedPermission = roleSpinner.selectedItem.toString().trim().lowercase()
-            val role = when (selectedPermission) {
-                "manage prices" -> "manager"
-                "view only prices" -> "sales staff"
-                else -> "sales staff"
-            }
-            if (email.isEmpty()) {
-                Toast.makeText(this, "Enter an email address.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
+        @Serializable
+        data class SearchedUser(
+            val id: String,
+            val name: String? = null,
+            val email: String? = null,
+            val user_code: String? = null,
+            val avatar_url: String? = null
+        )
 
-            val db = FirebaseFirestore.getInstance()
-            db.collection("users").whereEqualTo("email", email).get()
-                .addOnSuccessListener { querySnapshot ->
-                    if (!querySnapshot.isEmpty) {
-                        val userDoc = querySnapshot.documents[0]
-                        val staffUserId = userDoc.id
-                        db.collection("stores").document(storeId!!)
-                            .collection("members")
-                            .document(staffUserId)
-                            .get()
-                            .addOnSuccessListener { memberDoc ->
-                                if (memberDoc.exists()) {
-                                    Toast.makeText(this, "${userDoc.getString("name") ?: email} is already your store staff", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    db.collection("users").document(staffUserId)
-                                        .collection("notifications")
-                                        .whereEqualTo("type", "Store Invitation")
-                                        .whereEqualTo("storeName", storeName ?: "")
-                                        .get()
-                                        .addOnSuccessListener { notifSnapshot ->
-                                            val hasPending = notifSnapshot.any { it.getString("status") == "Pending" }
-                                            val hasAccepted = notifSnapshot.any { it.getString("status") == "Accepted" }
-                                            if (hasAccepted) {
-                                                Toast.makeText(this, "Already a staff member.", Toast.LENGTH_SHORT).show()
-                                            } else if (hasPending) {
-                                                Toast.makeText(this, "Invitation already sent.", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                val senderName = SupabaseAuthService.getDisplayNameImmediate()
-                                                val senderId = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
-                                                val notification = hashMapOf(
-                                                    "type" to "Store Invitation",
-                                                    "status" to "Pending",
-                                                    "sender" to senderName,
-                                                    "senderId" to senderId,
-                                                    "storeName" to (storeName ?: ""),
-                                                    "role" to role,
-                                                    "timestamp" to System.currentTimeMillis(),
-                                                    "message" to "$senderName invited you to join their store, ${storeName ?: ""} as $role."
-                                                )
-                                                db.collection("users").document(staffUserId)
-                                                    .collection("notifications")
-                                                    .add(notification)
-                                                Toast.makeText(this, "Invitation sent.", Toast.LENGTH_SHORT).show()
-                                                dialog.dismiss()
-                                            }
-                                        }
-                                }
-                            }
-                    } else {
-                        Toast.makeText(this, "User not found.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                .addOnFailureListener {
-                    Toast.makeText(this, "Unable to send invitation.", Toast.LENGTH_SHORT).show()
-                }
+        val rolesDisplay = listOf("View only price list", "Manage prices")
+        val rolesValue = listOf("employee", "manager")
+        val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, rolesDisplay)
+        roleSpinner.adapter = adp
+
+        var selectedUser: SearchedUser? = null
+        val searchHandler = Handler(Looper.getMainLooper())
+        var searchRunnable: Runnable? = null
+
+        fun toggleInviteButton() {
+            btnInvite.isEnabled = selectedUser != null
+            btnInvite.alpha = if (selectedUser != null) 1.0f else 0.5f
         }
 
-        // Permissions list in dialog (View only prices / Manage prices)
-        val roleSpinner = view.findViewById<android.widget.Spinner>(R.id.roleSpinner)
-        val permissions = listOf("View only prices", "Manage prices")
-        val permissionAdapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, permissions)
-        roleSpinner.adapter = permissionAdapter
+        val performSearch = { query: String ->
+            searchLoader.visibility = View.VISIBLE
+            searchIcon.visibility = View.GONE
+            textNotFound.visibility = View.GONE
+            userResultContainer.visibility = View.GONE
+            selectedUser = null
+            toggleInviteButton()
+
+            lifecycleScope.launch {
+                try {
+                    val results = SupabaseProvider.client.postgrest.rpc(
+                        "search_app_user",
+                        buildJsonObject { put("search_term", query) }
+                    ).decodeList<SearchedUser>()
+
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+
+                    if (results.isNotEmpty()) {
+                        val user = results[0]
+                        selectedUser = user
+                        userResultContainer.visibility = View.VISIBLE
+                        foundName.text = user.name ?: "Unnamed User"
+                        val code = user.user_code ?: "NO-ID"
+                        val email = user.email ?: ""
+                        foundDetails.text = "$code • $email"
+
+                        if (!user.avatar_url.isNullOrBlank()) {
+                            foundAvatar.load(user.avatar_url) {
+                                crossfade(true)
+                                transformations(CircleCropTransformation())
+                            }
+                        } else {
+                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                        }
+                    } else {
+                        textNotFound.visibility = View.VISIBLE
+                    }
+                } catch (e: Exception) {
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.text = "Error searching user."
+                    textNotFound.visibility = View.VISIBLE
+                }
+                toggleInviteButton()
+            }
+        }
+
+        searchInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                inviteErrorText.visibility = View.GONE
+                val query = s.toString().trim()
+                if (query.isEmpty()) {
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.visibility = View.GONE
+                    userResultContainer.visibility = View.GONE
+                    selectedUser = null
+                    toggleInviteButton()
+                    return
+                }
+                searchRunnable = Runnable { performSearch(query) }
+                searchHandler.postDelayed(searchRunnable!!, 500)
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
+
+        btnInvite.setOnClickListener {
+            val user = selectedUser ?: return@setOnClickListener
+            val sId = storeId ?: return@setOnClickListener
+            val roleIdx = roleSpinner.selectedItemPosition
+            val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
+
+            btnInvite.text = "Inviting..."
+            btnInvite.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    val params = buildJsonObject {
+                        put("p_store_id", sId)
+                        put("p_email", user.email)
+                        put("p_role", selectedRole)
+                    }
+                    SupabaseProvider.client.postgrest.rpc("send_store_invitation", params)
+                    Toast.makeText(this@ManageStoreActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    val msg = e.message ?: "Failed to invite."
+                    inviteErrorText.text = if (msg.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
+                    inviteErrorText.visibility = View.VISIBLE
+                    btnInvite.text = "Invite"
+                    btnInvite.isEnabled = true
+                }
+            }
+        }
 
         dialog.show()
     }

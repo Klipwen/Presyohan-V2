@@ -34,6 +34,8 @@ import kotlinx.serialization.json.put
 import android.provider.MediaStore
 import android.content.ContentValues
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.net.Uri
 import android.Manifest
 import android.app.NotificationChannel
@@ -53,6 +55,8 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import coil.load
+import coil.transform.CircleCropTransformation
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private val db = FirebaseFirestore.getInstance()
@@ -147,6 +151,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         drawerLayout = findViewById(R.id.drawerLayout)
         navigationView = findViewById(R.id.navigationView)
         navigationView.setNavigationItemSelectedListener(this)
+        HeaderUtils.updateHeader(this, navigationView)
 
         // Open drawer when menu icon is clicked
         findViewById<ImageView>(R.id.menuIcon).setOnClickListener {
@@ -172,26 +177,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         })
         recyclerView.adapter = adapter
 
-        // Set user name and ID in drawer header
-        val headerView = navigationView.getHeaderView(0)
-        val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-        val userCodeText = headerView.findViewById<TextView>(R.id.drawerUserCode)
-        val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
-        userNameText.text = "User"
-        userCodeText?.visibility = View.GONE
-        lifecycleScope.launch {
-            val profile = SupabaseAuthService.getUserProfile()
-            if (profile != null) {
-                userNameText.text = profile.name ?: (supaUser?.email ?: "User")
-                if (!profile.user_code.isNullOrBlank()) {
-                    userCodeText?.text = "ID: ${profile.user_code!!.uppercase()}"
-                    userCodeText?.visibility = View.VISIBLE
-                }
-            } else {
-                val name = SupabaseAuthService.getDisplayName() ?: "User"
-                userNameText.text = name
-            }
-        }
 
         checkUserStore()
         fetchStores()
@@ -362,7 +347,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         // 1. Layout Fix: Set Dialog Width to 90% of Screen
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        val width = (resources.displayMetrics.widthPixels * 0.96).toInt()
         dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
         // Bind Headers
@@ -977,7 +962,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-    private fun startInviteCountdown(expiryText: TextView, codeText: TextView, copyBtn: ImageView, expiryMillis: Long) {
+    private fun startInviteCountdown(expiryText: TextView, codeText: TextView, copyBtn: View, expiryMillis: Long) {
         inviteCodeCountdownJob?.cancel()
         inviteCodeCountdownJob = lifecycleScope.launch {
             try {
@@ -1033,16 +1018,47 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
         val codeText = view.findViewById<TextView>(R.id.storeCodeText)
         val expiryText = view.findViewById<TextView>(R.id.inviteCodeExpiry)
-        val copyBtn = view.findViewById<ImageView>(R.id.btnCopyCode)
-        val generateBtn = view.findViewById<Button>(R.id.btnGenerateCode)
+        val copyBtn = view.findViewById<View>(R.id.btnCopyCode)
+        val generateBtn = view.findViewById<TextView>(R.id.btnGenerateCode)
+
+        val searchInput = view.findViewById<EditText>(R.id.searchInput)
+        val searchLoader = view.findViewById<View>(R.id.searchLoader)
+        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
+        val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
+        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundName = view.findViewById<TextView>(R.id.foundUserName)
+        val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
+        val btnInvite = view.findViewById<Button>(R.id.btnInvite)
+        val inviteErrorText = view.findViewById<TextView>(R.id.inviteErrorText)
+        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
+
+        @Serializable
+        data class SearchedUser(
+            val id: String,
+            val name: String? = null,
+            val email: String? = null,
+            val user_code: String? = null,
+            val avatar_url: String? = null
+        )
+
+        val rolesDisplay = listOf("View only price list", "Manage prices")
+        val rolesValue = listOf("employee", "manager")
+        val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, rolesDisplay)
+        roleSpinner.adapter = adp
+
+        var selectedUser: SearchedUser? = null
+        val searchHandler = Handler(Looper.getMainLooper())
+        var searchRunnable: Runnable? = null
 
         fun updateCodeUI(code: String?, expiresAt: Long?) {
             codeText.text = code ?: "No Code"
             inviteCodeCountdownJob?.cancel()
-
             val now = System.currentTimeMillis()
             if (code != null && expiresAt != null) {
                 if (expiresAt > now) {
@@ -1059,8 +1075,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         copyBtn.setOnClickListener {
             val code = codeText.text.toString()
             if (code.isNotEmpty() && code != "No Code") {
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Store Code", code)
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Store Code", code)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(this, "Code copied.", Toast.LENGTH_SHORT).show()
             }
@@ -1073,8 +1089,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 Toast.makeText(this, "Only owner can generate codes.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
-            LoadingOverlayHelper.show(loadingOverlay)
+            generateBtn.isEnabled = false
+            generateBtn.text = "Regenerating..."
             lifecycleScope.launch {
                 try {
                     val params = buildJsonObject { put("p_store_id", store.id) }
@@ -1084,10 +1100,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     val row = rows.firstOrNull()
                     val newCode = row?.invite_code
                     val newCreated = row?.invite_code_created_at
-
                     val newCreatedMillis = parseInviteCreatedMillis(newCreated)
                     val newExpiry = newCreatedMillis?.plus(86400000L)
-
                     runOnUiThread {
                         updateCodeUI(newCode, newExpiry)
                         Toast.makeText(applicationContext, "Code updated.", Toast.LENGTH_SHORT).show()
@@ -1096,22 +1110,112 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     runOnUiThread {
                         Toast.makeText(applicationContext, "Failed to generate code.", Toast.LENGTH_SHORT).show()
                     }
+                } finally {
+                    generateBtn.text = "Generate"
+                    generateBtn.isEnabled = true
                 }
-                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
-        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
-
-        view.findViewById<Button>(R.id.btnInvite).setOnClickListener {
-            Toast.makeText(this, "Invite via email coming soon.", Toast.LENGTH_SHORT).show()
+        fun toggleInviteButton() {
+            btnInvite.isEnabled = selectedUser != null
+            btnInvite.alpha = if (selectedUser != null) 1.0f else 0.5f
         }
 
-        // Populate roles
-        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
-        val perms = listOf("View only prices", "Manage prices")
-        val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, perms)
-        roleSpinner.adapter = adp
+        val performSearch = { query: String ->
+            searchLoader.visibility = View.VISIBLE
+            searchIcon.visibility = View.GONE
+            textNotFound.visibility = View.GONE
+            userResultContainer.visibility = View.GONE
+            selectedUser = null
+            toggleInviteButton()
+
+            lifecycleScope.launch {
+                try {
+                    val results = SupabaseProvider.client.postgrest.rpc(
+                        "search_app_user",
+                        buildJsonObject { put("search_term", query) }
+                    ).decodeList<SearchedUser>()
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    if (results.isNotEmpty()) {
+                        val user = results[0]
+                        selectedUser = user
+                        userResultContainer.visibility = View.VISIBLE
+                        foundName.text = user.name ?: "Unnamed User"
+                        val code = user.user_code ?: "NO-ID"
+                        val email = user.email ?: ""
+                        foundDetails.text = "$code • $email"
+                        if (!user.avatar_url.isNullOrBlank()) {
+                            foundAvatar.load(user.avatar_url) {
+                                crossfade(true)
+                                transformations(CircleCropTransformation())
+                            }
+                        } else {
+                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                        }
+                    } else {
+                        textNotFound.visibility = View.VISIBLE
+                    }
+                } catch (e: Exception) {
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.text = "Error searching user."
+                    textNotFound.visibility = View.VISIBLE
+                }
+                toggleInviteButton()
+            }
+        }
+
+        searchInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                inviteErrorText.visibility = View.GONE
+                val query = s.toString().trim()
+                if (query.isEmpty()) {
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.visibility = View.GONE
+                    userResultContainer.visibility = View.GONE
+                    selectedUser = null
+                    toggleInviteButton()
+                    return
+                }
+                searchRunnable = Runnable { performSearch(query) }
+                searchHandler.postDelayed(searchRunnable!!, 500)
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
+        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
+
+        btnInvite.setOnClickListener {
+            val user = selectedUser ?: return@setOnClickListener
+            val sId = store.id
+            val roleIdx = roleSpinner.selectedItemPosition
+            val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
+            btnInvite.text = "Inviting..."
+            btnInvite.isEnabled = false
+            lifecycleScope.launch {
+                try {
+                    val params = buildJsonObject {
+                        put("p_store_id", sId)
+                        put("p_email", user.email)
+                        put("p_role", selectedRole)
+                    }
+                    SupabaseProvider.client.postgrest.rpc("send_store_invitation", params)
+                    Toast.makeText(this@StoreActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    val msg = e.message ?: "Failed to invite."
+                    inviteErrorText.text = if (msg.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
+                    inviteErrorText.visibility = View.VISIBLE
+                    btnInvite.text = "Invite"
+                    btnInvite.isEnabled = true
+                }
+            }
+        }
 
         dialog.setOnDismissListener { inviteCodeCountdownJob?.cancel() }
         dialog.show()

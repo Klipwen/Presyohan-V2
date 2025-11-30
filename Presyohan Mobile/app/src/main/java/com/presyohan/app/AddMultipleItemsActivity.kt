@@ -213,6 +213,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         val navigationView = findViewById<NavigationView>(R.id.navigationView)
         findViewById<ImageView>(R.id.menuIcon).setOnClickListener { drawerLayout.open() }
 
+        HeaderUtils.updateHeader(this, navigationView)
         navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_stores -> startActivity(Intent(this, StoreActivity::class.java))

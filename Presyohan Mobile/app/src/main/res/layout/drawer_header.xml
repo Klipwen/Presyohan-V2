@@ -13,10 +13,9 @@
         android:layout_width="64dp"
         android:layout_height="64dp"
         android:src="@drawable/icon_profile"
-        android:background="@drawable/bg_rounded"
+        android:scaleType="centerCrop"
         android:contentDescription="User Icon"
-        android:layout_gravity="center_horizontal"
-        app:tint="@color/presyo_orange" />
+        android:layout_gravity="center_horizontal" />
 
     <TextView
         android:id="@+id/drawerUserName"

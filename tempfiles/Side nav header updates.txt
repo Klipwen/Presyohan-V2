@@ -1,41 +1,53 @@
-Here are the updates to implement the requested changes for the side navigation header.
+To implement the real profile icon logic "just like the web version," we need to fetch the avatar_url from your Supabase database and load it into the Android app using an image loading library.
 
-1. Update app/build.gradle.kts
-First, add the Coil dependency. This is the industry-standard library for loading images (like profile pictures) from URLs in Android Kotlin apps.
+I recommend using Coil (Coroutine Image Loader), which is the industry standard for modern Android/Kotlin apps. It's lightweight, fast, and handles circular cropping automatically.
+
+Here are the 4 steps to implement this:
+
+1. Add the Coil Dependency
+Open your app/build.gradle.kts file and add the Coil library to your dependencies block.
 
 Kotlin
 
 dependencies {
     // ... existing dependencies ...
 
-    // Add this line for Image Loading (Coil)
+    // Add Coil for loading images from URLs
     implementation("io.coil-kt:coil:2.6.0")
-    
-    // ... rest of dependencies
 }
+Sync your project after adding this.
+
 2. Update SupabaseAuthService.kt
-We need to update the AppUserRow data class to retrieve the avatar_url from your database. We also update the getUserProfile function to look for the avatar in the user's metadata if it's not yet saved in the main table.
+Update your auth service to retrieve the avatar_url field. We need to check both the database table (app_users) and the auth metadata (as a fallback).
+
+Step A: Update the AppUserRow data class at the bottom of the file:
 
 Kotlin
 
-// ... existing imports ...
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull // Make sure this is imported
+@kotlinx.serialization.Serializable
+data class AppUserRow(
+    val id: String,
+    val name: String? = null,
+    val email: String? = null,
+    val user_code: String? = null,
+    val avatar_url: String? = null // Add this field
+)
+Step B: Update the getUserProfile() function to fetch this field:
 
-// ... inside SupabaseAuthService object ...
+Kotlin
 
-    // Fetch full profile for header display (name + user_code + avatar)
+    // Inside SupabaseAuthService object
     suspend fun getUserProfile(): AppUserRow? = withContext(Dispatchers.IO) {
         val uid = client.auth.currentUserOrNull()?.id ?: return@withContext null
         return@withContext try {
+            // 1. Try to get from database
             val rows = client.postgrest["app_users"].select {
                 filter { eq("id", uid) }
                 limit(1)
             }.decodeList<AppUserRow>()
             var row = rows.firstOrNull()
 
-            // Get Metadata for fallback
+            // 2. Get Metadata as fallback (for Google Sign-In avatars etc)
             val metaAny: Any? = client.auth.currentUserOrNull()?.userMetadata
             val metaName = when (metaAny) {
                 is Map<*, *> -> metaAny["name"] as? String
@@ -48,33 +60,21 @@ import kotlinx.serialization.json.contentOrNull // Make sure this is imported
                 else -> null
             }
 
-            // Create row if missing, or update missing fields from metadata
+            // 3. Merge Data
             if (row == null) {
                 row = AppUserRow(id = uid, name = metaName, avatar_url = metaAvatar)
             } else {
-                if (row.name.isNullOrBlank() && !metaName.isNullOrBlank()) {
-                    row = row.copy(name = metaName)
-                }
-                if (row.avatar_url.isNullOrBlank() && !metaAvatar.isNullOrBlank()) {
-                    row = row.copy(avatar_url = metaAvatar)
-                }
+                // If DB fields are empty, fill them with metadata
+                if (row.name.isNullOrBlank()) row = row.copy(name = metaName)
+                if (row.avatar_url.isNullOrBlank()) row = row.copy(avatar_url = metaAvatar)
             }
             row
         } catch (e: Exception) { null }
     }
-
-// ... at the bottom of the file, update the Data Class ...
-
-@kotlinx.serialization.Serializable
-data class AppUserRow(
-    val id: String,
-    val name: String? = null,
-    val email: String? = null,
-    val user_code: String? = null,
-    val avatar_url: String? = null // Added this field
-)
 3. Update drawer_header.xml
-I have replaced the standard ImageView with a ShapeableImageView to force a perfect circular crop, which looks more professional. I also removed the margins that might make it look off-center.
+We will use a standard ImageView but ensure it has no hardcoded tint that would color over your real image.
+
+Open app/src/main/res/layout/drawer_header.xml:
 
 XML
 
@@ -86,30 +86,25 @@ XML
     android:orientation="vertical"
     android:gravity="center_vertical"
     android:background="#FFB703"
-    android:padding="24dp">
+    android:padding="16dp">
 
-    <com.google.android.material.image.ShapeableImageView
+    <ImageView
         android:id="@+id/drawerUserIcon"
-        android:layout_width="72dp"
-        android:layout_height="72dp"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
         android:src="@drawable/icon_profile"
-        android:background="@android:color/transparent"
-        android:scaleType="centerCrop"
         android:contentDescription="User Icon"
-        android:layout_gravity="center_horizontal"
-        app:shapeAppearanceOverlay="@style/CircularImage"
-        app:strokeWidth="2dp"
-        app:strokeColor="@android:color/white" />
+        android:layout_gravity="center_horizontal" />
 
     <TextView
         android:id="@+id/drawerUserName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="User"
+        android:text="User Name"
         android:textColor="@android:color/white"
-        android:textSize="20sp"
+        android:textSize="18sp"
         android:textStyle="bold"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:layout_gravity="center_horizontal" />
 
     <TextView
@@ -120,55 +115,49 @@ XML
         android:textColor="@android:color/white"
         android:textSize="14sp"
         android:alpha="0.9"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:layout_gravity="center_horizontal" />
 
 </LinearLayout>
-Note: You need to add this style to your res/values/themes.xml (or styles.xml) for the circular crop to work:
-
-XML
-
-<style name="CircularImage" parent="">
-    <item name="cornerFamily">rounded</item>
-    <item name="cornerSize">50%</item>
-</style>
 4. Update HomeActivity.kt
-Finally, update the updateDrawerHeader function to remove the email fallback and load the image using Coil.
+Finally, update the updateDrawerHeader function to load the image using Coil and apply a circular crop.
+
+Add these imports to the top of HomeActivity.kt:
 
 Kotlin
 
-// Add these imports at the top
-import coil.load
-import coil.transform.CircleCropTransformation
-import com.google.android.material.imageview.ShapeableImageView
-import androidx.core.content.ContextCompat
+import io.coil.load
+import io.coil.transform.CircleCropTransformation
+Then replace your updateDrawerHeader function with this:
 
-// ... inside HomeActivity class ...
+Kotlin
 
     private fun updateDrawerHeader(navView: NavigationView) {
         val h = navView.getHeaderView(0)
         val uT = h.findViewById<TextView>(R.id.drawerUserName)
         val codeT = h.findViewById<TextView>(R.id.drawerUserCode)
-        val img = h.findViewById<ShapeableImageView>(R.id.drawerUserIcon)
+        val img = h.findViewById<ImageView>(R.id.drawerUserIcon)
 
-        // 1. Set Default State
-        uT.text = "User" // Default name
+        // 1. Set Default State (Placeholder)
+        uT.text = "User"
         codeT?.visibility = View.GONE
+        // Reset image to default icon just in case
+        img.setImageResource(R.drawable.icon_profile) 
         
-        // Default placeholder tint (remove if image loads)
+        // Optional: Apply a white tint ONLY to the placeholder if it's a flat icon
         img.setColorFilter(ContextCompat.getColor(this, R.color.white))
 
         lifecycleScope.launch {
+            // Fetch full profile
             val profile = SupabaseAuthService.getUserProfile()
             
             if (profile != null) {
-                // 2. Set Name (Strictly Name only, no email fallback)
-                // If name is null, we keep "User" rather than showing an email
+                // 2. Set Name
                 if (!profile.name.isNullOrBlank()) {
                     uT.text = profile.name
                 }
 
-                // 3. Set User Code (ID)
+                // 3. Set User Code (ID: PH25-xxxx)
                 if (!profile.user_code.isNullOrBlank()) {
                     val formattedId = profile.user_code.uppercase()
                     codeT?.text = "ID: $formattedId"
@@ -177,13 +166,19 @@ import androidx.core.content.ContextCompat
 
                 // 4. Load Real Profile Image
                 if (!profile.avatar_url.isNullOrBlank()) {
-                    img.clearColorFilter() // Remove the white tint used for the icon
+                    // Remove the tint so the real photo shows in full color
+                    img.clearColorFilter()
+                    
+                    // Load with Coil
                     img.load(profile.avatar_url) {
                         crossfade(true)
+                        // This creates the professional circular look
                         transformations(CircleCropTransformation())
-                        error(R.drawable.icon_profile) // Fallback if URL fails
+                        // Fallback if loading fails
+                        error(R.drawable.icon_profile)
                     }
                 }
             } 
         }
     }
+This implementation automatically checks if the user has a real photo. If they do, it removes the flat icon tint, loads the photo from the URL, and crops it into a perfect circle.

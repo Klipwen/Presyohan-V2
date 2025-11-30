@@ -65,27 +65,8 @@ class JoinStoreActivity : AppCompatActivity() {
         // Initialize Drawer Layout
         val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
 
-        // Set real user name and ID in navigation drawer header (Supabase)
         val navigationView = findViewById<NavigationView>(R.id.navigationView)
-        val headerView = navigationView.getHeaderView(0)
-        val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
-        val userCodeText = headerView.findViewById<TextView>(R.id.drawerUserCode)
-        val supaUser = SupabaseProvider.client.auth.currentUserOrNull()
-        userNameText.text = "User"
-        userCodeText?.visibility = View.GONE
-        lifecycleScope.launch {
-            val profile = SupabaseAuthService.getUserProfile()
-            if (profile != null) {
-                userNameText.text = profile.name ?: (supaUser?.email ?: "User")
-                if (!profile.user_code.isNullOrBlank()) {
-                    userCodeText?.text = "ID: ${profile.user_code!!.uppercase()}"
-                    userCodeText?.visibility = View.VISIBLE
-                }
-            } else {
-                val name = SupabaseAuthService.getDisplayName() ?: "User"
-                userNameText.text = name
-            }
-        }
+        HeaderUtils.updateHeader(this, navigationView)
 
         // Make menuIcon open drawer
         findViewById<ImageView>(R.id.menuIcon).setOnClickListener {

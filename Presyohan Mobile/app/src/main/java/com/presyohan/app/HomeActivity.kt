@@ -25,6 +25,8 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import coil.load
+import coil.transform.CircleCropTransformation
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -155,6 +157,15 @@ class HomeActivity : AppCompatActivity() {
         val invite_code_created_at: String? = null
     )
 
+    @Serializable
+    data class SearchedUser(
+        val id: String,
+        val name: String? = null,
+        val email: String? = null,
+        val user_code: String? = null,
+        val avatar_url: String? = null
+    )
+
     // For Export
     @Serializable
     data class StoreProductExportRow(
@@ -253,7 +264,7 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        updateDrawerHeader(navigationView)
+        HeaderUtils.updateHeader(this, navigationView)
 
         btnBack.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
@@ -662,7 +673,7 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun startInviteCountdown(expiryText: TextView, codeText: TextView, copyBtn: ImageView, expiryMillis: Long) {
+    private fun startInviteCountdown(expiryText: TextView, codeText: TextView, copyBtn: View, expiryMillis: Long) {
         inviteCodeCountdownJob?.cancel()
         inviteCodeCountdownJob = lifecycleScope.launch {
             try {
@@ -719,10 +730,28 @@ class HomeActivity : AppCompatActivity() {
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
         val codeText = view.findViewById<TextView>(R.id.storeCodeText)
         val expiryText = view.findViewById<TextView>(R.id.inviteCodeExpiry)
-        val copyBtn = view.findViewById<ImageView>(R.id.btnCopyCode)
-        val generateBtn = view.findViewById<Button>(R.id.btnGenerateCode)
+        val copyBtn = view.findViewById<View>(R.id.btnCopyCode)
+        val generateBtn = view.findViewById<TextView>(R.id.btnGenerateCode)
+
+        val searchInput = view.findViewById<EditText>(R.id.searchInput)
+        val searchLoader = view.findViewById<View>(R.id.searchLoader)
+        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
+        val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
+        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundName = view.findViewById<TextView>(R.id.foundUserName)
+        val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
+        val btnInvite = view.findViewById<Button>(R.id.btnInvite)
+        val inviteErrorText = view.findViewById<TextView>(R.id.inviteErrorText)
+
+        var selectedUser: SearchedUser? = null
+        val searchHandler = Handler(Looper.getMainLooper())
+        var searchRunnable: Runnable? = null
 
         fun updateCodeUI(code: String?, expiresAt: Long?) {
             codeText.text = code ?: "No Code"
@@ -744,8 +773,8 @@ class HomeActivity : AppCompatActivity() {
         copyBtn.setOnClickListener {
             val code = codeText.text.toString()
             if (code.isNotEmpty() && code != "No Code") {
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Store Code", code)
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Store Code", code)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(this, "Code copied.", Toast.LENGTH_SHORT).show()
             }
@@ -757,7 +786,9 @@ class HomeActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             val sId = currentStoreId ?: return@setOnClickListener
-            LoadingOverlayHelper.show(loadingOverlay)
+            generateBtn.text = "Regenerating..."
+            generateBtn.isEnabled = false
+
             lifecycleScope.launch {
                 try {
                     val params = buildJsonObject { put("p_store_id", sId) }
@@ -775,22 +806,121 @@ class HomeActivity : AppCompatActivity() {
                     }
                 } catch (e: Exception) {
                     Toast.makeText(this@HomeActivity, "Failed to generate code.", Toast.LENGTH_SHORT).show()
+                } finally {
+                    generateBtn.text = "Regenerate Code"
+                    generateBtn.isEnabled = true
                 }
-                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
-        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
-
-        view.findViewById<Button>(R.id.btnInvite).setOnClickListener {
-            Toast.makeText(this, "Invite via email coming soon.", Toast.LENGTH_SHORT).show()
+        fun toggleInviteButton() {
+            btnInvite.isEnabled = selectedUser != null
+            btnInvite.alpha = if (selectedUser != null) 1.0f else 0.5f
         }
 
-        // Populate roles
+        val performSearch = { query: String ->
+            searchLoader.visibility = View.VISIBLE
+            searchIcon.visibility = View.GONE
+            textNotFound.visibility = View.GONE
+            userResultContainer.visibility = View.GONE
+            selectedUser = null
+            toggleInviteButton()
+
+            lifecycleScope.launch {
+                try {
+                    val results = supabase.postgrest.rpc("search_app_user", buildJsonObject { put("search_term", query) }).decodeList<SearchedUser>()
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+
+                    if (results.isNotEmpty()) {
+                        val user = results[0]
+                        selectedUser = user
+
+                        userResultContainer.visibility = View.VISIBLE
+                        foundName.text = user.name ?: "Unnamed User"
+                        val code = user.user_code ?: "NO-ID"
+                        val email = user.email ?: ""
+                        foundDetails.text = "$code • $email"
+
+                        if (!user.avatar_url.isNullOrBlank()) {
+                            foundAvatar.load(user.avatar_url) {
+                                crossfade(true)
+                                transformations(CircleCropTransformation())
+                            }
+                        } else {
+                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                        }
+                    } else {
+                        textNotFound.visibility = View.VISIBLE
+                    }
+                } catch (e: Exception) {
+                    Log.e("InviteStaff", "Search failed", e)
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.text = "Error searching user."
+                    textNotFound.visibility = View.VISIBLE
+                }
+                toggleInviteButton()
+            }
+        }
+
+        searchInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                inviteErrorText.visibility = View.GONE
+                val query = s.toString().trim()
+                if (query.isEmpty()) {
+                    searchLoader.visibility = View.GONE
+                    searchIcon.visibility = View.VISIBLE
+                    textNotFound.visibility = View.GONE
+                    userResultContainer.visibility = View.GONE
+                    selectedUser = null
+                    toggleInviteButton()
+                    return
+                }
+                searchRunnable = Runnable { performSearch(query) }
+                searchHandler.postDelayed(searchRunnable!!, 500)
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
         val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
-        val perms = listOf("View only prices", "Manage prices")
-        val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, perms)
+        val rolesDisplay = listOf("View only price list", "Manage prices")
+        val rolesValue = listOf("employee", "manager")
+        val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, rolesDisplay)
         roleSpinner.adapter = adp
+
+        view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
+
+        btnInvite.setOnClickListener {
+            val user = selectedUser ?: return@setOnClickListener
+            val sId = currentStoreId ?: return@setOnClickListener
+            val roleIdx = roleSpinner.selectedItemPosition
+            val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
+
+            btnInvite.text = "Inviting..."
+            btnInvite.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    val params = buildJsonObject {
+                        put("p_store_id", sId)
+                        put("p_email", user.email)
+                        put("p_role", selectedRole)
+                    }
+                    supabase.postgrest.rpc("send_store_invitation", params)
+                    Toast.makeText(this@HomeActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    val msg = e.message ?: "Failed to invite."
+                    inviteErrorText.text = if (msg.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
+                    inviteErrorText.visibility = View.VISIBLE
+                    btnInvite.text = "Invite"
+                    btnInvite.isEnabled = true
+                }
+            }
+        }
 
         dialog.setOnDismissListener { inviteCodeCountdownJob?.cancel() }
         dialog.show()
@@ -1121,21 +1251,34 @@ class HomeActivity : AppCompatActivity() {
         val h = navView.getHeaderView(0)
         val uT = h.findViewById<TextView>(R.id.drawerUserName)
         val codeT = h.findViewById<TextView>(R.id.drawerUserCode)
+        val img = h.findViewById<ImageView>(R.id.drawerUserIcon)
         val u = SupabaseProvider.client.auth.currentUserOrNull()
 
         // Default state
         uT.text = "User"
         codeT?.visibility = View.GONE
+        img.setImageResource(R.drawable.icon_profile)
+        img.setColorFilter(ContextCompat.getColor(this, R.color.white))
 
         lifecycleScope.launch {
             // Fetch full profile (name + user_code)
             val profile = SupabaseAuthService.getUserProfile()
             if (profile != null) {
-                uT.text = profile.name ?: (u?.email ?: "User")
+                if (!profile.name.isNullOrBlank()) {
+                    uT.text = profile.name
+                }
                 if (!profile.user_code.isNullOrBlank()) {
                     val formattedId = profile.user_code.uppercase()
                     codeT?.text = "ID: $formattedId"
                     codeT?.visibility = View.VISIBLE
+                }
+                if (!profile.avatar_url.isNullOrBlank()) {
+                    img.clearColorFilter()
+                    img.load(profile.avatar_url) {
+                        crossfade(true)
+                        transformations(CircleCropTransformation())
+                        error(R.drawable.icon_profile)
+                    }
                 }
             } else {
                 // Fallback name from metadata if DB fails
