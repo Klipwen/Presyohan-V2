@@ -1,406 +1,189 @@
-Frontend Update: StoreHeader.jsx
-I have updated the fetchAppUserRow to select the new column, added it to the state, and placed the display element exactly where you requested in the side menu.
+Here are the updates to implement the requested changes for the side navigation header.
 
-File: Presyohan Website/frontend/src/components/layout/StoreHeader.jsx
+1. Update app/build.gradle.kts
+First, add the Coil dependency. This is the industry-standard library for loading images (like profile pictures) from URLs in Android Kotlin apps.
 
-JavaScript
+Kotlin
 
-import React, { useState, useEffect } from 'react';
-import storeHeaderLogo from '../../assets/presyohan_logo.png';
-import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../../config/supabaseClient';
-import '../../styles/StoreHeader.css';
-import storeIcon from '../../assets/icon_store.png';
-import NotificationsPanel from '../notifications/NotificationsPanel';
+dependencies {
+    // ... existing dependencies ...
 
-// StoreHeader with side-menu layout
-export default function StoreHeader({ stores = [], onLogout, includeAllStoresLink = true }) {
-  const navigate = useNavigate();
-  const [sideMenuOpen, setSideMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [storesExpanded, setStoresExpanded] = useState(false);
-  
-  // 1. Update state to include userCode
-  const [userProfile, setUserProfile] = useState({
-    name: 'User Name',
-    email: '',
-    phone: '',
-    avatarUrl: null,
-    userCode: '' // Added userCode field
-  });
-  const [requireContactModal, setRequireContactModal] = useState(false);
-
-  const fetchAppUserRow = async (userId) => {
-    if (!userId) return null;
-    // 2. Add 'user_code' to the select query
-    const columns = 'id, name, email, avatar_url, user_code';
-    const { data, error } = await supabase
-      .from('app_users')
-      .select(columns)
-      .eq('id', userId)
-      .maybeSingle();
-    if (error && error.code !== 'PGRST116') throw error;
-    return data || null;
-  };
-
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const user = session.user;
-          let displayName = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-          let avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-          let userCode = ''; // Default empty
-
-          let appUser = null;
-          try {
-            appUser = await fetchAppUserRow(user.id);
-            if (appUser) {
-              displayName = appUser.name || displayName;
-              avatarUrl = appUser.avatar_url || avatarUrl;
-              // 3. Get the code from the DB response
-              userCode = appUser.user_code || '';
-            }
-          } catch (err) {
-            console.warn('Could not fetch from app_users:', err);
-          }
-
-          const resolvedEmail = appUser?.email || user.email || '';
-          const resolvedPhone = appUser?.phone || '';
-          setRequireContactModal(!resolvedEmail && !resolvedPhone);
-          
-          setUserProfile({
-            name: displayName,
-            email: resolvedEmail,
-            phone: resolvedPhone,
-            avatarUrl: avatarUrl,
-            userCode: userCode // Set it in state
-          });
-        }
-      } catch (error) {
-        console.warn('Failed to fetch user profile:', error);
-      }
-    };
-
-    fetchUserProfile();
-  }, []);
-
-  // ... (keep existing useEffect for unread counts) ...
-  useEffect(() => {
-    const loadUnread = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const userId = session?.user?.id;
-        if (!userId) { setUnreadCount(0); return; }
-        const { count, error } = await supabase
-          .from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('receiver_user_id', userId)
-          .eq('read', false);
-        if (error) throw error;
-        setUnreadCount(count || 0);
-      } catch (e) {
-        console.warn('Failed to get unread notifications count', e);
-      }
-    };
-    loadUnread();
-  }, [notificationsOpen]);
-
-  const toggleSideMenu = () => setSideMenuOpen((v) => !v);
-  const closeSideMenu = () => setSideMenuOpen(false);
-
-  const getAvatarFromEmail = (seed) => {
-    const basis = seed || userProfile.name || 'User';
-    if (!basis) return 'U';
-    const hash = basis.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
-    const color = colors[Math.abs(hash) % colors.length];
-    const initial = basis.charAt(0).toUpperCase();
+    // Add this line for Image Loading (Coil)
+    implementation("io.coil-kt:coil:2.6.0")
     
-    return (
-      <div style={{
-        width: '50px', height: '50px', borderRadius: '50%',
-        background: color, display: 'flex',
-        alignItems: 'center', justifyContent: 'center', color: 'white',
-        fontWeight: '700', fontSize: '1.2rem'
-      }}>
-        {initial}
-      </div>
-    );
-  };
-
-  return (
-    <>
-      <header>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <button className="hamburger-btn" onClick={toggleSideMenu} aria-label="Open menu">
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
-          <div className="header-logo">
-            <img src={storeHeaderLogo} alt="Presyohan Logo" />
-            <h2><span className="presyo">presyo</span><span className="han">han?</span></h2>
-          </div>
-        </div>
-        <div className="header-icons">
-          <button
-            className="icon-btn"
-            title="Notifications"
-            onClick={async () => {
-              try {
-                const { data: { session } } = await supabase.auth.getSession();
-                const userId = session?.user?.id;
-                if (userId) {
-                  const { data: unreadList } = await supabase
-                    .from('notifications')
-                    .select('id')
-                    .eq('receiver_user_id', userId)
-                    .eq('read', false)
-                    .order('created_at', { ascending: false })
-                    .limit(200);
-                  const ids = (unreadList || []).map(n => n.id);
-                  if (ids.length > 0) {
-                    await supabase.rpc('mark_notifications_read', { p_notification_ids: ids });
-                  }
-                  const { count } = await supabase
-                    .from('notifications')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('receiver_user_id', userId)
-                    .eq('read', false);
-                  setUnreadCount(count || 0);
-                  window.dispatchEvent(new CustomEvent('presyohan:initialUnreadIds', { detail: ids }));
-                }
-              } catch (e) {
-                console.warn('Failed to auto-mark notifications as read', e);
-              } finally {
-                setNotificationsOpen(true);
-              }
-            }}
-            style={{ position: 'relative' }}
-          >
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-            </svg>
-            {unreadCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                minWidth: '18px',
-                height: '18px',
-                borderRadius: '9px',
-                background: '#ff3b30',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0 5px'
-              }}>{unreadCount}</span>
-            )}
-          </button>
-          <Link to="/profile" className="icon-btn" title="Profile">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-            </svg>
-          </Link>
-        </div>
-      </header>
-
-      {/* Side menu overlay and drawer */}
-      <div className={`side-menu-overlay ${sideMenuOpen ? 'active' : ''}`} onClick={closeSideMenu}></div>
-      <div className={`side-menu ${sideMenuOpen ? 'active' : ''}`} role="dialog" aria-modal="true">
-        {/* Menu Header */}
-        <div className="side-menu-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {userProfile.avatarUrl ? (
-              <img 
-                src={userProfile.avatarUrl} 
-                alt="Profile" 
-                style={{
-                  width: '50px', height: '50px', borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
-              />
-            ) : (
-              getAvatarFromEmail(userProfile.email)
-            )}
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{userProfile.name}</h3>
-              
-              {/* 4. Display the User Code here */}
-              {userProfile.userCode && (
-                <div style={{ 
-                  fontSize: '0.85rem', 
-                  color: 'rgba(255, 255, 255, 0.85)', /* Light color, not bold */
-                  fontWeight: 'normal',
-                  marginTop: '2px',
-                  marginBottom: '2px',
-                  letterSpacing: '0.5px'
-                }}>
-                  ID: {userProfile.userCode.toUpperCase()}
-                </div>
-              )}
-
-              <Link to="/profile" onClick={closeSideMenu} style={{ color: 'white', textDecoration: 'underline', fontSize: '0.9rem' }}>View Profile</Link>
-            </div>
-          </div>
-        </div>
-
-        {/* ... Rest of the component (Menu Items, etc.) remains exactly the same ... */}
-        <div className="side-menu-items">
-          <button className="menu-item" onClick={() => setStoresExpanded((v) => !v)} style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left' }}>
-            <svg fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V3H3z"/>
-            </svg>
-            <span>Stores</span>
-            <svg className={`submenu-toggle-caret ${storesExpanded ? 'expanded' : ''}`} width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 'auto' }}>
-              <path d="M7 10l5 5 5-5H7z"/>
-            </svg>
-          </button>
-          {storesExpanded && (
-            <div className="submenu">
-              {Array.isArray(stores) && stores.length > 0 ? (
-                <>
-                  {includeAllStoresLink && (
-                    <Link to="/stores" className="submenu-item" onClick={closeSideMenu}>
-                      <img src={storeIcon} alt="Stores" className="submenu-store-icon" />
-                      <span>All Stores</span>
-                    </Link>
-                  )}
-                  {stores.map((s) => (
-                    <Link
-                      key={s.id ?? s.name}
-                      to={`/store?id=${encodeURIComponent(s.id ?? '')}`}
-                      className="submenu-item"
-                      onClick={closeSideMenu}
-                    >
-                      <img src={storeIcon} alt="Store" className="submenu-store-icon" />
-                      <span>{s.name}{s.branch ? ` — ${s.branch}` : ''}</span>
-                    </Link>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <Link to="/stores" className="submenu-item" onClick={closeSideMenu}>
-                    <img src={storeIcon} alt="Stores" className="submenu-store-icon" />
-                    <span>All Stores</span>
-                  </Link>
-                  <Link to="/store" className="submenu-item" onClick={closeSideMenu}>
-                    <img src={storeIcon} alt="Shop" className="submenu-store-icon" />
-                    <span>Shop Products</span>
-                  </Link>
-                </>
-              )}
-            </div>
-          )}
-
-          <a href="#" className="menu-item">
-            <svg fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-            </svg>
-            <span>Notifications</span>
-          </a>
-
-          <a href="#" className="menu-item">
-            <svg fill="currentColor" viewBox="0 0 24 24">
-              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17 .47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22 .08 .47 0 .59-.22l1.92-3.32c.12-.22 .07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-            </svg>
-            <span>Settings</span>
-          </a>
-
-          <a href="#" className="menu-item">
-            <svg fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-            </svg>
-            <span>Support</span>
-          </a>
-
-          <div className="menu-divider"></div>
-
-          <a
-            href="#"
-            className="menu-item"
-            onClick={async (e) => {
-              e.preventDefault();
-              try {
-                if (onLogout) {
-                  await onLogout();
-                } else {
-                  await supabase.auth.signOut();
-                  window.location.href = '/login';
-                }
-              } catch (err) {
-                console.error('Logout failed', err);
-                window.location.href = '/login';
-              }
-            }}
-          >
-            <svg fill="currentColor" viewBox="0 0 24 24">
-              <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1 .9 2 2 2h8v-2H4V5z"/>
-            </svg>
-            <span>Logout</span>
-          </a>
-        </div>
-      </div>
-
-      {/* Modal and Panel implementations... */}
-      {requireContactModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2500
-        }}>
-          <div style={{
-            width: '92%',
-            maxWidth: '440px',
-            background: '#fff',
-            borderRadius: '16px',
-            boxShadow: '0 12px 30px rgba(0,0,0,0.2)',
-            padding: '28px'
-          }}>
-            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '1.2rem', fontWeight: 700, color: '#ff8c00' }}>
-              Complete Your Profile
-            </h3>
-            <p style={{ fontSize: '0.95rem', color: '#555', lineHeight: 1.5, marginBottom: '24px' }}>
-              Add either an email or phone number so we can send staff invites and important updates.
-            </p>
-            <button
-              onClick={() => {
-                setRequireContactModal(false);
-                closeSideMenu();
-                navigate('/profile', { state: { startProfileEdit: true, tab: 'overview' } });
-              }}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)',
-                border: 'none',
-                borderRadius: '25px',
-                color: '#fff',
-                fontSize: '1rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Edit Profile
-            </button>
-          </div>
-        </div>
-      )}
-
-      <NotificationsPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
-    </>
-  );
+    // ... rest of dependencies
 }
+2. Update SupabaseAuthService.kt
+We need to update the AppUserRow data class to retrieve the avatar_url from your database. We also update the getUserProfile function to look for the avatar in the user's metadata if it's not yet saved in the main table.
+
+Kotlin
+
+// ... existing imports ...
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull // Make sure this is imported
+
+// ... inside SupabaseAuthService object ...
+
+    // Fetch full profile for header display (name + user_code + avatar)
+    suspend fun getUserProfile(): AppUserRow? = withContext(Dispatchers.IO) {
+        val uid = client.auth.currentUserOrNull()?.id ?: return@withContext null
+        return@withContext try {
+            val rows = client.postgrest["app_users"].select {
+                filter { eq("id", uid) }
+                limit(1)
+            }.decodeList<AppUserRow>()
+            var row = rows.firstOrNull()
+
+            // Get Metadata for fallback
+            val metaAny: Any? = client.auth.currentUserOrNull()?.userMetadata
+            val metaName = when (metaAny) {
+                is Map<*, *> -> metaAny["name"] as? String
+                is JsonObject -> metaAny["name"]?.jsonPrimitive?.contentOrNull
+                else -> null
+            }
+            val metaAvatar = when (metaAny) {
+                is Map<*, *> -> metaAny["avatar_url"] as? String
+                is JsonObject -> metaAny["avatar_url"]?.jsonPrimitive?.contentOrNull
+                else -> null
+            }
+
+            // Create row if missing, or update missing fields from metadata
+            if (row == null) {
+                row = AppUserRow(id = uid, name = metaName, avatar_url = metaAvatar)
+            } else {
+                if (row.name.isNullOrBlank() && !metaName.isNullOrBlank()) {
+                    row = row.copy(name = metaName)
+                }
+                if (row.avatar_url.isNullOrBlank() && !metaAvatar.isNullOrBlank()) {
+                    row = row.copy(avatar_url = metaAvatar)
+                }
+            }
+            row
+        } catch (e: Exception) { null }
+    }
+
+// ... at the bottom of the file, update the Data Class ...
+
+@kotlinx.serialization.Serializable
+data class AppUserRow(
+    val id: String,
+    val name: String? = null,
+    val email: String? = null,
+    val user_code: String? = null,
+    val avatar_url: String? = null // Added this field
+)
+3. Update drawer_header.xml
+I have replaced the standard ImageView with a ShapeableImageView to force a perfect circular crop, which looks more professional. I also removed the margins that might make it look off-center.
+
+XML
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="#FFB703"
+    android:padding="24dp">
+
+    <com.google.android.material.image.ShapeableImageView
+        android:id="@+id/drawerUserIcon"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:src="@drawable/icon_profile"
+        android:background="@android:color/transparent"
+        android:scaleType="centerCrop"
+        android:contentDescription="User Icon"
+        android:layout_gravity="center_horizontal"
+        app:shapeAppearanceOverlay="@style/CircularImage"
+        app:strokeWidth="2dp"
+        app:strokeColor="@android:color/white" />
+
+    <TextView
+        android:id="@+id/drawerUserName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="User"
+        android:textColor="@android:color/white"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp"
+        android:layout_gravity="center_horizontal" />
+
+    <TextView
+        android:id="@+id/drawerUserCode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ID: --"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:alpha="0.9"
+        android:layout_marginTop="4dp"
+        android:layout_gravity="center_horizontal" />
+
+</LinearLayout>
+Note: You need to add this style to your res/values/themes.xml (or styles.xml) for the circular crop to work:
+
+XML
+
+<style name="CircularImage" parent="">
+    <item name="cornerFamily">rounded</item>
+    <item name="cornerSize">50%</item>
+</style>
+4. Update HomeActivity.kt
+Finally, update the updateDrawerHeader function to remove the email fallback and load the image using Coil.
+
+Kotlin
+
+// Add these imports at the top
+import coil.load
+import coil.transform.CircleCropTransformation
+import com.google.android.material.imageview.ShapeableImageView
+import androidx.core.content.ContextCompat
+
+// ... inside HomeActivity class ...
+
+    private fun updateDrawerHeader(navView: NavigationView) {
+        val h = navView.getHeaderView(0)
+        val uT = h.findViewById<TextView>(R.id.drawerUserName)
+        val codeT = h.findViewById<TextView>(R.id.drawerUserCode)
+        val img = h.findViewById<ShapeableImageView>(R.id.drawerUserIcon)
+
+        // 1. Set Default State
+        uT.text = "User" // Default name
+        codeT?.visibility = View.GONE
+        
+        // Default placeholder tint (remove if image loads)
+        img.setColorFilter(ContextCompat.getColor(this, R.color.white))
+
+        lifecycleScope.launch {
+            val profile = SupabaseAuthService.getUserProfile()
+            
+            if (profile != null) {
+                // 2. Set Name (Strictly Name only, no email fallback)
+                // If name is null, we keep "User" rather than showing an email
+                if (!profile.name.isNullOrBlank()) {
+                    uT.text = profile.name
+                }
+
+                // 3. Set User Code (ID)
+                if (!profile.user_code.isNullOrBlank()) {
+                    val formattedId = profile.user_code.uppercase()
+                    codeT?.text = "ID: $formattedId"
+                    codeT?.visibility = View.VISIBLE
+                }
+
+                // 4. Load Real Profile Image
+                if (!profile.avatar_url.isNullOrBlank()) {
+                    img.clearColorFilter() // Remove the white tint used for the icon
+                    img.load(profile.avatar_url) {
+                        crossfade(true)
+                        transformations(CircleCropTransformation())
+                        error(R.drawable.icon_profile) // Fallback if URL fails
+                    }
+                }
+            } 
+        }
+    }
