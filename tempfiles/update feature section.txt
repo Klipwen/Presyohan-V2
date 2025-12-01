@@ -1,0 +1,361 @@
+import React, { useRef } from 'react'
+
+// SVG Icon Components
+const PackageIcon = ({ color = '#ff8c00' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+    <line x1="12" y1="22.08" x2="12" y2="12" />
+  </svg>
+)
+
+const UsersIcon = ({ color = '#00bcd4' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+)
+
+const DatabaseIcon = ({ color = '#ff8c00' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <ellipse cx="12" cy="5" rx="9" ry="3" />
+    <path d="M3 5v14a9 3 0 0 0 18 0V5" />
+    <path d="M3 12a9 3 0 0 0 18 0" />
+  </svg>
+)
+
+const LockIcon = ({ color = '#00bcd4' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+)
+
+const UploadIcon = ({ color = '#ff8c00' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+)
+
+const CopyIcon = ({ color = '#00bcd4' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="9" y="2" width="6" height="4" rx="1" ry="1" />
+  </svg>
+)
+
+const BellIcon = ({ color = '#00bcd4' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+)
+
+const DownloadIcon = ({ color = '#ff8c00' }) => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+)
+
+export default function FeaturesSection({ feature1Cards, feature2Cards, feature3Cards }) {
+  const glowTimeoutsRef = useRef(new Map())
+  
+  const triggerGlow = (el) => {
+    if (!el) return
+    el.classList.add('glow-click')
+    const prev = glowTimeoutsRef.current.get(el)
+    if (prev) clearTimeout(prev)
+    const tid = setTimeout(() => {
+      el.classList.remove('glow-click')
+      glowTimeoutsRef.current.delete(el)
+    }, 600)
+    glowTimeoutsRef.current.set(el, tid)
+  }
+  
+  const handleCardClick = (e) => {
+    triggerGlow(e.currentTarget)
+  }
+
+  const getIconForTitle = (title) => {
+    if (title.includes('Product') || title.includes('CRUD') || title.includes('Category')) return <PackageIcon color="#ff8c00" />
+    if (title.includes('Search') || title.includes('Filter')) return <PackageIcon color="#ff8c00" />
+    if (title.includes('Access') || title.includes('Role')) return <LockIcon color="#00bcd4" />
+    if (title.includes('Invitation') || title.includes('Member')) return <UsersIcon color="#00bcd4" />
+    if (title.includes('Transfer') || title.includes('Ownership')) return <LockIcon color="#00bcd4" />
+    if (title.includes('Management') || title.includes('Store')) return <LockIcon color="#00bcd4" />
+    if (title.includes('Import') || title.includes('Bulk')) return <UploadIcon color="#ff8c00" />
+    if (title.includes('Export') || title.includes('Price') && title.includes('List')) return <DownloadIcon color="#ff8c00" />
+    if (title.includes('Copy')) return <CopyIcon color="#00bcd4" />
+    if (title.includes('Notification') || title.includes('Activity')) return <BellIcon color="#00bcd4" />
+    return <PackageIcon color="#ff8c00" />
+  }
+
+  return (
+    <section id="features" className="lp-features lp-section">
+      <style>{`
+        .lp-features {
+          background: #ffffff;
+          padding: 80px 20px;
+        }
+
+        .lp-feature-group {
+          margin-bottom: 80px;
+        }
+
+        .lp-feature-group:last-child {
+          margin-bottom: 0;
+        }
+
+        .lp-feature-head {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          margin-bottom: 32px;
+          flex-wrap: wrap;
+        }
+
+        .lp-icon-box {
+          width: 64px;
+          height: 64px;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .lp-icon-box.orange {
+          background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        }
+
+        .lp-icon-box.teal {
+          background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+        }
+
+        .lp-feature-title {
+          font-size: clamp(1.4rem, 3vw, 1.8rem);
+          font-weight: 700;
+          color: #333333;
+          margin: 0;
+          letter-spacing: -0.5px;
+        }
+
+        .lp-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 24px;
+          margin-bottom: 40px;
+        }
+
+        .lp-mini-card {
+          background: #ffffff;
+          border: 1.5px solid #f0f0f0;
+          border-radius: 16px;
+          padding: 32px 24px;
+          transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .lp-mini-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(135deg, rgba(255, 140, 0, 0.02) 0%, rgba(0, 188, 212, 0.02) 100%);
+          opacity: 0;
+          transition: opacity 0.4s ease;
+          pointer-events: none;
+        }
+
+        .lp-mini-card:hover {
+          transform: translateY(-8px);
+          border-color: #ffb800;
+          box-shadow: 0 12px 32px rgba(255, 140, 0, 0.12);
+          background: #fafbfc;
+        }
+
+        .lp-mini-card:hover::before {
+          opacity: 1;
+        }
+
+        .lp-mini-card:hover .lp-mini-icon {
+          transform: scale(1.1) rotate(3deg);
+        }
+
+        .lp-mini-card:active {
+          transform: translateY(-4px);
+        }
+
+        .lp-mini-card.glow-click {
+          box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.25), 0 12px 32px rgba(255, 140, 0, 0.15);
+        }
+
+        .lp-mini-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 20px;
+          transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .lp-mini-title {
+          font-size: 1.15rem;
+          font-weight: 700;
+          color: #333333;
+          margin: 0 0 12px 0;
+          transition: color 0.3s ease;
+          letter-spacing: -0.3px;
+        }
+
+        .lp-mini-card:hover .lp-mini-title {
+          color: #ff8c00;
+        }
+
+        .lp-mini-text {
+          color: #666666;
+          font-size: 0.95rem;
+          line-height: 1.6;
+          margin: 0;
+          transition: color 0.3s ease;
+        }
+
+        .lp-mini-card:hover .lp-mini-text {
+          color: #555555;
+        }
+
+        .lp-section-text {
+          text-align: center;
+          max-width: 900px;
+          margin: 0 auto 60px;
+          font-size: 1.1rem;
+          color: #666666;
+          line-height: 1.8;
+        }
+
+        .lp-section-title {
+          text-align: center;
+          font-size: clamp(1.8rem, 4vw, 2.6rem);
+          font-weight: 800;
+          color: #ff8c00;
+          margin: 0 0 16px 0;
+          letter-spacing: -1px;
+        }
+
+        @media (max-width: 768px) {
+          .lp-features {
+            padding: 60px 16px;
+          }
+
+          .lp-feature-group {
+            margin-bottom: 60px;
+          }
+
+          .lp-feature-head {
+            margin-bottom: 24px;
+          }
+
+          .lp-grid {
+            gap: 16px;
+            grid-template-columns: 1fr;
+          }
+
+          .lp-mini-card {
+            padding: 24px 18px;
+          }
+
+          .lp-mini-card:hover {
+            transform: translateY(-4px);
+          }
+
+          .lp-mini-icon {
+            margin-bottom: 16px;
+          }
+        }
+      `}</style>
+
+      <div className="lp-container">
+        <h2 className="lp-section-title">Comprehensive Platform Features</h2>
+        <p className="lp-section-text">
+          Presyohan is more than just a price list—it's a comprehensive platform designed to give Store Owners and Managers complete control over pricing, inventory data, and staff access.
+        </p>
+
+        {/* Feature Group 1: Product Management */}
+        <div className="lp-feature-group">
+          <div className="lp-feature-head">
+            <div className="lp-icon-box orange">
+              <PackageIcon color="#ff8c00" />
+            </div>
+            <h3 className="lp-feature-title">Unified Product &amp; Category Management</h3>
+          </div>
+          <p className="lp-section-text">Manage your entire product catalog efficiently with robust Create, Read, Update, and Delete (CRUD) functionality.</p>
+          <div className="lp-grid">
+            {feature1Cards.map((item, index) => (
+              <div key={index} className="lp-mini-card" onClick={handleCardClick}>
+                <div className="lp-mini-icon">
+                  {getIconForTitle(item.title)}
+                </div>
+                <h4 className="lp-mini-title">{item.title}</h4>
+                <p className="lp-mini-text">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Feature Group 2: Team & Store Control */}
+        <div className="lp-feature-group">
+          <div className="lp-feature-head">
+            <div className="lp-icon-box teal">
+              <UsersIcon color="#00bcd4" />
+            </div>
+            <h3 className="lp-feature-title">Team &amp; Store Control</h3>
+          </div>
+          <p className="lp-section-text">Maintain security and accountability with precise, role-based controls over who can access and modify store data.</p>
+          <div className="lp-grid">
+            {feature2Cards.map((item, index) => (
+              <div key={index} className="lp-mini-card" onClick={handleCardClick}>
+                <div className="lp-mini-icon">
+                  {getIconForTitle(item.title)}
+                </div>
+                <h4 className="lp-mini-title">{item.title}</h4>
+                <p className="lp-mini-text">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Feature Group 3: Data Operations & Auditing */}
+        <div className="lp-feature-group">
+          <div className="lp-feature-head">
+            <div className="lp-icon-box orange">
+              <DatabaseIcon color="#ff8c00" />
+            </div>
+            <h3 className="lp-feature-title">Data Operations &amp; Auditing</h3>
+          </div>
+          <p className="lp-section-text">Move beyond manual data entry with powerful bulk tools and clear audit trails.</p>
+          <div className="lp-grid">
+            {feature3Cards.map((item, index) => (
+              <div key={index} className="lp-mini-card" onClick={handleCardClick}>
+                <div className="lp-mini-icon">
+                  {getIconForTitle(item.title)}
+                </div>
+                <h4 className="lp-mini-title">{item.title}</h4>
+                <p className="lp-mini-text">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
