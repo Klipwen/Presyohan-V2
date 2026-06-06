@@ -13,6 +13,14 @@ data class ImportResult(
     val failures: List<Pair<ParsedItem, String>> = emptyList()
 )
 
+@Serializable
+data class DraftImportResult(
+    val savedCount: Int,
+    val attemptedCount: Int,
+    val categoryCount: Int,
+    val failures: List<Pair<DraftItem, String>> = emptyList()
+)
+
 class ImportManager(private val repo: ImportRepository) {
     suspend fun performImport(
         storeId: String,
@@ -38,11 +46,39 @@ class ImportManager(private val repo: ImportRepository) {
         val validCategoryCount = categories.count { it.items.any { i -> i.status == ItemStatus.NEW || i.status == ItemStatus.UPDATE } }
         return ImportResult(saved, attempted, validCategoryCount, failures)
     }
+
+    suspend fun performDraftImport(
+        session: DraftImportSession,
+        categoryIdByName: MutableMap<String, String>
+    ): DraftImportResult {
+        val storeId = session.storeId
+        var saved = 0
+        var attempted = 0
+        val failures = mutableListOf<Pair<DraftItem, String>>()
+
+        val categoriesWithItems = session.categories.filter { it.items.isNotEmpty() }
+
+        for (cat in categoriesWithItems) {
+            val validItems = cat.items.filter { it.validationStatus == ValidationStatus.NEW || it.validationStatus == ValidationStatus.UPDATE }
+            if (validItems.isEmpty()) continue
+
+            val catId = repo.ensureCategory(storeId, cat.name, categoryIdByName)
+
+            for (item in validItems) {
+                attempted++
+                val ok = repo.addOrUpdateDraftProduct(storeId, catId, item)
+                if (ok) saved++ else failures.add(item to "save_failed")
+            }
+        }
+        val validCategoryCount = categoriesWithItems.count { it.items.any { i -> i.validationStatus == ValidationStatus.NEW || i.validationStatus == ValidationStatus.UPDATE } }
+        return DraftImportResult(saved, attempted, validCategoryCount, failures)
+    }
 }
 
 interface ImportRepository {
     suspend fun ensureCategory(storeId: String, name: String, cache: MutableMap<String, String>): String
     suspend fun addOrUpdateProduct(storeId: String, categoryId: String, item: ParsedItem): Boolean
+    suspend fun addOrUpdateDraftProduct(storeId: String, categoryId: String, item: DraftItem): Boolean
 }
 
 class SupabaseImportRepository : ImportRepository {
@@ -50,7 +86,6 @@ class SupabaseImportRepository : ImportRepository {
         val cached = cache[name]
         if (!cached.isNullOrBlank()) return cached
 
-        // Try RPC to add category (handles dedup/normalize server-side)
         @Serializable data class RpcRow(val category_id: String, val name: String)
         return try {
             val rows = SupabaseProvider.client.postgrest.rpc(
@@ -66,7 +101,6 @@ class SupabaseImportRepository : ImportRepository {
                 cache[normalizedName] = id
                 id
             } else {
-                // Fallback: lookup existing
                 lookupCategoryId(storeId, name, cache)
             }
         } catch (_: Exception) {
@@ -86,7 +120,6 @@ class SupabaseImportRepository : ImportRepository {
         val id = cache[name]
         if (!id.isNullOrBlank()) return id
 
-        // As last resort, upsert directly
         @Serializable data class Inserted(val id: String)
         try {
             SupabaseProvider.client.postgrest["categories"].insert(
@@ -126,13 +159,48 @@ class SupabaseImportRepository : ImportRepository {
                     filter { eq("id", existing); eq("store_id", storeId) }
                 }
             } else {
-                // Use RPC to insert new product to avoid RLS issues
                 SupabaseProvider.client.postgrest.rpc(
                     "add_product",
                     buildJsonObject {
                         put("p_store_id", kotlinx.serialization.json.JsonPrimitive(storeId))
                         put("p_category_id", kotlinx.serialization.json.JsonPrimitive(categoryId))
                         put("p_name", kotlinx.serialization.json.JsonPrimitive(item.name))
+                        if (item.description != null) {
+                            put("p_description", item.description)
+                        } else {
+                            put("p_description", kotlinx.serialization.json.JsonNull)
+                        }
+                        put("p_price", kotlinx.serialization.json.JsonPrimitive(item.price ?: 0.0))
+                        put("p_unit", kotlinx.serialization.json.JsonPrimitive(item.unit))
+                    }
+                )
+            }
+            true
+        } catch (_: Exception) { false }
+    }
+
+    override suspend fun addOrUpdateDraftProduct(storeId: String, categoryId: String, item: DraftItem): Boolean {
+        val existing = item.productId
+
+        return try {
+            if (existing != null) {
+                val payload = buildJsonObject {
+                    put("name", item.productName)
+                    if (item.description != null) put("description", item.description) else put("description", kotlinx.serialization.json.JsonNull)
+                    put("price", item.price ?: 0.0)
+                    put("unit", item.unit)
+                    put("category_id", categoryId)
+                }
+                SupabaseProvider.client.postgrest["products"].update(payload) {
+                    filter { eq("id", existing); eq("store_id", storeId) }
+                }
+            } else {
+                SupabaseProvider.client.postgrest.rpc(
+                    "add_product",
+                    buildJsonObject {
+                        put("p_store_id", kotlinx.serialization.json.JsonPrimitive(storeId))
+                        put("p_category_id", kotlinx.serialization.json.JsonPrimitive(categoryId))
+                        put("p_name", kotlinx.serialization.json.JsonPrimitive(item.productName))
                         if (item.description != null) {
                             put("p_description", item.description)
                         } else {

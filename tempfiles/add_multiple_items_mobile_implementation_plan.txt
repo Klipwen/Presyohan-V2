@@ -1,0 +1,991 @@
+Presyohan Mobile - Add Multiple Items UI/UX Upgrade Implementation Plan
+Generated: 2026-06-06
+
+Objective
+Upgrade the current Presyohan Mobile Add Multiple Items workflow into a multi-entry import flow that supports:
+
+1. Simple Mode
+- Manual item entry.
+- Multiple categories.
+- Multiple items per category.
+- Editable fields per item: Item Name, Unit/Size, Price, Description optional.
+- Add Item button.
+- Delete Item button.
+- Category selector.
+- Total item counter.
+- Review button.
+
+2. Fast Mode
+- Bulk text entry mode inside Add Multiple Items.
+- Toggle between Simple Mode and Fast Mode.
+- User can paste multiple items at once.
+- Parser extracts category, item name, description, price, and unit.
+- Parser supports examples such as:
+  [FRUITS]
+  Apple (Red) - PHP 120.00 | Kilo
+  Banana - PHP 90.00 | Dozen
+
+  [DRINKS]
+  Coke 1.5L - PHP 95.00 | Bottle
+  Water - PHP 20.00 | Bottle
+- Parsed items become draft item objects.
+- Review screen validates malformed entries and duplicates before save.
+
+3. Import Prices Feature
+- Add a visible Import Prices button from the Add Multiple Items screen.
+- Import modal supports:
+  - Import Excel File.
+  - Paste Raw Text.
+- Excel import supports .xlsx selection, upload/parse, then Review.
+- Paste Raw Text supports supplier price lists, then Review.
+
+4. Review & Validation Screen
+- Final step before save for Simple, Fast, Excel, and Paste Raw Text flows.
+- Groups items by category.
+- Shows NEW, UPDATE, DUPLICATE, and INVALID status.
+- Shows summary counts.
+- Allows Edit Items.
+- Saves valid NEW/UPDATE items, skips DUPLICATE items, and blocks DONE when invalid items remain unless product decides to allow Save Valid Items Only.
+
+5. Edit Imported Items
+- Review screen includes Edit Items.
+- Edit returns to Add Multiple Items in Simple Mode.
+- Imported/parsed results are pre-populated and editable.
+- Changes persist until saved or discarded.
+
+6. Draft Protection
+- Leaving Add Multiple Items with unsaved draft data shows:
+  Title: Discard Draft Items?
+  Message: The items you have entered have not been saved and will be permanently lost.
+  Buttons: Discard All, Cancel
+
+
+Complete Feature-Gap Analysis
+
+Current implementation summary:
+- AddItemActivity launches AddMultipleItemsActivity from the Add Multiple Items button.
+- AddMultipleItemsActivity is currently a raw text parser screen, not a manual multi-category editor.
+- activity_add_multiple_items.xml contains a ViewFlipper with two states:
+  - Input state: store info, example format, raw EditText, Preview Items button.
+  - Preview state: summary text, RecyclerView preview, Edit Text button, Save Items button.
+- AddMultipleItemsParser parses raw pasted text into ParsedCategory and ParsedItem.
+- ItemImportModels defines:
+  - ItemStatus: NEW, UPDATE, DUPLICATE, ERROR_NO_PRICE, ERROR_INVALID_FORMAT, ERROR_NO_CATEGORY.
+  - ParsedItem: name, description, unit, price, status.
+  - ParsedCategory: name, mutable item list.
+- ImportManager saves ParsedCategory/ParsedItem through SupabaseImportRepository.
+- SupabaseImportRepository ensures categories with add_category and saves products with direct update or add_product RPC.
+- Existing Import Prices dialogs in HomeActivity, StoreActivity, and ManageStoreActivity use dialog_import_prices.xml.
+- Existing Import Prices behavior:
+  - Excel option only shows "Excel import is available on the web version."
+  - Copy via Paste-Code opens CopyPricesActivity.
+  - CopyPricesActivity is a store-to-store paste-code copy flow, not supplier raw text or Excel import.
+
+Gap matrix:
+
+Feature: Simple Mode manual entry
+Current: Missing. Current AddMultipleItemsActivity only supports raw text input and preview.
+Target: Category cards with editable item rows, Add Item, Delete Item, category selector, total counter, Review.
+Action: Replace or heavily refactor AddMultipleItemsActivity into mode-based draft editor.
+
+Feature: Multiple categories
+Current: Parser can parse multiple categories from raw text. UI cannot manually add/manage categories.
+Target: User can add/select multiple categories manually and add items under each.
+Action: Add DraftCategory state, category selector bottom sheet/dialog, category section adapter.
+
+Feature: Multiple items per category
+Current: Parser supports multiple parsed items per category. UI cannot add/delete row-by-row.
+Target: Multiple editable rows inside each category.
+Action: Add nested RecyclerView or grouped parent adapter with child item rows.
+
+Feature: Item fields
+Current: Parsed model has name, description, unit, price. UI has only raw text.
+Target: Dedicated inputs for name, unit/size, price, description.
+Action: Add item row layout with EditTexts and validation hooks.
+
+Feature: Add Item button
+Current: Missing from AddMultipleItemsActivity manual UI.
+Target: Add item inside selected/category card.
+Action: Add per-category Add Item action.
+
+Feature: Delete Item button
+Current: Missing from AddMultipleItemsActivity manual UI.
+Target: Trash/delete action per row.
+Action: Add delete icon/button and draft mutation.
+
+Feature: Category selector
+Current: Existing category APIs are available. Manual selector is missing.
+Target: Bottom selector shown in screenshots.
+Action: Fetch categories using get_user_categories, allow existing selection and new category creation.
+
+Feature: Total item counter
+Current: Preview summary only after parse.
+Target: Always visible "Total: N Items" in Add Multiple Items top row.
+Action: Derive count from draft item state and update reactively.
+
+Feature: Review button
+Current: Preview Items parses raw text; Save Items directly saves from preview.
+Target: Review button routes every flow into Review & Validation before save.
+Action: Create ReviewImportActivity or a dedicated Review state/screen.
+
+Feature: Fast Mode
+Current: The whole current screen resembles bulk raw text mode, but it is not presented as Fast Mode and lacks the screenshot top controls.
+Target: Toggle Simple Mode/Fast Mode; Fast Mode has guide, large paste area, Review.
+Action: Reuse parser but move it under Fast Mode and route parse result to Review.
+
+Feature: Raw text parser
+Current: Parser supports headers, bullets, separators, descriptions, units, default units, export headers, duplicate/update status.
+Target: Parser should validate malformed entries and create draft objects.
+Action: Preserve parser strengths but return richer parse results with original line, row number, source, errors, and validation status.
+
+Feature: Import Prices button
+Current: Import Prices exists in store menus, not as an Add Multiple Items toolbar action.
+Target: Add button/icon on Add Multiple Items screen.
+Action: Add top import action that opens the new import modal.
+
+Feature: Import Prices modal
+Current: Simple two-option dialog with Excel and Copy via Paste-Code.
+Target: Radio-style modal with Excel File and Paste Raw Text modes, upload area/text area, Next button.
+Action: Replace dialog_import_prices.xml behavior or create a new Add Multiple Items import modal layout.
+
+Feature: Excel import
+Current: Mobile only exports XLSX using FastExcel. Excel import shows a toast saying web-only.
+Target: Select .xlsx, upload/parse, validate rows in Review.
+Action: Add Android file picker, XLSX reader dependency, parser, validation, and Review navigation.
+
+Feature: Paste Raw Text import
+Current: AddMultipleItemsActivity can parse raw text, but Import Prices modal does not accept raw text. Store menus route paste-code copy to CopyPricesActivity.
+Target: Supplier price lists can be pasted from the import modal and parsed.
+Action: Add text area in import modal and route to shared parser/review flow.
+
+Feature: Review & Validation screen
+Current: Preview state is inside AddMultipleItemsActivity. It shows parsed rows and statuses, but it is not the target Review screen and does not block invalid DONE explicitly.
+Target: Separate Review screen with grouped categories, status tags, top warnings, summary counts, Edit Items, Done.
+Action: Build a new Review screen and validation use case.
+
+Feature: Duplicate detection
+Current: Parser checks duplicate names inside imported list and existing names fetched from products table. Existing check is name-only and lowercased. Save update lookup is exact name, which can miss case-only matches.
+Target: Detect duplicates in database and imported list; classify NEW, UPDATE, DUPLICATE, INVALID.
+Action: Centralize duplicate validation with normalized keys and existing product IDs before Review.
+
+Feature: Invalid detection
+Current: Parser flags missing price, invalid format, no category. Empty names, negative price, invalid decimal text, and row-level Excel validation are not fully modeled.
+Target: Empty product name, missing category, invalid/negative price, invalid format, missing required fields.
+Action: Add ImportValidationUseCase with explicit error list per draft item.
+
+Feature: Existing product update
+Current: Existing product detection is parser-side by lowercased names; save may update or insert depending on exact name lookup.
+Target: Existing product shows UPDATE and updates existing product on Done.
+Action: Store existingProductId in validation result and update by ID.
+
+Feature: Edit imported items
+Current: Preview has Edit Text, which returns to raw input only.
+Target: Edit Items returns to Simple Mode with parsed/imported rows pre-populated and editable.
+Action: Persist draft session and open AddMultipleItemsActivity with mode=SIMPLE and draftSessionId.
+
+Feature: Draft protection
+Current: Back from preview returns to input; back from input exits with no discard confirmation.
+Target: Unsaved draft confirmation modal.
+Action: Track dirty draft state and intercept back/up/navigation.
+
+
+Phase 1 - Current System Analysis
+
+Existing screens:
+1. AddItemActivity
+- File: Presyohan Mobile/app/src/main/java/com/presyohan/app/AddItemActivity.kt
+- The Add Multiple Items button launches AddMultipleItemsActivity with storeId and storeName extras.
+
+2. AddMultipleItemsActivity
+- File: Presyohan Mobile/app/src/main/java/com/presyohan/app/AddMultipleItemsActivity.kt
+- Current feature owner for add-multiple flow.
+- Uses activity_add_multiple_items.xml.
+- Fetches existing categories through get_user_categories.
+- Fetches existing product names from products table.
+- Parses raw text with AddMultipleItemsParser.
+- Shows an in-activity preview using ViewFlipper.
+- Saves immediately with ImportManager after Preview.
+
+3. HomeActivity / StoreActivity / ManageStoreActivity Import Prices dialogs
+- Files:
+  - Presyohan Mobile/app/src/main/java/com/presyohan/app/HomeActivity.kt
+  - Presyohan Mobile/app/src/main/java/com/presyohan/app/StoreActivity.kt
+  - Presyohan Mobile/app/src/main/java/com/presyohan/app/ManageStoreActivity.kt
+- Each inflates dialog_import_prices.xml.
+- Excel import currently shows a web-only toast.
+- Paste-code/copy option opens CopyPricesActivity.
+
+4. CopyPricesActivity
+- File: Presyohan Mobile/app/src/main/java/com/presyohan/app/CopyPricesActivity.kt
+- Separate store-to-store copy workflow.
+- Has its own select/code/review flow.
+- Not the same as supplier price list import.
+
+Existing components/layouts:
+- activity_add_multiple_items.xml
+  - DrawerLayout with header.
+  - headerLabel "Add Multiple Items".
+  - ViewFlipper with input and preview states.
+  - Raw input EditText: inputRawText.
+  - Buttons: btnPreview, btnEditRaw, btnConfirmImport.
+  - RecyclerView: previewRecyclerView.
+  - Summary TextView: previewSummary.
+- item_product_simple.xml
+  - Used for preview product rows.
+  - Shows name, unit/description details, price, status tag.
+- dialog_import_prices.xml
+  - Existing import dialog with Excel and Copy via Paste-Code options.
+  - Does not match the new screenshot modal.
+
+Existing APIs/RPCs:
+- get_user_categories(p_store_id)
+  - Returns category_id, store_id, name.
+- add_category(p_store_id, p_name)
+  - Get-or-create category behavior with uppercase normalization in later migrations.
+- add_product(p_store_id, p_category_id, p_name, p_description, p_price, p_unit)
+  - Inserts a product.
+- products table direct select
+  - Used by AddMultipleItemsActivity to fetch existing product names.
+- products table direct update
+  - Used by SupabaseImportRepository when existing product is found.
+- get_store_products(p_store_id, p_category_filter, p_search_query)
+  - Used in HomeActivity to load products and returns units alias from products.unit.
+
+Existing data models:
+- ItemStatus:
+  - NEW
+  - UPDATE
+  - DUPLICATE
+  - ERROR_NO_PRICE
+  - ERROR_INVALID_FORMAT
+  - ERROR_NO_CATEGORY
+- ParsedItem:
+  - name: String
+  - description: String?
+  - unit: String
+  - price: Double?
+  - status: ItemStatus
+- ParsedCategory:
+  - name: String
+  - items: MutableList<ParsedItem>
+- ImportResult:
+  - savedCount
+  - attemptedCount
+  - categoryCount
+  - failures
+
+Existing database models:
+- categories:
+  - id
+  - store_id
+  - name
+  - created_at
+- products:
+  - id
+  - store_id
+  - category_id
+  - name
+  - description
+  - price
+  - unit
+  - created_at
+  - updated_at
+
+Existing navigation flow:
+HomeActivity -> AddItemActivity -> AddMultipleItemsActivity -> Preview state -> Save Items -> HomeActivity
+
+Existing import dialog flow:
+Store menu / Manage store / Home store options -> Import Prices dialog
+- Excel option -> Toast only.
+- Copy via Paste-Code -> CopyPricesActivity.
+
+Current architectural issues to address:
+- AddMultipleItemsActivity owns UI, parsing, validation-ish logic, and save orchestration in one Activity.
+- Preview is not a true validation/review workflow.
+- Parsed item statuses are created during parsing, but validation should happen as a separate step before Review.
+- Existing product matching is not stable enough because parser checks lowercased names but save lookup uses exact name.
+- There is no draft/session model, so edit imported items cannot safely round-trip through Review.
+- No Excel import reader exists in mobile.
+- No draft discard protection.
+
+
+Phase 2 - Database Changes
+
+Required database schema changes:
+- No mandatory database schema change is required for the requested UI/UX and workflow.
+- Existing products and categories tables already support:
+  - category
+  - product name
+  - description
+  - price
+  - unit
+
+Recommended optional database/API improvements:
+1. Add server-side bulk validation RPC.
+- Optional RPC name: validate_import_items.
+- Purpose:
+  - Accept store_id and normalized candidate product keys.
+  - Return existing product IDs and duplicate ambiguity.
+  - Reduce mobile round trips for large imports.
+- Benefit:
+  - More reliable UPDATE detection.
+  - Less client-side filtering for large files.
+
+2. Add server-side bulk upsert RPC.
+- Optional RPC name: import_products_bulk.
+- Purpose:
+  - Accept validated NEW/UPDATE items.
+  - Create categories.
+  - Insert new products.
+  - Update existing products by product_id.
+  - Return save summary.
+- Benefit:
+  - Avoid one network call per item.
+  - Better transaction behavior.
+
+
+New client-side models:
+
+DraftImportSession
+- sessionId: String
+- storeId: String
+- storeName: String?
+- source: ImportSource
+- currentMode: EntryMode
+- categories: MutableList<DraftCategory>
+- metadata: ImportMetadata
+- isDirty: Boolean
+- createdAtMillis: Long
+- updatedAtMillis: Long
+
+EntryMode
+- SIMPLE
+- FAST
+
+ImportSource
+- SIMPLE_MANUAL
+- FAST_TEXT
+- EXCEL_FILE
+- RAW_TEXT_IMPORT
+
+DraftCategory
+- draftCategoryId: String
+- categoryId: String?
+- name: String
+- items: MutableList<DraftItem>
+
+DraftItem
+- draftItemId: String
+- categoryId: String?
+- categoryName: String
+- productId: String?
+- productName: String
+- description: String?
+- unit: String
+- priceText: String
+- price: Double?
+- source: ImportSource
+- sourceRowNumber: Int?
+- originalLine: String?
+- validationStatus: ValidationStatus
+- validationErrors: List<ValidationError>
+- duplicateKey: String
+
+ImportMetadata
+- fileName: String?
+- mimeType: String?
+- rawTextPreview: String?
+- rowCount: Int
+- parsedAtMillis: Long?
+- parseWarnings: List<String>
+- sourceLabel: String
+
+ValidationStatus
+- NEW
+- UPDATE
+- DUPLICATE
+- INVALID
+
+ValidationError
+- EMPTY_PRODUCT_NAME
+- MISSING_CATEGORY
+- INVALID_PRICE
+- NEGATIVE_PRICE
+- INVALID_FORMAT
+- MISSING_REQUIRED_FIELD
+- DUPLICATE_IN_IMPORT
+- DUPLICATE_IN_DATABASE_AMBIGUOUS
+
+Import metadata storage:
+- Prefer local draft session persistence in cacheDir as JSON using kotlinx.serialization.
+- Pass only sessionId between AddMultipleItemsActivity and ReviewImportActivity.
+- Avoid passing large item lists in Intent extras because large Excel/raw imports can exceed Android transaction limits.
+- Delete the draft cache file after Done or Discard All.
+
+
+Phase 3 - UI Changes
+
+Add Multiple Items Screen - required modifications:
+- Replace the current input/preview ViewFlipper as the primary workflow.
+- Keep app header styling, back button, and Presyohan colors.
+- Add top action row based on screenshots:
+  - Total: N Items
+  - Import Prices icon/button
+  - Simple Mode/Fast Mode segmented toggle
+  - REVIEW button
+- Simple Mode content:
+  - Scrollable grouped category cards/sections.
+  - Each category section displays category name.
+  - Each item row has:
+    - item number
+    - delete item icon
+    - Item Name input
+    - Unit/Size input
+    - Price input
+    - Description input
+  - Add Item button per category.
+  - Bottom Select Category button/sheet.
+- Simple Mode empty state:
+  - If no category selected, show category selector first.
+  - Add one empty row when a category is added.
+- Manual validation:
+  - Do lightweight field feedback inline.
+  - Full validation still happens before Review.
+- On Review:
+  - Convert current manual state into a DraftImportSession.
+  - Run validation.
+  - Navigate to Review screen.
+
+Fast Mode Screen - new components:
+- Uses same Add Multiple Items header and top action row.
+- Fast Mode selected in segmented toggle.
+- Shows title/subtitle:
+  - Fast Mode
+  - Fast and Easy to add items
+- Shows valid-format guide panel.
+- Shows large multiline text area:
+  - "Type or Paste here your exported prices thru Presyohan..."
+- Review button behavior:
+  - Parse text with AddMultipleItemsParser or new ImportTextParser.
+  - Create draft category/item objects.
+  - Run validation.
+  - Navigate to Review.
+- Switching Fast -> Simple:
+  - If Fast text has already been parsed or draft items exist, preserve draft.
+  - If only raw text exists, either keep text in Fast Mode or ask user before replacing Simple draft.
+
+Import Prices Modal - new components:
+- Triggered by Import Prices button on Add Multiple Items screen.
+- Dialog layout should match screenshots:
+  - Header: Import Prices
+  - Subtitle: Choose an import method
+  - Radio-style cards:
+    - Import Excel File
+    - Paste raw text
+  - Dynamic body area:
+    - Excel selected:
+      - Upload pricelist file panel.
+      - Choose .xlsx button.
+      - Selected filename row with remove/change option.
+      - NEXT button enabled only when file selected.
+    - Paste raw text selected:
+      - Paste your pricelist here label.
+      - Valid format hint.
+      - Multiline text area.
+      - NEXT button enabled only when text is not blank.
+- Excel behavior:
+  - Use Android file picker with MIME filters for .xlsx.
+  - Parse file after selection or on NEXT.
+  - Route parsed draft to Review.
+- Paste Raw Text behavior:
+  - Parse text on NEXT.
+  - Route parsed draft to Review.
+
+Review Screen - high-level UI changes:
+- New screen title: Review.
+- Top warning area:
+  - Found X Duplicates!
+  - Found Y Invalid items!
+  - Edit Items button.
+- RecyclerView grouped by category.
+- Item row layout:
+  - Product name.
+  - Status tag.
+  - Description.
+  - Price aligned right.
+  - Unit below price.
+- Bottom summary panel:
+  - New Items count.
+  - Update Items count.
+  - Duplicate Items count.
+  - Invalid Items count.
+  - Total Categories.
+  - Total Items.
+  - DONE button.
+- DONE disabled if invalid items exist unless Save Valid Items Only is approved as business behavior.
+
+Reusable UI components to create:
+- ModeSegmentedControl or two MaterialButtons with selected/unselected styles.
+- CategoryDraftAdapter.
+- DraftItemRowAdapter or a single grouped adapter.
+- CategorySelectorBottomSheet/Dialog.
+- ImportPricesModalController.
+- ReviewGroupedAdapter.
+- ReviewSummaryView.
+- DiscardDraftDialog.
+
+
+Phase 4 - Data Flow, State Management, Parsing, and Validation
+
+Recommended state management:
+- Introduce AddMultipleItemsViewModel.
+- State should include:
+  - current mode
+  - draft session
+  - category list
+  - existing products cache
+  - import modal state
+  - validation summary
+- Use LiveData or StateFlow depending on current project preference.
+- Since the current app uses XML/AppCompat and lifecycleScope, LiveData is acceptable; StateFlow is cleaner if the team is comfortable with it.
+
+Draft persistence:
+- Store draft session JSON in cacheDir/import_drafts/{sessionId}.json.
+- Save on every meaningful draft mutation or before navigation to Review.
+- Load session by sessionId when Review opens or Edit Items returns.
+- Clear session after successful Done or Discard All.
+
+Parser strategy:
+- Keep AddMultipleItemsParser as the base parser because it already supports many supplier/export formats.
+- Refactor parser output from ParsedCategory/ParsedItem into a richer ParseResult:
+  - categories
+  - invalid lines
+  - warnings
+  - source row numbers
+  - original lines
+- Preserve current parser support:
+  - bracket headers
+  - plain category headers
+  - bullet items
+  - descriptions in parentheses
+  - price after dash/long dash/colon/greater-than
+  - pipe unit suffix
+  - PRICELIST/date/header skipping
+- Add parser improvements:
+  - Do not classify every no-digit text line as a category if it appears after item context and has item-like separators.
+  - Validate empty product name after stripping description/separators.
+  - Detect negative price explicitly.
+  - Preserve invalid lines as DraftItem with INVALID status and error reason.
+  - Normalize Unicode separators and line breaks.
+  - Accept "PHP", "P", and peso symbol variants when practical.
+  - Support long dash and simple hyphen consistently.
+
+Excel parsing strategy:
+- Add an Android-compatible XLSX reader dependency.
+- Prefer a lightweight reader compatible with Android over Apache POI unless size/method-count compatibility is verified.
+- Parse first worksheet by default.
+- Support header-based columns:
+  - category
+  - item/product/name
+  - description
+  - price
+  - unit/size
+- Support fallback row pattern if file mirrors exported Presyohan pricelists.
+- Convert each row into DraftItem with sourceRowNumber.
+- Validation handles missing category/name/price/unit.
+
+Validation strategy:
+- Create ImportValidationUseCase.
+- Input:
+  - storeId
+  - draft categories/items
+  - existing products fetched from Supabase
+- Output:
+  - validated draft categories/items
+  - summary counts
+  - warnings
+- Validation rules:
+  - Product name required.
+  - Category required.
+  - Price required and numeric.
+  - Price must not be negative.
+  - Unit required if product decides unit is required; otherwise default to "1pc" for parser imports.
+  - Invalid format rows become INVALID.
+  - Duplicate within import list becomes DUPLICATE.
+  - Existing product in database becomes UPDATE.
+  - New product becomes NEW.
+- Duplicate key recommendation:
+  - Normalize with trim, collapse whitespace, lowercase.
+  - Business decision needed for match key:
+    - Safer update key: store + normalized product name + normalized description.
+    - Current app mostly uses product name only.
+  - Recommended: use name + description for UPDATE matching because CopyPricesActivity already avoids merging different descriptions.
+- If multiple existing DB products match the same normalized key:
+  - Mark item as DUPLICATE or INVALID with DUPLICATE_IN_DATABASE_AMBIGUOUS.
+  - Require user edit before Done.
+
+Save strategy:
+- Update ImportManager to save by validated status and productId.
+- NEW:
+  - Ensure category.
+  - Insert product with add_product.
+- UPDATE:
+  - Ensure category.
+  - Update existing product by productId, not exact name.
+- DUPLICATE:
+  - Skip.
+- INVALID:
+  - Block Done unless Save Valid Items Only is approved.
+- For large imports, consider a bulk RPC after the first client implementation works.
+
+
+Phase 5 - Review Screen
+
+Purpose:
+- Final confirmation point for all Add Multiple Items import paths.
+- Review parsed/imported/manual items before saving.
+- Surface duplicates and invalid rows clearly.
+- Allow correction through Edit Items.
+
+Entry points:
+- Simple Mode -> Review.
+- Fast Mode -> Parse Data -> Review.
+- Excel Import -> Parse Excel -> Review.
+- Paste Raw Text -> Parse Text -> Review.
+
+Screen implementation recommendation:
+- Create ReviewImportActivity.
+- Register it in AndroidManifest.
+- It receives:
+  - storeId
+  - storeName
+  - draftSessionId
+- It loads draft data from local draft session cache.
+- It runs ImportValidationUseCase before rendering.
+- It writes validation results back to the same draft session.
+
+Display layout:
+- Header:
+  - Back icon.
+  - Title: Review.
+- Warning/summary strip:
+  - Found X Duplicates!
+  - Found Y Invalid items!
+  - Edit Items button.
+- Grouped category list:
+  FRUITS
+  Apple [NEW]
+  Description: Red Apple
+  PHP 120.00 / Kilo
+
+  Banana [DUPLICATE]
+  Description: Cavendish
+  PHP 90.00 / Kilo
+
+  Orange [INVALID]
+  Description: Imported
+  PHP 150.00 / Kilo
+- Bottom summary:
+  - New Items: N
+  - Update Items: N
+  - Duplicate Items: N
+  - Invalid Items: N
+  - Total Categories: N
+  - Total Items: N
+  - DONE button.
+
+DONE behavior:
+- If invalid count is 0:
+  - Save NEW items.
+  - Update UPDATE items.
+  - Skip DUPLICATE items.
+  - Show success toast/snackbar:
+    - Successfully imported N items.
+  - Clear draft session.
+  - Return to HomeActivity or previous store screen.
+- If invalid count is greater than 0:
+  - Disable DONE.
+  - Show:
+    - X invalid items require attention before saving.
+- Optional product decision:
+  - Add Save Valid Items Only button.
+  - If enabled, it saves NEW/UPDATE only and leaves invalid/duplicate skipped.
+
+Edit Items behavior:
+- User taps Edit Items.
+- ReviewImportActivity saves current draft session.
+- Navigate to AddMultipleItemsActivity with:
+  - mode = SIMPLE
+  - draftSessionId
+  - storeId
+  - storeName
+- AddMultipleItemsActivity opens Simple Mode and pre-populates all items.
+- User edits category/product/description/unit/price.
+- User taps Review again.
+- Validation runs again.
+
+Back behavior from Review:
+- If draft has unsaved changes, show the same discard confirmation or return to Add Multiple Items depending on UX decision.
+- Recommended:
+  - Back from Review returns to Add Multiple Items Simple Mode with draft preserved.
+  - Back from Add Multiple Items triggers Discard Draft Items if dirty.
+
+
+Phase 6 - Navigation Flow
+
+Target flow:
+
+Add Multiple Items
+    ->
+Simple Mode / Fast Mode / Import Excel / Import Paste Raw Text
+    ->
+Build or parse draft items
+    ->
+Review Screen
+    ->
+Edit Items
+    ->
+Back to Add Multiple Items in Simple Mode
+    ->
+Review
+    ->
+Done
+    ->
+Save NEW and UPDATE, skip DUPLICATE, block or handle INVALID
+
+Detailed flows:
+
+Simple Mode:
+AddItemActivity
+    -> AddMultipleItemsActivity(mode=SIMPLE)
+    -> User manually adds categories/items
+    -> REVIEW
+    -> ReviewImportActivity
+    -> DONE
+
+Fast Mode:
+AddMultipleItemsActivity(mode=FAST)
+    -> User pastes formatted text
+    -> REVIEW
+    -> Parse text into draft
+    -> Validate
+    -> ReviewImportActivity
+    -> DONE
+
+Excel Import:
+AddMultipleItemsActivity
+    -> Import Prices button
+    -> Import Prices modal
+    -> Import Excel File
+    -> Select .xlsx
+    -> NEXT
+    -> Parse Excel into draft
+    -> Validate
+    -> ReviewImportActivity
+    -> DONE
+
+Paste Raw Text Import:
+AddMultipleItemsActivity
+    -> Import Prices button
+    -> Import Prices modal
+    -> Paste Raw Text
+    -> User pastes supplier price list
+    -> NEXT
+    -> Parse text into draft
+    -> Validate
+    -> ReviewImportActivity
+    -> DONE
+
+Edit Items:
+ReviewImportActivity
+    -> Edit Items
+    -> AddMultipleItemsActivity(mode=SIMPLE, draftSessionId)
+    -> User edits parsed/imported rows
+    -> REVIEW
+    -> Validate again
+    -> ReviewImportActivity
+
+Discard draft:
+AddMultipleItemsActivity dirty draft
+    -> Back/up/navigation away
+    -> Discard Draft Items? modal
+    -> Cancel: stay on screen
+    -> Discard All: delete draft session and leave
+
+
+Phase 7 - Development Tasks
+
+Task 1 - Define import/draft models.
+- Add DraftImportSession, DraftCategory, DraftItem, ImportMetadata, EntryMode, ImportSource, ValidationStatus, ValidationError.
+- Keep ParsedCategory/ParsedItem temporarily for compatibility.
+- Add mappers between old ParsedCategory and new draft models.
+
+Task 2 - Create draft session storage.
+- Implement ImportDraftStore using cacheDir JSON files.
+- Provide create, load, save, delete functions.
+- Use sessionId between AddMultipleItemsActivity and ReviewImportActivity.
+
+Task 3 - Introduce AddMultipleItemsViewModel.
+- Move draft state, total count, selected mode, category cache, and dirty tracking out of Activity.
+- Keep Activity focused on binding views and navigation.
+
+Task 4 - Refactor parser output.
+- Extend AddMultipleItemsParser or create ImportTextParser wrapper.
+- Return parse warnings, source rows, invalid entries, and draft-ready items.
+- Preserve existing parser tests.
+- Add tests for the provided FRUITS/DRINKS and supplier PRICELIST examples.
+
+Task 5 - Build validation use case.
+- Fetch existing store products with product_id, name, description, unit, category.
+- Normalize duplicate keys.
+- Assign NEW, UPDATE, DUPLICATE, INVALID.
+- Produce ReviewSummary.
+- Add unit tests for duplicate/import/database cases.
+
+Task 6 - Update save/import manager.
+- Save only validated NEW and UPDATE items.
+- Update products by existing productId for UPDATE.
+- Skip DUPLICATE.
+- Block INVALID.
+- Keep add_category/add_product reuse.
+
+Task 7 - Rebuild Add Multiple Items Simple Mode UI.
+- Replace raw-only input as default screen.
+- Add total counter, import button, mode toggle, review button.
+- Build category sections and item rows.
+- Implement add/delete item behavior.
+- Implement category selector.
+
+Task 8 - Add Fast Mode UI.
+- Add Fast Mode state/layout matching screenshot.
+- Add format guide.
+- Add large text input.
+- Wire Review to parser -> draft -> validation -> Review.
+
+Task 9 - Build Import Prices modal.
+- Replace or add new modal layout.
+- Implement radio-style method selection.
+- Implement Excel selected file area.
+- Implement Paste Raw Text area.
+- Implement NEXT enable/disable behavior.
+
+Task 10 - Add XLSX file selection and parser.
+- Add ActivityResultContracts.OpenDocument.
+- Filter for .xlsx.
+- Add Android-compatible XLSX reader dependency.
+- Parse first sheet and map rows to DraftItem.
+- Add tests with sample workbook fixtures if possible.
+
+Task 11 - Create ReviewImportActivity and layouts.
+- Add manifest entry.
+- Add grouped Review RecyclerView.
+- Add status tags.
+- Add warning strip and Edit Items button.
+- Add bottom summary and Done button.
+
+Task 12 - Implement Edit Items round-trip.
+- Review -> Edit Items opens AddMultipleItemsActivity in Simple Mode with draftSessionId.
+- Prepopulate categories and items.
+- Revalidate on next Review.
+
+Task 13 - Implement draft protection.
+- Track dirty state from manual edits, parsed imports, and selected files.
+- Intercept back button and header back.
+- Show Discard Draft Items modal.
+- Delete draft only on Discard All or successful Done.
+
+Task 14 - Reconcile existing Import Prices entry points.
+- Decide whether store menu Import Prices should open AddMultipleItemsActivity with import modal pre-opened, or keep old CopyPricesActivity for store-to-store copy.
+- Recommended:
+  - Add Multiple Items import button handles supplier import.
+  - Store menu Import Prices can route to AddMultipleItemsActivity(importModal=true).
+  - Rename existing paste-code option to Copy Prices if retained, to avoid confusing supplier import with store-to-store copy.
+
+Task 15 - UI QA against screenshots.
+- Verify spacing and controls on common mobile widths.
+- Verify long product names wrap like Review screenshot.
+- Verify bottom summary does not cover list content.
+- Verify keyboard behavior for item row edits and Fast Mode text area.
+
+Task 16 - Regression tests.
+- Parser unit tests for examples.
+- Validation unit tests.
+- ImportManager tests using fake repository.
+- Manual QA:
+  - Simple Mode add/delete.
+  - Fast Mode parse.
+  - Import raw text.
+  - Excel import.
+  - Review invalid disabled Done.
+  - Edit Items return and re-review.
+  - Draft discard confirmation.
+
+
+Phase 8 - Risks and Edge Cases
+
+Duplicate products:
+- Current app has inconsistent duplicate matching between parser and save.
+- Risk: case-only product differences can be marked UPDATE but inserted as new.
+- Mitigation: validation should store existingProductId and save UPDATE by ID.
+
+Empty categories:
+- Parser can create invalid/no-category groups.
+- Manual UI can create empty category sections if user selects category but adds no items.
+- Mitigation: do not count empty categories; show INVALID for items missing category; remove empty category sections on Review.
+
+Invalid prices:
+- Inputs may include commas, peso symbol, PHP text, spaces, zero, negative values, or malformed decimals.
+- Current parser can accidentally treat negative price as a separator plus positive number.
+- Mitigation: parse price text explicitly and flag NEGATIVE_PRICE/INVALID_PRICE.
+
+Large Excel files:
+- Large imports can exceed memory, take long to parse, or cause too many per-item network calls.
+- Mitigation: stream rows if library supports it, cap preview size warnings, show loading overlay, and consider bulk RPC.
+
+Parser failures:
+- Supplier lists vary widely in punctuation, headers, bullets, and line breaks.
+- Mitigation: preserve original lines, show INVALID rows in Review, and allow Edit Items to fix them.
+
+Unsaved drafts:
+- Users can accidentally leave after adding many rows.
+- Mitigation: dirty-state tracking and Discard Draft Items modal.
+
+Android Intent size:
+- Passing full import data between activities can fail for large imports.
+- Mitigation: pass only draftSessionId and store draft JSON in cacheDir.
+
+Excel dependency compatibility:
+- Apache POI can be heavy on Android.
+- Mitigation: choose a lightweight Android-compatible reader and test release build method count and startup cost.
+
+Category normalization:
+- Existing add_category uppercases category names.
+- UI may show category names typed by user before server normalization.
+- Mitigation: normalize category display in validation or after category ensure response.
+
+Database ambiguity:
+- Existing stores may already contain duplicate product names.
+- Mitigation: if more than one existing product matches, mark imported item as DUPLICATE or INVALID until user edits.
+
+Network/RLS failures:
+- Import save depends on Supabase RPC/table permissions.
+- Mitigation: keep existing add_category/add_product paths, surface failures in result, and avoid deleting draft until save succeeds.
+
+Mode switching data loss:
+- Switching Simple/Fast can wipe draft or raw text if not designed carefully.
+- Mitigation: keep independent mode state and ask before replacing non-empty drafts.
+
+Business rule ambiguity: DUPLICATE vs UPDATE
+- Requirement mentions database duplicates but also says existing products should be UPDATE.
+- Recommended interpretation:
+  - Existing product with one clear DB match = UPDATE.
+  - Duplicate within imported list = DUPLICATE.
+  - Multiple existing DB matches = DUPLICATE or INVALID requiring user action.
+
+Recommended implementation approach:
+- Build the new draft/session/validation architecture first.
+- Then wire Simple Mode and Review.
+- Then reuse the same pipeline for Fast Mode. 
+- Then add Import Prices modal.
+- Then add Excel import.
+- This order gives the team a working manual Review flow early, while all later import types reuse the same validation and save path.

@@ -13,13 +13,10 @@ package com.presyohan.app
 object AddMultipleItemsParser {
 
     private val bracketHeader = Regex("^\\s*\\[\\s*(.+?)\\s*]\\s*$")
-    private val dashedOrPlainHeader = Regex("^\\s*([^\\d]+?)\\s*(?:[—\\-:]\\s*)?$")
+    private val dashedOrPlainHeader = Regex("^\\s*([^\\d\\-\\—\\:\\>\\=\\[\\]]+?)\\s*(?:[—\\-:]\\s*)?$")
 
-    // Find prices; prefer the FIRST price after a separator (—, -, :, >) to
-    // correctly parse Presyohan exports that may include a second trailing price
-    // (e.g., "— ₱100.00 | — ₱1.00 | pc"). Fallback to LAST token to avoid digits
-    // inside names like "Triangle (180/100pcs) — ₱2.00 | pc".
-    private val priceToken = Regex("(?:₱\\s*)?([0-9]+(?:[.,][0-9]{1,2})?)")
+    // Find prices; prefer the FIRST price after a separator (—, -, :, >)
+    private val priceToken = Regex("(?:₱|PHP|Php|php|P|p)?\\s*([0-9]+(?:[.,][0-9]{1,2})?)")
     private val dateLine = Regex("^\\s*\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}\\s*$")
     private val exportHeaderKeywords = listOf("PRICELIST", "SHARED VIA PRESYOHAN")
     private val bulletChars = setOf('-', '•', '*')
@@ -32,7 +29,7 @@ object AddMultipleItemsParser {
     fun parseRawToCategories(raw: String, existingProductNames: Set<String>): List<ParsedCategory> {
         val categories = mutableListOf<ParsedCategory>()
         var currentCategory: ParsedCategory? = null
-        val issuesCategory = ParsedCategory("INVALID ITEMS")
+        val issuesCategory = ParsedCategory("UNCATEGORIZED")
 
         val seenNames = mutableSetOf<String>()
         var pendingName: String? = null
@@ -66,7 +63,6 @@ object AddMultipleItemsParser {
                 if (price != null) {
                     val unit = extractUnitAfterPrice(line, priceMatchIndex(line))
                     val status = when {
-                        price == null -> ItemStatus.ERROR_NO_PRICE
                         seenNames.contains(pendingName!!.lowercase()) -> ItemStatus.DUPLICATE
                         existingProductNames.contains(pendingName!!.lowercase()) -> ItemStatus.UPDATE
                         currentCategory == null -> ItemStatus.ERROR_NO_CATEGORY
@@ -88,7 +84,6 @@ object AddMultipleItemsParser {
                     pendingName = null; pendingDesc = null
                     return@forEach
                 }
-                // If not a price line, fall through and treat as new parsing
             }
 
             // Single-line item
@@ -104,7 +99,6 @@ object AddMultipleItemsParser {
 
                 val normalizedName = name.lowercase()
                 val status = when {
-                    price == null -> ItemStatus.ERROR_NO_PRICE
                     seenNames.contains(normalizedName) -> ItemStatus.DUPLICATE
                     existingProductNames.contains(normalizedName) -> ItemStatus.UPDATE
                     currentCategory == null -> ItemStatus.ERROR_NO_CATEGORY
@@ -126,13 +120,11 @@ object AddMultipleItemsParser {
                 val nameDesc = stripTrailingSeparators(nameDescRaw)
                 val name = extractName(nameDesc)
                 val desc = extractDescription(nameDesc)
-                // hold pending; next line should be price
                 pendingName = name
                 pendingDesc = desc
                 return@forEach
             }
 
-            // If line looks like a store header (e.g., "Store — Branch" without prices), ignore
             if (looksLikeStoreHeader(line)) {
                 return@forEach
             }
@@ -155,10 +147,325 @@ object AddMultipleItemsParser {
             seenNames.add(nameGuess.lowercase())
         }
 
-        // Finalize: include issues category if it has items
         if (issuesCategory.items.isNotEmpty()) categories.add(issuesCategory)
-        // Keep only categories that have items
         return categories.filter { it.items.isNotEmpty() }
+    }
+
+    fun parseTextToResult(raw: String, existingProductNames: Set<String>): ParseResult {
+        val categories = mutableListOf<DraftCategory>()
+        val invalidLines = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
+
+        var currentCategory: DraftCategory? = null
+        val uncategorizedCategory = DraftCategory(
+            draftCategoryId = DraftIdGenerator.next("category"),
+            name = "UNCATEGORIZED",
+            items = mutableListOf()
+        )
+
+        val seenNames = mutableSetOf<String>()
+        var pendingName: String? = null
+        var pendingDesc: String? = null
+        var pendingOriginalLine: String? = null
+        var pendingRowNumber: Int? = null
+
+        var rowCounter = 0
+
+        raw.lines().forEach { lineRaw ->
+            rowCounter++
+            val lineNormalized = lineRaw
+                .replace('\u2014', '-') // em-dash
+                .replace('\u2013', '-') // en-dash
+                .replace('\u2012', '-') // figure-dash
+                .replace('\u00A0', ' ') // non-breaking space
+            val line = lineNormalized.trim()
+            if (line.isBlank()) return@forEach
+
+            val upper = line.uppercase()
+            if (exportHeaderKeywords.any { upper.contains(it) } || dateLine.matches(line)) {
+                return@forEach
+            }
+            if (upper.contains("STORE") && upper.contains("BRANCH") && currentCategory == null) {
+                return@forEach
+            }
+
+            val bracketHeaderRegex = Regex("^\\s*\\[\\s*(.+?)\\s*]\\s*$")
+            val dashedOrPlainHeaderRegex = Regex("^\\s*([^\\d\\-\\:\\>\\=\\[\\]]+?)\\s*(?:[\\-:]\\s*)?$")
+
+            val catName = when {
+                bracketHeaderRegex.matches(line) -> bracketHeaderRegex.matchEntire(line)!!.groupValues[1].trim().uppercase()
+                dashedOrPlainHeaderRegex.matches(line) && !startsWithBullet(line) -> dashedOrPlainHeaderRegex.matchEntire(line)!!.groupValues[1].trim().uppercase()
+                else -> null
+            }
+
+            if (!catName.isNullOrBlank()) {
+                if (pendingName != null) {
+                    val draftItem = DraftItem(
+                        draftItemId = DraftIdGenerator.next("item"),
+                        categoryName = currentCategory?.name ?: "UNCATEGORIZED",
+                        categoryId = currentCategory?.categoryId,
+                        productName = pendingName!!,
+                        description = pendingDesc,
+                        unit = "1pc",
+                        priceText = "",
+                        price = null,
+                        source = ImportSource.FAST_TEXT,
+                        sourceRowNumber = pendingRowNumber,
+                        originalLine = pendingOriginalLine,
+                        validationStatus = ValidationStatus.INVALID,
+                        validationErrors = listOf(ValidationError.INVALID_PRICE)
+                    )
+                    if (currentCategory != null) {
+                        currentCategory!!.items.add(draftItem)
+                    } else {
+                        uncategorizedCategory.items.add(draftItem)
+                    }
+                    seenNames.add(pendingName!!.lowercase())
+                    pendingName = null; pendingDesc = null; pendingOriginalLine = null; pendingRowNumber = null
+                }
+
+                val newCat = DraftCategory(
+                    draftCategoryId = DraftIdGenerator.next("category"),
+                    name = catName,
+                    items = mutableListOf()
+                )
+                currentCategory = newCat
+                categories.add(newCat)
+                return@forEach
+            }
+
+            val priceTokenRegex = Regex("(-\\s*)?(?:₱|PHP|Php|php|P|p)?\\s*([0-9]+(?:[.,][0-9]{1,2})?)")
+
+            fun findPriceMatchIndex(l: String): IntRange? {
+                val sep = firstSeparatorIndex(l)
+                val matches = priceTokenRegex.findAll(l).toList()
+                val target = if (sep != null) {
+                    matches.firstOrNull { it.range.first > sep }
+                } else {
+                    matches.lastOrNull()
+                }
+                return target?.range
+            }
+
+            if (pendingName != null) {
+                val priceRange = findPriceMatchIndex(line)
+                if (priceRange != null) {
+                    val matchResult = priceTokenRegex.find(line, priceRange.first)
+                    val isNegative = matchResult?.groupValues?.get(1)?.isNotEmpty() == true
+                    val priceVal = matchResult?.groupValues?.get(2)?.replace(",", "")?.toDoubleOrNull()
+
+                    val unit = extractUnitAfterPrice(line, priceRange) ?: "1pc"
+                    val normalizedName = pendingName!!.lowercase()
+
+                    val validationErrors = mutableListOf<ValidationError>()
+                    var status = ValidationStatus.NEW
+
+                    if (priceVal == null) {
+                        validationErrors.add(ValidationError.INVALID_PRICE)
+                        status = ValidationStatus.INVALID
+                    } else if (isNegative) {
+                        validationErrors.add(ValidationError.NEGATIVE_PRICE)
+                        status = ValidationStatus.INVALID
+                    }
+
+                    if (status != ValidationStatus.INVALID) {
+                        if (seenNames.contains(normalizedName)) {
+                            status = ValidationStatus.DUPLICATE
+                        } else if (existingProductNames.contains(normalizedName)) {
+                            status = ValidationStatus.UPDATE
+                        }
+                    }
+
+                    val item = DraftItem(
+                        draftItemId = DraftIdGenerator.next("item"),
+                        categoryName = currentCategory?.name ?: "UNCATEGORIZED",
+                        categoryId = currentCategory?.categoryId,
+                        productName = pendingName!!,
+                        description = pendingDesc,
+                        unit = unit,
+                        priceText = priceVal?.toString() ?: "",
+                        price = priceVal,
+                        source = ImportSource.FAST_TEXT,
+                        sourceRowNumber = pendingRowNumber,
+                        originalLine = "$pendingOriginalLine\n$lineRaw",
+                        validationStatus = status,
+                        validationErrors = validationErrors
+                    )
+
+                    if (currentCategory != null) {
+                        currentCategory.items.add(item)
+                    } else {
+                        uncategorizedCategory.items.add(item)
+                    }
+
+                    seenNames.add(normalizedName)
+                    pendingName = null; pendingDesc = null; pendingOriginalLine = null; pendingRowNumber = null
+                    return@forEach
+                }
+                val draftItem = DraftItem(
+                    draftItemId = DraftIdGenerator.next("item"),
+                    categoryName = currentCategory?.name ?: "UNCATEGORIZED",
+                    categoryId = currentCategory?.categoryId,
+                    productName = pendingName!!,
+                    description = pendingDesc,
+                    unit = "1pc",
+                    priceText = "",
+                    price = null,
+                    source = ImportSource.FAST_TEXT,
+                    sourceRowNumber = pendingRowNumber,
+                    originalLine = pendingOriginalLine,
+                    validationStatus = ValidationStatus.INVALID,
+                    validationErrors = listOf(ValidationError.INVALID_PRICE)
+                )
+                if (currentCategory != null) {
+                    currentCategory.items.add(draftItem)
+                } else {
+                    uncategorizedCategory.items.add(draftItem)
+                }
+                seenNames.add(pendingName!!.lowercase())
+                pendingName = null; pendingDesc = null; pendingOriginalLine = null; pendingRowNumber = null
+            }
+
+            val priceRange = findPriceMatchIndex(line)
+            if (priceRange != null) {
+                val matchResult = priceTokenRegex.find(line, priceRange.first)
+                val isNegative = matchResult?.groupValues?.get(1)?.isNotEmpty() == true
+                val priceVal = matchResult?.groupValues?.get(2)?.replace(",", "")?.toDoubleOrNull()
+
+                val before = line.substring(0, priceRange.first).trim()
+                val nameDescRaw = stripLeadingBulletAndSeparators(before)
+                val nameDesc = stripTrailingSeparators(nameDescRaw)
+                val name = extractName(nameDesc)
+                val desc = extractDescription(nameDesc)
+                val unit = extractUnitAfterPrice(line, priceRange) ?: findUnitBeforePrice(nameDesc) ?: "1pc"
+
+                val normalizedName = name.lowercase()
+                val validationErrors = mutableListOf<ValidationError>()
+                var status = ValidationStatus.NEW
+
+                if (name.isBlank()) {
+                    validationErrors.add(ValidationError.EMPTY_PRODUCT_NAME)
+                    status = ValidationStatus.INVALID
+                }
+                if (priceVal == null) {
+                    validationErrors.add(ValidationError.INVALID_PRICE)
+                    status = ValidationStatus.INVALID
+                } else if (isNegative) {
+                    validationErrors.add(ValidationError.NEGATIVE_PRICE)
+                    status = ValidationStatus.INVALID
+                }
+
+                if (status != ValidationStatus.INVALID) {
+                    if (seenNames.contains(normalizedName)) {
+                        status = ValidationStatus.DUPLICATE
+                    } else if (existingProductNames.contains(normalizedName)) {
+                        status = ValidationStatus.UPDATE
+                    }
+                }
+
+                val item = DraftItem(
+                    draftItemId = DraftIdGenerator.next("item"),
+                    categoryName = currentCategory?.name ?: "UNCATEGORIZED",
+                    categoryId = currentCategory?.categoryId,
+                    productName = name,
+                    description = desc,
+                    unit = unit,
+                    priceText = priceVal?.toString() ?: "",
+                    price = priceVal,
+                    source = ImportSource.FAST_TEXT,
+                    sourceRowNumber = rowCounter,
+                    originalLine = lineRaw,
+                    validationStatus = status,
+                    validationErrors = validationErrors
+                )
+
+                if (currentCategory != null) {
+                    currentCategory.items.add(item)
+                } else {
+                    uncategorizedCategory.items.add(item)
+                }
+                seenNames.add(normalizedName)
+                return@forEach
+            }
+
+            if (startsWithBullet(line)) {
+                val nameDescRaw = stripLeadingBulletAndSeparators(line)
+                val nameDesc = stripTrailingSeparators(nameDescRaw)
+                val name = extractName(nameDesc)
+                val desc = extractDescription(nameDesc)
+
+                pendingName = name
+                pendingDesc = desc
+                pendingOriginalLine = lineRaw
+                pendingRowNumber = rowCounter
+                return@forEach
+            }
+
+            if (looksLikeStoreHeader(line)) {
+                return@forEach
+            }
+
+            invalidLines.add(lineRaw)
+            val nameGuess = line
+            val validationErrors = mutableListOf<ValidationError>(ValidationError.INVALID_FORMAT)
+            val item = DraftItem(
+                draftItemId = DraftIdGenerator.next("item"),
+                categoryName = currentCategory?.name ?: "UNCATEGORIZED",
+                categoryId = currentCategory?.categoryId,
+                productName = nameGuess,
+                description = null,
+                unit = "1pc",
+                priceText = "",
+                price = null,
+                source = ImportSource.FAST_TEXT,
+                sourceRowNumber = rowCounter,
+                originalLine = lineRaw,
+                validationStatus = ValidationStatus.INVALID,
+                validationErrors = validationErrors
+            )
+
+            if (currentCategory != null) {
+                currentCategory.items.add(item)
+            } else {
+                uncategorizedCategory.items.add(item)
+            }
+            seenNames.add(nameGuess.lowercase())
+        }
+
+        if (pendingName != null) {
+            val draftItem = DraftItem(
+                draftItemId = DraftIdGenerator.next("item"),
+                categoryName = currentCategory?.name ?: "UNCATEGORIZED",
+                categoryId = currentCategory?.categoryId,
+                productName = pendingName!!,
+                description = pendingDesc,
+                unit = "1pc",
+                priceText = "",
+                price = null,
+                source = ImportSource.FAST_TEXT,
+                sourceRowNumber = pendingRowNumber,
+                originalLine = pendingOriginalLine,
+                validationStatus = ValidationStatus.INVALID,
+                validationErrors = listOf(ValidationError.INVALID_PRICE)
+            )
+            if (currentCategory != null) {
+                currentCategory.items.add(draftItem)
+            } else {
+                uncategorizedCategory.items.add(draftItem)
+            }
+            seenNames.add(pendingName!!.lowercase())
+        }
+
+        if (uncategorizedCategory.items.isNotEmpty()) {
+            categories.add(0, uncategorizedCategory)
+            warnings.add("Some items were imported without category context and grouped under UNCATEGORIZED.")
+        }
+
+        return ParseResult(
+            categories = categories,
+            invalidLines = invalidLines,
+            warnings = warnings
+        )
     }
 
     private fun startsWithBullet(line: String): Boolean {
@@ -169,7 +476,6 @@ object AddMultipleItemsParser {
     private fun stripLeadingBulletAndSeparators(text: String): String {
         var t = text.trim()
         if (t.isNotEmpty() && bulletChars.contains(t[0])) t = t.substring(1).trim()
-        // Remove leading "-", "•", "*" and extra separators like ":", "-", "—"
         t = t.trim().trimStart('-', '•', '*', ':', '—').trim()
         return t
     }
@@ -211,12 +517,10 @@ object AddMultipleItemsParser {
         if (priceRange == null) return null
         val after = line.substring(priceRange.last + 1).trim()
         if (after.isBlank()) return null
-        // Prefer last pipe-separated unit to handle formats with two prices
         val lastPipeIdx = after.lastIndexOf('|')
         if (lastPipeIdx >= 0) {
             return after.substring(lastPipeIdx + 1).trim().ifBlank { null }
         }
-        // Otherwise, capture patterns like "1 pc", "pc", "3pcs"
         val m = Regex("^([0-9]+\\s*[a-zA-Z]+(?:\\s*[a-zA-Z]+)*)").find(after)
         if (m != null) return m.groupValues[1].trim().lowercase()
         val token = after.split(Regex("\\s+")).firstOrNull()?.lowercase()
@@ -246,7 +550,6 @@ object AddMultipleItemsParser {
     }
 
     private fun looksLikeStoreHeader(line: String): Boolean {
-        // Heuristic: contains a long dash, no price token, not a bullet, and not a bracket header
         val hasDash = line.contains('—')
         val hasPrice = priceToken.containsMatchIn(line)
         val isBullet = startsWithBullet(line)

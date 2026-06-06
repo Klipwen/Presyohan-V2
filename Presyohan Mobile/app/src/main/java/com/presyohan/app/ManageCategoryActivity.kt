@@ -128,12 +128,12 @@ class ManageCategoryActivity : AppCompatActivity() {
 
     private fun showRenameCategoryDialog(oldCategory: String) {
         val dialog = android.app.Dialog(this)
-        val view = layoutInflater.inflate(R.layout.dialog_add_category, null)
+        val view = layoutInflater.inflate(R.layout.dialog_new_category, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        view.findViewById<TextView>(R.id.dialogTitle)?.text = "Rename Category"
-        val input = view.findViewById<android.widget.EditText>(R.id.inputCategoryName)
+        view.findViewById<TextView>(R.id.title)?.text = "Rename Category"
+        val input = view.findViewById<android.widget.EditText>(R.id.inputCategory)
         input.setText(oldCategory)
         val btnAdd = view.findViewById<android.widget.Button>(R.id.btnAdd)
         val btnBack = view.findViewById<android.widget.Button>(R.id.btnBack)
@@ -189,6 +189,10 @@ class ManageCategoryActivity : AppCompatActivity() {
         }
         btnBack.setOnClickListener { dialog.dismiss() }
         dialog.show()
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     private fun showDeleteCategoryDialog(category: String) {

@@ -107,4 +107,72 @@ class AddMultipleItemsParserTest {
         assertEquals(ItemStatus.ERROR_NO_CATEGORY, uncategorized.items[0].status)
         assertEquals(ItemStatus.ERROR_NO_CATEGORY, uncategorized.items[1].status)
     }
+
+    @Test
+    fun test_parseTextToResult_fruits_drinks_example() {
+        val raw = """
+            [FRUITS]
+            Apple (Red) - PHP 120.00 | Kilo
+            Banana - PHP 90.00 | Dozen
+
+            [DRINKS]
+            Coke 1.5L - PHP 95.00 | Bottle
+            Water - PHP 20.00 | Bottle
+        """.trimIndent()
+
+        val result = AddMultipleItemsParser.parseTextToResult(raw, emptySet())
+
+        assertEquals(2, result.categories.size)
+        assertEquals("FRUITS", result.categories[0].name)
+        assertEquals("DRINKS", result.categories[1].name)
+
+        val fruits = result.categories[0].items
+        assertEquals(2, fruits.size)
+        assertEquals("Apple", fruits[0].productName)
+        assertEquals("Red", fruits[0].description)
+        assertEquals(120.0, fruits[0].price!!, 0.001)
+        assertEquals("kilo", fruits[0].unit)
+        assertEquals(ValidationStatus.NEW, fruits[0].validationStatus)
+
+        assertEquals("Banana", fruits[1].productName)
+        assertNull(fruits[1].description)
+        assertEquals(90.0, fruits[1].price!!, 0.001)
+        assertEquals("dozen", fruits[1].unit)
+
+        val drinks = result.categories[1].items
+        assertEquals(2, drinks.size)
+        assertEquals("Coke 1.5L", drinks[0].productName)
+        assertEquals(95.0, drinks[0].price!!, 0.001)
+        assertEquals("bottle", drinks[0].unit)
+    }
+
+    @Test
+    fun test_parseTextToResult_negative_price_and_invalid_formats() {
+        val raw = """
+            [TEST]
+            Negative Item - PHP -50.00 | pc
+            Malformed Item - 
+            Valid Item - PHP 10.00
+        """.trimIndent()
+
+        val result = AddMultipleItemsParser.parseTextToResult(raw, emptySet())
+        assertEquals(1, result.categories.size)
+        val items = result.categories[0].items
+        assertEquals(3, items.size)
+
+        // Negative price
+        assertEquals("Negative Item", items[0].productName)
+        assertEquals(ValidationStatus.INVALID, items[0].validationStatus)
+        assertTrue(items[0].validationErrors.contains(ValidationError.NEGATIVE_PRICE))
+
+        // Malformed/empty price
+        assertEquals("Malformed Item", items[1].productName)
+        assertEquals(ValidationStatus.INVALID, items[1].validationStatus)
+        assertTrue(items[1].validationErrors.contains(ValidationError.INVALID_PRICE))
+
+        // Valid Item
+        assertEquals("Valid Item", items[2].productName)
+        assertEquals(ValidationStatus.NEW, items[2].validationStatus)
+        assertEquals(10.0, items[2].price!!, 0.001)
+    }
 }

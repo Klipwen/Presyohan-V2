@@ -927,35 +927,12 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showImportDialogForStore(storeId: String?, storeName: String?) {
-        val dlg = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_import_prices, null)
-        dlg.setContentView(view)
-        dlg.setCancelable(true)
-        dlg.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
-        dlg.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
-
-        val btnImportExcel = view.findViewById<LinearLayout>(R.id.btnImportExcel)
-        val btnCopyWithCode = view.findViewById<LinearLayout>(R.id.btnCopyWithCode)
-        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
-
-        btnImportExcel.setOnClickListener {
-            Toast.makeText(this, "Excel import is available on the web version.", Toast.LENGTH_LONG).show()
-            dlg.dismiss()
+        val intent = Intent(this, AddMultipleItemsActivity::class.java).apply {
+            putExtra("storeId", storeId)
+            putExtra("storeName", storeName)
+            putExtra("showImportDialog", true)
         }
-
-        btnCopyWithCode.setOnClickListener {
-            val intent = Intent(this, CopyPricesActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-            dlg.dismiss()
-        }
-
-        btnCancel.setOnClickListener { dlg.dismiss() }
-
-        dlg.show()
+        startActivity(intent)
     }
 
     /**

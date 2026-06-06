@@ -116,6 +116,7 @@ dependencies {
 
     // Excel generation using FastExcel (no XMLBeans/POI)
     implementation("org.dhatim:fastexcel:0.19.0")
+    implementation("org.dhatim:fastexcel-reader:0.19.0")
 
     implementation("io.coil-kt:coil:2.6.0")
 }

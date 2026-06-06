@@ -309,14 +309,17 @@ class EditItemActivity : AppCompatActivity() {
         spinner: Spinner
     ) {
         val dialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_add_category, null)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_new_category, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        val input = view.findViewById<EditText>(R.id.inputCategoryName)
+        val input = view.findViewById<EditText>(R.id.inputCategory)
         val btnAdd = view.findViewById<Button>(R.id.btnAdd)
         val btnBack = view.findViewById<Button>(R.id.btnBack)
+        view.findViewById<TextView>(R.id.title)?.let {
+            it.text = "Add Category"
+        }
 
         btnAdd.setOnClickListener {
             val categoryRaw = input.text.toString().trim()
@@ -361,6 +364,10 @@ class EditItemActivity : AppCompatActivity() {
         }
         btnBack.setOnClickListener { dialog.dismiss() }
         dialog.show()
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     private fun showLogoutDialog() {
