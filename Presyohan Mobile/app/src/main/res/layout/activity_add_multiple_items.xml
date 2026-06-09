@@ -13,64 +13,60 @@
         android:layout_height="match_parent"
         android:background="#FAFAFA">
 
-        <!-- Top Main Toolbar -->
+        <!-- Unified Header Bar (White background) -->
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/toolbarLayout"
+            android:id="@+id/layoutHeader"
             android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:background="@drawable/bg_header_yellow"
+            android:layout_height="wrap_content"
+            android:background="@color/white"
+            android:paddingBottom="10dp"
+            android:elevation="2dp"
             app:layout_constraintTop_toTopOf="parent">
+
+            <!-- Yellow Header Label inside the White Header -->
+            <TextView
+                android:id="@+id/headerLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_header_yellow"
+                android:gravity="center"
+                android:paddingVertical="8dp"
+                android:text="Add Multiple Items"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
             <ImageView
                 android:id="@+id/btnBack"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:layout_marginStart="16dp"
                 android:src="@drawable/icon_back"
-                app:tint="@color/white"
+                android:layout_marginStart="16dp"
+                app:layout_constraintBottom_toBottomOf="@+id/headerLabel"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                android:contentDescription="Back" />
+                app:layout_constraintTop_toTopOf="@+id/headerLabel"
+                app:tint="@color/white" />
 
-            <TextView
-                android:id="@+id/toolbarTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Add Multiple Items"
-                android:textColor="@color/white"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <!-- Dynamic Sub-Header Bar -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/layoutSubHeader"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/white"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="10dp"
-            android:elevation="2dp"
-            app:layout_constraintTop_toBottomOf="@id/toolbarLayout">
-
-            <!-- Title & Subtitle Left Section -->
             <LinearLayout
                 android:id="@+id/layoutSubHeaderLeft"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="10dp"
                 android:orientation="vertical"
-                app:layout_constraintHorizontal_bias="0.0"
-                app:layout_constraintWidth_default="wrap"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/btnImportPricesSubheader">
+                app:layout_constraintEnd_toStartOf="@id/btnImportPricesSubheader"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/headerLabel"
+                app:layout_constraintWidth_default="wrap">
 
                 <TextView
                     android:id="@+id/tvSubHeaderTitle"
@@ -85,7 +81,7 @@
                     android:id="@+id/tvSubHeaderSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Fast and Easy to add items"
+                    android:text="AI-powered smart items import"
                     android:textColor="@color/edittext_hint"
                     android:textSize="11sp"
                     android:visibility="gone" />
@@ -98,24 +94,25 @@
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="38dp"
                 android:layout_height="38dp"
-                android:layout_marginStart="8dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="Import Prices"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                app:cornerRadius="6dp"
                 app:icon="@drawable/icon_import_prices"
-                app:iconSize="18dp"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
+                app:iconSize="18dp"
                 app:iconTint="@color/presyo_teal"
-                app:strokeColor="@color/presyo_teal"
-                app:strokeWidth="1dp"
-                app:cornerRadius="6dp"
-                android:padding="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                app:layout_constraintStart_toEndOf="@id/layoutSubHeaderLeft"
-                app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
-                android:contentDescription="Import Prices" />
+                app:layout_constraintEnd_toStartOf="@+id/btnToggleMode"
+                app:layout_constraintTop_toBottomOf="@id/headerLabel"
+                app:strokeColor="@color/presyo_teal"
+                app:strokeWidth="1dp" />
 
             <!-- Mode Toggle Button -->
             <com.google.android.material.button.MaterialButton
@@ -123,7 +120,8 @@
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="38dp"
-                android:text="Fast Mode"
+                android:layout_marginTop="10dp"
+                android:text="Smart Mode"
                 android:textSize="11sp"
                 android:textColor="@color/presyo_teal"
                 app:strokeColor="@color/presyo_teal"
@@ -133,7 +131,7 @@
                 android:paddingHorizontal="8dp"
                 android:layout_marginEnd="8dp"
                 app:layout_constraintEnd_toStartOf="@id/btnReviewHeader"
-                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/headerLabel"
                 app:layout_constraintBottom_toBottomOf="parent" />
 
             <!-- REVIEW Button -->
@@ -141,18 +139,20 @@
                 android:id="@+id/btnReviewHeader"
                 android:layout_width="wrap_content"
                 android:layout_height="38dp"
-                android:text="REVIEW"
-                android:textSize="11sp"
-                android:textStyle="bold"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="8dp"
                 android:backgroundTint="@color/presyo_orange"
-                android:textColor="@color/white"
-                app:cornerRadius="6dp"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:paddingHorizontal="12dp"
+                android:text="REVIEW"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                app:cornerRadius="6dp"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintTop_toBottomOf="@id/headerLabel" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -161,7 +161,7 @@
             android:id="@+id/contentContainer"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/layoutSubHeader"
+            app:layout_constraintTop_toBottomOf="@id/layoutHeader"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -243,7 +243,7 @@
                                 android:id="@+id/tvFormatTitle"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Valid format:"
+                                android:text="AI Powered Smart Mode Guide:"
                                 android:textColor="@color/presyo_darkblue"
                                 android:textSize="12sp"
                                 android:textStyle="bold" />
@@ -262,7 +262,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_below="@id/tvFormatTitle"
                                 android:layout_marginTop="6dp"
-                                android:text="Category\n  • Item name (descriptions) - ₱99,999.00 | unit\n  • Item 2 - ₱123.12 | unit"
+                                android:text="You can type or paste items in any format (even without category headers).\nThe AI will automatically parse the items and assign them to one of your existing store categories if it fits!"
                                 android:textColor="@color/edittext_hint"
                                 android:textSize="11sp"
                                 android:fontFamily="monospace" />
@@ -272,7 +272,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_below="@id/tvFormatContent"
                                 android:layout_marginTop="8dp"
-                                android:text="Descriptions are optional"
+                                android:text="Examples:\n  • Fresh Milk 1L - ₱95.00\n  • Apples (Fuji red) - 150/kg\n  • asdfghj - 100 (labeled as invalid)"
                                 android:textColor="@color/edittext_hint"
                                 android:textSize="11sp" />
 
@@ -284,7 +284,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Type or paste your pricelist here. Follow our guide to ensure all items import smoothly."
+                        android:text="Type or paste your supplier pricelist, message, or list here. The AI will parse and categorize it automatically."
                         android:textColor="@color/presyo_darkblue"
                         android:textSize="13sp"
                         android:textStyle="bold"
@@ -297,7 +297,7 @@
                         android:layout_height="240dp"
                         android:background="@drawable/bg_edittext"
                         android:gravity="top|start"
-                        android:hint="Type or Paste here your exported prices thru Presyohan..."
+                        android:hint="Type or paste your pricelist here (e.g., Bread 50, Milk 90, Fuji Apple 150/kg)..."
                         android:inputType="textMultiLine|textCapSentences"
                         android:padding="12dp"
                         android:textSize="13sp"

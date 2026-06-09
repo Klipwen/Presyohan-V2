@@ -138,12 +138,20 @@ class SupabaseImportRepository : ImportRepository {
     }
 
     override suspend fun addOrUpdateProduct(storeId: String, categoryId: String, item: ParsedItem): Boolean {
-        @Serializable data class ProdId(val id: String)
+        @Serializable data class ProdRow(val id: String, val description: String? = null)
         val existing = try {
-            SupabaseProvider.client.postgrest["products"].select(Columns.list("id")) {
-                filter { eq("store_id", storeId); eq("name", item.name) }
-                limit(1)
-            }.decodeList<ProdId>().firstOrNull()?.id
+            SupabaseProvider.client.postgrest["products"].select(Columns.list("id, description")) {
+                filter {
+                    eq("store_id", storeId)
+                    eq("name", item.name)
+                    eq("unit", item.unit)
+                    eq("category_id", categoryId)
+                }
+            }.decodeList<ProdRow>().firstOrNull {
+                val normItemDesc = ImportDraftKeys.normalizeText(item.description)
+                val normDbDesc = ImportDraftKeys.normalizeText(it.description)
+                normItemDesc == normDbDesc
+            }?.id
         } catch (_: Exception) { null }
 
         return try {

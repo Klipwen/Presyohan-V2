@@ -24,6 +24,7 @@ class ImportValidationUseCaseTest {
         // Session draft items
         val item1 = DraftItem(
             draftItemId = "item1",
+            categoryId = "cat-id",
             categoryName = "Fruits",
             productName = "Apple",
             description = "Red apple",
@@ -34,6 +35,7 @@ class ImportValidationUseCaseTest {
         )
         val item2 = DraftItem(
             draftItemId = "item2",
+            categoryId = "cat-id",
             categoryName = "Fruits",
             productName = "Banana",
             description = null,
@@ -44,6 +46,7 @@ class ImportValidationUseCaseTest {
         )
         val item3 = DraftItem(
             draftItemId = "item3",
+            categoryId = "cat-id",
             categoryName = "Fruits",
             productName = "Banana", // Duplicate in same import list
             description = null,
@@ -55,6 +58,7 @@ class ImportValidationUseCaseTest {
 
         val cat = DraftCategory(
             draftCategoryId = "cat1",
+            categoryId = "cat-id",
             name = "Fruits",
             items = mutableListOf(item1, item2, item3)
         )
@@ -68,7 +72,10 @@ class ImportValidationUseCaseTest {
         val validated = useCase.validate(session, dbProds)
         val items = validated.categories[0].items
 
-        // Apple matches DB → UPDATE
+        // Banana duplicate is merged, so only Apple and 1 Banana remain
+        assertEquals(2, items.size)
+
+        // Apple matches DB but has a different price → UPDATE
         assertEquals(ValidationStatus.UPDATE, items[0].validationStatus)
         assertEquals("db-apple-id", items[0].productId)
         assertTrue(items[0].validationErrors.isEmpty())
@@ -77,10 +84,55 @@ class ImportValidationUseCaseTest {
         assertEquals(ValidationStatus.NEW, items[1].validationStatus)
         assertNull(items[1].productId)
         assertTrue(items[1].validationErrors.isEmpty())
+    }
 
-        // Second Banana → DUPLICATE (in import list)
-        assertEquals(ValidationStatus.DUPLICATE, items[2].validationStatus)
-        assertTrue(items[2].validationErrors.contains(ValidationError.DUPLICATE_IN_IMPORT))
+    @Test
+    fun test_validation_merges_exact_database_duplicates() {
+        val useCase = ImportValidationUseCase()
+
+        // Existing DB product
+        val dbProds = listOf(
+            DbProduct(
+                id = "db-apple-id",
+                category_id = "cat-id",
+                name = "Apple",
+                description = "Red apple",
+                price = 100.0,
+                unit = "kilo"
+            )
+        )
+
+        // Session draft item matches database exactly
+        val item1 = DraftItem(
+            draftItemId = "item1",
+            categoryId = "cat-id",
+            categoryName = "Fruits",
+            productName = "Apple",
+            description = "Red apple",
+            unit = "kilo",
+            priceText = "100.0",
+            price = 100.0,
+            source = ImportSource.SIMPLE_MANUAL
+        )
+
+        val cat = DraftCategory(
+            draftCategoryId = "cat1",
+            categoryId = "cat-id",
+            name = "Fruits",
+            items = mutableListOf(item1)
+        )
+
+        val session = DraftImportSession(
+            sessionId = "session-1",
+            storeId = "store-1",
+            categories = mutableListOf(cat)
+        )
+
+        val validated = useCase.validate(session, dbProds)
+        val items = validated.categories[0].items
+
+        // Exact match is merged/skipped, so items list is empty
+        assertTrue(items.isEmpty())
     }
 
     @Test

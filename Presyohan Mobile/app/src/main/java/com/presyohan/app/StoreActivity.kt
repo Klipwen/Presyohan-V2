@@ -17,7 +17,6 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.navigation.NavigationView
-import com.google.firebase.firestore.FirebaseFirestore
 import com.presyohan.app.adapter.Store
 import com.presyohan.app.adapter.StoreAdapter
 import androidx.core.content.ContextCompat
@@ -59,7 +58,6 @@ import coil.load
 import coil.transform.CircleCropTransformation
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
-    private val db = FirebaseFirestore.getInstance()
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navigationView: NavigationView
     private lateinit var recyclerView: RecyclerView
@@ -178,7 +176,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         recyclerView.adapter = adapter
 
 
-        checkUserStore()
         fetchStores()
 
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
@@ -251,18 +248,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-    private fun checkUserStore() {
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
-        db.collection("stores")
-            .whereArrayContains("members", userId)
-            .get()
-            .addOnSuccessListener { documents ->
-                // No dialog here
-            }
-            .addOnFailureListener {
-                // No dialog here
-            }
-    }
+
 
     private fun showStoreChoiceDialog() {
         val dialog = Dialog(this)
@@ -1005,10 +991,10 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
-        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
         val foundName = view.findViewById<TextView>(R.id.foundUserName)
         val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
         val btnInvite = view.findViewById<Button>(R.id.btnInvite)
@@ -1124,12 +1110,12 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         val email = user.email ?: ""
                         foundDetails.text = "$code • $email"
                         if (!user.avatar_url.isNullOrBlank()) {
-                            foundAvatar.load(user.avatar_url) {
+                            foundAvatar?.load(user.avatar_url) {
                                 crossfade(true)
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.icon_profile)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE

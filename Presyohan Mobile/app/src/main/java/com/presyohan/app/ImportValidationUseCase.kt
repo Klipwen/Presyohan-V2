@@ -17,7 +17,14 @@ data class DbProduct(
 )
 
 @Serializable
+data class DbCategory(
+    val id: String,
+    val name: String
+)
+
+@Serializable
 data class ReviewSummary(
+    val newCategoriesCount: Int,
     val newItemsCount: Int,
     val updateItemsCount: Int,
     val duplicateItemsCount: Int,
@@ -40,97 +47,170 @@ class ImportValidationUseCase {
         }
     }
 
-    fun validate(session: DraftImportSession, existingProds: List<DbProduct>): DraftImportSession {
-        // Group existing DB products by normalized key
-        val dbProductMap = existingProds.groupBy { ImportDraftKeys.productKey(it.name, it.description) }
+    suspend fun fetchExistingCategories(storeId: String): List<DbCategory> = withContext(Dispatchers.IO) {
+        try {
+            SupabaseProvider.client.postgrest["categories"]
+                .select(Columns.list("id, name")) {
+                    filter { eq("store_id", storeId) }
+                }
+                .decodeList<DbCategory>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
-        val validatedCategories = mutableListOf<DraftCategory>()
+    fun validate(
+        session: DraftImportSession,
+        existingProds: List<DbProduct>,
+        existingCats: List<DbCategory> = emptyList()
+    ): DraftImportSession {
+        // Group existing DB products by normalized key (Name + Description + Unit)
+        val dbProductMap = existingProds.groupBy { ImportDraftKeys.productKey(it.name, it.description, it.unit) }
+        
+        // Map category names case-insensitively to their IDs, and IDs to names
+        val dbCatMapByName = existingCats.associate { ImportDraftKeys.normalizeText(it.name) to it.id }
+        val dbCatNameById = existingCats.associate { it.id to it.name }
+
+        // Flatten all items from the session's categories
+        val flatItems = mutableListOf<Pair<DraftCategory, DraftItem>>()
+        for (cat in session.categories) {
+            for (item in cat.items) {
+                flatItems.add(Pair(cat, item))
+            }
+        }
+
+        val validatedItems = mutableListOf<DraftItem>()
         val seenImportKeys = mutableSetOf<String>()
 
-        categoriesLoop@ for (cat in session.categories) {
-            // Skip empty categories in validation unless they contain items (review blocks done if invalid items exist anyway)
-            val validatedItems = mutableListOf<DraftItem>()
+        for ((parsedCat, item) in flatItems) {
+            // 1. Deduplicate within the imported list:
+            val normName = ImportDraftKeys.normalizeText(item.productName)
+            val normDesc = ImportDraftKeys.normalizeText(item.description)
+            val normCat = ImportDraftKeys.normalizeText(parsedCat.name)
+            val normUnit = ImportDraftKeys.normalizeText(item.unit)
+            val priceStr = item.price?.toString() ?: "null"
+            val importListKey = "$normName|$normDesc|$normCat|$normUnit|$priceStr"
 
-            for (item in cat.items) {
-                val validationErrors = mutableListOf<ValidationError>()
-                validationErrors.addAll(item.validationErrors) // Preserve any parser-detected errors
+            if (seenImportKeys.contains(importListKey)) {
+                // Duplicate in the import list -> merge as one (skip it)
+                continue
+            }
+            seenImportKeys.add(importListKey)
 
-                var status = if (validationErrors.isNotEmpty()) ValidationStatus.INVALID else ValidationStatus.NEW
-                var matchedProductId: String? = item.productId
+            // 2. Check if there is an exact match in the database (same name, description, unit):
+            val key = ImportDraftKeys.productKey(item.productName, item.description, item.unit)
+            val dbMatches = dbProductMap[key]
 
-                // Perform client-side field validation rules
-                if (item.productName.trim().isEmpty()) {
-                    if (!validationErrors.contains(ValidationError.EMPTY_PRODUCT_NAME)) {
-                        validationErrors.add(ValidationError.EMPTY_PRODUCT_NAME)
-                    }
-                    status = ValidationStatus.INVALID
+            var resolvedCategoryId = parsedCat.categoryId ?: dbCatMapByName[ImportDraftKeys.normalizeText(parsedCat.name)]
+            var resolvedCategoryName = parsedCat.name
+
+            val isExactDuplicateInDb = dbMatches?.any { dbProd ->
+                val samePrice = dbProd.price == item.price
+                val sameUnit = ImportDraftKeys.normalizeText(dbProd.unit) == ImportDraftKeys.normalizeText(item.unit)
+                samePrice && sameUnit
+            } ?: false
+
+            val validationErrors = mutableListOf<ValidationError>()
+            validationErrors.addAll(item.validationErrors) // Preserve any parser-detected errors
+
+            var status = if (validationErrors.isNotEmpty()) ValidationStatus.INVALID else ValidationStatus.NEW
+            var matchedProductId: String? = item.productId
+
+            // Perform client-side field validation rules
+            if (item.productName.trim().isEmpty()) {
+                if (!validationErrors.contains(ValidationError.EMPTY_PRODUCT_NAME)) {
+                    validationErrors.add(ValidationError.EMPTY_PRODUCT_NAME)
                 }
-
-                if (cat.name.trim().isEmpty() || cat.name == "UNCATEGORIZED") {
-                    if (item.source == ImportSource.SIMPLE_MANUAL && !validationErrors.contains(ValidationError.MISSING_CATEGORY)) {
-                        validationErrors.add(ValidationError.MISSING_CATEGORY)
-                    }
-                    // For parser context, UNCATEGORIZED items from raw text also get validation status / errors
-                    if (cat.name == "UNCATEGORIZED" && !validationErrors.contains(ValidationError.MISSING_CATEGORY)) {
-                        validationErrors.add(ValidationError.MISSING_CATEGORY)
-                    }
-                    status = ValidationStatus.INVALID
-                }
-
-                val priceVal = item.price
-                if (priceVal == null) {
-                    if (!validationErrors.contains(ValidationError.INVALID_PRICE)) {
-                        validationErrors.add(ValidationError.INVALID_PRICE)
-                    }
-                    status = ValidationStatus.INVALID
-                } else if (priceVal < 0) {
-                    if (!validationErrors.contains(ValidationError.NEGATIVE_PRICE)) {
-                        validationErrors.add(ValidationError.NEGATIVE_PRICE)
-                    }
-                    status = ValidationStatus.INVALID
-                }
-
-                // If the item is still considered valid, perform duplicate checks
-                if (status != ValidationStatus.INVALID) {
-                    val key = ImportDraftKeys.productKey(item.productName, item.description)
-
-                    if (seenImportKeys.contains(key)) {
-                        status = ValidationStatus.DUPLICATE
-                        if (!validationErrors.contains(ValidationError.DUPLICATE_IN_IMPORT)) {
-                            validationErrors.add(ValidationError.DUPLICATE_IN_IMPORT)
-                        }
-                    } else {
-                        // Check matches in DB
-                        val dbMatches = dbProductMap[key]
-                        if (dbMatches != null) {
-                            if (dbMatches.size == 1) {
-                                status = ValidationStatus.UPDATE
-                                matchedProductId = dbMatches.first().id
-                            } else if (dbMatches.size > 1) {
-                                status = ValidationStatus.INVALID
-                                if (!validationErrors.contains(ValidationError.DUPLICATE_IN_DATABASE_AMBIGUOUS)) {
-                                    validationErrors.add(ValidationError.DUPLICATE_IN_DATABASE_AMBIGUOUS)
-                                }
-                            }
-                        } else {
-                            status = ValidationStatus.NEW
-                        }
-                    }
-                    seenImportKeys.add(key)
-                }
-
-                validatedItems.add(
-                    item.copy(
-                        productId = matchedProductId,
-                        validationStatus = status,
-                        validationErrors = validationErrors
-                    )
-                )
+                status = ValidationStatus.INVALID
             }
 
-            validatedCategories.add(
-                cat.copy(items = validatedItems)
+            val priceVal = item.price
+            if (priceVal == null) {
+                if (!validationErrors.contains(ValidationError.INVALID_PRICE)) {
+                    validationErrors.add(ValidationError.INVALID_PRICE)
+                }
+                status = ValidationStatus.INVALID
+            } else if (priceVal < 0) {
+                if (!validationErrors.contains(ValidationError.NEGATIVE_PRICE)) {
+                    validationErrors.add(ValidationError.NEGATIVE_PRICE)
+                }
+                status = ValidationStatus.INVALID
+            }
+
+            // If valid, check duplicates and resolve matched product
+            if (status != ValidationStatus.INVALID) {
+                if (isExactDuplicateInDb) {
+                    status = ValidationStatus.DUPLICATE
+                    val dbProd = dbMatches!!.first { dbProd ->
+                        val samePrice = dbProd.price == item.price
+                        val sameUnit = ImportDraftKeys.normalizeText(dbProd.unit) == ImportDraftKeys.normalizeText(item.unit)
+                        samePrice && sameUnit
+                    }
+                    matchedProductId = dbProd.id
+                    resolvedCategoryId = dbProd.category_id
+                    resolvedCategoryName = dbCatNameById[resolvedCategoryId] ?: resolvedCategoryName
+                } else if (dbMatches != null) {
+                    if (dbMatches.size == 1) {
+                        val dbProd = dbMatches.first()
+                        status = ValidationStatus.UPDATE
+                        matchedProductId = dbProd.id
+                        // Match category to existing product's category
+                        resolvedCategoryId = dbProd.category_id
+                        resolvedCategoryName = dbCatNameById[resolvedCategoryId] ?: resolvedCategoryName
+                    } else if (dbMatches.size > 1) {
+                        // Ambiguous match across categories -> find the one in the same parsed category
+                        val catDbMatches = dbMatches.filter { resolvedCategoryId != null && it.category_id == resolvedCategoryId }
+                        if (catDbMatches.size == 1) {
+                            status = ValidationStatus.UPDATE
+                            matchedProductId = catDbMatches.first().id
+                        } else {
+                            status = ValidationStatus.INVALID
+                            if (!validationErrors.contains(ValidationError.DUPLICATE_IN_DATABASE_AMBIGUOUS)) {
+                                validationErrors.add(ValidationError.DUPLICATE_IN_DATABASE_AMBIGUOUS)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Verify category requirements
+            if (resolvedCategoryName.trim().isEmpty() || resolvedCategoryName == "UNCATEGORIZED") {
+                if (item.source == ImportSource.SIMPLE_MANUAL && !validationErrors.contains(ValidationError.MISSING_CATEGORY)) {
+                    validationErrors.add(ValidationError.MISSING_CATEGORY)
+                }
+                if (resolvedCategoryName == "UNCATEGORIZED" && !validationErrors.contains(ValidationError.MISSING_CATEGORY)) {
+                    validationErrors.add(ValidationError.MISSING_CATEGORY)
+                }
+                status = ValidationStatus.INVALID
+            }
+
+            validatedItems.add(
+                item.copy(
+                    categoryId = resolvedCategoryId,
+                    categoryName = resolvedCategoryName,
+                    productId = matchedProductId,
+                    validationStatus = status,
+                    validationErrors = validationErrors
+                )
             )
+        }
+
+        // Group validated items back into categories by name and ID
+        val categoryGroups = validatedItems.groupBy { Pair(it.categoryName.trim().uppercase(), it.categoryId) }
+        val validatedCategories = categoryGroups.map { (key, items) ->
+            DraftCategory(
+                draftCategoryId = DraftIdGenerator.next("category"),
+                categoryId = key.second,
+                name = key.first,
+                items = items.toMutableList()
+            )
+        }.toMutableList()
+
+        // Move UNCATEGORIZED category to the top if present
+        val uncategorizedIndex = validatedCategories.indexOfFirst { it.name == "UNCATEGORIZED" }
+        if (uncategorizedIndex > 0) {
+            val uncategorized = validatedCategories.removeAt(uncategorizedIndex)
+            validatedCategories.add(0, uncategorized)
         }
 
         return session.copy(
@@ -147,6 +227,9 @@ class ImportValidationUseCase {
         var totalItems = 0
         val categoriesWithItems = session.categories.filter { it.items.isNotEmpty() }
 
+        // A category is considered new if it has items and categoryId is null
+        val newCategoriesCount = categoriesWithItems.count { it.categoryId == null }
+
         for (cat in session.categories) {
             for (item in cat.items) {
                 totalItems++
@@ -160,6 +243,7 @@ class ImportValidationUseCase {
         }
 
         return ReviewSummary(
+            newCategoriesCount = newCategoriesCount,
             newItemsCount = newCount,
             updateItemsCount = updateCount,
             duplicateItemsCount = duplicateCount,

@@ -23,10 +23,11 @@ class AddItemActivity : AppCompatActivity() {
 
 
         fun showAddCategoryDialog(onCategoryAdded: (String, String) -> Unit) {
-            val dialog = android.app.Dialog(this)
             val view = layoutInflater.inflate(R.layout.dialog_new_category, null)
-            dialog.setContentView(view)
-            dialog.setCancelable(true)
+            val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+                .setView(view)
+                .setCancelable(true)
+                .create()
             dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
             val input = view.findViewById<android.widget.EditText>(R.id.inputCategory)
@@ -34,6 +35,11 @@ class AddItemActivity : AppCompatActivity() {
             val btnBack = view.findViewById<android.widget.Button>(R.id.btnBack)
             view.findViewById<android.widget.TextView>(R.id.title)?.let {
                 it.text = "Add Category"
+            }
+
+            if (btnAdd == null || btnBack == null || input == null) {
+                android.widget.Toast.makeText(this, "Failed to initialize category dialog.", android.widget.Toast.LENGTH_SHORT).show()
+                return
             }
 
             btnAdd.setOnClickListener {

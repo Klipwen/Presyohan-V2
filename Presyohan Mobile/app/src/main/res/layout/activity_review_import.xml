@@ -2,105 +2,111 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:background="#FAFAFA">
 
-    <!-- Top Orange Toolbar -->
+    <!-- Unified Header Bar (White background) -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/toolbarLayout"
+        android:id="@+id/layoutHeader"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="@drawable/bg_header_yellow"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:paddingBottom="10dp"
+        android:elevation="2dp"
         app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Yellow Header Label inside the White Header -->
+        <TextView
+            android:id="@+id/headerLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_header_yellow"
+            android:gravity="center"
+            android:paddingVertical="8dp"
+            android:text="Review"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
             android:id="@+id/btnBack"
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:layout_marginStart="16dp"
             android:src="@drawable/icon_back"
-            app:tint="@color/white"
+            android:layout_marginStart="16dp"
+            app:layout_constraintBottom_toBottomOf="@+id/headerLabel"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            android:contentDescription="Back" />
+            app:layout_constraintTop_toTopOf="@+id/headerLabel"
+            app:tint="@color/white" />
 
-        <TextView
-            android:id="@+id/toolbarTitle"
-            android:layout_width="wrap_content"
+        <!-- Warnings / Alerts block below headerLabel -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layoutAlertsRow"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Review"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Warnings / Alerts Row right below Toolbar -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layoutAlertsRow"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/white"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
-        android:elevation="1dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbarLayout">
-
-        <LinearLayout
-            android:id="@+id/layoutWarningTexts"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btnEditItems"
-            app:layout_constraintTop_toTopOf="parent"
+            android:paddingHorizontal="16dp"
+            android:layout_marginTop="10dp"
+            app:layout_constraintTop_toBottomOf="@id/headerLabel"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <TextView
-                android:id="@+id/tvDuplicateAlert"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/layoutWarningTexts"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Found 0 Duplicates !"
-                android:textColor="@color/edittext_hint"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:visibility="visible" />
+                android:orientation="vertical"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnEditItems"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginEnd="8dp">
 
-            <TextView
-                android:id="@+id/tvInvalidAlert"
+                <TextView
+                    android:id="@+id/tvAlertTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Found 0 Duplicates and 0 invalid items!"
+                    android:textColor="#FB8500"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvAlertSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Invalid items require attention. Duplicate items are skipped."
+                    android:textColor="#757575"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnEditItems"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Found 0 Invalid items !"
-                android:textColor="@color/edittext_hint"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:visibility="visible" />
+                android:layout_height="38dp"
+                android:text="Edit Items"
+                android:textSize="11sp"
+                android:textColor="@color/presyo_teal"
+                app:strokeColor="@color/presyo_teal"
+                app:cornerRadius="6dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="12dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
 
-        </LinearLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnEditItems"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="38dp"
-            android:text="Edit Items"
-            android:textSize="11sp"
-            android:textColor="@color/presyo_teal"
-            app:strokeColor="@color/presyo_teal"
-            app:cornerRadius="6dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="12dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -113,37 +119,11 @@
         android:paddingHorizontal="12dp"
         android:paddingTop="8dp"
         android:paddingBottom="180dp"
-        app:layout_constraintTop_toBottomOf="@id/layoutAlertsRow"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:listitem="@layout/item_review_import_row" />
-
-    <!-- Warning message text card (shown if invalid items exist) -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/warningBanner"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:cardCornerRadius="8dp"
-        android:backgroundTint="#FFEBEE"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/bottomSummarySheet"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <TextView
-            android:id="@+id/tvWarningText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:gravity="center"
-            android:text="2 invalid items require attention before saving."
-            android:textColor="#C62828"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-    </androidx.cardview.widget.CardView>
 
     <!-- Sliding Bottom Summary Sheet -->
     <androidx.cardview.widget.CardView
@@ -161,11 +141,65 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- New Items Count Line -->
-            <RelativeLayout
+            <!-- New Category Count Line -->
+            <TextView
+                android:id="@+id/tvGroupSummaryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp">
+                android:layout_marginBottom="16dp"
+                android:gravity="center"
+                android:text="0 Categories and 0 total items"
+                android:textColor="@color/edittext_hint"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="12dp"
+                android:background="#EAEAEA" />
+
+            <RelativeLayout
+                android:id="@+id/layoutNewCategoryClick"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingVertical="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="New Category"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_alignParentStart="true" />
+
+                <TextView
+                    android:id="@+id/tvNewCategoriesSummary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_alignParentEnd="true" />
+
+            </RelativeLayout>
+
+            <!-- New Items Count Line -->
+            <RelativeLayout
+                android:id="@+id/layoutNewItemsClick"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingVertical="4dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -190,9 +224,14 @@
 
             <!-- Update Items Count Line -->
             <RelativeLayout
+                android:id="@+id/layoutUpdateItemsClick"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp">
+                android:layout_marginBottom="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingVertical="4dp">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -216,23 +255,8 @@
             </RelativeLayout>
 
             <!-- Divider Line -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#EAEAEA"
-                android:layout_marginBottom="12dp" />
 
             <!-- Group summary info -->
-            <TextView
-                android:id="@+id/tvGroupSummaryText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="0 Categories and 0 total items"
-                android:textColor="@color/edittext_hint"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="16dp" />
 
             <!-- DONE button -->
             <com.google.android.material.button.MaterialButton
@@ -247,6 +271,65 @@
 
         </LinearLayout>
     </androidx.cardview.widget.CardView>
+
+    <!-- Floating Alert Badge/Button for Errors -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/btnFloatingErrors"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        android:elevation="20dp"
+        app:layout_constraintTop_toTopOf="@id/bottomSummarySheet"
+        app:layout_constraintBottom_toTopOf="@id/bottomSummarySheet"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:visibility="visible">
+
+        <!-- Main Orange Circle -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardFloatingErrorCircle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginBottom="86dp"
+            app:cardBackgroundColor="#FB8500"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="6dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="!"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Dynamic Counter Badge on Top-Right Corner: White background, Orange stroke, Orange text -->
+        <TextView
+            android:id="@+id/tvFloatingErrorCount"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:background="@drawable/bg_counter_badge_orange_stroke"
+            android:gravity="center"
+            android:text="3"
+            android:textColor="#FB8500"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:elevation="8dp"
+            app:layout_constraintTop_toTopOf="@id/cardFloatingErrorCircle"
+            app:layout_constraintEnd_toEndOf="@id/cardFloatingErrorCircle"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="-4dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Loading Overlay -->
     <include

@@ -740,10 +740,10 @@ class HomeActivity : AppCompatActivity() {
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
-        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
         val foundName = view.findViewById<TextView>(R.id.foundUserName)
         val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
         val btnInvite = view.findViewById<Button>(R.id.btnInvite)
@@ -843,12 +843,12 @@ class HomeActivity : AppCompatActivity() {
                         foundDetails.text = "$code • $email"
 
                         if (!user.avatar_url.isNullOrBlank()) {
-                            foundAvatar.load(user.avatar_url) {
+                            foundAvatar?.load(user.avatar_url) {
                                 crossfade(true)
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.icon_profile)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE

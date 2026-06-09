@@ -175,4 +175,99 @@ class AddMultipleItemsParserTest {
         assertEquals(ValidationStatus.NEW, items[2].validationStatus)
         assertEquals(10.0, items[2].price!!, 0.001)
     }
+
+    @Test
+    fun test_comma_separated_parsing() {
+        val raw = """
+            groceries - eggs 10 pc, kape 15 pack, pancit canton 15 pack
+            Snacks: chips 12 pc, popcorn 25 g
+            Fresh Milk (1L, chocolate flavor) - 150
+        """.trimIndent()
+
+        val result = AddMultipleItemsParser.parseTextToResult(raw, emptySet())
+        
+        // We expect 3 categories: GROCERIES, SNACKS, and UNCATEGORIZED (since Fresh Milk is uncategorized)
+        assertEquals(3, result.categories.size)
+        
+        val groceries = result.categories.first { it.name == "GROCERIES" }
+        assertEquals(3, groceries.items.size)
+        assertEquals("eggs", groceries.items[0].productName)
+        assertEquals(10.0, groceries.items[0].price!!, 0.001)
+        assertEquals("pc", groceries.items[0].unit)
+
+        assertEquals("kape", groceries.items[1].productName)
+        assertEquals(15.0, groceries.items[1].price!!, 0.001)
+        assertEquals("pack", groceries.items[1].unit)
+
+        assertEquals("pancit canton", groceries.items[2].productName)
+        assertEquals(15.0, groceries.items[2].price!!, 0.001)
+        assertEquals("pack", groceries.items[2].unit)
+
+        val snacks = result.categories.first { it.name == "SNACKS" }
+        assertEquals(2, snacks.items.size)
+        assertEquals("chips", snacks.items[0].productName)
+        assertEquals(12.0, snacks.items[0].price!!, 0.001)
+        assertEquals("pc", snacks.items[0].unit)
+
+        assertEquals("popcorn", snacks.items[1].productName)
+        assertEquals(25.0, snacks.items[1].price!!, 0.001)
+        assertEquals("g", snacks.items[1].unit)
+
+        val uncategorized = result.categories.first { it.name == "UNCATEGORIZED" }
+        // Fresh Milk should NOT be split because the comma is inside parenthesis and there is only 1 price
+        assertEquals(1, uncategorized.items.size)
+        assertEquals("Fresh Milk", uncategorized.items[0].productName)
+        assertEquals("1L, chocolate flavor", uncategorized.items[0].description)
+        assertEquals(150.0, uncategorized.items[0].price!!, 0.001)
+    }
+
+    @Test
+    fun test_presyohan_import_parsing() {
+        val raw = """
+            PRICELIST:
+            QSOS 2 — Curva Medellin, Cebu
+            06/07/2026
+
+            [ALCOHOL/LIQUOR]
+            • Alfonso Light (alfonso) — ₱375.00 | 1L
+            • Club Mix (lime juice) — ₱80.00 | Small
+            • Emperador Light (Emperador) — ₱155.00 | 750ml
+
+            [CIGARETTES]
+            • Marlboro (Marlboro red/puwa, Marlboro Ice blast) — ₱10.00 | Stick
+
+            Shared via Presyohan
+        """.trimIndent()
+
+        val result = AddMultipleItemsParser.parseTextToResult(raw, emptySet())
+
+        // Validate store headers/dates/footers were completely ignored
+        assertFalse(result.categories.any { it.name == "UNCATEGORIZED" })
+        assertEquals(2, result.categories.size)
+
+        val alcohol = result.categories.first { it.name == "ALCOHOL/LIQUOR" }
+        assertEquals(3, alcohol.items.size)
+
+        assertEquals("Alfonso Light", alcohol.items[0].productName)
+        assertEquals("alfonso", alcohol.items[0].description)
+        assertEquals(375.0, alcohol.items[0].price!!, 0.001)
+        assertEquals("1l", alcohol.items[0].unit)
+
+        assertEquals("Club Mix", alcohol.items[1].productName)
+        assertEquals("lime juice", alcohol.items[1].description)
+        assertEquals(80.0, alcohol.items[1].price!!, 0.001)
+        assertEquals("small", alcohol.items[1].unit)
+
+        assertEquals("Emperador Light", alcohol.items[2].productName)
+        assertEquals("Emperador", alcohol.items[2].description)
+        assertEquals(155.0, alcohol.items[2].price!!, 0.001)
+        assertEquals("750ml", alcohol.items[2].unit)
+
+        val cigarettes = result.categories.first { it.name == "CIGARETTES" }
+        assertEquals(1, cigarettes.items.size)
+        assertEquals("Marlboro", cigarettes.items[0].productName)
+        assertEquals("Marlboro red/puwa, Marlboro Ice blast", cigarettes.items[0].description)
+        assertEquals(10.0, cigarettes.items[0].price!!, 0.001)
+        assertEquals("stick", cigarettes.items[0].unit)
+    }
 }

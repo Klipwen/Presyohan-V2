@@ -79,7 +79,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="Error message description goes here"
-        android:textColor="#C62828"
+        android:textColor="#FB8500"
         android:textSize="11sp"
         android:textStyle="bold"
         android:visibility="gone" />

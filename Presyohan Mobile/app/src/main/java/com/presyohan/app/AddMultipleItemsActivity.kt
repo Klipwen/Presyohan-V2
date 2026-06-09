@@ -179,13 +179,13 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             if (currentMode == EntryMode.SIMPLE) {
                 currentMode = EntryMode.FAST
                 btnToggleMode.text = "Simple Mode"
-                tvSubHeaderTitle.text = "Fast Mode"
+                tvSubHeaderTitle.text = "Smart Mode"
                 tvSubHeaderSubtitle.visibility = View.VISIBLE
                 containerSimple.visibility = View.GONE
                 containerFast.visibility = View.VISIBLE
             } else {
                 currentMode = EntryMode.SIMPLE
-                btnToggleMode.text = "Fast Mode"
+                btnToggleMode.text = "Smart Mode"
                 tvSubHeaderSubtitle.visibility = View.GONE
                 containerSimple.visibility = View.VISIBLE
                 containerFast.visibility = View.GONE
@@ -200,7 +200,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             if (currentMode == EntryMode.SIMPLE) {
                 performSaveSimpleMode()
             } else {
-                performPreviewFastMode()
+                performPreviewSmartMode()
             }
         }
 
@@ -334,12 +334,23 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             // Save updated categories to session
+            val mappedCategories = categoriesForReview.map { cat ->
+                val normName = cat.name.trim().uppercase()
+                val catId = categoryIdByName[normName] ?: cat.categoryId
+                cat.copy(
+                    categoryId = catId,
+                    items = cat.items.map { item ->
+                        item.copy(categoryId = catId)
+                    }.toMutableList()
+                )
+            }.toMutableList()
             val updatedSession = session.copy(
-                categories = categoriesForReview,
+                categories = mappedCategories,
                 isDirty = true
             )
             val dbProds = ImportValidationUseCase().fetchExistingProducts(session.storeId)
-            val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds)
+            val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+            val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
 
             viewModel.updateSession(validatedSession)
 
@@ -355,7 +366,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         }
     }
 
-    private fun performPreviewFastMode() {
+    private fun performPreviewSmartMode() {
         val raw = inputRawText.text.toString()
         if (raw.isBlank()) {
             Toast.makeText(this, "Please type or paste items first.", Toast.LENGTH_SHORT).show()
@@ -367,13 +378,52 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             val dbProds = ImportValidationUseCase().fetchExistingProducts(session.storeId)
-            val parseResult = AddMultipleItemsParser.parseTextToResult(raw, dbProds.map { it.name.lowercase() }.toSet())
+            val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
 
+            var parseResult: ParseResult? = null
+            var fallbackUsed = false
+            var apiExceptionMessage: String? = null
+
+            if (BuildConfig.GEMINI_API_KEY.isNotBlank() && BuildConfig.GEMINI_API_KEY != "YOUR_API_KEY_HERE") {
+                try {
+                    parseResult = GeminiParser.parseText(raw, categoryIdByName, existingProducts)
+                } catch (e: Exception) {
+                    android.util.Log.e("AddMultipleItems", "Gemini parsing failed during preview", e)
+                    apiExceptionMessage = e.message ?: e.toString()
+                    fallbackUsed = true
+                }
+            } else {
+                fallbackUsed = true
+            }
+
+            if (fallbackUsed || parseResult == null) {
+                parseResult = AddMultipleItemsParser.parseTextToResult(raw, existingProducts)
+                withContext(Dispatchers.Main) {
+                    val msg = if (apiExceptionMessage != null) {
+                        "AI Parser unavailable: $apiExceptionMessage. Using offline parser."
+                    } else {
+                        "AI Parser unavailable. Using offline parser."
+                    }
+                    Toast.makeText(this@AddMultipleItemsActivity, msg, Toast.LENGTH_LONG).show()
+                }
+            }
+
+            val mappedCategories = parseResult!!.categories.map { cat ->
+                val normName = cat.name.trim().uppercase()
+                val catId = categoryIdByName[normName] ?: cat.categoryId
+                cat.copy(
+                    categoryId = catId,
+                    items = cat.items.map { item ->
+                        item.copy(categoryId = catId)
+                    }.toMutableList()
+                )
+            }.toMutableList()
             val updatedSession = session.copy(
-                categories = parseResult.categories.toMutableList(),
+                categories = mappedCategories,
                 isDirty = true
             )
-            val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds)
+            val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+            val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
 
             viewModel.updateSession(validatedSession)
 
@@ -517,7 +567,8 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 )
 
                 val dbProds = ImportValidationUseCase().fetchExistingProducts(session.storeId)
-                val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds)
+                val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+                val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
                 viewModel.updateSession(validatedSession)
 
                 withContext(Dispatchers.Main) {
@@ -545,14 +596,43 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val dbProds = ImportValidationUseCase().fetchExistingProducts(session.storeId)
-                val parseResult = AddMultipleItemsParser.parseTextToResult(text, dbProds.map { it.name.lowercase() }.toSet())
+                val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
+
+                var parseResult: ParseResult? = null
+                var fallbackUsed = false
+                var apiExceptionMessage: String? = null
+
+                if (BuildConfig.GEMINI_API_KEY.isNotBlank() && BuildConfig.GEMINI_API_KEY != "YOUR_API_KEY_HERE") {
+                    try {
+                        parseResult = GeminiParser.parseText(text, categoryIdByName, existingProducts)
+                    } catch (e: Exception) {
+                        android.util.Log.e("AddMultipleItems", "Gemini parsing failed during paste import", e)
+                        apiExceptionMessage = e.message ?: e.toString()
+                        fallbackUsed = true
+                    }
+                } else {
+                    fallbackUsed = true
+                }
+
+                if (fallbackUsed || parseResult == null) {
+                    parseResult = AddMultipleItemsParser.parseTextToResult(text, existingProducts)
+                    withContext(Dispatchers.Main) {
+                        val msg = if (apiExceptionMessage != null) {
+                            "AI Parser unavailable: $apiExceptionMessage. Using offline parser."
+                        } else {
+                            "AI Parser unavailable. Using offline parser."
+                        }
+                        Toast.makeText(this@AddMultipleItemsActivity, msg, Toast.LENGTH_LONG).show()
+                    }
+                }
 
                 val updatedSession = session.copy(
-                    categories = parseResult.categories.toMutableList(),
+                    categories = parseResult!!.categories.toMutableList(),
                     isDirty = true
                 )
 
-                val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds)
+                val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+                val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
                 viewModel.updateSession(validatedSession)
 
                 withContext(Dispatchers.Main) {
@@ -665,10 +745,11 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     }
 
     private fun showAddCategoryDialog() {
-        val dlg = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_new_category, null)
-        dlg.setContentView(view)
-        dlg.setCancelable(true)
+        val dlg = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
         dlg.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val input = view.findViewById<EditText>(R.id.inputCategory)
@@ -677,6 +758,11 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
         view.findViewById<TextView>(R.id.title)?.let {
             it.text = "Add Category"
+        }
+
+        if (btnAdd == null || btnBack == null || input == null) {
+            Toast.makeText(this, "Failed to initialize category dialog.", Toast.LENGTH_SHORT).show()
+            return
         }
 
         btnBack.setOnClickListener { dlg.dismiss() }
@@ -707,10 +793,11 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     }
 
     private fun showDiscardDraftDialog() {
-        val dialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_discard_draft, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         view.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {
@@ -769,15 +856,24 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             val canAddMore = category.items.isEmpty() || category.items.all { it.productName.isNotBlank() && it.priceText.isNotBlank() }
             holder.btnAddItemInner.visibility = if (canAddMore) View.VISIBLE else View.GONE
 
-            // Dynamically inflate items
-            holder.itemsContainer.removeAllViews()
+            // Dynamically inflate or reuse items to prevent unnecessary layout inflation and lag
+            val currentChildCount = holder.itemsContainer.childCount
+            val targetChildCount = category.items.size
+            if (currentChildCount > targetChildCount) {
+                holder.itemsContainer.removeViews(targetChildCount, currentChildCount - targetChildCount)
+            }
             category.items.forEachIndexed { index, item ->
-                val itemView = LayoutInflater.from(holder.itemView.context).inflate(R.layout.item_simple_import_row, holder.itemsContainer, false)
+                val itemView = if (index < currentChildCount) {
+                    holder.itemsContainer.getChildAt(index)
+                } else {
+                    val newView = LayoutInflater.from(holder.itemView.context).inflate(R.layout.item_simple_import_row, holder.itemsContainer, false)
+                    holder.itemsContainer.addView(newView)
+                    newView
+                }
                 bindItemView(itemView, category, index, item) {
                     val canAdd = category.items.isEmpty() || category.items.all { it.productName.isNotBlank() && it.priceText.isNotBlank() }
                     holder.btnAddItemInner.visibility = if (canAdd) View.VISIBLE else View.GONE
                 }
-                holder.itemsContainer.addView(itemView)
             }
         }
 
@@ -797,6 +893,15 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             val inputUnit = v.findViewById<EditText>(R.id.inputUnit)
             val inputDescription = v.findViewById<EditText>(R.id.inputDescription)
             val tvErrorText = v.findViewById<TextView>(R.id.tvErrorText)
+
+            // Remove existing TextWatcher from tag to prevent setting text from triggering listeners on wrong/reused rows
+            val oldWatcher = v.tag as? TextWatcher
+            if (oldWatcher != null) {
+                inputProductName.removeTextChangedListener(oldWatcher)
+                inputPrice.removeTextChangedListener(oldWatcher)
+                inputUnit.removeTextChangedListener(oldWatcher)
+                inputDescription.removeTextChangedListener(oldWatcher)
+            }
 
             tvRowIndex.text = "#${index + 1}"
             inputProductName.setText(item.productName)
@@ -834,6 +939,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 }
             }
 
+            v.tag = rowWatcher
             inputProductName.addTextChangedListener(rowWatcher)
             inputPrice.addTextChangedListener(rowWatcher)
             inputUnit.addTextChangedListener(rowWatcher)
@@ -855,15 +961,16 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             val productName = inputProductName.text.toString().trim()
             val priceText = inputPrice.text.toString().trim()
             val description = inputDescription.text.toString().trim().ifBlank { null }
+            val unitVal = inputUnit.text.toString().trim()
             val updated = category.items[index].copy(
                 categoryId = category.categoryId,
                 categoryName = category.name,
                 productName = productName,
                 description = description,
-                unit = inputUnit.text.toString().trim(),
+                unit = unitVal,
                 priceText = priceText,
                 price = priceText.toDoubleOrNull(),
-                duplicateKey = ImportDraftKeys.productKey(productName, description)
+                duplicateKey = ImportDraftKeys.productKey(productName, description, unitVal)
             )
 
             category.items[index] = validateItem(updated)

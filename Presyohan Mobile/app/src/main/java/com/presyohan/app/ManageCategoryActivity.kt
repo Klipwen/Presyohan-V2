@@ -127,10 +127,11 @@ class ManageCategoryActivity : AppCompatActivity() {
     }
 
     private fun showRenameCategoryDialog(oldCategory: String) {
-        val dialog = android.app.Dialog(this)
         val view = layoutInflater.inflate(R.layout.dialog_new_category, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         view.findViewById<TextView>(R.id.title)?.text = "Rename Category"
         val input = view.findViewById<android.widget.EditText>(R.id.inputCategory)
@@ -196,10 +197,11 @@ class ManageCategoryActivity : AppCompatActivity() {
     }
 
     private fun showDeleteCategoryDialog(category: String) {
-        val dialog = android.app.Dialog(this)
         val view = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         view.findViewById<TextView>(R.id.dialogTitle)?.text = "Delete Category"
         view.findViewById<TextView>(R.id.confirmMessage)?.text = "Are you sure you want to delete this category? All items in this category will remain, but the category will be removed."
@@ -253,6 +255,10 @@ class ManageCategoryActivity : AppCompatActivity() {
             }
         }
         dialog.show()
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     override fun onResume() {

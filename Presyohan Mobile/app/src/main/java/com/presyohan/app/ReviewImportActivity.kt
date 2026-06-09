@@ -2,6 +2,7 @@ package com.presyohan.app
 
 import android.app.Dialog
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -23,17 +24,17 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
+import android.util.TypedValue
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ReviewImportActivity : AppCompatActivity() {
 
-    private lateinit var tvDuplicateAlert: TextView
-    private lateinit var tvInvalidAlert: TextView
+    private lateinit var tvAlertTitle: TextView
+    private lateinit var tvAlertSubtitle: TextView
     private lateinit var btnEditItems: MaterialButton
     private lateinit var reviewRecyclerView: RecyclerView
-    private lateinit var warningBanner: CardView
-    private lateinit var tvWarningText: TextView
+    private lateinit var tvNewCategoriesSummary: TextView
     private lateinit var tvNewItemsSummary: TextView
     private lateinit var tvUpdateItemsSummary: TextView
     private lateinit var tvGroupSummaryText: TextView
@@ -41,10 +42,28 @@ class ReviewImportActivity : AppCompatActivity() {
     private lateinit var btnBack: ImageView
     private lateinit var loadingOverlay: View
 
+    private lateinit var btnFloatingErrors: View
+    private lateinit var tvFloatingErrorCount: TextView
+    private lateinit var cardFloatingErrorCircle: CardView
+
     private var storeId: String? = null
     private var storeName: String? = null
     private var draftSessionId: String? = null
     private var session: DraftImportSession? = null
+
+    private lateinit var layoutNewCategoryClick: View
+    private lateinit var layoutNewItemsClick: View
+    private lateinit var layoutUpdateItemsClick: View
+
+    enum class ReviewFilterMode {
+        ALL,
+        NEW_CATEGORIES,
+        NEW_ITEMS,
+        UPDATE_ITEMS,
+        INVALID_ONLY
+    }
+
+    private var currentFilterMode = ReviewFilterMode.ALL
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,17 +79,23 @@ class ReviewImportActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        tvDuplicateAlert = findViewById(R.id.tvDuplicateAlert)
-        tvInvalidAlert = findViewById(R.id.tvInvalidAlert)
+        tvAlertTitle = findViewById(R.id.tvAlertTitle)
+        tvAlertSubtitle = findViewById(R.id.tvAlertSubtitle)
         btnEditItems = findViewById(R.id.btnEditItems)
         reviewRecyclerView = findViewById(R.id.reviewRecyclerView)
-        warningBanner = findViewById(R.id.warningBanner)
-        tvWarningText = findViewById(R.id.tvWarningText)
+        tvNewCategoriesSummary = findViewById(R.id.tvNewCategoriesSummary)
         tvNewItemsSummary = findViewById(R.id.tvNewItemsSummary)
         tvUpdateItemsSummary = findViewById(R.id.tvUpdateItemsSummary)
         tvGroupSummaryText = findViewById(R.id.tvGroupSummaryText)
         btnConfirmImport = findViewById(R.id.btnConfirmImport)
         btnBack = findViewById(R.id.btnBack)
+        btnFloatingErrors = findViewById(R.id.btnFloatingErrors)
+        tvFloatingErrorCount = findViewById(R.id.tvFloatingErrorCount)
+        cardFloatingErrorCircle = findViewById(R.id.cardFloatingErrorCircle)
+
+        layoutNewCategoryClick = findViewById(R.id.layoutNewCategoryClick)
+        layoutNewItemsClick = findViewById(R.id.layoutNewItemsClick)
+        layoutUpdateItemsClick = findViewById(R.id.layoutUpdateItemsClick)
 
         reviewRecyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -90,6 +115,46 @@ class ReviewImportActivity : AppCompatActivity() {
         btnConfirmImport.setOnClickListener {
             performConfirmImport()
         }
+
+        layoutNewCategoryClick.setOnClickListener {
+            val s = session ?: return@setOnClickListener
+            currentFilterMode = if (currentFilterMode == ReviewFilterMode.NEW_CATEGORIES) {
+                ReviewFilterMode.ALL
+            } else {
+                ReviewFilterMode.NEW_CATEGORIES
+            }
+            applyFilterAndVisualStates(s)
+        }
+
+        layoutNewItemsClick.setOnClickListener {
+            val s = session ?: return@setOnClickListener
+            currentFilterMode = if (currentFilterMode == ReviewFilterMode.NEW_ITEMS) {
+                ReviewFilterMode.ALL
+            } else {
+                ReviewFilterMode.NEW_ITEMS
+            }
+            applyFilterAndVisualStates(s)
+        }
+
+        layoutUpdateItemsClick.setOnClickListener {
+            val s = session ?: return@setOnClickListener
+            currentFilterMode = if (currentFilterMode == ReviewFilterMode.UPDATE_ITEMS) {
+                ReviewFilterMode.ALL
+            } else {
+                ReviewFilterMode.UPDATE_ITEMS
+            }
+            applyFilterAndVisualStates(s)
+        }
+
+        btnFloatingErrors.setOnClickListener {
+            val s = session ?: return@setOnClickListener
+            currentFilterMode = if (currentFilterMode == ReviewFilterMode.INVALID_ONLY) {
+                ReviewFilterMode.ALL
+            } else {
+                ReviewFilterMode.INVALID_ONLY
+            }
+            applyFilterAndVisualStates(s)
+        }
     }
 
     private fun loadSessionData() {
@@ -104,7 +169,7 @@ class ReviewImportActivity : AppCompatActivity() {
                 LoadingOverlayHelper.hide(loadingOverlay)
                 if (loadedSession != null) {
                     displaySessionSummary(loadedSession)
-                    setupRecyclerView(loadedSession)
+                    applyFilterAndVisualStates(loadedSession)
                 } else {
                     Toast.makeText(this@ReviewImportActivity, "Failed to load session details.", Toast.LENGTH_SHORT).show()
                 }
@@ -113,53 +178,130 @@ class ReviewImportActivity : AppCompatActivity() {
     }
 
     private fun displaySessionSummary(session: DraftImportSession) {
-        var total = 0
-        var newCount = 0
-        var updateCount = 0
-        var invalidCount = 0
-        var duplicateCount = 0
+        val summary = ImportValidationUseCase().produceSummary(session)
 
-        session.categories.forEach { cat ->
-            cat.items.forEach { item ->
-                total++
-                when (item.validationStatus) {
-                    ValidationStatus.NEW -> newCount++
-                    ValidationStatus.UPDATE -> updateCount++
-                    ValidationStatus.INVALID -> invalidCount++
-                    ValidationStatus.DUPLICATE -> duplicateCount++
-                }
+        tvNewCategoriesSummary.text = summary.newCategoriesCount.toString()
+        tvNewItemsSummary.text = summary.newItemsCount.toString()
+        tvUpdateItemsSummary.text = summary.updateItemsCount.toString()
+        tvGroupSummaryText.text = "There are ${summary.totalCategories} Categories and ${summary.totalItems} total items"
+
+        // Warning state
+        if (summary.invalidItemsCount > 0 || summary.duplicateItemsCount > 0) {
+            tvAlertTitle.text = "Found ${summary.duplicateItemsCount} Duplicates and ${summary.invalidItemsCount} invalid items!"
+            tvAlertTitle.setTextColor(Color.parseColor("#FB8500"))
+
+            val subtitleText = when {
+                summary.invalidItemsCount > 0 && summary.duplicateItemsCount > 0 ->
+                    "Invalid items require attention. Duplicate items are skipped."
+                summary.invalidItemsCount > 0 ->
+                    "Invalid items require attention before saving."
+                else ->
+                    "Duplicate items are skipped. Ready to save."
             }
-        }
+            tvAlertSubtitle.text = subtitleText
+            tvAlertSubtitle.setTextColor(Color.parseColor("#FB8500"))
 
-        tvDuplicateAlert.text = "Found $duplicateCount Duplicates !"
-        tvInvalidAlert.text = "Found $invalidCount Invalid items !"
-        tvNewItemsSummary.text = newCount.toString()
-        tvUpdateItemsSummary.text = updateCount.toString()
-        tvGroupSummaryText.text = "${session.categories.size} Categories and $total total items"
+            // Show floating error badge
+            if (summary.invalidItemsCount > 0) {
+                btnFloatingErrors.visibility = View.VISIBLE
+                tvFloatingErrorCount.text = summary.invalidItemsCount.toString()
 
-        if (invalidCount > 0) {
-            warningBanner.visibility = View.VISIBLE
-            tvWarningText.text = "$invalidCount invalid items require attention before saving."
-            btnConfirmImport.isEnabled = false
-            btnConfirmImport.alpha = 0.5f
+                // Disable confirm
+                btnConfirmImport.isEnabled = false
+                btnConfirmImport.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFCC80")) // Muted/disabled peach
+            } else {
+                btnFloatingErrors.visibility = View.GONE
+
+                // Enable confirm (only duplicates present, duplicates are skipped)
+                btnConfirmImport.isEnabled = true
+                btnConfirmImport.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FB8500")) // Orange
+            }
         } else {
-            warningBanner.visibility = View.GONE
+            // Success state
+            tvAlertTitle.text = "No duplicates or invalid items found!"
+            tvAlertTitle.setTextColor(Color.parseColor("#757575"))
+
+            tvAlertSubtitle.text = "Ready to save."
+            tvAlertSubtitle.setTextColor(Color.parseColor("#757575"))
+
+            // Hide floating error badge
+            btnFloatingErrors.visibility = View.GONE
+
+            // Enable confirm
             btnConfirmImport.isEnabled = true
-            btnConfirmImport.alpha = 1.0f
+            btnConfirmImport.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FB8500")) // Orange
         }
     }
 
     private fun setupRecyclerView(session: DraftImportSession) {
         val listItems = mutableListOf<ReviewListItem>()
         session.categories.forEach { cat ->
-            if (cat.items.isNotEmpty()) {
-                listItems.add(ReviewListItem.Header(cat.name))
-                cat.items.forEach { item ->
+            val isNewCategory = cat.categoryId == null
+
+            val filteredItems = cat.items.filter { item ->
+                when (currentFilterMode) {
+                    ReviewFilterMode.ALL -> true
+                    ReviewFilterMode.INVALID_ONLY -> item.validationStatus == ValidationStatus.INVALID
+                    ReviewFilterMode.NEW_ITEMS -> item.validationStatus == ValidationStatus.NEW
+                    ReviewFilterMode.UPDATE_ITEMS -> item.validationStatus == ValidationStatus.UPDATE
+                    ReviewFilterMode.NEW_CATEGORIES -> isNewCategory
+                }
+            }
+
+            if (filteredItems.isNotEmpty()) {
+                listItems.add(ReviewListItem.Header(cat.name, isNewCategory))
+                filteredItems.forEach { item ->
                     listItems.add(ReviewListItem.Item(item))
                 }
             }
         }
         reviewRecyclerView.adapter = ReviewImportAdapter(listItems)
+    }
+
+    private fun applyFilterAndVisualStates(s: DraftImportSession) {
+        // Ensure all layouts keep their standard touch ripple background
+        layoutNewCategoryClick.setBackgroundResource(getSelectableItemBackgroundResourceId())
+        layoutNewItemsClick.setBackgroundResource(getSelectableItemBackgroundResourceId())
+        layoutUpdateItemsClick.setBackgroundResource(getSelectableItemBackgroundResourceId())
+        cardFloatingErrorCircle.setCardBackgroundColor(ColorStateList.valueOf(Color.parseColor("#FB8500")))
+
+        // Adjust opacities (alpha) based on active filter mode for premium minimalism
+        when (currentFilterMode) {
+            ReviewFilterMode.ALL -> {
+                layoutNewCategoryClick.alpha = 1.0f
+                layoutNewItemsClick.alpha = 1.0f
+                layoutUpdateItemsClick.alpha = 1.0f
+            }
+            ReviewFilterMode.NEW_CATEGORIES -> {
+                layoutNewCategoryClick.alpha = 1.0f
+                layoutNewItemsClick.alpha = 0.4f
+                layoutUpdateItemsClick.alpha = 0.4f
+            }
+            ReviewFilterMode.NEW_ITEMS -> {
+                layoutNewCategoryClick.alpha = 0.4f
+                layoutNewItemsClick.alpha = 1.0f
+                layoutUpdateItemsClick.alpha = 0.4f
+            }
+            ReviewFilterMode.UPDATE_ITEMS -> {
+                layoutNewCategoryClick.alpha = 0.4f
+                layoutNewItemsClick.alpha = 0.4f
+                layoutUpdateItemsClick.alpha = 1.0f
+            }
+            ReviewFilterMode.INVALID_ONLY -> {
+                cardFloatingErrorCircle.setCardBackgroundColor(ColorStateList.valueOf(Color.parseColor("#E65100"))) // Dark orange when active
+                layoutNewCategoryClick.alpha = 0.4f
+                layoutNewItemsClick.alpha = 0.4f
+                layoutUpdateItemsClick.alpha = 0.4f
+            }
+        }
+
+        setupRecyclerView(s)
+    }
+
+    private fun getSelectableItemBackgroundResourceId(): Int {
+        val outValue = TypedValue()
+        theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+        return outValue.resourceId
     }
 
     private fun performConfirmImport() {
@@ -218,7 +360,7 @@ class ReviewImportActivity : AppCompatActivity() {
 
     // --- RECYCLER LIST MODEL ---
     sealed class ReviewListItem {
-        data class Header(val categoryName: String) : ReviewListItem()
+        data class Header(val categoryName: String, val isNewCategory: Boolean = false) : ReviewListItem()
         data class Item(val item: DraftItem) : ReviewListItem()
     }
 
@@ -252,7 +394,30 @@ class ReviewImportActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             val listItem = items[position]
             if (holder is HeaderViewHolder && listItem is ReviewListItem.Header) {
-                holder.tvCategoryHeader.text = listItem.categoryName
+                if (listItem.isNewCategory) {
+                    val builder = SpannableStringBuilder(listItem.categoryName)
+                    builder.append("  ") // padding space
+                    val startPos = builder.length
+                    builder.append("new")
+                    val endPos = builder.length
+
+                    val density = holder.itemView.resources.displayMetrics.density
+                    builder.setSpan(
+                        RoundedBackgroundSpan(
+                            backgroundColor = Color.parseColor("#FB8500"),
+                            textColor = Color.WHITE,
+                            cornerRadius = 4f * density,
+                            paddingHorizontal = 6f * density,
+                            paddingVertical = 2f * density
+                        ),
+                        startPos,
+                        endPos,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    holder.tvCategoryHeader.text = builder
+                } else {
+                    holder.tvCategoryHeader.text = listItem.categoryName
+                }
             } else if (holder is ItemViewHolder && listItem is ReviewListItem.Item) {
                 val item = listItem.item
 
@@ -268,7 +433,7 @@ class ReviewImportActivity : AppCompatActivity() {
                 val badgeBgColor = when (item.validationStatus) {
                     ValidationStatus.NEW -> Color.parseColor("#FB8500") // Orange
                     ValidationStatus.UPDATE -> Color.parseColor("#219EBC") // Teal/Blue
-                    ValidationStatus.INVALID -> Color.parseColor("#C62828") // Red
+                    ValidationStatus.INVALID -> Color.parseColor("#E65100") // Dark Orange (avoid red)
                     ValidationStatus.DUPLICATE -> Color.parseColor("#757575") // Grey
                 }
 
@@ -310,7 +475,7 @@ class ReviewImportActivity : AppCompatActivity() {
                     holder.itemPrice.setTextColor(Color.parseColor("#219EBC"))
                 } else {
                     holder.itemPrice.text = item.priceText.ifBlank { "₱0.00" }
-                    holder.itemPrice.setTextColor(Color.parseColor("#C62828"))
+                    holder.itemPrice.setTextColor(Color.parseColor("#FB8500"))
                 }
 
                 // Unit display

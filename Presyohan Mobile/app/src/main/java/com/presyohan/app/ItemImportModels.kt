@@ -110,7 +110,7 @@ data class DraftItem(
     val originalLine: String? = null,
     val validationStatus: ValidationStatus = ValidationStatus.INVALID,
     val validationErrors: List<ValidationError> = emptyList(),
-    val duplicateKey: String = ImportDraftKeys.productKey(productName, description)
+    val duplicateKey: String = ImportDraftKeys.productKey(productName, description, unit)
 )
 
 object ImportDraftKeys {
@@ -122,8 +122,8 @@ object ImportDraftKeys {
             .lowercase()
     }
 
-    fun productKey(name: String?, description: String?): String {
-        return listOf(normalizeText(name), normalizeText(description)).joinToString("|")
+    fun productKey(name: String?, description: String?, unit: String?): String {
+        return listOf(normalizeText(name), normalizeText(description), normalizeText(unit)).joinToString("|")
     }
 }
 
