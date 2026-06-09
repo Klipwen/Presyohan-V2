@@ -9,30 +9,24 @@
     android:gravity="center">
 
     <TextView
-        android:id="@+id/title"
-        android:layout_width="match_parent"
+        android:id="@+id/dialogTitle"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add Category"
+        android:text="Discard Draft Items?"
         android:textColor="@color/presyo_orange"
         android:textSize="22sp"
         android:textStyle="bold"
-        android:layout_marginBottom="20dp"
+        android:layout_marginBottom="12dp"
         android:gravity="center" />
 
-    <EditText
-        android:id="@+id/inputCategory"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:hint="Category name"
-        android:inputType="textCapWords"
-        android:background="@drawable/bg_edittext_orange_pill"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
-        android:textSize="16sp"
-        android:textColor="@color/black"
-        android:textColorHint="@color/edittext_hint"
+    <TextView
+        android:id="@+id/confirmMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="The items you have typed out have not been saved yet and will be permanently lost."
+        android:textColor="@color/edittext_hint"
+        android:textSize="14sp"
+        android:gravity="center"
         android:layout_marginBottom="24dp" />
 
     <LinearLayout
@@ -43,11 +37,12 @@
         android:weightSum="2">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnBack"
+            android:id="@+id/btnDiscardAll"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="BACK"
+            android:text="Discard All"
+            android:textAllCaps="false"
             android:textColor="@color/white"
             android:backgroundTint="@color/presyo_teal"
             android:textStyle="bold"
@@ -56,11 +51,12 @@
             android:layout_marginEnd="8dp" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAdd"
+            android:id="@+id/btnCancel"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="ADD"
+            android:text="Cancel"
+            android:textAllCaps="false"
             android:textColor="@color/white"
             android:backgroundTint="@color/presyo_orange"
             android:textStyle="bold"
@@ -69,5 +65,4 @@
             android:layout_marginStart="8dp" />
 
     </LinearLayout>
-
 </LinearLayout>

@@ -740,10 +740,10 @@ class HomeActivity : AppCompatActivity() {
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
-        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
         val foundName = view.findViewById<TextView>(R.id.foundUserName)
         val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
         val btnInvite = view.findViewById<Button>(R.id.btnInvite)
@@ -843,12 +843,12 @@ class HomeActivity : AppCompatActivity() {
                         foundDetails.text = "$code • $email"
 
                         if (!user.avatar_url.isNullOrBlank()) {
-                            foundAvatar.load(user.avatar_url) {
+                            foundAvatar?.load(user.avatar_url) {
                                 crossfade(true)
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.icon_profile)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE
@@ -927,35 +927,12 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showImportDialogForStore(storeId: String?, storeName: String?) {
-        val dlg = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_import_prices, null)
-        dlg.setContentView(view)
-        dlg.setCancelable(true)
-        dlg.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
-        dlg.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
-
-        val btnImportExcel = view.findViewById<LinearLayout>(R.id.btnImportExcel)
-        val btnCopyWithCode = view.findViewById<LinearLayout>(R.id.btnCopyWithCode)
-        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
-
-        btnImportExcel.setOnClickListener {
-            Toast.makeText(this, "Excel import is available on the web version.", Toast.LENGTH_LONG).show()
-            dlg.dismiss()
+        val intent = Intent(this, AddMultipleItemsActivity::class.java).apply {
+            putExtra("storeId", storeId)
+            putExtra("storeName", storeName)
+            putExtra("showImportDialog", true)
         }
-
-        btnCopyWithCode.setOnClickListener {
-            val intent = Intent(this, CopyPricesActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-            dlg.dismiss()
-        }
-
-        btnCancel.setOnClickListener { dlg.dismiss() }
-
-        dlg.show()
+        startActivity(intent)
     }
 
     /**

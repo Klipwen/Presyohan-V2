@@ -101,10 +101,11 @@ class ManageMembersActivity : AppCompatActivity() {
     }
 
     private fun showRoleChangeDialog(member: Member) {
-        val dialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_role_change, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         view.findViewById<TextView>(R.id.dialogTitle).text = "Change Role"
         val spinner = view.findViewById<Spinner>(R.id.spinnerRole)

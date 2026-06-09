@@ -177,30 +177,8 @@ class EditItemActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        val notifDot = findViewById<View>(R.id.notifDot)
-        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
-        if (notifDot != null && userIdNotif != null) {
-            try {
-                com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    .collection("users").document(userIdNotif)
-                    .collection("notifications")
-                    .whereEqualTo("status", "Pending")
-                    .whereEqualTo("unread", true)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            notifDot.visibility = View.GONE
-                            android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                            android.util.Log.e("FirestoreNotif", "Error: ", error)
-                            return@addSnapshotListener
-                        }
-                        notifDot.visibility = if (snapshot != null && !snapshot.isEmpty) View.VISIBLE else View.GONE
-                    }
-            } catch (e: Exception) {
-                notifDot.visibility = View.GONE
-                android.widget.Toast.makeText(applicationContext, "No internet connection. Some features may not work.", android.widget.Toast.LENGTH_SHORT).show()
-                android.util.Log.e("FirestoreNotif", "Exception: ", e)
-            }
-        }
+        loadNotifBadge()
+
 
         // Update price label (upper right of price) live as user edits
         val priceDisplay = findViewById<TextView>(R.id.priceDisplay)
@@ -299,6 +277,30 @@ class EditItemActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         SessionManager.markStoreHome(this, storeIdArg, storeNameArg)
+        loadNotifBadge()
+    }
+
+    private fun loadNotifBadge() {
+        val notifDot = findViewById<View>(R.id.notifDot)
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
+        if (notifDot != null && userIdNotif != null) {
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest["notifications"].select {
+                        filter {
+                            eq("receiver_user_id", userIdNotif)
+                            eq("read", false)
+                        }
+                        limit(1)
+                    }.decodeList<HomeActivity.NotificationRow>()
+                    notifDot.visibility = if (rows.isNotEmpty()) View.VISIBLE else View.GONE
+                } catch (e: Exception) {
+                    notifDot.visibility = View.GONE
+                }
+            }
+        } else if (notifDot != null) {
+            notifDot.visibility = View.GONE
+        }
     }
 
     private fun showAddCategoryDialog(
@@ -308,15 +310,24 @@ class EditItemActivity : AppCompatActivity() {
         adapter: ArrayAdapter<String>,
         spinner: Spinner
     ) {
-        val dialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_add_category, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_new_category, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        val input = view.findViewById<EditText>(R.id.inputCategoryName)
+        val input = view.findViewById<EditText>(R.id.inputCategory)
         val btnAdd = view.findViewById<Button>(R.id.btnAdd)
         val btnBack = view.findViewById<Button>(R.id.btnBack)
+        view.findViewById<TextView>(R.id.title)?.let {
+            it.text = "Add Category"
+        }
+
+        if (btnAdd == null || btnBack == null || input == null) {
+            Toast.makeText(this, "Failed to initialize category dialog.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         btnAdd.setOnClickListener {
             val categoryRaw = input.text.toString().trim()
@@ -361,6 +372,10 @@ class EditItemActivity : AppCompatActivity() {
         }
         btnBack.setOnClickListener { dialog.dismiss() }
         dialog.show()
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     private fun showLogoutDialog() {

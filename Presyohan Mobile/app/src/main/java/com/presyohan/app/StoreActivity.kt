@@ -17,7 +17,6 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.navigation.NavigationView
-import com.google.firebase.firestore.FirebaseFirestore
 import com.presyohan.app.adapter.Store
 import com.presyohan.app.adapter.StoreAdapter
 import androidx.core.content.ContextCompat
@@ -59,7 +58,6 @@ import coil.load
 import coil.transform.CircleCropTransformation
 
 class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
-    private val db = FirebaseFirestore.getInstance()
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navigationView: NavigationView
     private lateinit var recyclerView: RecyclerView
@@ -178,7 +176,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         recyclerView.adapter = adapter
 
 
-        checkUserStore()
         fetchStores()
 
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
@@ -251,18 +248,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-    private fun checkUserStore() {
-        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
-        db.collection("stores")
-            .whereArrayContains("members", userId)
-            .get()
-            .addOnSuccessListener { documents ->
-                // No dialog here
-            }
-            .addOnFailureListener {
-                // No dialog here
-            }
-    }
+
 
     private fun showStoreChoiceDialog() {
         val dialog = Dialog(this)
@@ -494,35 +480,12 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     }
 
     private fun showImportDialogForStore(storeId: String, storeName: String) {
-        val dlg = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_import_prices, null)
-        dlg.setContentView(view)
-        dlg.setCancelable(true)
-        dlg.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
-        dlg.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
-
-        val btnImportExcel = view.findViewById<LinearLayout>(R.id.btnImportExcel)
-        val btnCopyWithCode = view.findViewById<LinearLayout>(R.id.btnCopyWithCode)
-        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
-
-        btnImportExcel.setOnClickListener {
-            Toast.makeText(this, "Excel import is available on the web version.", Toast.LENGTH_LONG).show()
-            dlg.dismiss()
+        val intent = Intent(this, AddMultipleItemsActivity::class.java).apply {
+            putExtra("storeId", storeId)
+            putExtra("storeName", storeName)
+            putExtra("showImportDialog", true)
         }
-
-        btnCopyWithCode.setOnClickListener {
-            val intent = Intent(this, CopyPricesActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-            dlg.dismiss()
-        }
-
-        btnCancel.setOnClickListener { dlg.dismiss() }
-
-        dlg.show()
+        startActivity(intent)
     }
 
     private fun showStoreMenuEmployee(store: Store) {
@@ -1028,10 +991,10 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
-        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
         val foundName = view.findViewById<TextView>(R.id.foundUserName)
         val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
         val btnInvite = view.findViewById<Button>(R.id.btnInvite)
@@ -1147,12 +1110,12 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         val email = user.email ?: ""
                         foundDetails.text = "$code • $email"
                         if (!user.avatar_url.isNullOrBlank()) {
-                            foundAvatar.load(user.avatar_url) {
+                            foundAvatar?.load(user.avatar_url) {
                                 crossfade(true)
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.icon_profile)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE

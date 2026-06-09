@@ -11,295 +11,315 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#E5E5E5">
+        android:background="#FAFAFA">
 
+        <!-- Unified Header Bar (White background) -->
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/headerPresyohan"
+            android:id="@+id/layoutHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_header_presyohan"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
+            android:background="@color/white"
+            android:paddingBottom="10dp"
+            android:elevation="2dp"
             app:layout_constraintTop_toTopOf="parent">
 
-            <ImageView
-                android:id="@+id/menuIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="16dp"
-                android:contentDescription="Menu"
-                android:src="@drawable/icon_menu"
+            <!-- Yellow Header Label inside the White Header -->
+            <TextView
+                android:id="@+id/headerLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_header_yellow"
+                android:gravity="center"
+                android:paddingVertical="8dp"
+                android:text="Add Multiple Items"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-
-            <!-- Presyohan Logo Text -->
-            <TextView
-                android:id="@+id/logoText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:fontFamily="sans-serif"
-                android:text="presyo"
-                android:textColor="@color/presyo_orange"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toEndOf="@id/menuIcon"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-
-            <TextView
-                android:id="@+id/logoTextBlue"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="0dp"
-                android:fontFamily="sans-serif"
-                android:text="han?"
-                android:textColor="@color/presyo_teal"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toEndOf="@id/logoText"
-                app:layout_constraintTop_toTopOf="@id/logoText"
-                app:layout_constraintBottom_toBottomOf="@id/logoText" />
-
-            <!-- Notification Icon (left of Profile Icon) -->
-            <ImageView
-                android:id="@+id/notifIcon"
-                android:layout_width="24dp"
-                android:layout_height="32dp"
-                android:layout_marginEnd="16dp"
-                android:contentDescription="Notifications"
-                android:src="@drawable/icon_notification"
-                app:layout_constraintEnd_toStartOf="@id/profileIcon"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
-
-            <View
-                android:id="@+id/notifDot"
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:layout_marginEnd="16dp"
-                android:background="@drawable/indicator_dot"
-                android:visibility="gone"
-                app:layout_constraintEnd_toStartOf="@id/profileIcon"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Profile Icon (right-most) -->
             <ImageView
-                android:id="@+id/profileIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginEnd="16dp"
-                android:contentDescription="Profile"
-                android:src="@drawable/icon_profile"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
+                android:id="@+id/btnBack"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/icon_back"
+                android:layout_marginStart="16dp"
+                app:layout_constraintBottom_toBottomOf="@+id/headerLabel"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/headerLabel"
+                app:tint="@color/white" />
+
+
+            <LinearLayout
+                android:id="@+id/layoutSubHeaderLeft"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnImportPricesSubheader"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/headerLabel"
+                app:layout_constraintWidth_default="wrap">
+
+                <TextView
+                    android:id="@+id/tvSubHeaderTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Total: 0 Items"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvSubHeaderSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AI-powered smart items import"
+                    android:textColor="@color/edittext_hint"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- Import Prices Icon Button in an outlined box -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnImportPricesSubheader"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="Import Prices"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                app:cornerRadius="6dp"
+                app:icon="@drawable/icon_import_prices"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconSize="18dp"
+                app:iconTint="@color/presyo_teal"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/btnToggleMode"
+                app:layout_constraintTop_toBottomOf="@id/headerLabel"
+                app:strokeColor="@color/presyo_teal"
+                app:strokeWidth="1dp" />
+
+            <!-- Mode Toggle Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnToggleMode"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginTop="10dp"
+                android:text="Smart Mode"
+                android:textSize="11sp"
+                android:textColor="@color/presyo_teal"
+                app:strokeColor="@color/presyo_teal"
+                app:cornerRadius="6dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="8dp"
+                android:layout_marginEnd="8dp"
+                app:layout_constraintEnd_toStartOf="@id/btnReviewHeader"
+                app:layout_constraintTop_toBottomOf="@id/headerLabel"
                 app:layout_constraintBottom_toBottomOf="parent" />
+
+            <!-- REVIEW Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReviewHeader"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="@color/presyo_orange"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="REVIEW"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                app:cornerRadius="6dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/headerLabel" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-
-        <TextView
-            android:id="@+id/headerLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_header_yellow"
-            android:paddingVertical="8dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginEnd="8dp"
-            android:gravity="center"
-            android:text="Add Multiple Items"
-            android:textStyle="bold"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            app:layout_constraintTop_toBottomOf="@id/headerPresyohan"/>
-
-        <ImageView
-            android:id="@+id/btnBack"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/icon_back"
-            android:layout_marginStart="12dp"
-            app:tint="@color/white"
-            app:layout_constraintBottom_toBottomOf="@+id/headerLabel"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/headerLabel"/>
-
-        <ViewFlipper
-            android:id="@+id/viewFlipper"
+        <!-- Main Content Area Container -->
+        <FrameLayout
+            android:id="@+id/contentContainer"
             android:layout_width="0dp"
             android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/layoutHeader"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/headerLabel">
+            app:layout_constraintEnd_toEndOf="parent">
 
+            <!-- 1. Simple Mode Container -->
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/layoutInputState"
+                android:id="@+id/containerSimple"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/bg_white"
-                android:layout_marginBottom="18dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:layout_marginTop="4dp"
-                android:padding="16dp">
+                android:visibility="visible">
 
-                <LinearLayout
-                    android:id="@+id/storeInfoWrapper"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    app:layout_constraintEnd_toStartOf="@+id/btnPreview"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                    <TextView
-                        android:id="@+id/storeText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="12dp"
-                        android:text="Store Name"
-                        android:textColor="@color/presyo_orange"
-                        android:textSize="20sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/storeBranchText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:layout_marginEnd="12dp"
-                        android:text="| Branch name"
-                        android:textColor="@color/edittext_hint"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
-
-                <TextView
-                    android:id="@+id/lblExample"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_code"
-                    android:fontFamily="monospace"
-                    android:padding="8dp"
-                    android:layout_marginTop="16dp"
-                    android:text="[Category name]\n- Item1 (Descriptions) ₱999.99 | unit\n- Item2 (Descriptions) ₱99.99 | unit"
-                    android:textColor="#444444"
-                    android:textSize="12sp"
-                    app:layout_constraintTop_toBottomOf="@+id/storeInfoWrapper"
-                    tools:layout_editor_absoluteX="16dp" />
-
-                <TextView
-                    android:id="@+id/inputlabel"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Enter your pricelist here with correct format"
-                    app:layout_constraintTop_toBottomOf="@+id/lblExample"
-                    tools:layout_editor_absoluteX="16dp" />
-
-                <EditText
-                    android:id="@+id/inputRawText"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:background="@drawable/bg_edittext"
-                    android:gravity="top|start"
-                    android:hint="Type here..."
-                    android:inputType="textMultiLine|textCapSentences"
-                    android:padding="12dp"
-                    android:textSize="14sp"
-                    android:layout_marginTop="8dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintHorizontal_bias="1.0"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/inputlabel"
-                    app:layout_constraintVertical_bias="0.0" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnPreview"
-                    android:layout_width="wrap_content"
-                    android:layout_height="50dp"
-                    android:backgroundTint="@color/presyo_teal"
-                    android:text="Preview Items"
-                    android:textColor="@android:color/white"
-                    android:textStyle="bold"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@+id/storeInfoWrapper"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/layoutPreviewState"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_white"
-                android:layout_marginBottom="18dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:layout_marginTop="4dp"
-                android:padding="16dp">
-
-                <TextView
-                    android:id="@+id/previewSummary"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="#FFFFFF"
-                    android:padding="12dp"
-                    android:text="Found 5 items in 2 categories."
-                    android:textColor="#333333"
-                    android:textStyle="bold"
-                    android:elevation="2dp"
-                    app:layout_constraintTop_toTopOf="parent" />
-
+                <!-- List of Category Cards -->
                 <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/previewRecyclerView"
+                    android:id="@+id/simpleRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:clipToPadding="false"
-                    android:paddingBottom="80dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/previewSummary" />
+                    android:paddingBottom="16dp"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toTopOf="@id/layoutSelectCategoryBottom" />
 
+                <!-- Bottom "SELECT CATEGORY" Container (Bottom Sheet style) -->
                 <LinearLayout
+                    android:id="@+id/layoutSelectCategoryBottom"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="#FFFFFF"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_bottom_sheet"
+                    android:paddingTop="20dp"
+                    android:paddingBottom="24dp"
+                    android:paddingHorizontal="16dp"
                     android:elevation="8dp"
-                    android:orientation="horizontal"
-                    android:padding="12dp"
                     app:layout_constraintBottom_toBottomOf="parent">
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnEditRaw"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_marginEnd="8dp"
-                        android:layout_weight="1"
-                        android:text="Edit Text"
-                        android:textColor="@color/presyo_teal"
-                        app:strokeColor="@color/presyo_teal" />
+                        android:id="@+id/btnSelectCategoryBottom"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:text="SELECT CATEGORY"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:textSize="16sp"
+                        android:backgroundTint="@color/presyo_orange"
+                        app:cornerRadius="26dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnConfirmImport"
-                        android:layout_width="0dp"
-                        android:layout_height="50dp"
-                        android:layout_weight="1.5"
-                        android:backgroundTint="@color/presyo_teal"
-                        android:text="Save Items"
-                        android:textColor="@android:color/white"
-                        android:textStyle="bold" />
                 </LinearLayout>
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-        </ViewFlipper>
+            <!-- 2. Fast Mode Container -->
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/containerFast"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Format Guide Card -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="1dp"
+                        android:layout_marginBottom="16dp"
+                        android:backgroundTint="@color/white">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:padding="12dp">
+
+                            <TextView
+                                android:id="@+id/tvFormatTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="AI Powered Smart Mode Guide:"
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:src="@drawable/bg_dialog_info"
+                                android:layout_alignParentEnd="true"
+                                android:layout_alignParentTop="true"
+                                android:contentDescription="Info" />
+
+                            <TextView
+                                android:id="@+id/tvFormatContent"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_below="@id/tvFormatTitle"
+                                android:layout_marginTop="6dp"
+                                android:text="You can type or paste items in any format (even without category headers).\nThe AI will automatically parse the items and assign them to one of your existing store categories if it fits!"
+                                android:textColor="@color/edittext_hint"
+                                android:textSize="11sp"
+                                android:fontFamily="monospace" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_below="@id/tvFormatContent"
+                                android:layout_marginTop="8dp"
+                                android:text="Examples:\n  • Fresh Milk 1L - ₱95.00\n  • Apples (Fuji red) - 150/kg\n  • asdfghj - 100 (labeled as invalid)"
+                                android:textColor="@color/edittext_hint"
+                                android:textSize="11sp" />
+
+                        </RelativeLayout>
+
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Instruction Text -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Type or paste your supplier pricelist, message, or list here. The AI will parse and categorize it automatically."
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="12dp" />
+
+                    <!-- Paste Text Input -->
+                    <EditText
+                        android:id="@+id/inputRawText"
+                        android:layout_width="match_parent"
+                        android:layout_height="240dp"
+                        android:background="@drawable/bg_edittext"
+                        android:gravity="top|start"
+                        android:hint="Type or paste your pricelist here (e.g., Bread 50, Milk 90, Fuji Apple 150/kg)..."
+                        android:inputType="textMultiLine|textCapSentences"
+                        android:padding="12dp"
+                        android:textSize="13sp"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textColorHint="@color/edittext_hint" />
+
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+
+        </FrameLayout>
+
+        <!-- Loading Overlay -->
+        <include
+            android:id="@+id/loadingLayout"
+            layout="@layout/loading_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- Side Drawer Navigation -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navigationView"
         android:layout_width="wrap_content"

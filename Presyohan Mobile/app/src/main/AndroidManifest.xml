@@ -64,6 +64,9 @@
             android:name=".AddMultipleItemsActivity"
             android:exported="false" />
         <activity
+            android:name=".ReviewImportActivity"
+            android:exported="false" />
+        <activity
             android:name=".ManageItemsActivity"
             android:exported="false" />
         <activity

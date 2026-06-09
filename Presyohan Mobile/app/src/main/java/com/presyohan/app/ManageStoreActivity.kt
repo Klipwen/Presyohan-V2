@@ -37,7 +37,6 @@ import androidx.appcompat.app.AlertDialog
 import android.graphics.drawable.ColorDrawable
 import android.graphics.Color
 // Removed Apache POI imports; using FastExcel for writing XLSX
-import com.google.firebase.firestore.FirebaseFirestore
 import io.github.jan.supabase.auth.auth
 import androidx.appcompat.widget.AppCompatButton
 import java.text.NumberFormat
@@ -360,39 +359,12 @@ class ManageStoreActivity : AppCompatActivity() {
     }
 
     private fun showImportDialog() {
-        val dialog = android.app.Dialog(this)
-        val view = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_import_prices, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
-
-        val btnImportExcel = view.findViewById<android.widget.LinearLayout>(R.id.btnImportExcel)
-        val btnCopyWithCode = view.findViewById<android.widget.LinearLayout>(R.id.btnCopyWithCode)
-        val btnCancel = view.findViewById<android.widget.Button>(R.id.btnCancel)
-
-        btnImportExcel.setOnClickListener {
-            android.widget.Toast.makeText(
-                this,
-                "Excel import is available on the web version.",
-                android.widget.Toast.LENGTH_LONG
-            ).show()
-            dialog.dismiss()
+        val intent = Intent(this, AddMultipleItemsActivity::class.java).apply {
+            putExtra("storeId", storeId)
+            putExtra("storeName", storeName)
+            putExtra("showImportDialog", true)
         }
-
-        btnCopyWithCode.setOnClickListener {
-            val intent = android.content.Intent(this, CopyPricesActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-            dialog.dismiss()
-        }
-
-        btnCancel.setOnClickListener { dialog.dismiss() }
-
-        dialog.show()
+        startActivity(intent)
     }
 
     // Extension function for dp to px
@@ -892,10 +864,10 @@ class ManageStoreActivity : AppCompatActivity() {
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<ImageView>(R.id.searchIconStatic)
+        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
-        val foundAvatar = view.findViewById<ImageView>(R.id.foundUserAvatar)
+        val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
         val foundName = view.findViewById<TextView>(R.id.foundUserName)
         val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
         val btnInvite = view.findViewById<Button>(R.id.btnInvite)
@@ -953,12 +925,12 @@ class ManageStoreActivity : AppCompatActivity() {
                         foundDetails.text = "$code • $email"
 
                         if (!user.avatar_url.isNullOrBlank()) {
-                            foundAvatar.load(user.avatar_url) {
+                            foundAvatar?.load(user.avatar_url) {
                                 crossfade(true)
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.icon_profile)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE

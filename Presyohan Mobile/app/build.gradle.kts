@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,6 +16,18 @@ android {
     val supabaseUrl = project.findProperty("SUPABASE_URL") as? String ?: ""
     val supabaseAnonKey = project.findProperty("SUPABASE_ANON_KEY") as? String ?: ""
 
+    // Gemini API key from local.properties
+    val localProperties = Properties()
+
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+    val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY") as? String 
+        ?: project.findProperty("GEMINI_API_KEY") as? String 
+        ?: System.getenv("GEMINI_API_KEY") 
+        ?: ""
+
     defaultConfig {
         applicationId = "com.presyohan.app"
         minSdk = 24
@@ -26,6 +40,7 @@ android {
         // Inject Supabase URL and anon key into BuildConfig
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
     buildTypes {
@@ -116,6 +131,7 @@ dependencies {
 
     // Excel generation using FastExcel (no XMLBeans/POI)
     implementation("org.dhatim:fastexcel:0.19.0")
+    implementation("org.dhatim:fastexcel-reader:0.19.0")
 
     implementation("io.coil-kt:coil:2.6.0")
 }

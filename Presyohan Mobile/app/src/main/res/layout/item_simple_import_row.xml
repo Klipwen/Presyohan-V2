@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:layout_marginBottom="8dp">
+
+    <!-- Row Index and Delete Button -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/tvRowIndex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="#1"
+            android:textColor="@color/presyo_orange"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true" />
+
+        <ImageView
+            android:id="@+id/btnDelete"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/icon_delete"
+            android:contentDescription="Delete"
+            app:tint="@color/presyo_orange"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+    </RelativeLayout>
+
+    <!-- Horizontal fields: Name, Unit/Size, Price -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp"
+        android:weightSum="4.0">
+
+        <EditText
+            android:id="@+id/inputProductName"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="2.0"
+            android:layout_marginEnd="6dp"
+            android:hint="Product Name"
+            android:paddingHorizontal="8dp"
+            android:textSize="13sp"
+            android:background="@drawable/bg_edittext"
+            android:inputType="textCapSentences"
+            android:textColor="@color/presyo_darkblue"
+            android:textColorHint="@color/edittext_hint"/>
+
+        <EditText
+            android:id="@+id/inputUnit"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1.0"
+            android:layout_marginEnd="6dp"
+            android:hint="Unit"
+            android:paddingHorizontal="8dp"
+            android:textSize="13sp"
+            android:background="@drawable/bg_edittext"
+            android:inputType="text"
+            android:textColor="@color/presyo_darkblue"
+            android:textColorHint="@color/edittext_hint"/>
+
+        <EditText
+            android:id="@+id/inputPrice"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1.0"
+            android:hint="Price"
+            android:paddingHorizontal="8dp"
+            android:textSize="13sp"
+            android:background="@drawable/bg_edittext"
+            android:inputType="numberDecimal"
+            android:textColor="@color/presyo_darkblue"
+            android:textColorHint="@color/edittext_hint"/>
+
+    </LinearLayout>
+
+    <!-- Descriptions field -->
+    <EditText
+        android:id="@+id/inputDescription"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="6dp"
+        android:hint="Descriptions"
+        android:paddingHorizontal="8dp"
+        android:textSize="13sp"
+        android:background="@drawable/bg_edittext"
+        android:inputType="textCapSentences"
+        android:textColor="@color/presyo_darkblue"
+        android:textColorHint="@color/edittext_hint"/>
+
+    <!-- Error message text -->
+    <TextView
+        android:id="@+id/tvErrorText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="#C62828"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:text="Product Name is required" />
+
+</LinearLayout>
