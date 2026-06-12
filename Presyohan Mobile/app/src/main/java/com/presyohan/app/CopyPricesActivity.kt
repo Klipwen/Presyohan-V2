@@ -537,7 +537,7 @@ class CopyPricesActivity : AppCompatActivity() {
                     val product = item.product
                     h.nameText.text = product.name ?: ""
                     h.detailsText.text = "${product.category ?: ""} · ${product.units ?: product.unit ?: ""}"
-                    h.priceText.text = "₱${String.format("%.2f", product.price ?: 0.0)}"
+                    h.priceText.text = "₱%,.2f".format(java.util.Locale.US, product.price ?: 0.0)
                     // Remove listener before setting checked state to avoid triggering it
                     h.checkbox.setOnCheckedChangeListener(null)
                     h.checkbox.isChecked = selectedIds.contains(product.product_id)
@@ -569,8 +569,8 @@ class CopyPricesActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: ReviewViewHolder, position: Int) {
             val row = rows[position]
             holder.nameText.text = row.name ?: ""
-            holder.sourcePriceText.text = "₱${String.format("%.2f", row.source_price ?: 0.0)}"
-            holder.destPriceText.text = if (row.dest_price == null) "—" else "₱${String.format("%.2f", row.dest_price)}"
+            holder.sourcePriceText.text = "₱%,.2f".format(java.util.Locale.US, row.source_price ?: 0.0)
+            holder.destPriceText.text = if (row.dest_price == null) "—" else "₱%,.2f".format(java.util.Locale.US, row.dest_price)
             holder.actionText.text = if (row.action == "create") "Create" else "Update"
             holder.actionText.setTextColor(
                 if (row.action == "create") getColor(R.color.presyo_teal) else getColor(R.color.presyo_orange)

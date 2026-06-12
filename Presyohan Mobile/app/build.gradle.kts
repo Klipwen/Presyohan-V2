@@ -92,6 +92,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)
+    implementation(libs.androidx.swiperefreshlayout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -134,4 +135,10 @@ dependencies {
     implementation("org.dhatim:fastexcel-reader:0.19.0")
 
     implementation("io.coil-kt:coil:2.6.0")
+
+    // Facebook Shimmer for loading skeletons
+    implementation("com.facebook.shimmer:shimmer:0.5.0")
+
+    // SwipeRefreshLayout for pull-to-refresh
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 }

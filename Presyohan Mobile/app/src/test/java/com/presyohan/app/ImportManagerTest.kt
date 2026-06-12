@@ -75,7 +75,9 @@ class ImportManagerTest {
             categoryName = "DRINKS",
             productName = "Cola",
             unit = "can",
+            priceText = "25.0",
             price = 25.0,
+            source = ImportSource.SIMPLE_MANUAL,
             validationStatus = ValidationStatus.NEW
         )
         val itemUpdate = DraftItem(
@@ -83,7 +85,9 @@ class ImportManagerTest {
             categoryName = "DRINKS",
             productName = "Pepsi",
             unit = "can",
+            priceText = "24.0",
             price = 24.0,
+            source = ImportSource.SIMPLE_MANUAL,
             validationStatus = ValidationStatus.UPDATE,
             productId = "db-pepsi-id"
         )
@@ -92,7 +96,9 @@ class ImportManagerTest {
             categoryName = "DRINKS",
             productName = "Cola",
             unit = "can",
+            priceText = "25.0",
             price = 25.0,
+            source = ImportSource.SIMPLE_MANUAL,
             validationStatus = ValidationStatus.DUPLICATE
         )
         val itemInvalid = DraftItem(
@@ -100,7 +106,9 @@ class ImportManagerTest {
             categoryName = "DRINKS",
             productName = "Bad Item",
             unit = "can",
+            priceText = "-5.0",
             price = -5.0,
+            source = ImportSource.SIMPLE_MANUAL,
             validationStatus = ValidationStatus.INVALID
         )
 

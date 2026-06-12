@@ -5,8 +5,7 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:background="#FAFAFA">
+    android:fitsSystemWindows="true">
 
     <!-- Unified Header Bar (White background) -->
     <androidx.constraintlayout.widget.ConstraintLayout

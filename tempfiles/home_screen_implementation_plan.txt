@@ -1,0 +1,488 @@
+================================================================================
+PRESYSOHAN MOBILE APPLICATION - HOME SCREEN REDESIGN IMPLEMENTATION PLAN
+================================================================================
+
+OBJECTIVE
+--------------------------------------------------------------------------------
+The objective of this document is to detail the architectural, database, and UI/UX
+changes required to transition the Presyohan Mobile application's Home Screen
+from its current flat grid representation to the new grouped category layout.
+This redesign addresses three distinct user roles (Owner, Manager, and Sales
+Staff), introducing a categorized card structure, a persistent docked bottom
+sheet (with rounded top corners) containing search inputs and expandable action
+controls, inline context actions (edit/delete overlays), pull-to-refresh
+capabilities, and role-appropriate dialog options, while preparing the database
+schema (store and product visibility columns) and product layout indicators for 
+future public store and suki partnership visibility.
+
+NOTE: This plan focuses strictly on the Store/Merchant side app (Owners, Managers, 
+and Sales Staff). Partnered customer (Suki) viewing screens, suki login roles, 
+and customer-facing layouts are out of scope and excluded from this implementation.
+
+Furthermore, this plan incorporates three core premium enhancements:
+1. Shimmer Skeleton Loading: Replacing the central spinner with animated 
+   placeholder cards.
+2. Minimal Empty State Indicator: Introducing a clean center-aligned visual 
+   directly inside the main layout for empty listings or search results.
+3. Optimistic UI Updates: Instantly updating the UI on modifications and 
+   rolling back only upon network failure to eliminate wait states.
+
+
+DELIVERABLES
+--------------------------------------------------------------------------------
+A complete implementation plan (TXT format) written to the project workspace
+detailing:
+- Phase 1: Current System Analysis (existing file mappings & behavior)
+- Phase 2: Database Changes (store visibility & suki partnership tables/policies)
+- Phase 3: UI Changes (layout structure, Swipe-to-Refresh, Shimmer, and Empty state)
+- Phase 4: State Management (variables, roles, optimistic updates, and rollbacks)
+- Phase 6: Navigation Flow (user interaction journeys per role)
+- Phase 7: Development Tasks (step-by-step breakdown prioritized for development)
+- Phase 8: Risks and Edge Cases (nested scroll performance, soft-keyboard, RLS, and rollbacks)
+
+
+PHASE 1 - CURRENT SYSTEM ANALYSIS
+--------------------------------------------------------------------------------
+The current home screen feature is implemented across the following files:
+1. com.presyohan.app.HomeActivity.kt:
+   - Manages store details loading, role validation, notification count badge.
+   - Triggers the 'get_store_products' RPC on Supabase to fetch store products.
+   - Implements search via an EditText (toggleable visibility) and scroll hiding.
+   - Houses custom Dialog popups for store menu options (dialog_store_menu.xml) 
+     and product management (dialog_manage_item.xml).
+   - Category filtering uses a standard Android Spinner hidden behind a label 
+     (layoutPricelistTrigger) which pops open a dropdown list.
+2. activity_home.xml (Layout):
+   - Uses a DrawerLayout with a NavigationView for the side menu.
+   - Header contains the app logo, notifications icon, and profile avatar.
+   - Sub-header banner (bg_header_yellow) displays the store name, branch 
+     name, back button, and a three-dot options icon (btnStoreOptions).
+   - Center body displays the product list using a RecyclerView styled with a
+     GridLayoutManager (2 columns, spanCount=2).
+   - Bottom right features an ImageButton (searchItemButton) that acts as the 
+     primary floating action to open the search bar.
+3. com.presyohan.app.adapter.ProductAdapter.kt:
+   - A standard RecyclerView.Adapter displaying products flatly.
+   - Binds name, description, price, and volume into a simple vertical card 
+     layout (item_product.xml).
+   - Long-presses on list items trigger a manage item dialog callback.
+
+CRITICAL GAPS TO RESOLVE:
+- Grid layout vs Grouped card layout: Current code displays items in a flat 
+  2-column grid. The new design requires products grouped into separate cards 
+  representing each category, arranged as a vertical single-column list.
+- Options Menu: Current options menu is identical for all roles (via 
+  dialog_store_menu.xml). The new layout dictates that:
+  - Owners get a floating card menu (dialog_owner_menu.xml) displaying the store
+    icon, name, type, branch, and two action icons: Invite Member and Store 
+    Settings on the right.
+  - Managers and Sales Staff get a detailed "Store Details" panel containing 
+    store ID, creation dates, public status, invite code, item counts, and a
+    breakdown of member roles, alongside a prominent "LEAVE" store action.
+- Add and Search triggers: The current add button is located in the upper 
+  control bar. The new design features a persistent bottom sheet containing 
+  search inputs, and a floating search button (searchItemButton) at the 
+  bottom-right.
+- Bottom Sheet and FAB Interaction Logic:
+  * When the bottom sheet is collapsed or hidden, the floating search button 
+    (searchItemButton) appears on the bottom right. Tapping the search button 
+    slides the bottom sheet UP.
+  * When the bottom sheet is UP (visible/collapsed), the floating search button 
+    is hidden.
+  * When the user scrolls down the pricelist, the bottom sheet slides down and 
+    hides itself completely off-screen, giving the user a full-screen view. The 
+    floating search button reappears.
+- Dynamic Pricelist Constraint (Anti-Overlapping):
+  * When the bottom sheet is hidden, the pricelist (RecyclerView) must stretch 
+    all the way to the bottom of the screen with no extra empty space.
+  * When the bottom sheet slides up, the product list must be pushed upward 
+    (by dynamically adjusting its bottom margin/padding to match the visible 
+    height of the sliding sheet) so that no list items are overlapped or 
+    hidden behind the bottom sheet.
+- Product Editing: Current system displays a modal dialog (dialog_manage_item) 
+  for actions. The new design uses an in-place overlay card over the individual 
+  product item. This overlay contains Pencil (Edit) and Trash (Delete) icons,
+  revealed ONLY upon long-pressing the item (normal clicks/taps are ignored).
+- Loading Feedback: Current implementation displays a full-screen blocking progress 
+  overlay. The redesign replaces this with a non-blocking skeleton shimmer layout.
+- Pull-to-Refresh: Current app has no pull-to-refresh mechanism; loading items 
+  is only done on launching or manually updating. The new design will include a
+  minimal, professional SwipeRefreshLayout tied to the Presyohan palette.
+- Empty State Feedback: The current app displays no visual fallback when no 
+  products are available or when searches fail. A minimal centered visual (icon and 
+  text) will be embedded directly in the main layout.
+- Store & Item Visibility (Store/Merchant Management side):
+  * Store members (Owner, Manager, Sales Staff) must be able to view, manage, 
+    and identify public vs private items. A mini globe icon is placed beside the 
+    product name on the pricelist row if `product.is_public == true`.
+  * Owners and Managers will be able to toggle individual products to public or 
+    private status during product creation or editing, and toggle the store itself 
+    to public or private.
+
+
+PHASE 2 - DATABASE CHANGES
+--------------------------------------------------------------------------------
+To support the store visibility levels, public item toggles, and partnered customer 
+relationships, the following schema modifications are proposed:
+
+-- Migration File: 20260611_000000_add_public_and_suki_entities.sql
+
+-- 1. Add 'is_public' flag to stores (default is private)
+ALTER TABLE public.stores 
+ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- 2. Add 'is_public' flag to products (default is private)
+-- Toggling this allows select items to be visible to Sukis when the store is public
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- 3. Define Suki partnerships (Customer to Store relationship)
+CREATE TABLE IF NOT EXISTS public.suki_relationships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
+    store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status TEXT NOT NULL DEFAULT 'active',
+    CONSTRAINT suki_user_store_unique UNIQUE (user_id, store_id)
+);
+
+-- 4. Indexes for optimization
+CREATE INDEX IF NOT EXISTS suki_relationships_user_idx ON public.suki_relationships (user_id);
+CREATE INDEX IF NOT EXISTS products_public_idx ON public.products (store_id, is_public);
+
+-- 5. Enable Row Level Security (RLS) and define Policies
+ALTER TABLE public.suki_relationships ENABLE ROW LEVEL SECURITY;
+
+-- Suki RLS Policies
+DROP POLICY IF EXISTS suki_select_own ON public.suki_relationships;
+CREATE POLICY suki_select_own ON public.suki_relationships
+    FOR SELECT TO authenticated
+    USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS suki_insert_own ON public.suki_relationships;
+CREATE POLICY suki_insert_own ON public.suki_relationships
+    FOR INSERT TO authenticated
+    WITH CHECK (user_id = auth.uid());
+
+
+PHASE 3 - UI CHANGES
+--------------------------------------------------------------------------------
+We will restructure the layout design to match the screenshots.
+
+1. Layout File Restructuring (activity_home.xml):
+   - Replace the old control bar container (containerControls) and top add button.
+   - Keep the floating search button (searchItemButton) positioned in the bottom-right.
+   - Surround the primary product RecyclerView (productRecyclerView) with an
+     androidx.swiperefreshlayout.widget.SwipeRefreshLayout wrapper:
+     * Set android:id="@+id/swipeRefreshLayout".
+     * Bind dynamic color scheme: @color/presyo_teal and @color/presyo_orange.
+     * Configure behavior to load and refresh pricelist in the background.
+   - Switch productRecyclerView from 2-column GridLayoutManager to a 
+     1-column LinearLayoutManager.
+   - Add a persistent docked Bottom Sheet container:
+     * A CardView or layout styled with rounded top corners (16dp) pinned/docked 
+       directly flush with the bottom of the screen.
+     * Contains: Search magnifying glass, Search EditText ("Search item"), and
+       an orange semi-circle handle (ImageView or custom shape drawable) at the 
+       top-center of the sheet.
+     * Integrates a CoordinatorLayout bottom sheet behavior that contains the 
+       Quick Actions panel:
+       - Actions: "Manage Prices" (icon+text), circular "+" orange floating button,
+         and "Manage Categories" (icon+text).
+       - Set its initial state to hidden (off-screen), sliding up into a collapsed 
+         state (only showing search inputs and handle) when the floating search 
+         button is clicked.
+   - Embed a ShimmerFrameLayout container (com.facebook.shimmer.ShimmerFrameLayout)
+     directly above the product list layout to render loading states.
+   - Embed an Empty State container (`layoutEmptyState` LinearLayout) directly 
+     inside the main XML layout, center-aligned, containing:
+     * A large minimal grey vector magnifying glass icon (`ImageView`).
+     * A grey text view displaying "No Products Found" (`TextView`) directly underneath.
+     * Set visibility to `gone` by default.
+
+2. New Layout: layout_home_shimmer.xml
+   - Represents the skeleton loader layout.
+   - Renders 2 rounded category cards, each containing 3 vertical placeholder rows:
+     * Rounded light-grey capsules representing product name, description, and price.
+     * Animated with a standard diagonal sheen gradient (shimmer).
+
+3. New Layout: item_category_card.xml
+   - This layout represents the parent item in the product list.
+   - Composed of a CardView with a white background, rounded corners (16dp), 
+     subtle shadow elevation, and margins.
+   - Vertical LinearLayout inside containing:
+     * Category Title text (e.g. "DRINKS") in bold blue/teal.
+     * Item Count subtext (e.g. "3 items") in grey.
+     * A child RecyclerView (childProductRecyclerView) configured with a 
+       LinearLayoutManager (vertical) to list products inside this category.
+
+4. Updated Layout: item_product_new.xml
+   - Represents a single product row inside the category card.
+   - Root layout: FrameLayout (to allow overlaying views).
+   - Background layout (normal product view):
+     * A horizontal ConstraintLayout containing:
+       - Left side: 
+         * Product Name (TextView in bold orange).
+         * A mini globe icon (`ImageView` with a grey globe icon) aligned inline, 
+           directly beside/to the right of the Product Name TextView (visible if 
+           `product.is_public` is true).
+         * Description (TextView in grey) placed directly below the name.
+       - Right side: Price (TextView in blue/teal) and Volume/Unit (TextView in grey/blue).
+       - Bottom divider: A horizontal dotted/dashed line view (separated from 
+         next items).
+   - Foreground overlay layout (edit/delete overlay - GONE by default):
+     * A semi-transparent overlay matching the card row size.
+     * Contains: Product info (name, volume, price) on the left.
+     * Right side contains two actions: Edit icon (pencil) and Delete icon (trash bin).
+
+5. New Dialog Layout: dialog_store_details.xml (For Managers & Sales Staff)
+   - Styled CardView popup in the center of the screen.
+   - Header displays Store Name and Branch.
+   - Body contains:
+     * Metadata: Store ID, Created date, Status (Public), Join Store code.
+     * Stats: Categories count, Items count.
+     * Members section: Counts for Members, Owners, Managers, and Sales staff.
+   - Bottom actions: "LEAVE" button (white background, teal text, teal border) and
+     "BACK" button (filled orange background, white text).
+
+6. New Dialog Layout: dialog_owner_menu.xml (For Owners)
+   - A clean, compact rounded CardView dialog popup containing:
+     * Left side: Store Icon, Store Name (bold orange TextView), Store Type (blue/teal 
+       TextView, e.g. "General Merchandise"), and Store Branch (pin icon + grey 
+       TextView, e.g. "Curva branch").
+     * Right side: Two action icons in teal:
+       - Invite Member icon
+       - Store Settings icon
+
+
+PHASE 4 - STATE MANAGEMENT
+--------------------------------------------------------------------------------
+To facilitate role-based features, interactive layouts, and optimistic updates, 
+we will introduce the following states inside HomeActivity.kt:
+
+1. UI States:
+   - activeOverlayProductId (String?): Tracks which product currently has its 
+     Edit/Delete action overlay visible. Only one product can show this overlay 
+     at a time. It is activated ONLY via a Long-click on a product item.
+     Clicking outside or long-clicking a different item clears or shifts this state.
+     Normal clicks/taps on a product item do not open this overlay.
+   - searchSheetState (Enum): Tracks whether the docked bottom sheet is:
+     * HIDDEN (completely off screen, FAB visible)
+     * COLLAPSED (showing search bar and handle, FAB hidden)
+     * EXPANDED (showing bottom quick action drawer, FAB hidden)
+   - currentQuery (String): Stores the search input for filtering.
+   - isRefreshingPricelist (Boolean): Tracks SwipeRefreshLayout status.
+   - isListLoading (Boolean): Toggles visibility of the ShimmerFrameLayout vs 
+     the parent RecyclerView.
+
+2. Data States & Optimistic UI Cache:
+   - userRole (String?): "owner", "manager", or "employee".
+   - storeIsPublic (Boolean): Caches whether the current store is public or private.
+   - groupedProducts (Map<String, List<Product>>): Replaces the flat products list.
+   - cachedBackupProducts (Map<String, List<Product>>?): Holds the backup state 
+     of the product list immediately before executing a write command.
+   - storeStats (StoreMetadata): Cache stores stats (member counts, categories 
+     count) fetched asynchronously to populate the Store Details dialog instantly.
+
+OPTIMISTIC UI UPDATE FLOW:
+1. User triggers an operation (e.g. Deletes product with ID 'X' from category 'Y').
+2. Backup Current State: Copy `groupedProducts` directly into `cachedBackupProducts`.
+3. Apply Mutation Locally: Remove the product from `groupedProducts` list and notify 
+   the adapter to refresh immediately. The UI updates instantly.
+4. Execute Network Request: Trigger the Supabase database write call in a coroutine.
+5. Handle Results:
+   - If Success: Clear `cachedBackupProducts` and complete.
+   - If Failure: Restore `groupedProducts = cachedBackupProducts`, notify adapter to 
+     reinstate the item, and alert the user with a Toast notification.
+
+
+PHASE 6 - NAVIGATION FLOW
+--------------------------------------------------------------------------------
+The application navigation from the Home Screen behaves as follows:
+
+1. Core Screen Loading:
+   Home Screen Launches -> Start Shimmer Loader -> Fetches Store Status & User Role ->
+   Always load all products (both public and private) -> Renders outer category cards -> 
+   Hides Shimmer -> Shows yellow FAB. Bottom sheet starts in HIDDEN status.
+   * If database returns empty -> Show empty state visual container.
+   * If `product.is_public` is true, show the inline globe icon next to the product name.
+
+2. Slide Down / Pull-to-Refresh Flow:
+   Slide down from the top of the category cards list -> Triggers SwipeRefreshLayout
+   indicator -> Calls Supabase get_store_products RPC -> Hides indicator on callback.
+
+3. Bottom Sheet and FAB Toggle Flow:
+   - Tap Yellow FAB -> Bottom Sheet slides up from bottom (COLLAPSED status) ->
+     Yellow FAB is animated/hidden.
+   - Scroll Down Pricelist -> Bottom Sheet slides down completely (HIDDEN status) ->
+     Yellow FAB is animated/visible -> Pricelist bottom margin is removed to fill screen.
+   - Slide/Drag Orange Handle Up -> Bottom Sheet expands (EXPANDED status).
+   - Tap Outside / Swipe Down -> Bottom Sheet goes back to COLLAPSED or HIDDEN state.
+
+4. Dynamic Push Up (Anti-Overlap) Flow:
+   - As the bottom sheet slides up, a BottomSheetCallback listener intercepts the 
+     slide offset.
+   - The list layout's bottom margin is updated in real-time to match the visible 
+     pixel height of the sliding bottom sheet, pushing the list items up dynamically.
+   - When the sheet slides completely down, the bottom margin reverts to 0dp, 
+     stretching the list to the full height of the screen.
+
+5. Search Flow:
+   Type search query in bottom sheet's Edit Text -> Child RecyclerViews instantly 
+   filter to display matches.
+   * If search result is empty -> Show empty state visual container.
+
+6. Quick Action Sheet Flow (Owners & Managers only):
+   In EXPANDED bottom sheet status:
+   - Tap "+ Add Item" -> Launch AddItemActivity (updates list on result).
+   - Tap "Manage Prices" -> Launch ManageItemsActivity.
+   - Tap "Manage Categories" -> Launch ManageCategoryActivity.
+
+7. Options Menu Flow:
+   Tap "..." in banner:
+   - If User is Owner -> Open dialog_owner_menu.xml -> User has options to click 
+     Invite Member or Store Settings. (Store settings allows toggling store `is_public`).
+   - If User is Manager/Staff -> Open dialog_store_details.xml -> Leave Store or Close.
+
+8. Product Action Overlay:
+   Long-press Product item -> Show inline Edit/Delete overlay ->
+   - Tap Pencil icon -> Launch EditItemActivity (prefilled with product data, 
+     including "Public item" toggle switch).
+   - Tap Trash icon -> Perform Optimistic UI Delete -> Delete Confirmation Dialog -> 
+     Trigger Supabase delete call.
+   - Tap background -> Clear activeOverlayProductId and dismiss overlay.
+   - (Note: Normal taps/clicks do not trigger this overlay, avoiding mis-clicks).
+
+
+PHASE 7 - DEVELOPMENT TASKS
+--------------------------------------------------------------------------------
+Implementation will proceed sequentially in the following prioritized order:
+
+TASK 1: DATABASE MIGRATION [COMPLETED]
+- Run SQL migration script to add 'is_public' column to both 'stores' and 'products' tables.
+- Create 'suki_relationships' table with index and RLS policies mapping access 
+  to authenticated users.
+
+TASK 2: REFACTOR MODELS & ADD DATA STRUCTURES [COMPLETED]
+- Update UserStoreRow data class in HomeActivity.kt to include 'is_public'.
+- Update Product data class in HomeActivity.kt / models to include 'is_public'.
+- Create data models for store statistics (StoreStats) and grouped items.
+- Define ProductGroup data class representing a Category and its list of products.
+
+TASK 3: IMPLEMENT GROUPED ADAPTER PATTERN (PARENT-CHILD RECYCLERVIEWS) [COMPLETED]
+- Create CategoryGroupAdapter.kt:
+  * Inflates item_category_card.xml.
+  * Dynamically populates Category name and items size.
+  * Instantiates a child ProductChildAdapter inside childProductRecyclerView.
+- Create ProductChildAdapter.kt:
+  * Inflates item_product_new.xml.
+  * Binds product variables (name, description, price, volume, public status globe).
+  * Manages the visibility of the foreground overlay based on the current 
+    activeOverlayProductId state.
+
+TASK 4: REDESIGN LAYOUTS & SKELETON PLACEHOLDERS [COMPLETED]
+- Modify activity_home.xml: replace old search tools with the bottom sheet layout 
+  and ensure the floating `searchItemButton` remains at the bottom right.
+- Embed `layoutEmptyState` views directly into `activity_home.xml` using a vertical 
+  LinearLayout centered within the parent container.
+- Wrap the main productRecyclerView inside activity_home.xml with a
+  androidx.swiperefreshlayout.widget.SwipeRefreshLayout.
+- Add com.facebook.shimmer.ShimmerFrameLayout container.
+- Create layout files: layout_home_shimmer.xml, item_category_card.xml, 
+  item_product_new.xml, dialog_store_details.xml, and dialog_owner_menu.xml.
+  * Position the mini globe `ImageView` directly adjacent/to the right of the 
+    Product Name `TextView` (e.g. using a horizontal layout or constraints: 
+    app:layout_constraintStart_toEndOf="@id/textProductName" and 
+    app:layout_constraintTop_toTopOf="@id/textProductName").
+- Import shimmer dependency in app/build.gradle:
+  `implementation 'com.facebook.shimmer:shimmer:0.5.0'`
+
+TASK 5: BOTTOM SHEET AND FAB INTERACTION LOGIC [COMPLETED]
+- Bind Search EditText inside bottom sheet to trigger search queries.
+- Configure BottomSheetBehavior on the bottom sheet container:
+  * Enable callback to hide `searchItemButton` when sheet is not HIDDEN.
+  * Listen to offset changes and programmatically update the layout params bottom margin 
+    of the main RecyclerView (or SwipeRefreshLayout container) to match the visible 
+    height of the sheet, pushing the list up dynamically.
+- Attach `RecyclerView.OnScrollListener` to productRecyclerView:
+  * If scrolling down (dy > 0), set BottomSheetBehavior state to STATE_HIDDEN, 
+    making bottom sheet slide down out of view, and set `searchItemButton` to visible.
+- Bind `searchItemButton` click listener to set BottomSheetBehavior state to 
+  STATE_COLLAPSED, sliding the sheet up and hiding the FAB.
+- Apply role checks: hide handle and drawer views if userRole == "employee".
+
+TASK 6: SWIPEREFRESHLAYOUT & SHIMMER INTEGRATION [COMPLETED]
+- Configure SwipeRefreshLayout inside HomeActivity.kt:
+  * Set color scheme: setColorSchemeResources(R.color.presyo_teal, R.color.presyo_orange).
+  * Bind setOnRefreshListener to reload products.
+- Configure Shimmer skeleton visibility controls:
+  * Enable/Start Shimmer on starting database fetches.
+  * Stop/Hide Shimmer and display productRecyclerView on load complete.
+
+TASK 7: VISIBILITY DYNAMICS & EMPTY STATES [COMPLETED]
+- Write view bindings to toggle visibility of `layoutEmptyState` container in `activity_home.xml`.
+- Load all items. If list is empty, show `layoutEmptyState`.
+
+TASK 8: INLINE EDIT/DELETE OVERLAY INTERACTIVITY (LONG-PRESS ONLY) [COMPLETED]
+- In ProductChildAdapter, bind setOnLongClickListener on product rows.
+- When long-clicked, update activeOverlayProductId inside HomeActivity and notify 
+  the adapters to refresh, displaying the pencil and trash overlay inline.
+- Ignore standard clicks/taps on product rows.
+- Bind pencil to EditItemActivity (allowing toggling the product `is_public` field).
+
+TASK 9: OPTIMISTIC UI WRITING & ROLLBACKS [COMPLETED]
+- Implement delete/edit/add handlers in HomeActivity.kt using local list mutations:
+  * Delete: Mutate local list, notify adapter, call Supabase delete asynchronously.
+  * On failure: Restore `cachedBackupProducts` state and show warning Toast.
+
+TASK 10: DIALOG RENDERING REFACTOR [COMPLETED]
+- In HomeActivity.kt, update btnStoreOptions.setOnClickListener.
+- Write logic to fetch store details count (total categories, items, and role 
+  members from store_members table).
+- Display dialog_owner_menu.xml for owners, and dialog_store_details.xml for 
+  managers/staff, binding the "Leave Store" RPC call.
+- Bind the click targets for the Invite and Store Settings icons in the owner dialog.
+- Inside Store Settings activity/dialog, provide a toggle to switch store `is_public` 
+  and push update to Supabase.
+
+TASK 11: INTEGRATION & TESTING
+- Verify correct item grouping logic.
+- Verify Shimmer visual fidelity on slow networks.
+- Test toggling a store's public setting and verify product toggles function in DB.
+- Verify the public globe icon renders inline directly beside the product name when `is_public == true`.
+- Test Optimistic UI rollbacks by cutting internet connection and triggering a delete.
+- Test scroll smoothness, ensuring list pushes up on sheet expansion and takes full 
+  height when sheet is hidden.
+- Test role-based permissions under multiple profiles.
+
+
+PHASE 8 - RISKS AND EDGE CASES
+--------------------------------------------------------------------------------
+1. Nested RecyclerView Scroll lag:
+   - Risk: Having nested scrollable inputs can lead to stuttering frame rates.
+   - Mitigation: Set nested scrolling to false on the child recyclerviews 
+     (childProductRecyclerView.isNestedScrollingEnabled = false). Use 
+     RecyclerView.RecycledViewPool shared across child adapters if necessary.
+     (make sure that no lag occurs when scrolling)
+2. Soft Keyboard UI distortion:
+   - Risk: Toggling the search edit text will raise the keyboard, potentially 
+     crushing list items or pushing the bottom sheet off screen.
+   - Mitigation: Use windowSoftInputMode="adjustResize" in AndroidManifest.xml 
+     and ensure the bottom sheet layout height/gravity matches requirements.
+3. RLS / Role Sync delays:
+   - Risk: If a user is demoted or leaves, cached roles might allow unauthorized 
+     database actions, causing RLS exceptions.
+   - Mitigation: Ensure appropriate error handling (try-catch) on Supabase CRUD 
+     actions, showing clear toasts and refreshing local views immediately.
+4. SwipeRefresh Conflict with Scroll:
+   - Risk: Dragging down to collapse the bottom sheet or scroll the list could 
+     trigger SwipeRefresh prematurely.
+   - Mitigation: Enable/disable the SwipeRefreshLayout.isEnabled flag dynamically 
+     based on the scroll position of the RecyclerView (only enable when scrollY == 0).
+5. Optimistic Action Race Conditions:
+   - Risk: User performs multiple rapid actions (e.g. deletes 2 products in rapid 
+     succession). If the first fails, the rollback might restore the second 
+     deleted product incorrectly or clash with pending requests.
+   - Mitigation: Use a FIFO request queue for mutations, or disable other actions 
+     temporarily during the short asynchronous execution window if conflict risk is high.
+================================================================================

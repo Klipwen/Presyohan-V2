@@ -62,6 +62,8 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private var simpleAdapter: SimpleCategoryAdapter? = null
     private val categoryIdByName = mutableMapOf<String, String>()
     private var existingProductNames = mutableSetOf<String>()
+    private var isCategoriesLoaded = false
+    private var hasAutoOpenedCategoryMenu = false
 
     // File Picker and Dialog state
     private var selectedExcelUri: Uri? = null
@@ -115,6 +117,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                     setupSimpleRecyclerView()
                     updateSubHeaderCount()
                     isSessionInitialized = true
+                    checkAutoOpenCategoryMenu()
                 }
             }
         }
@@ -128,6 +131,8 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         viewModel.categoryIdByName.observe(this) { cats ->
             categoryIdByName.clear()
             categoryIdByName.putAll(cats)
+            isCategoriesLoaded = true
+            checkAutoOpenCategoryMenu()
         }
         viewModel.existingProductNames.observe(this) { prods ->
             existingProductNames.clear()
@@ -141,6 +146,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
         initViews()
         setupDrawer()
+        checkAutoOpenCategoryMenu()
 
         // Load/create session
         val sId = storeId
@@ -377,64 +383,70 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
-            val dbProds = ImportValidationUseCase().fetchExistingProducts(session.storeId)
-            val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
-
-            var parseResult: ParseResult? = null
-            var fallbackUsed = false
-            var apiExceptionMessage: String? = null
-
-            if (BuildConfig.GEMINI_API_KEY.isNotBlank() && BuildConfig.GEMINI_API_KEY != "YOUR_API_KEY_HERE") {
-                try {
-                    parseResult = GeminiParser.parseText(raw, categoryIdByName, existingProducts)
-                } catch (e: Exception) {
-                    android.util.Log.e("AddMultipleItems", "Gemini parsing failed during preview", e)
-                    apiExceptionMessage = e.message ?: e.toString()
-                    fallbackUsed = true
+            try {
+                val dbProds = withContext(Dispatchers.IO) {
+                    ImportValidationUseCase().fetchExistingProducts(session.storeId)
                 }
-            } else {
-                fallbackUsed = true
-            }
+                val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
 
-            if (fallbackUsed || parseResult == null) {
-                parseResult = AddMultipleItemsParser.parseTextToResult(raw, existingProducts)
                 withContext(Dispatchers.Main) {
-                    val msg = if (apiExceptionMessage != null) {
-                        "AI Parser unavailable: $apiExceptionMessage. Using offline parser."
-                    } else {
-                        "AI Parser unavailable. Using offline parser."
-                    }
-                    Toast.makeText(this@AddMultipleItemsActivity, msg, Toast.LENGTH_LONG).show()
+                    LoadingOverlayHelper.hide(loadingOverlay)
+
+                    AiParsingDialogHelper(
+                        activity = this@AddMultipleItemsActivity,
+                        coroutineScope = lifecycleScope,
+                        rawText = raw,
+                        categoryIdByName = categoryIdByName,
+                        existingProductNames = existingProducts,
+                        onSuccess = { parseResult ->
+                            LoadingOverlayHelper.show(loadingOverlay)
+                            lifecycleScope.launch {
+                                try {
+                                    val mappedCategories = parseResult.categories.map { cat ->
+                                        val normName = cat.name.trim().uppercase()
+                                        val catId = categoryIdByName[normName] ?: cat.categoryId
+                                        cat.copy(
+                                            categoryId = catId,
+                                            items = cat.items.map { item ->
+                                                item.copy(categoryId = catId)
+                                            }.toMutableList()
+                                        )
+                                    }.toMutableList()
+                                    val updatedSession = session.copy(
+                                        categories = mappedCategories,
+                                        isDirty = true
+                                    )
+                                    val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+                                    val validatedSession = withContext(Dispatchers.IO) {
+                                        ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
+                                    }
+
+                                    viewModel.updateSession(validatedSession)
+
+                                    withContext(Dispatchers.Main) {
+                                        LoadingOverlayHelper.hide(loadingOverlay)
+                                        val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
+                                            putExtra("draftSessionId", validatedSession.sessionId)
+                                            putExtra("storeId", storeId)
+                                            putExtra("storeName", storeName)
+                                        }
+                                        startActivity(intent)
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        LoadingOverlayHelper.hide(loadingOverlay)
+                                        Toast.makeText(this@AddMultipleItemsActivity, "Failed to save smart parse session: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        }
+                    ).show()
                 }
-            }
-
-            val mappedCategories = parseResult!!.categories.map { cat ->
-                val normName = cat.name.trim().uppercase()
-                val catId = categoryIdByName[normName] ?: cat.categoryId
-                cat.copy(
-                    categoryId = catId,
-                    items = cat.items.map { item ->
-                        item.copy(categoryId = catId)
-                    }.toMutableList()
-                )
-            }.toMutableList()
-            val updatedSession = session.copy(
-                categories = mappedCategories,
-                isDirty = true
-            )
-            val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
-            val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
-
-            viewModel.updateSession(validatedSession)
-
-            withContext(Dispatchers.Main) {
-                LoadingOverlayHelper.hide(loadingOverlay)
-                val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
-                    putExtra("draftSessionId", validatedSession.sessionId)
-                    putExtra("storeId", storeId)
-                    putExtra("storeName", storeName)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                    Toast.makeText(this@AddMultipleItemsActivity, "Failed to fetch database products: ${e.message}", Toast.LENGTH_LONG).show()
                 }
-                startActivity(intent)
             }
         }
     }
@@ -592,62 +604,62 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
     private fun performPasteImport(text: String) {
         val session = viewModel.draftSession.value ?: return
+        
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
-                val dbProds = ImportValidationUseCase().fetchExistingProducts(session.storeId)
+                val dbProds = withContext(Dispatchers.IO) {
+                    ImportValidationUseCase().fetchExistingProducts(session.storeId)
+                }
                 val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
-
-                var parseResult: ParseResult? = null
-                var fallbackUsed = false
-                var apiExceptionMessage: String? = null
-
-                if (BuildConfig.GEMINI_API_KEY.isNotBlank() && BuildConfig.GEMINI_API_KEY != "YOUR_API_KEY_HERE") {
-                    try {
-                        parseResult = GeminiParser.parseText(text, categoryIdByName, existingProducts)
-                    } catch (e: Exception) {
-                        android.util.Log.e("AddMultipleItems", "Gemini parsing failed during paste import", e)
-                        apiExceptionMessage = e.message ?: e.toString()
-                        fallbackUsed = true
-                    }
-                } else {
-                    fallbackUsed = true
-                }
-
-                if (fallbackUsed || parseResult == null) {
-                    parseResult = AddMultipleItemsParser.parseTextToResult(text, existingProducts)
-                    withContext(Dispatchers.Main) {
-                        val msg = if (apiExceptionMessage != null) {
-                            "AI Parser unavailable: $apiExceptionMessage. Using offline parser."
-                        } else {
-                            "AI Parser unavailable. Using offline parser."
-                        }
-                        Toast.makeText(this@AddMultipleItemsActivity, msg, Toast.LENGTH_LONG).show()
-                    }
-                }
-
-                val updatedSession = session.copy(
-                    categories = parseResult!!.categories.toMutableList(),
-                    isDirty = true
-                )
-
-                val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
-                val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
-                viewModel.updateSession(validatedSession)
 
                 withContext(Dispatchers.Main) {
                     LoadingOverlayHelper.hide(loadingOverlay)
-                    val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
-                        putExtra("draftSessionId", validatedSession.sessionId)
-                        putExtra("storeId", storeId)
-                        putExtra("storeName", storeName)
-                    }
-                    startActivity(intent)
+
+                    AiParsingDialogHelper(
+                        activity = this@AddMultipleItemsActivity,
+                        coroutineScope = lifecycleScope,
+                        rawText = text,
+                        categoryIdByName = categoryIdByName,
+                        existingProductNames = existingProducts,
+                        onSuccess = { parseResult ->
+                            LoadingOverlayHelper.show(loadingOverlay)
+                            lifecycleScope.launch {
+                                try {
+                                    val updatedSession = session.copy(
+                                        categories = parseResult.categories.toMutableList(),
+                                        isDirty = true
+                                    )
+
+                                    val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+                                    val validatedSession = withContext(Dispatchers.IO) {
+                                        ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
+                                    }
+                                    viewModel.updateSession(validatedSession)
+
+                                    withContext(Dispatchers.Main) {
+                                        LoadingOverlayHelper.hide(loadingOverlay)
+                                        val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
+                                            putExtra("draftSessionId", validatedSession.sessionId)
+                                            putExtra("storeId", storeId)
+                                            putExtra("storeName", storeName)
+                                        }
+                                        startActivity(intent)
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        LoadingOverlayHelper.hide(loadingOverlay)
+                                        Toast.makeText(this@AddMultipleItemsActivity, "Failed to save paste parse session: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                        }
+                    ).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     LoadingOverlayHelper.hide(loadingOverlay)
-                    Toast.makeText(this@AddMultipleItemsActivity, "Failed to parse text: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@AddMultipleItemsActivity, "Failed to fetch database products: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -688,6 +700,15 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             }
             drawerLayout.close()
             true
+        }
+    }
+
+    private fun checkAutoOpenCategoryMenu() {
+        val isFromReview = intent.getBooleanExtra("isFromReview", false)
+        val showImportDialog = intent.getBooleanExtra("showImportDialog", false)
+        if (!isFromReview && !showImportDialog && isSessionInitialized && isCategoriesLoaded && localCategories.isEmpty() && currentMode == EntryMode.SIMPLE && !hasAutoOpenedCategoryMenu && ::btnSelectCategoryBottom.isInitialized) {
+            hasAutoOpenedCategoryMenu = true
+            showCategorySelectorMenu()
         }
     }
 

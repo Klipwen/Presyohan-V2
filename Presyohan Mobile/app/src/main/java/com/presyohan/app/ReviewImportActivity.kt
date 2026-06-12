@@ -107,6 +107,7 @@ class ReviewImportActivity : AppCompatActivity() {
                 putExtra("storeId", storeId)
                 putExtra("storeName", storeName)
                 putExtra("draftSessionId", draftSessionId)
+                putExtra("isFromReview", true)
             }
             startActivity(intent)
             finish()
@@ -471,10 +472,17 @@ class ReviewImportActivity : AppCompatActivity() {
                 // Price display
                 val priceVal = item.price
                 if (priceVal != null) {
-                    holder.itemPrice.text = String.format("₱%.2f", priceVal)
+                    holder.itemPrice.text = "₱%,.2f".format(java.util.Locale.US, priceVal)
                     holder.itemPrice.setTextColor(Color.parseColor("#219EBC"))
                 } else {
-                    holder.itemPrice.text = item.priceText.ifBlank { "₱0.00" }
+                    val rawPriceText = item.priceText.trim()
+                    val numericOnly = rawPriceText.replace("₱", "").replace(",", "").trim()
+                    val parsed = numericOnly.toDoubleOrNull()
+                    if (parsed != null) {
+                        holder.itemPrice.text = "₱%,.2f".format(java.util.Locale.US, parsed)
+                    } else {
+                        holder.itemPrice.text = if (rawPriceText.isBlank()) "₱0.00" else rawPriceText
+                    }
                     holder.itemPrice.setTextColor(Color.parseColor("#FB8500"))
                 }
 

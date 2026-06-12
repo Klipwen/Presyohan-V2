@@ -186,7 +186,7 @@ class EditItemActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val price = s.toString().toDoubleOrNull() ?: 0.0
-                priceDisplay.text = "₱ %.2f".format(price)
+                priceDisplay.text = "₱ %,.2f".format(java.util.Locale.US, price)
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })

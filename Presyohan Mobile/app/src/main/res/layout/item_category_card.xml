@@ -1,39 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/bg_rounded"
-    android:paddingTop="12dp"
-    android:paddingBottom="4dp"
-    android:layout_marginBottom="8dp">
+    android:layout_marginBottom="8dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    app:cardCornerRadius="36dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/white">
 
-    <TextView
-        android:id="@+id/textCategoryHeader"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="CATEGORY NAME"
-        android:textColor="@color/presyo_orange"
-        android:gravity="center"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:textAllCaps="true"/>
+        android:orientation="vertical"
+        android:padding="28dp">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewItems"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:nestedScrollingEnabled="false" />
+        <!-- Header Row -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp">
 
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/buttonAddItem"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:backgroundTint="@color/presyo_orange"
-        android:text="Add Item"
-        android:textColor="@android:color/white"
-        android:textStyle="bold"
-        android:layout_marginStart="14dp"
-        android:layout_marginEnd="14dp"/>
+            <TextView
+                android:id="@+id/textCategoryName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:text="DRINKS"
+                android:textColor="@color/presyo_teal"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-</LinearLayout> 
+            <TextView
+                android:id="@+id/textItemCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="3 Items"
+                android:textColor="#888888"
+                android:textSize="12sp" />
+
+        </RelativeLayout>
+
+        <!-- Divider Line -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Nested RecyclerView for products -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/childRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

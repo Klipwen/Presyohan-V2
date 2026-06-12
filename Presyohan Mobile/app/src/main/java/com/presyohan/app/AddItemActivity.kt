@@ -161,7 +161,7 @@ class AddItemActivity : AppCompatActivity() {
                 if (s.isNullOrEmpty()) {
                     priceDisplay.visibility = View.GONE
                 } else {
-                    priceDisplay.text = "₱ %.2f".format(price)
+                    priceDisplay.text = "₱ %,.2f".format(java.util.Locale.US, price)
                     priceDisplay.visibility = View.VISIBLE
                 }
             }
