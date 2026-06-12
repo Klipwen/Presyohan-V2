@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="8dp"
+    app:cardBackgroundColor="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:gravity="center_horizontal">
+
+        <!-- Store Logo / Icon -->
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/icon_store"
+            android:contentDescription="Store Logo"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Store Name -->
+        <TextView
+            android:id="@+id/dialogStoreName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Store Name"
+            android:textColor="@color/presyo_orange"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <!-- Store Branch -->
+        <TextView
+            android:id="@+id/dialogStoreBranch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Curva branch"
+            android:textColor="#888888"
+            android:textSize="14sp"
+            android:layout_marginTop="2dp"
+            android:gravity="center" />
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginVertical="16dp" />
+
+        <!-- Metadata Section (Left column key, right column value) -->
+        <TableLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stretchColumns="1"
+            android:layout_marginBottom="8dp">
+
+            <TableRow android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Categories:"
+                    android:textColor="#555555"
+                    android:textSize="13sp" />
+                <TextView
+                    android:id="@+id/dialogCategoriesCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </TableRow>
+
+            <TableRow android:layout_marginBottom="12dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Items:"
+                    android:textColor="#555555"
+                    android:textSize="13sp" />
+                <TextView
+                    android:id="@+id/dialogItemsCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </TableRow>
+
+            <TableRow android:layout_marginBottom="4dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Members:"
+                    android:textColor="#555555"
+                    android:textSize="13sp" />
+                <TextView
+                    android:id="@+id/dialogMembersCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </TableRow>
+
+        </TableLayout>
+
+        <!-- Bullet lists for members roles counts -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/dialogOwnersCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="• Owners: 0"
+                android:textColor="#777777"
+                android:textSize="12sp"
+                android:layout_marginBottom="2dp"/>
+
+            <TextView
+                android:id="@+id/dialogManagersCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="• Managers: 0"
+                android:textColor="#777777"
+                android:textSize="12sp"
+                android:layout_marginBottom="2dp"/>
+
+            <TextView
+                android:id="@+id/dialogEmployeesCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="• Sales staff: 0"
+                android:textColor="#777777"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Store Visibility Toggle -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Public Store Visibility"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switchStoreVisibility"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:thumbTint="@color/presyo_teal"
+                app:trackTint="#B0BEC5" />
+
+        </LinearLayout>
+
+        <!-- Quick Actions Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:weightSum="2"
+            android:layout_marginBottom="16dp">
+
+            <!-- Settings Button -->
+            <LinearLayout
+                android:id="@+id/layoutSettings"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="?attr/selectableItemBackground"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_settings"
+                    app:tint="@color/presyo_teal"
+                    android:contentDescription="Settings"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Store Settings"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- Invite Staff Button -->
+            <LinearLayout
+                android:id="@+id/layoutInvite"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="?attr/selectableItemBackground"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_people"
+                    app:tint="@color/presyo_teal"
+                    android:contentDescription="Invite Members"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Invite Members"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Back Button -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnBack"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@drawable/button_round"
+            android:backgroundTint="@color/presyo_orange"
+            android:text="BACK"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

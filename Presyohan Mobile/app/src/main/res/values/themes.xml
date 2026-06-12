@@ -2,7 +2,7 @@
 <resources>
 
     <style name="Theme.Presyohan" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/presyo_darkblue</item>
+        <item name="android:statusBarColor">@color/black</item>
         <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

@@ -32,7 +32,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.navigation.NavigationView
-import com.presyohan.app.adapter.ProductAdapter
+import com.presyohan.app.adapter.CategoryGroupAdapter
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
@@ -72,6 +72,8 @@ class HomeActivity : AppCompatActivity() {
     private var currentQuery: String = ""
     private var reloadProductsFn: (() -> Unit)? = null
     private lateinit var loadingOverlay: android.view.View
+    private var activeOverlayProductId: String? = null
+    private var productGroups: List<ProductGroup> = emptyList()
 
     // Store details
     private var currentStoreId: String? = null
@@ -109,7 +111,8 @@ class HomeActivity : AppCompatActivity() {
         val description: String? = null,
         val price: Double = 0.0,
         val units: String? = null,
-        val category: String? = null
+        val category: String? = null,
+        val is_public: Boolean = false
     )
 
     @Serializable
@@ -126,7 +129,8 @@ class HomeActivity : AppCompatActivity() {
         val description: String? = null,
         val price: Double = 0.0,
         val units: String? = null,
-        val category: String? = null
+        val category: String? = null,
+        val is_public: Boolean = false
     )
 
     @Serializable
@@ -135,7 +139,23 @@ class HomeActivity : AppCompatActivity() {
         val name: String,
         val branch: String? = null,
         val type: String? = null,
-        val role: String
+        val role: String,
+        val is_public: Boolean = false
+    )
+
+    data class StoreStats(
+        val categoriesCount: Int = 0,
+        val productsCount: Int = 0,
+        val membersCount: Int = 0,
+        val ownersCount: Int = 0,
+        val managersCount: Int = 0,
+        val employeesCount: Int = 0
+    )
+
+    data class ProductGroup(
+        val categoryName: String,
+        val itemCount: Int,
+        val products: List<com.presyohan.app.adapter.Product>
     )
 
     @Serializable
@@ -222,15 +242,14 @@ class HomeActivity : AppCompatActivity() {
         val categorySpinner = findViewById<Spinner>(R.id.categorySpinner)
         val categoryDrawerButton = findViewById<ImageView>(R.id.categoryDrawerButton)
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
-        val searchItemButton = findViewById<ImageView>(R.id.searchItemButton)
-        val btnPerformSearch = findViewById<ImageView>(R.id.btnPerformSearch)
+        val searchItemButton = findViewById<android.widget.ImageButton>(R.id.searchItemButton)
         val btnStoreOptions = findViewById<ImageView>(R.id.btnStoreOptions)
 
         // Assign to class-level vars
-        searchBarContainer = findViewById(R.id.searchBarContainer)
-        searchEditText = findViewById(R.id.searchEditText)
+        searchBarContainer = findViewById(R.id.bottomSheet)
+        searchEditText = findViewById(R.id.bottomSearchEditText)
         layoutPricelistTrigger = findViewById(R.id.layoutPricelistTrigger)
-        addButton = findViewById(R.id.addButton)
+        addButton = findViewById(R.id.btnSheetAddItem)
 
         if (searchBarContainer == null || layoutPricelistTrigger == null || addButton == null) {
             Log.e("HomeActivity", "Critical views not found in XML")
@@ -282,26 +301,45 @@ class HomeActivity : AppCompatActivity() {
         }
 
         // --- Product List & Role Logic ---
-        val products = mutableListOf<com.presyohan.app.adapter.Product>()
-        val adapter = ProductAdapter(products, userRole,
-            onOptionsClick = { product, anchor ->
-                if (userRole == "owner" || userRole == "manager") {
-                    showManageItemDialog(product, currentStoreId, currentStoreName)
-                }
+        val adapter = com.presyohan.app.adapter.CategoryGroupAdapter(
+            groups = productGroups,
+            userRole = userRole,
+            activeOverlayProductId = activeOverlayProductId,
+            onEditClick = { product ->
+                if (currentStoreId.isNullOrBlank()) return@CategoryGroupAdapter
+                val intent = Intent(this, EditItemActivity::class.java)
+                intent.putExtra("productId", product.id)
+                intent.putExtra("productName", product.name)
+                intent.putExtra("productDescription", product.description)
+                intent.putExtra("productPrice", product.price)
+                intent.putExtra("productUnit", product.volume)
+                intent.putExtra("productCategory", product.category)
+                intent.putExtra("storeId", currentStoreId)
+                intent.putExtra("storeName", currentStoreName)
+                editItemLauncher.launch(intent)
             },
-            onLongPress = { product, anchor ->
-                if (userRole == "owner" || userRole == "manager") {
-                    showManageItemDialog(product, currentStoreId, currentStoreName)
+            onDeleteClick = { product ->
+                showDeleteConfirmationDialog(product)
+            },
+            onItemLongPressed = { product ->
+                // Toggle active overlay on long-press
+                activeOverlayProductId = if (activeOverlayProductId == product.id) null else product.id
+                (productRecyclerView.adapter as? com.presyohan.app.adapter.CategoryGroupAdapter)?.updateActiveOverlayProductId(activeOverlayProductId)
+            },
+            onItemClicked = {
+                // Dismiss active overlay when clicking an item normally
+                if (activeOverlayProductId != null) {
+                    activeOverlayProductId = null
+                    (productRecyclerView.adapter as? com.presyohan.app.adapter.CategoryGroupAdapter)?.updateActiveOverlayProductId(null)
                 }
             }
         )
 
-        productRecyclerView.layoutManager = GridLayoutManager(this, 2)
+        productRecyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         productRecyclerView.adapter = adapter
 
         // Fetch user role and update UI accordingly
         if (userId != null && currentStoreId != null) {
-            LoadingOverlayHelper.show(loadingOverlay)
             lifecycleScope.launch {
                 try {
                     val members = supabase.postgrest["store_members"]
@@ -324,7 +362,6 @@ class HomeActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Role fetch failed", e)
                 }
-                LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
 
@@ -342,10 +379,22 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
+        val swipeRefreshLayout = findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(R.id.swipeRefreshLayout)
+        swipeRefreshLayout.setColorSchemeResources(R.color.presyo_orange)
+        val shimmerContainer = findViewById<com.facebook.shimmer.ShimmerFrameLayout>(R.id.shimmerContainer)
+        val layoutEmptyState = findViewById<android.view.View>(R.id.layoutEmptyState)
+
         // --- Search Functionality (Supabase) ---
         fun loadProductsFromSupabase(showLoading: Boolean = false) {
             val sId = currentStoreId ?: return
-            if (showLoading) LoadingOverlayHelper.show(loadingOverlay)
+            
+            if (showLoading) {
+                shimmerContainer.visibility = View.VISIBLE
+                shimmerContainer.startShimmer()
+                productRecyclerView.visibility = View.GONE
+                layoutEmptyState.visibility = View.GONE
+            }
+
             lifecycleScope.launch {
                 try {
                     val query = currentQuery.takeIf { it.isNotBlank() }
@@ -360,22 +409,55 @@ class HomeActivity : AppCompatActivity() {
                         }
                     ).decodeList<UserProductRow>()
 
-                    products.clear()
-                    for (row in rows) {
-                        products.add(
-                            com.presyohan.app.adapter.Product(
-                                row.product_id, row.name, row.description ?: "",
-                                row.price, row.units ?: "", row.category ?: ""
-                            )
+                    val rawProducts = rows.map { row ->
+                        com.presyohan.app.adapter.Product(
+                            row.product_id, row.name, row.description ?: "",
+                            row.price, row.units ?: "", row.category ?: "",
+                            is_public = row.is_public
                         )
                     }
-                    adapter.updateProducts(products)
+
+                    // Group by category, sort categories alphabetically, sort items alphabetically
+                    val groupedMap = rawProducts.groupBy { it.category.trim() }
+                    val sortedGroups = groupedMap.entries.sortedBy { it.key.lowercase() }.map { entry ->
+                        ProductGroup(
+                            categoryName = entry.key,
+                            itemCount = entry.value.size,
+                            products = entry.value.sortedBy { it.name.lowercase() }
+                        )
+                    }
+
+                    productGroups = sortedGroups
+                    adapter.updateGroups(productGroups, activeOverlayProductId)
+
+                    // Update UI Visibility
+                    if (productGroups.isEmpty()) {
+                        layoutEmptyState.visibility = View.VISIBLE
+                        productRecyclerView.visibility = View.GONE
+                    } else {
+                        layoutEmptyState.visibility = View.GONE
+                        productRecyclerView.visibility = View.VISIBLE
+                    }
 
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Products load failed", e)
+                    // Fallback empty state if load failed
+                    if (productGroups.isEmpty()) {
+                        layoutEmptyState.visibility = View.VISIBLE
+                        productRecyclerView.visibility = View.GONE
+                    }
+                } finally {
+                    swipeRefreshLayout.isRefreshing = false
+                    if (showLoading) {
+                        shimmerContainer.stopShimmer()
+                        shimmerContainer.visibility = View.GONE
+                    }
                 }
-                if (showLoading) LoadingOverlayHelper.hide(loadingOverlay)
             }
+        }
+
+        swipeRefreshLayout.setOnRefreshListener {
+            loadProductsFromSupabase(false)
         }
 
         // Initial Load
@@ -384,76 +466,118 @@ class HomeActivity : AppCompatActivity() {
             loadProductsFromSupabase(true)
         }
 
-        // --- Search Bar Behavior Implementation ---
+        // --- Bottom Sheet & Search Behavior Implementation ---
+        val bottomSheetBehavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(searchBarContainer)
+        bottomSheetBehavior.isHideable = true
+        bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
+
+        val btnSearchClear = findViewById<ImageView>(R.id.btnSearchClear)
 
         searchEditText.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentQuery = s.toString().trim().lowercase()
+                btnSearchClear.visibility = if (currentQuery.isNotEmpty()) View.VISIBLE else View.GONE
                 loadProductsFromSupabase(false)
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
-        // Search Button Click (Toggle)
+        btnSearchClear.setOnClickListener {
+            searchEditText.text.clear()
+            currentQuery = ""
+            loadProductsFromSupabase(false)
+        }
+
+        // Search Button Click (Toggle Bottom Sheet State)
         searchItemButton?.setOnClickListener {
-            if (searchBarContainer.visibility == View.VISIBLE) {
-                hideSearchBar(hideKeyboard = true)
-            } else {
-                showSearchBar(showKeyboard = true)
+            bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
+        }
+
+        // Tap handle to toggle sheet state between COLLAPSED and EXPANDED
+        val bottomSheetHandle = findViewById<View>(R.id.bottomSheetHandle)
+        bottomSheetHandle?.setOnClickListener {
+            if (bottomSheetBehavior.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+            } else if (bottomSheetBehavior.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED) {
+                bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
             }
         }
 
-        btnPerformSearch.setOnClickListener {
-            currentQuery = searchEditText.text.toString().trim().lowercase()
-            loadProductsFromSupabase(false)
-            hideKeyboard(searchEditText) // Close keyboard on enter
-        }
+        // Bottom Sheet Behavior Callback
+        bottomSheetBehavior.addBottomSheetCallback(object : com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                when (newState) {
+                    com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED -> {
+                        searchItemButton?.visibility = View.GONE
+                    }
+                    com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED -> {
+                        searchItemButton?.visibility = View.GONE
+                        hideKeyboard(searchEditText)
+                    }
+                    com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN -> {
+                        searchItemButton?.visibility = View.VISIBLE
+                        hideKeyboard(searchEditText)
+                    }
+                    else -> {}
+                }
+            }
 
-        // Scroll Logic for Search Bar (Professional: 0.5s delay, Top check)
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                val collapsedHeight = bottomSheetBehavior.peekHeight
+                val expandedHeight = bottomSheet.height
+                val currentHeight = if (slideOffset >= 0) {
+                    collapsedHeight + (expandedHeight - collapsedHeight) * slideOffset
+                } else {
+                    collapsedHeight * (1 + slideOffset)
+                }
+                val safetyPadding = (16 * resources.displayMetrics.density).toInt()
+                productRecyclerView.setPadding(
+                    productRecyclerView.paddingLeft,
+                    productRecyclerView.paddingTop,
+                    productRecyclerView.paddingRight,
+                    (currentHeight + safetyPadding).toInt()
+                )
+            }
+        })
+
+        // Scroll Logic for Bottom Sheet Interaction
         productRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
-
-                // Cancel pending checks
-                searchVisibilityRunnable?.let { scrollHandler.removeCallbacks(it) }
-
-                val scrollY = recyclerView.computeVerticalScrollOffset()
-
-                // 1. If at very top, show immediately
-                if (scrollY == 0) {
-                    if (searchBarContainer.visibility != View.VISIBLE) {
-                        showSearchBar(showKeyboard = false)
+                
+                // Scrolling down hides bottom sheet completely
+                if (dy > 10) {
+                    if (bottomSheetBehavior.state != com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN) {
+                        bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
                     }
-                    return
-                }
-
-                // 2. Logic for Scrolling UP or DOWN with 0.5s (500ms) delay
-                if (dy > 0) {
-                    // Scrolling DOWN -> Hide after 0.5s
-                    searchVisibilityRunnable = Runnable {
-                        if (searchBarContainer.visibility == View.VISIBLE) {
-                            hideSearchBar(hideKeyboard = true)
-                        }
-                    }
-                    scrollHandler.postDelayed(searchVisibilityRunnable!!, 500)
-
-                } else if (dy < 0) {
-                    // Scrolling UP -> Show after 0.5s
-                    searchVisibilityRunnable = Runnable {
-                        if (searchBarContainer.visibility != View.VISIBLE) {
-                            showSearchBar(showKeyboard = false)
-                        }
-                    }
-                    scrollHandler.postDelayed(searchVisibilityRunnable!!, 500)
                 }
             }
         })
 
+        // Setup bottom sheet quick actions
+        val btnManagePrices = findViewById<View>(R.id.btnManagePrices)
+        btnManagePrices.setOnClickListener {
+            val sId = currentStoreId ?: return@setOnClickListener
+            val intent = Intent(this, ManageItemsActivity::class.java)
+            intent.putExtra("storeId", sId)
+            intent.putExtra("storeName", currentStoreName)
+            startActivity(intent)
+        }
+
+        val btnManageCategories = findViewById<View>(R.id.btnManageCategories)
+        btnManageCategories.setOnClickListener {
+            val sId = currentStoreId ?: return@setOnClickListener
+            val intent = Intent(this, ManageCategoryActivity::class.java)
+            intent.putExtra("storeId", sId)
+            intent.putExtra("storeName", currentStoreName)
+            startActivity(intent)
+        }
+
         // --- Category Logic ---
         setupCategorySpinner(currentStoreId, categoryLabel, categorySpinner, categoryDrawerButton) { category ->
             selectedCategory = category
-            productRecyclerView.layoutManager = GridLayoutManager(this, 2)
+            productRecyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
             loadProductsFromSupabase(true)
         }
         categoryLabel.setOnClickListener { categorySpinner.performClick() }
@@ -486,125 +610,184 @@ class HomeActivity : AppCompatActivity() {
     private fun showStoreMenu() {
         val sId = currentStoreId ?: return
         val sName = currentStoreName ?: "Store"
+        val isOwner = userRole == "owner"
 
         val dialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_menu, null)
+        val view = if (isOwner) {
+            LayoutInflater.from(this).inflate(R.layout.dialog_owner_menu, null)
+        } else {
+            LayoutInflater.from(this).inflate(R.layout.dialog_store_details, null)
+        }
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        // 1. Set Dialog Width to 90% of Screen (Robust sizing for "broken" layout fix)
+        // Set Dialog Width to 90% of Screen
         val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
         dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
-        // Bind Header Views
-        val txtStoreName = view.findViewById<TextView>(R.id.menuStoreName)
-        val txtBranchName = view.findViewById<TextView>(R.id.menuBranchName)
-        val btnLeaveDelete = view.findViewById<ImageView>(R.id.btnLeaveDelete) // Top right icon
-
+        // Bind Common Header Views
+        val txtStoreName = view.findViewById<TextView>(R.id.dialogStoreName)
+        val txtStoreBranch = view.findViewById<TextView>(R.id.dialogStoreBranch)
         txtStoreName.text = sName
-        txtBranchName.text = if (!currentBranchName.isNullOrBlank()) "| $currentBranchName" else ""
+        txtStoreBranch.text = if (!currentBranchName.isNullOrBlank()) "| $currentBranchName" else ""
 
-        // Bind Grid Buttons
-        val btnCopyPrices = view.findViewById<LinearLayout>(R.id.btnCopyPrices)
-        val btnInviteStaff = view.findViewById<LinearLayout>(R.id.btnInviteStaff)
-        val btnExportPrices = view.findViewById<LinearLayout>(R.id.btnExportPrices)
-        val btnImportPrices = view.findViewById<LinearLayout>(R.id.btnImportPrices)
+        val txtCategoriesCount = view.findViewById<TextView>(R.id.dialogCategoriesCount)
+        val txtItemsCount = view.findViewById<TextView>(R.id.dialogItemsCount)
+        val txtMembersCount = view.findViewById<TextView>(R.id.dialogMembersCount)
+        val txtOwnersCount = view.findViewById<TextView>(R.id.dialogOwnersCount)
+        val txtManagersCount = view.findViewById<TextView>(R.id.dialogManagersCount)
+        val txtEmployeesCount = view.findViewById<TextView>(R.id.dialogEmployeesCount)
 
-        // Bind Footer Link
-        val btnSettings = view.findViewById<TextView>(R.id.btnSettings)
+        // Load stats and populate views
+        lifecycleScope.launch {
+            try {
+                // 1. Fetch categories count
+                val categories = supabase.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserCategoryRow>()
+                val categoriesCount = categories.size
 
-        val isOwner = userRole == "owner"
+                // 2. Fetch products count
+                val products = supabase.postgrest.rpc(
+                    "get_store_products",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserProductRow>()
+                val productsCount = products.size
 
-        // --- Set Click Listeners ---
+                // 3. Fetch members count & details
+                val members = supabase.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<StoreMemberUser>()
 
-        // 1. Settings (More Settings)
-        btnSettings.setOnClickListener {
-            val intent = Intent(this, ManageStoreActivity::class.java)
-            intent.putExtra("storeId", sId)
-            intent.putExtra("storeName", currentStoreName)
-            startActivity(intent)
-            dialog.dismiss()
-        }
+                val ownersCount = members.count { it.role.equals("owner", ignoreCase = true) }
+                val managersCount = members.count { it.role.equals("manager", ignoreCase = true) }
+                val employeesCount = members.count { it.role.equals("employee", ignoreCase = true) }
+                val totalMembers = members.size
 
-        // 2. Invite Staff
-        btnInviteStaff.setOnClickListener {
-            dialog.dismiss()
-            showInviteStaffWithCode(sId)
-        }
+                txtCategoriesCount.text = categoriesCount.toString()
+                txtItemsCount.text = productsCount.toString()
+                txtMembersCount.text = totalMembers.toString()
+                txtOwnersCount.text = "• Owners: $ownersCount"
+                txtManagersCount.text = "• Managers: $managersCount"
+                txtEmployeesCount.text = "• Sales staff: $employeesCount"
 
-        // 3. Copy Prices
-        btnCopyPrices.setOnClickListener {
-            val intent = Intent(this, CopyPricesActivity::class.java)
-            intent.putExtra("storeId", sId)
-            intent.putExtra("storeName", currentStoreName)
-            startActivity(intent)
-            dialog.dismiss()
-        }
-
-        // 4. Import Prices -> Show dialog with options
-        btnImportPrices.setOnClickListener {
-            dialog.dismiss()
-            showImportDialogForStore(sId, currentStoreName)
-        }
-
-        // 5. Export Prices
-        btnExportPrices.setOnClickListener {
-            dialog.dismiss()
-            exportPricelistToExcel()
-        }
-
-        // 6. Leave / Delete Logic (Top Right Icon)
-        if (!isOwner) {
-            // STAFF -> Always "Leave"
-            btnLeaveDelete.setImageResource(R.drawable.icon_leave_store)
-            btnLeaveDelete.setColorFilter(ContextCompat.getColor(this, R.color.presyo_teal))
-
-            btnLeaveDelete.setOnClickListener {
-                showLeaveDeleteConfirmation(sId, sName, isDelete = false, dialog)
+            } catch (e: Exception) {
+                Log.e("HomeActivity", "Stats loading failed", e)
             }
-            dialog.show()
-        } else {
-            // OWNER -> Check if sole owner
+        }
+
+        view.findViewById<View>(R.id.btnBack).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        if (isOwner) {
+            // OWNER SPECIFIC BINDINGS
+            val switchStoreVisibility = view.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchStoreVisibility)
+            val layoutSettings = view.findViewById<View>(R.id.layoutSettings)
+            val layoutInvite = view.findViewById<View>(R.id.layoutInvite)
+
+            // Fetch public visibility state of store
             lifecycleScope.launch {
                 try {
-                    val members = supabase.postgrest.rpc(
-                        "get_store_members",
-                        buildJsonObject { put("p_store_id", sId) }
-                    ).decodeList<StoreMemberUser>()
-
-                    val ownerCount = members.count { it.role.equals("owner", ignoreCase = true) }
-                    val isSoleOwner = ownerCount <= 1
-
-                    if (isSoleOwner) {
-                        // Sole Owner -> DELETE
-                        btnLeaveDelete.setImageResource(R.drawable.icon_delete)
-                        val redColor = android.graphics.Color.parseColor("#D32F2F")
-                        btnLeaveDelete.setColorFilter(redColor)
-
-                        btnLeaveDelete.setOnClickListener {
-                            showLeaveDeleteConfirmation(sId, sName, isDelete = true, dialog)
-                        }
-                    } else {
-                        // Multiple Owners -> LEAVE
-                        btnLeaveDelete.setImageResource(R.drawable.icon_leave_store)
-                        btnLeaveDelete.setColorFilter(ContextCompat.getColor(this@HomeActivity, R.color.presyo_teal))
-
-                        btnLeaveDelete.setOnClickListener {
-                            showLeaveDeleteConfirmation(sId, sName, isDelete = false, dialog)
-                        }
-                    }
-                    dialog.show()
-                } catch(e: Exception) {
-                    // Fallback
-                    btnLeaveDelete.setImageResource(R.drawable.icon_leave_store)
-                    btnLeaveDelete.setOnClickListener {
-                        showLeaveDeleteConfirmation(sId, sName, isDelete = false, dialog)
-                    }
-                    dialog.show()
+                    val rows = supabase.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
+                    val row = rows.firstOrNull { it.store_id == sId }
+                    switchStoreVisibility.isChecked = row?.is_public ?: false
+                } catch (e: Exception) {
+                    Log.e("HomeActivity", "Store visibility fetch failed", e)
                 }
             }
+
+            // Set visibility toggle action
+            switchStoreVisibility.setOnCheckedChangeListener { _, isChecked ->
+                lifecycleScope.launch {
+                    try {
+                        supabase.postgrest["stores"].update(
+                            buildJsonObject { put("is_public", isChecked) }
+                        ) {
+                            filter { eq("id", sId) }
+                        }
+                        Toast.makeText(this@HomeActivity, "Store visibility updated.", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@HomeActivity, "Failed to update visibility.", Toast.LENGTH_SHORT).show()
+                        switchStoreVisibility.isChecked = !isChecked // revert
+                    }
+                }
+            }
+
+            layoutSettings.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this, ManageStoreActivity::class.java)
+                intent.putExtra("storeId", sId)
+                intent.putExtra("storeName", sName)
+                startActivity(intent)
+            }
+
+            layoutInvite.setOnClickListener {
+                dialog.dismiss()
+                showInviteStaffWithCode(sId)
+            }
+
+        } else {
+            // STAFF/MANAGER SPECIFIC BINDINGS
+            val txtRoleDesignation = view.findViewById<TextView>(R.id.textRoleDesignation)
+            val txtStoreId = view.findViewById<TextView>(R.id.dialogStoreId)
+            val txtCreatedAt = view.findViewById<TextView>(R.id.dialogCreatedAt)
+            val txtVisibilityStatus = view.findViewById<TextView>(R.id.dialogVisibilityStatus)
+            val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
+            val btnLeaveStore = view.findViewById<View>(R.id.btnLeaveStore)
+
+            txtRoleDesignation.text = "You are the ${userRole?.replaceFirstChar { it.uppercase() } ?: "Staff"} of this store."
+            txtStoreId.text = sId
+
+            // Load store details for staff
+            lifecycleScope.launch {
+                try {
+                    @Serializable
+                    data class StoreDetailsRow(val id: String, val created_at: String? = null, val is_public: Boolean = false, val invite_code: String? = null, val invite_code_created_at: String? = null)
+                    val rows = supabase.postgrest["stores"].select {
+                        filter { eq("id", sId) }
+                        limit(1)
+                    }.decodeList<StoreDetailsRow>()
+                    
+                    val storeRow = rows.firstOrNull()
+                    if (storeRow != null) {
+                        // format created_at date
+                        val dateText = storeRow.created_at?.split("T")?.firstOrNull() ?: "N/A"
+                        txtCreatedAt.text = dateText
+                        txtVisibilityStatus.text = if (storeRow.is_public) "Public" else "Private"
+                        txtVisibilityStatus.setTextColor(
+                            ContextCompat.getColor(this@HomeActivity, if (storeRow.is_public) R.color.presyo_teal else R.color.red)
+                        )
+
+                        // Check invite code expiration
+                        val inviteCode = storeRow.invite_code
+                        val createdIso = storeRow.invite_code_created_at
+                        val createdMillis = parseInviteCreatedMillis(createdIso)
+                        val isExpired = createdMillis == null || (System.currentTimeMillis() - createdMillis > 86400000L)
+                        
+                        txtJoinCode.text = if (isExpired || inviteCode.isNullOrBlank()) {
+                            "Expired"
+                        } else {
+                            inviteCode
+                        }
+                        txtJoinCode.setTextColor(
+                            ContextCompat.getColor(this@HomeActivity, if (isExpired || inviteCode.isNullOrBlank()) R.color.red else R.color.presyo_teal)
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("HomeActivity", "Details loading failed", e)
+                }
+            }
+
+            btnLeaveStore.setOnClickListener {
+                showLeaveDeleteConfirmation(sId, sName, isDelete = false, dialog)
+            }
         }
+
+        dialog.show()
     }
 
     private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog) {
@@ -941,73 +1124,35 @@ class HomeActivity : AppCompatActivity() {
      */
     private fun updateUiForRole(role: String?) {
         val isOwnerOrManager = role == "owner" || role == "manager"
-
-        val params = searchBarContainer.layoutParams as RelativeLayout.LayoutParams
+        val layoutSheetActions = findViewById<View>(R.id.layoutSheetActions)
+        val bottomSheetHandle = findViewById<View>(R.id.bottomSheetHandle)
 
         if (isOwnerOrManager) {
+            layoutSheetActions?.visibility = View.VISIBLE
+            bottomSheetHandle?.visibility = View.VISIBLE
             addButton.visibility = View.VISIBLE
-            params.removeRule(RelativeLayout.CENTER_HORIZONTAL)
-            params.addRule(RelativeLayout.ALIGN_PARENT_START)
-            params.addRule(RelativeLayout.START_OF, R.id.addButton)
-            params.width = RelativeLayout.LayoutParams.WRAP_CONTENT
         } else {
+            layoutSheetActions?.visibility = View.GONE
+            bottomSheetHandle?.visibility = View.GONE
             addButton.visibility = View.GONE
-            params.removeRule(RelativeLayout.START_OF)
-            params.removeRule(RelativeLayout.ALIGN_PARENT_START)
-            params.addRule(RelativeLayout.CENTER_HORIZONTAL)
-            params.width = RelativeLayout.LayoutParams.MATCH_PARENT
         }
 
-        searchBarContainer.layoutParams = params
+        try {
+            val behavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(searchBarContainer)
+            behavior.isDraggable = isOwnerOrManager
+        } catch (e: Exception) {
+            Log.e("HomeActivity", "Failed to update bottom sheet draggable state", e)
+        }
     }
 
-    // --- Search and Scroll Helper Methods ---
+    // --- Search and Scroll Helper Methods (Obsolete in Bottom Sheet design) ---
 
     private fun showSearchBar(showKeyboard: Boolean) {
-        if (searchBarContainer.visibility != View.VISIBLE) {
-            val categoryParams = layoutPricelistTrigger.layoutParams as RelativeLayout.LayoutParams
-            categoryParams.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
-            categoryParams.addRule(RelativeLayout.BELOW, R.id.searchBarContainer)
-            layoutPricelistTrigger.layoutParams = categoryParams
-
-            val addParams = addButton.layoutParams as RelativeLayout.LayoutParams
-            addParams.removeRule(RelativeLayout.ALIGN_BOTTOM)
-            addParams.removeRule(RelativeLayout.ALIGN_TOP)
-            addParams.addRule(RelativeLayout.ALIGN_TOP, R.id.searchBarContainer)
-            addParams.addRule(RelativeLayout.ALIGN_BOTTOM, R.id.searchBarContainer)
-            addButton.layoutParams = addParams
-
-            searchBarContainer.visibility = View.VISIBLE
-        }
-
-        if (showKeyboard) {
-            searchEditText.requestFocus()
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT)
-            isKeyboardOpen = true
-        }
+        // Obsolete in new bottom sheet layout
     }
 
     private fun hideSearchBar(hideKeyboard: Boolean) {
-        if (searchBarContainer.visibility == View.VISIBLE) {
-            searchBarContainer.visibility = View.GONE
-
-            val categoryParams = layoutPricelistTrigger.layoutParams as RelativeLayout.LayoutParams
-            categoryParams.removeRule(RelativeLayout.BELOW)
-            categoryParams.addRule(RelativeLayout.ALIGN_PARENT_TOP)
-            layoutPricelistTrigger.layoutParams = categoryParams
-
-            val addParams = addButton.layoutParams as RelativeLayout.LayoutParams
-            addParams.removeRule(RelativeLayout.ALIGN_TOP)
-            addParams.removeRule(RelativeLayout.ALIGN_BOTTOM)
-            addParams.addRule(RelativeLayout.ALIGN_TOP, R.id.layoutPricelistTrigger)
-            addParams.addRule(RelativeLayout.ALIGN_BOTTOM, R.id.layoutPricelistTrigger)
-            addButton.layoutParams = addParams
-        }
-
-        if (hideKeyboard) {
-            hideKeyboard(searchEditText)
-        }
+        // Obsolete in new bottom sheet layout
     }
 
     private fun hideKeyboard(view: View) {
@@ -1124,8 +1269,14 @@ class HomeActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         view.findViewById<TextView>(R.id.textProductName).text = product.name
-        view.findViewById<TextView>(R.id.textProductDescription).text = product.description
-        view.findViewById<TextView>(R.id.textProductPrice).text = "₱%.2f".format(product.price)
+        val descView = view.findViewById<TextView>(R.id.textProductDescription)
+        if (product.description.isBlank()) {
+            descView.visibility = View.GONE
+        } else {
+            descView.visibility = View.VISIBLE
+            descView.text = product.description
+        }
+        view.findViewById<TextView>(R.id.textProductPrice).text = "₱%,.2f".format(java.util.Locale.US, product.price)
         view.findViewById<TextView>(R.id.textProductUnit).text = product.volume
 
         view.findViewById<ImageView>(R.id.btnEdit).setOnClickListener {
@@ -1169,6 +1320,66 @@ class HomeActivity : AppCompatActivity() {
             confirmDialog.show()
         }
         dialog.show()
+    }
+
+    private fun showDeleteConfirmationDialog(product: com.presyohan.app.adapter.Product) {
+        val sId = currentStoreId ?: return
+        val confirmDialog = android.app.Dialog(this)
+        val confirmView = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
+        confirmDialog.setContentView(confirmView)
+        confirmDialog.setCancelable(true)
+        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Delete Item"
+        confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this item?"
+        confirmView.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
+        confirmView.findViewById<android.widget.Button>(R.id.btnDelete).setOnClickListener {
+            confirmDialog.dismiss()
+            
+            // Backup the current state for rollback
+            val backupGroups = productGroups
+            
+            // Optimistic UI update: remove item locally
+            val updatedGroups = productGroups.map { group ->
+                if (group.products.any { it.id == product.id }) {
+                    val remainingProducts = group.products.filter { it.id != product.id }
+                    group.copy(products = remainingProducts, itemCount = remainingProducts.size)
+                } else {
+                    group
+                }
+            }.filter { it.itemCount > 0 }
+            
+            productGroups = updatedGroups
+            val mainRecyclerView = findViewById<RecyclerView>(R.id.productRecyclerView)
+            val emptyStateView = findViewById<View>(R.id.layoutEmptyState)
+            
+            (mainRecyclerView.adapter as? com.presyohan.app.adapter.CategoryGroupAdapter)?.updateGroups(productGroups, activeOverlayProductId)
+            
+            if (productGroups.isEmpty()) {
+                emptyStateView.visibility = View.VISIBLE
+                mainRecyclerView.visibility = View.GONE
+            }
+            
+            lifecycleScope.launch {
+                try {
+                    supabase.postgrest["products"].delete { filter { eq("id", product.id); eq("store_id", sId) } }
+                    Toast.makeText(this@HomeActivity, "Item deleted.", Toast.LENGTH_SHORT).show()
+                    deleteCategoryIfEmpty(sId, product.category.trim())
+                    // Refresh state to match Supabase exactly
+                    reloadProductsFn?.invoke()
+                } catch(e: Exception) {
+                    Toast.makeText(this@HomeActivity, "Failed to delete item. Reverting change.", Toast.LENGTH_SHORT).show()
+                    // Rollback UI update
+                    productGroups = backupGroups
+                    (mainRecyclerView.adapter as? com.presyohan.app.adapter.CategoryGroupAdapter)?.updateGroups(productGroups, activeOverlayProductId)
+                    if (productGroups.isNotEmpty()) {
+                        emptyStateView.visibility = View.GONE
+                        mainRecyclerView.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+        confirmDialog.show()
     }
 
     private fun loadNotifBadge() {
@@ -1275,8 +1486,28 @@ class HomeActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        val isSearching = currentQuery.isNotEmpty()
+        val isFilteringCategory = selectedCategory != null && selectedCategory != "PRICELIST"
+
+        if (isSearching || isFilteringCategory) {
+            if (isSearching) {
+                searchEditText.text.clear()
+                currentQuery = ""
+            }
+            if (isFilteringCategory) {
+                val categorySpinner = findViewById<Spinner>(R.id.categorySpinner)
+                categorySpinner?.setSelection(0)
+                selectedCategory = "PRICELIST"
+            } else {
+                reloadProductsFn?.invoke()
+            }
+            return
+        }
+
         val now = System.currentTimeMillis()
-        if (now - lastBackPress < 2000) finishAffinity() else {
+        if (now - lastBackPress < 2000) {
+            finishAffinity()
+        } else {
             lastBackPress = now
             Toast.makeText(this, "Press again to exit", Toast.LENGTH_SHORT).show()
         }
@@ -1625,4 +1856,6 @@ class HomeActivity : AppCompatActivity() {
             // ignore
         }
     }
+
+
 }

@@ -16,7 +16,8 @@ data class Product(
     val description: String,
     val price: Double,
     val volume: String,
-    val category: String
+    val category: String,
+    val is_public: Boolean = false
 )
 
 class ProductAdapter(
@@ -41,8 +42,13 @@ class ProductAdapter(
     override fun onBindViewHolder(holder: ProductViewHolder, position: Int) {
         val product = products[position]
         holder.name.text = product.name
-        holder.description.text = product.description
-        holder.price.text = "₱%.2f".format(product.price)
+        if (product.description.isBlank()) {
+            holder.description.visibility = View.GONE
+        } else {
+            holder.description.visibility = View.VISIBLE
+            holder.description.text = product.description
+        }
+        holder.price.text = "₱%,.2f".format(java.util.Locale.US, product.price)
         holder.volume.text = product.volume
         holder.itemView.setOnLongClickListener {
             onLongPress(product, holder.itemView)
