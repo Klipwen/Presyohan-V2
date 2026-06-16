@@ -93,27 +93,19 @@
 
     </RelativeLayout>
 
-    <androidx.cardview.widget.CardView
+    <FrameLayout
         android:id="@+id/layoutOverlay"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="3dp"
-        app:cardBackgroundColor="#F5F5F5"
+        android:background="@drawable/bg_selected_product_overlay"
         android:visibility="gone">
-
-        <View
-            android:layout_width="8dp"
-            android:layout_height="match_parent"
-            android:layout_gravity="start"
-            android:background="@color/presyo_teal" />
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingVertical="8dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="8dp">
+            android:paddingVertical="10dp"
+            android:paddingStart="20dp"
+            android:paddingEnd="16dp">
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -200,6 +192,6 @@
             </LinearLayout>
 
         </RelativeLayout>
-    </androidx.cardview.widget.CardView>
+    </FrameLayout>
 
 </FrameLayout>

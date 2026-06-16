@@ -20,6 +20,9 @@ import com.google.android.material.navigation.NavigationView
 import com.presyohan.app.adapter.Store
 import com.presyohan.app.adapter.StoreAdapter
 import androidx.core.content.ContextCompat
+import android.animation.ValueAnimator
+import android.animation.AnimatorSet
+import android.view.animation.DecelerateInterpolator
 
 import io.github.jan.supabase.auth.auth
 import androidx.lifecycle.lifecycleScope
@@ -62,7 +65,13 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
     private lateinit var navigationView: NavigationView
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: StoreAdapter
-    private val stores = mutableListOf<Store>()
+    private var allStores: List<Store> = emptyList()
+    private var currentSearchQuery: String = ""
+    private var currentRoleFilter: String = "All"
+    private var activeTabId: Int = R.id.chipAll
+    private val searchHandler = Handler(Looper.getMainLooper())
+    private var searchRunnable: Runnable? = null
+    private var isFirstLoad = true
     private var storeRolesMap: Map<String, String> = emptyMap()
     private var lastBackPress: Long = 0
     private lateinit var loadingOverlay: android.view.View
@@ -106,7 +115,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val name: String,
         val branch: String? = null,
         val type: String? = null,
-        val role: String
+        val role: String,
+        val member_count: Int = 0
     )
 
     @Serializable
@@ -163,20 +173,76 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         recyclerView = findViewById(R.id.recyclerViewStores)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = StoreAdapter(stores, emptyMap(), { store, anchor ->
-            showStoreMenu(store, anchor)
-        }, { store ->
-            // On store card tap, open HomeActivity
-            val intent = Intent(this, HomeActivity::class.java)
-            intent.putExtra("storeId", store.id)
-            intent.putExtra("storeName", store.name)
-            startActivity(intent)
-            // Don't finish() here if you want back button to return to list
-        })
+        
+        adapter = StoreAdapter(
+            stores = emptyList(),
+            storeRoles = emptyMap(),
+            onStoreClick = { store ->
+                val intent = Intent(this, HomeActivity::class.java)
+                intent.putExtra("storeId", store.id)
+                intent.putExtra("storeName", store.name)
+                startActivity(intent)
+            },
+            onSettingsClick = { store ->
+                val intent = Intent(this, ManageStoreActivity::class.java)
+                intent.putExtra("storeId", store.id)
+                intent.putExtra("storeName", store.name)
+                startActivity(intent)
+            },
+            onViewClick = { store ->
+                showStoreDetailsDialog(store)
+            },
+            onDeleteClick = { store ->
+                showLeaveDeleteConfirmation(store.id, store.name, isDelete = true, null)
+            },
+            onLeaveClick = { store ->
+                showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, null)
+            }
+        )
         recyclerView.adapter = adapter
 
+        // Attach Swipe Helper
+        val swipeHelper = com.presyohan.app.helper.SwipeRevealTouchHelper(adapter)
+        androidx.recyclerview.widget.ItemTouchHelper(swipeHelper).attachToRecyclerView(recyclerView)
 
-        fetchStores()
+        // --- Search bar listeners ---
+        val searchStoreEditText = findViewById<EditText>(R.id.searchStoreEditText)
+        val btnSearchClear = findViewById<ImageView>(R.id.btnSearchClear)
+        
+        searchStoreEditText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = s.toString().trim()
+                currentSearchQuery = query
+                btnSearchClear.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
+                
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                val runnable = Runnable { applyFilterAndSearch() }
+                searchRunnable = runnable
+                searchHandler.postDelayed(runnable, 300)
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+        
+        btnSearchClear.setOnClickListener {
+            searchStoreEditText.text.clear()
+            currentSearchQuery = ""
+            btnSearchClear.visibility = View.GONE
+            applyFilterAndSearch()
+        }
+
+        // --- Filter Chip listeners ---
+        findViewById<TextView>(R.id.chipAll).setOnClickListener { updateChipSelection(R.id.chipAll) }
+        findViewById<TextView>(R.id.chipOwner).setOnClickListener { updateChipSelection(R.id.chipOwner) }
+        findViewById<TextView>(R.id.chipManager).setOnClickListener { updateChipSelection(R.id.chipManager) }
+        findViewById<TextView>(R.id.chipStaff).setOnClickListener { updateChipSelection(R.id.chipStaff) }
+
+        // --- Swipe Refresh Layout ---
+        val swipeRefreshLayout = findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(R.id.swipeRefreshLayout)
+        swipeRefreshLayout.setColorSchemeResources(R.color.presyo_orange)
+        swipeRefreshLayout.setOnRefreshListener {
+            fetchStores(showShimmer = false)
+        }
 
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
         notifIcon.setOnClickListener {
@@ -185,12 +251,26 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
 
         loadNotifBadge()
+
+        // Initialize sliding tab indicator layout on startup
+        findViewById<View>(R.id.tabContainer).post {
+            val defaultChip = findViewById<TextView>(activeTabId) ?: return@post
+            val indicator = findViewById<View>(R.id.tabIndicator) ?: return@post
+            val parentView = defaultChip.parent as? View ?: return@post
+            val params = indicator.layoutParams
+            params.width = defaultChip.width
+            params.height = defaultChip.height
+            indicator.layoutParams = params
+            indicator.x = defaultChip.x + parentView.left
+            indicator.y = defaultChip.y + parentView.top
+        }
     }
 
     override fun onResume() {
         super.onResume()
         SessionManager.markStoreList(this)
-        fetchStores()
+        fetchStores(showShimmer = isFirstLoad)
+        isFirstLoad = false
         loadNotifBadge()
     }
 
@@ -248,8 +328,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
     }
 
-
-
     private fun showStoreChoiceDialog() {
         val dialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_choice, null)
@@ -273,12 +351,279 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.show()
     }
 
-    private fun fetchStores() {
+    private fun applyFilterAndSearch() {
+        val filtered = allStores.filter { store ->
+            val matchesRole = when (currentRoleFilter) {
+                "Owner" -> store.role.equals("owner", ignoreCase = true)
+                "Manager" -> store.role.equals("manager", ignoreCase = true)
+                "Sales Staff" -> store.role.equals("employee", ignoreCase = true)
+                else -> true
+            }
+            val matchesSearch = store.name.lowercase().contains(currentSearchQuery.lowercase()) ||
+                                store.branch.lowercase().contains(currentSearchQuery.lowercase())
+            matchesRole && matchesSearch
+        }
+
+        adapter.updateStores(filtered, storeRolesMap)
+
+        val layoutEmptyState = findViewById<View>(R.id.layoutEmptyState)
+        if (filtered.isEmpty()) {
+            layoutEmptyState.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            layoutEmptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun animateTabIndicator(targetChipId: Int) {
+        val targetChip = findViewById<TextView>(targetChipId) ?: return
+        val indicator = findViewById<View>(R.id.tabIndicator) ?: return
+        val parentView = targetChip.parent as? View ?: return
+
+        activeTabId = targetChipId
+
+        val parentLeft = parentView.left
+        val parentTop = parentView.top
+
+        if (targetChip.width == 0) {
+            targetChip.post {
+                val params = indicator.layoutParams
+                params.width = targetChip.width
+                params.height = targetChip.height
+                indicator.layoutParams = params
+                indicator.x = targetChip.x + parentLeft
+                indicator.y = targetChip.y + parentTop
+            }
+            return
+        }
+
+        val startX = indicator.x
+        val endX = targetChip.x + parentLeft
+
+        val startWidth = indicator.width
+        val endWidth = targetChip.width
+
+        val startHeight = indicator.height
+        val endHeight = targetChip.height
+
+        // Set vertical position immediately
+        indicator.y = targetChip.y + parentTop
+
+        val animatorX = ValueAnimator.ofFloat(startX, endX)
+        animatorX.addUpdateListener { animation ->
+            indicator.x = animation.animatedValue as Float
+        }
+
+        val animatorW = ValueAnimator.ofInt(startWidth, endWidth)
+        animatorW.addUpdateListener { animation ->
+            val p = indicator.layoutParams
+            p.width = animation.animatedValue as Int
+            indicator.layoutParams = p
+        }
+
+        val animatorH = ValueAnimator.ofInt(startHeight, endHeight)
+        animatorH.addUpdateListener { animation ->
+            val p = indicator.layoutParams
+            p.height = animation.animatedValue as Int
+            indicator.layoutParams = p
+        }
+
+        val animatorSet = AnimatorSet()
+        animatorSet.playTogether(animatorX, animatorW, animatorH)
+        animatorSet.duration = 220
+        animatorSet.interpolator = DecelerateInterpolator()
+        animatorSet.start()
+    }
+
+    private fun updateChipSelection(selectedChipId: Int) {
+        val chips = listOf(
+            R.id.chipAll to "All",
+            R.id.chipOwner to "Owner",
+            R.id.chipManager to "Manager",
+            R.id.chipStaff to "Sales Staff"
+        )
+        
+        for ((id, role) in chips) {
+            val chip = findViewById<TextView>(id) ?: continue
+            if (id == selectedChipId) {
+                currentRoleFilter = role
+                chip.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
+                chip.setTypeface(null, android.graphics.Typeface.BOLD)
+            } else {
+                chip.setTextColor(ContextCompat.getColor(this, R.color.edittext_hint))
+                chip.setTypeface(null, android.graphics.Typeface.NORMAL)
+            }
+        }
+        
+        animateTabIndicator(selectedChipId)
+        applyFilterAndSearch()
+    }
+
+    private fun triggerFirstTimeSwipePeek() {
+        val prefs = getSharedPreferences("presyohan_prefs", MODE_PRIVATE)
+        val hintShown = prefs.getBoolean("store_swipe_hint_shown", false)
+        if (!hintShown && allStores.isNotEmpty()) {
+            recyclerView.postDelayed({
+                val firstViewHolder = recyclerView.findViewHolderForAdapterPosition(0) as? StoreAdapter.StoreViewHolder
+                if (firstViewHolder != null) {
+                    val foreground = firstViewHolder.foregroundCardView
+                    val density = resources.displayMetrics.density
+                    val peekDistance = -60f * density
+                    
+                    foreground.animate()
+                        .translationX(peekDistance)
+                        .setDuration(400)
+                        .withEndAction {
+                            foreground.animate()
+                                .translationX(0f)
+                                .setDuration(600)
+                                .setInterpolator(android.view.animation.BounceInterpolator())
+                                .start()
+                        }
+                        .start()
+
+                    prefs.edit().putBoolean("store_swipe_hint_shown", true).apply()
+                }
+            }, 600)
+        }
+    }
+
+
+    private fun showStoreDetailsDialog(store: Store) {
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_details, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val txtStoreName = view.findViewById<TextView>(R.id.dialogStoreName)
+        val txtStoreBranch = view.findViewById<TextView>(R.id.dialogStoreBranch)
+        txtStoreName.text = store.name
+        txtStoreBranch.text = if (store.branch.isNotBlank()) "| ${store.branch}" else ""
+
+        val txtCategoriesCount = view.findViewById<TextView>(R.id.dialogCategoriesCount)
+        val txtItemsCount = view.findViewById<TextView>(R.id.dialogItemsCount)
+        val txtMembersCount = view.findViewById<TextView>(R.id.dialogMembersCount)
+        val txtOwnersCount = view.findViewById<TextView>(R.id.dialogOwnersCount)
+        val txtManagersCount = view.findViewById<TextView>(R.id.dialogManagersCount)
+        val txtEmployeesCount = view.findViewById<TextView>(R.id.dialogEmployeesCount)
+
+        val txtRoleDesignation = view.findViewById<TextView>(R.id.textRoleDesignation)
+        val txtStoreId = view.findViewById<TextView>(R.id.dialogStoreId)
+        val txtCreatedAt = view.findViewById<TextView>(R.id.dialogCreatedAt)
+        val txtVisibilityStatus = view.findViewById<TextView>(R.id.dialogVisibilityStatus)
+        val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
+        val btnLeaveStore = view.findViewById<View>(R.id.btnLeaveStore)
+
+        val roleDisplayName = when (store.role.lowercase()) {
+            "owner" -> "Owner"
+            "manager" -> "Manager"
+            else -> "Sales Staff"
+        }
+        txtRoleDesignation.text = "You are the $roleDisplayName of this store."
+        txtStoreId.text = store.id
+
+        lifecycleScope.launch {
+            try {
+                val categories = SupabaseProvider.client.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", store.id) }
+                ).decodeList<HomeActivity.UserCategoryRow>()
+                txtCategoriesCount.text = categories.size.toString()
+
+                val products = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_products",
+                    buildJsonObject { put("p_store_id", store.id) }
+                ).decodeList<HomeActivity.UserProductRow>()
+                txtItemsCount.text = products.size.toString()
+
+                val members = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", store.id) }
+                ).decodeList<StoreMemberUser>()
+
+                val owners = members.count { it.role.equals("owner", ignoreCase = true) }
+                val managers = members.count { it.role.equals("manager", ignoreCase = true) }
+                val employees = members.count { it.role.equals("employee", ignoreCase = true) }
+
+                txtMembersCount.text = members.size.toString()
+                txtOwnersCount.text = "• Owners: $owners"
+                txtManagersCount.text = "• Managers: $managers"
+                txtEmployeesCount.text = "• Sales staff: $employees"
+
+                @Serializable
+                data class StoreDetailsLite(
+                    val id: String,
+                    val created_at: String? = null,
+                    val is_public: Boolean = false,
+                    val invite_code: String? = null,
+                    val invite_code_created_at: String? = null
+                )
+                val rows = SupabaseProvider.client.postgrest["stores"].select {
+                    filter { eq("id", store.id) }
+                    limit(1)
+                }.decodeList<StoreDetailsLite>()
+                
+                val storeRow = rows.firstOrNull()
+                if (storeRow != null) {
+                    val dateText = storeRow.created_at?.split("T")?.firstOrNull() ?: "N/A"
+                    txtCreatedAt.text = dateText
+                    txtVisibilityStatus.text = if (storeRow.is_public) "Public" else "Private"
+                    txtVisibilityStatus.setTextColor(
+                        ContextCompat.getColor(this@StoreActivity, if (storeRow.is_public) R.color.presyo_teal else R.color.red)
+                    )
+
+                    val inviteCode = storeRow.invite_code
+                    val createdIso = storeRow.invite_code_created_at
+                    val createdMillis = parseInviteCreatedMillis(createdIso)
+                    val isExpired = createdMillis == null || (System.currentTimeMillis() - createdMillis > 86400000L)
+                    
+                    txtJoinCode.text = if (isExpired || inviteCode.isNullOrBlank()) {
+                        "Expired"
+                    } else {
+                        inviteCode
+                    }
+                    txtJoinCode.setTextColor(
+                        ContextCompat.getColor(this@StoreActivity, if (isExpired || inviteCode.isNullOrBlank()) R.color.red else R.color.presyo_teal)
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("StoreActivity", "Failed to load store details stats", e)
+            }
+        }
+
+        view.findViewById<View>(R.id.btnBack).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnLeaveStore.setOnClickListener {
+            dialog.dismiss()
+            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, null)
+        }
+
+        dialog.show()
+    }
+
+    private fun fetchStores(showShimmer: Boolean = true) {
         val client = SupabaseProvider.client
         val userId = client.auth.currentUserOrNull()?.id ?: return
+        
+        val shimmerContainer = findViewById<com.facebook.shimmer.ShimmerFrameLayout>(R.id.shimmerContainer)
+        val swipeRefreshLayout = findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(R.id.swipeRefreshLayout)
+        val layoutEmptyState = findViewById<View>(R.id.layoutEmptyState)
         val noStoreLabel = findViewById<TextView>(R.id.noStoreLabel)
 
-        LoadingOverlayHelper.show(loadingOverlay)
+        if (showShimmer) {
+            shimmerContainer.visibility = View.VISIBLE
+            shimmerContainer.startShimmer()
+            recyclerView.visibility = View.GONE
+            layoutEmptyState.visibility = View.GONE
+            noStoreLabel.visibility = View.GONE
+        }
 
         lifecycleScope.launch {
             try {
@@ -287,15 +632,18 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 Log.d("StoreActivity", "RPC get_user_stores returned ${rows.size} rows")
 
                 if (rows.isEmpty()) {
+                    allStores = emptyList()
+                    storeRolesMap = emptyMap()
                     adapter.updateStores(emptyList(), emptyMap())
-                    noStoreLabel.visibility = View.VISIBLE
-                    noStoreLabel.text = "You have no stores yet.\nTap the + button to create or join one."
+                    layoutEmptyState.visibility = View.VISIBLE
+                    recyclerView.visibility = View.GONE
+                    noStoreLabel.visibility = View.GONE
                     return@launch
                 }
 
                 val roles = rows.associate { it.store_id to it.role }
                 val fetchedStores = rows.map { r ->
-                    Store(r.store_id, r.name, r.branch ?: "", r.type ?: "")
+                    Store(r.store_id, r.name, r.branch ?: "", r.type ?: "", r.member_count, r.role)
                 }
                 storeRolesMap = roles
 
@@ -303,17 +651,25 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     { val role = roles[it.id]?.lowercase(); when (role) { "owner" -> 0; "manager" -> 1; else -> 2 } },
                     { it.name.lowercase() }
                 ))
+                allStores = sortedStores
 
-                adapter.updateStores(sortedStores, roles)
-                noStoreLabel.visibility = View.GONE
+                applyFilterAndSearch()
+                triggerFirstTimeSwipePeek()
 
             } catch (e: Exception) {
                 Log.e("StoreActivity", "Error fetching stores via RPC: ${e.message}", e)
+                allStores = emptyList()
                 adapter.updateStores(emptyList(), emptyMap())
                 noStoreLabel.visibility = View.VISIBLE
                 noStoreLabel.text = "Failed to load stores.\nPlease check your connection."
+                layoutEmptyState.visibility = View.GONE
+                recyclerView.visibility = View.GONE
             } finally {
-                LoadingOverlayHelper.hide(loadingOverlay)
+                swipeRefreshLayout.isRefreshing = false
+                if (showShimmer) {
+                    shimmerContainer.stopShimmer()
+                    shimmerContainer.visibility = View.GONE
+                }
             }
         }
     }
@@ -428,7 +784,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.show()
     }
 
-    private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog) {
+    private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog? = null) {
         val confirmDialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
         confirmDialog.setContentView(view)
@@ -466,8 +822,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         Toast.makeText(this@StoreActivity, "You have left the store.", Toast.LENGTH_SHORT).show()
                     }
                     confirmDialog.dismiss()
-                    menuDialog.dismiss()
-                    fetchStores()
+                    menuDialog?.dismiss()
+                    fetchStores(showShimmer = false)
                 } catch (e: Exception) {
                     val errorMsg = if (e.message?.contains("sole owner", true) == true)
                         "You are the only owner. Delete the store instead."

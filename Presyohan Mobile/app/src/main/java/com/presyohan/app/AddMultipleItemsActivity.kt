@@ -24,9 +24,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.widget.AppCompatButton
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.navigation.NavigationView
 import kotlinx.coroutines.Dispatchers
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -42,12 +44,11 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private lateinit var containerSimple: View
     private lateinit var containerFast: View
     private lateinit var simpleRecyclerView: RecyclerView
-    private lateinit var btnSelectCategoryBottom: MaterialButton
+    private lateinit var btnSelectCategoryBottom: androidx.appcompat.widget.AppCompatButton
     
     private lateinit var inputRawText: EditText
     private lateinit var btnBack: ImageView
     private lateinit var loadingOverlay: View
-
     // ViewModel
     private lateinit var viewModel: AddMultipleItemsViewModel
 
@@ -87,6 +88,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 btnSelect.text = "Change"
                 layoutSelected.visibility = View.VISIBLE
                 tvSelected.text = "Selected: ${getFileName(uri)}"
+                dlg.findViewById<View>(R.id.btnNext)?.visibility = View.VISIBLE
             }
         }
     }
@@ -129,14 +131,18 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             }
         }
         viewModel.categoryIdByName.observe(this) { cats ->
-            categoryIdByName.clear()
-            categoryIdByName.putAll(cats)
-            isCategoriesLoaded = true
-            checkAutoOpenCategoryMenu()
+            if (cats != null) {
+                categoryIdByName.clear()
+                categoryIdByName.putAll(cats)
+                isCategoriesLoaded = true
+                checkAutoOpenCategoryMenu()
+            }
         }
         viewModel.existingProductNames.observe(this) { prods ->
-            existingProductNames.clear()
-            existingProductNames.addAll(prods)
+            if (prods != null) {
+                existingProductNames.clear()
+                existingProductNames.addAll(prods)
+            }
         }
         viewModel.error.observe(this) { errMsg ->
             if (errMsg != null) {
@@ -185,13 +191,13 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             if (currentMode == EntryMode.SIMPLE) {
                 currentMode = EntryMode.FAST
                 btnToggleMode.text = "Simple Mode"
-                tvSubHeaderTitle.text = "Smart Mode"
+                tvSubHeaderTitle.text = "Fast Mode"
                 tvSubHeaderSubtitle.visibility = View.VISIBLE
                 containerSimple.visibility = View.GONE
                 containerFast.visibility = View.VISIBLE
             } else {
                 currentMode = EntryMode.SIMPLE
-                btnToggleMode.text = "Smart Mode"
+                btnToggleMode.text = "Fast Mode"
                 tvSubHeaderSubtitle.visibility = View.GONE
                 containerSimple.visibility = View.VISIBLE
                 containerFast.visibility = View.GONE
@@ -223,7 +229,6 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             }
         })
 
-        // Initial update of button states
         updateButtonsState()
     }
 
@@ -451,6 +456,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         }
     }
 
+
     // --- IMPORT PRICES DIALOG & PARSING FLOWS ---
     private fun showImportPricesDialog() {
         val dlg = Dialog(this)
@@ -477,32 +483,48 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         
         val panelPaste = view.findViewById<View>(R.id.panelPaste)
         val inputDialogPaste = view.findViewById<EditText>(R.id.inputDialogPaste)
-        val btnNext = view.findViewById<MaterialButton>(R.id.btnNext)
+        val tvExcelLabel = view.findViewById<TextView>(R.id.tvExcelLabel)
+        val tvPasteLabel = view.findViewById<TextView>(R.id.tvPasteLabel)
+        val btnNext = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnNext)
 
         selectedExcelUri = null
         var selectedMethod = ImportMethod.EXCEL
 
         // Selection style update helper
+        fun updateNextButtonVisibility() {
+            if (selectedMethod == ImportMethod.EXCEL) {
+                btnNext.visibility = if (selectedExcelUri != null) View.VISIBLE else View.GONE
+            } else {
+                val text = inputDialogPaste.text.toString().trim()
+                btnNext.visibility = if (text.isNotEmpty()) View.VISIBLE else View.GONE
+            }
+        }
+
         fun updateSelectionUI() {
             if (selectedMethod == ImportMethod.EXCEL) {
                 cardExcelOption.setBackgroundResource(R.drawable.bg_card_selected_orange)
                 imgExcelRadio.setImageResource(R.drawable.ic_radio_checked_orange)
+                tvExcelLabel.setTextColor(ContextCompat.getColor(this@AddMultipleItemsActivity, R.color.presyo_orange))
                 
-                cardPasteOption.setBackgroundResource(R.drawable.bg_card_unselected)
+                cardPasteOption.setBackgroundResource(R.drawable.bg_card_unselected_teal)
                 imgPasteRadio.setImageResource(R.drawable.ic_radio_unchecked)
+                tvPasteLabel.setTextColor(ContextCompat.getColor(this@AddMultipleItemsActivity, R.color.presyo_teal))
                 
                 panelExcel.visibility = View.VISIBLE
                 panelPaste.visibility = View.GONE
             } else {
-                cardExcelOption.setBackgroundResource(R.drawable.bg_card_unselected)
+                cardExcelOption.setBackgroundResource(R.drawable.bg_card_unselected_teal)
                 imgExcelRadio.setImageResource(R.drawable.ic_radio_unchecked)
+                tvExcelLabel.setTextColor(ContextCompat.getColor(this@AddMultipleItemsActivity, R.color.presyo_teal))
                 
-                cardPasteOption.setBackgroundResource(R.drawable.bg_card_selected_teal)
-                imgPasteRadio.setImageResource(R.drawable.ic_radio_checked_teal)
+                cardPasteOption.setBackgroundResource(R.drawable.bg_card_selected_orange)
+                imgPasteRadio.setImageResource(R.drawable.ic_radio_checked_orange)
+                tvPasteLabel.setTextColor(ContextCompat.getColor(this@AddMultipleItemsActivity, R.color.presyo_orange))
                 
                 panelExcel.visibility = View.GONE
                 panelPaste.visibility = View.VISIBLE
             }
+            updateNextButtonVisibility()
         }
 
         // Initialize UI State
@@ -526,7 +548,16 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             selectedExcelUri = null
             layoutSelectedFile.visibility = View.GONE
             btnSelectExcelFile.text = "Choose xlsx"
+            updateNextButtonVisibility()
         }
+
+        inputDialogPaste.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                updateNextButtonVisibility()
+            }
+        })
 
         btnBackDlg.setOnClickListener {
             dlg.dismiss()
@@ -814,31 +845,24 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     }
 
     private fun showDiscardDraftDialog() {
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_discard_draft, null)
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setView(view)
-            .setCancelable(true)
-            .create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        view.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        view.findViewById<MaterialButton>(R.id.btnDiscardAll).setOnClickListener {
-            dialog.dismiss()
-            val session = viewModel.draftSession.value
-            if (session != null) {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    ImportDraftStore(application).deleteSession(session.sessionId)
+        showReusableDialog(
+            title = "Discard Draft Items?",
+            message = "The items you have typed out have not been saved yet and will be permanently lost.",
+            positiveButtonText = "Cancel",
+            positiveAction = {
+                // Dialog automatically dismisses
+            },
+            negativeButtonText = "Discard All",
+            negativeAction = {
+                val session = viewModel.draftSession.value
+                if (session != null) {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        ImportDraftStore(application).deleteSession(session.sessionId)
+                    }
                 }
-            }
-            finish()
-        }
-        dialog.show()
-        dialog.window?.setLayout(
-            (resources.displayMetrics.widthPixels * 0.9).toInt(),
-            ViewGroup.LayoutParams.WRAP_CONTENT
+                finish()
+            },
+            isCancelable = true
         )
     }
 
@@ -851,7 +875,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         inner class ViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             val tvCategoryName: TextView = v.findViewById(R.id.tvCategoryName)
             val itemsContainer: LinearLayout = v.findViewById(R.id.itemsContainer)
-            val btnAddItemInner: MaterialButton = v.findViewById(R.id.btnAddItemInner)
+            val btnAddItemInner: AppCompatButton = v.findViewById(R.id.btnAddItemInner)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

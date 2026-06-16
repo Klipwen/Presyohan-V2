@@ -13,29 +13,39 @@ data class Store(
     val id: String,
     val name: String,
     val branch: String,
-    val type: String
+    val type: String,
+    val memberCount: Int = 0,
+    val role: String = ""
 )
 
 class StoreAdapter(
     private var stores: List<Store>,
     private var storeRoles: Map<String, String> = emptyMap(),
-    private val onMenuClick: (store: Store, anchor: View) -> Unit,
-    private val onStoreClick: (store: Store) -> Unit
+    private val onStoreClick: (store: Store) -> Unit,
+    private val onSettingsClick: (store: Store) -> Unit,
+    private val onViewClick: (store: Store) -> Unit,
+    private val onDeleteClick: (store: Store) -> Unit,
+    private val onLeaveClick: (store: Store) -> Unit
 ) : RecyclerView.Adapter<StoreAdapter.StoreViewHolder>() {
 
+    var swipedPosition: Int = -1
+        private set
+
     inner class StoreViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val foregroundCardView: androidx.cardview.widget.CardView = itemView.findViewById(R.id.foregroundCardView)
+        val backgroundActionCard: androidx.cardview.widget.CardView = itemView.findViewById(R.id.backgroundActionCard)
         val icon: ImageView = itemView.findViewById(R.id.imageStoreIcon)
         val name: TextView = itemView.findViewById(R.id.textStoreName)
         val branch: TextView = itemView.findViewById(R.id.textStoreBranch)
         val type: TextView = itemView.findViewById(R.id.textStoreType)
-        val menu: ImageView = itemView.findViewById(R.id.buttonOptions)
-        val roleIndicator: androidx.cardview.widget.CardView = itemView.findViewById(R.id.viewRoleIndicator)
-    }
+        val memberCount: TextView = itemView.findViewById(R.id.textMemberCount)
+        val roleIndicator: TextView = itemView.findViewById(R.id.textStoreRole)
+        val storeIconFrame: View = itemView.findViewById(R.id.storeIconFrame)
 
-    override fun getItemViewType(position: Int): Int {
-        val store = stores[position]
-        val role = storeRoles[store.id]
-        return if (role != null && role != "owner") 1 else 0
+        val btnAction1: View = itemView.findViewById(R.id.btnAction1)
+        val btnAction2: View = itemView.findViewById(R.id.btnAction2)
+        val imageAction1: ImageView = itemView.findViewById(R.id.imageAction1)
+        val imageAction2: ImageView = itemView.findViewById(R.id.imageAction2)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StoreViewHolder {
@@ -49,16 +59,76 @@ class StoreAdapter(
         holder.name.text = store.name
         holder.branch.text = store.branch
         holder.type.text = store.type
-        holder.menu.setOnClickListener { onMenuClick(store, holder.menu) }
-        holder.itemView.setOnClickListener { onStoreClick(store) }
-        holder.itemView.setOnLongClickListener {
-            onMenuClick(store, holder.menu)
+        holder.memberCount.text = store.memberCount.toString()
+
+        val isOwner = store.role.lowercase() == "owner"
+        holder.storeIconFrame.setBackgroundResource(
+            if (isOwner) R.drawable.bg_store_icon_owner else R.drawable.bg_store_icon_other
+        )
+
+        val roleName = when (store.role.lowercase()) {
+            "owner" -> "Owner"
+            "manager" -> "Manager"
+            else -> "Sales Staff"
+        }
+        holder.roleIndicator.text = "Role: $roleName"
+
+        // Handle swiped translation
+        val isSwiped = position == swipedPosition
+        val density = holder.itemView.resources.displayMetrics.density
+        val fallbackWidth = 120f * density
+        val actionWidth = if (holder.backgroundActionCard.width > 0) holder.backgroundActionCard.width.toFloat() else fallbackWidth
+        holder.foregroundCardView.translationX = if (isSwiped) -actionWidth else 0f
+
+        // Action Button setup based on Role
+        val ctx = holder.itemView.context
+        if (store.role.lowercase() == "owner") {
+            holder.imageAction1.setImageResource(R.drawable.icon_settings)
+            holder.imageAction1.setColorFilter(ctx.getColor(R.color.presyo_teal))
+            holder.btnAction1.setOnClickListener {
+                closeSwipedItem()
+                onSettingsClick(store)
+            }
+
+            holder.imageAction2.setImageResource(R.drawable.icon_delete)
+            holder.imageAction2.setColorFilter(ctx.getColor(R.color.presyo_teal))
+            holder.btnAction2.setOnClickListener {
+                closeSwipedItem()
+                onDeleteClick(store)
+            }
+        } else {
+            holder.imageAction1.setImageResource(R.drawable.icon_view)
+            holder.imageAction1.setColorFilter(ctx.getColor(R.color.presyo_teal))
+            holder.btnAction1.setOnClickListener {
+                closeSwipedItem()
+                onViewClick(store)
+            }
+
+            holder.imageAction2.setImageResource(R.drawable.icon_leave_store)
+            holder.imageAction2.setColorFilter(ctx.getColor(R.color.presyo_teal))
+            holder.btnAction2.setOnClickListener {
+                closeSwipedItem()
+                onLeaveClick(store)
+            }
+        }
+
+        // Tap Behavior on Card
+        holder.foregroundCardView.setOnClickListener {
+            if (isSwiped(position)) {
+                closeSwipedItem()
+            } else {
+                if (swipedPosition != -1) {
+                    closeSwipedItem()
+                } else {
+                    onStoreClick(store)
+                }
+            }
+        }
+
+        holder.foregroundCardView.setOnLongClickListener {
+            onItemSwiped(position)
             true
         }
-        val role = storeRoles[store.id]
-        val ctx = holder.itemView.context
-        val color = if (role == "owner") ctx.getColor(R.color.presyo_yellow) else android.graphics.Color.parseColor("#D9D9D9")
-        holder.roleIndicator.setCardBackgroundColor(color)
     }
 
     override fun getItemCount(): Int = stores.size
@@ -66,11 +136,29 @@ class StoreAdapter(
     fun updateStores(newStores: List<Store>, newRoles: Map<String, String> = storeRoles) {
         stores = newStores
         storeRoles = newRoles
+        swipedPosition = -1 // Reset swiped state on data change
         notifyDataSetChanged()
     }
 
-    fun setStoreRoles(newRoles: Map<String, String>) {
-        storeRoles = newRoles
-        notifyDataSetChanged()
+    fun onItemSwiped(position: Int) {
+        val previousSwiped = swipedPosition
+        if (swipedPosition == position) return
+        swipedPosition = position
+        if (previousSwiped != -1) {
+            notifyItemChanged(previousSwiped)
+        }
+        notifyItemChanged(swipedPosition)
+    }
+
+    fun isSwiped(position: Int): Boolean {
+        return swipedPosition == position
+    }
+
+    fun closeSwipedItem() {
+        if (swipedPosition != -1) {
+            val prev = swipedPosition
+            swipedPosition = -1
+            notifyItemChanged(prev)
+        }
     }
 }

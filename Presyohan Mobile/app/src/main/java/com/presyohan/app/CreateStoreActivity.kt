@@ -204,7 +204,8 @@ class CreateStoreActivity : AppCompatActivity() {
                         val name: String,
                         val branch: String? = null,
                         val type: String? = null,
-                        val role: String
+                        val role: String,
+                        val member_count: Int = 0
                     )
                     @kotlinx.serialization.Serializable
                     data class StoreRow(val id: String, val name: String, val branch: String? = null)

@@ -121,7 +121,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="38dp"
                 android:layout_marginTop="10dp"
-                android:text="Smart Mode"
+                android:text="Fast Mode"
                 android:textSize="11sp"
                 android:textColor="@color/presyo_teal"
                 app:strokeColor="@color/presyo_teal"
@@ -196,16 +196,18 @@
                     android:elevation="8dp"
                     app:layout_constraintBottom_toBottomOf="parent">
 
-                    <com.google.android.material.button.MaterialButton
+                    <androidx.appcompat.widget.AppCompatButton
                         android:id="@+id/btnSelectCategoryBottom"
                         android:layout_width="match_parent"
-                        android:layout_height="52dp"
-                        android:text="SELECT CATEGORY"
-                        android:textColor="@color/white"
-                        android:textStyle="bold"
-                        android:textSize="16sp"
+                        android:layout_height="48dp"
+                        android:layout_margin="8dp"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/button_round"
                         android:backgroundTint="@color/presyo_orange"
-                        app:cornerRadius="26dp" />
+                        android:text="Select Category"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
 
                 </LinearLayout>
 
@@ -229,55 +231,42 @@
                     <androidx.cardview.widget.CardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        app:cardCornerRadius="12dp"
-                        app:cardElevation="1dp"
-                        android:layout_marginBottom="16dp"
-                        android:backgroundTint="@color/white">
+                        android:layout_margin="16dp"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="2dp">
 
-                        <RelativeLayout
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:padding="12dp">
+                            android:orientation="vertical"
+                            android:padding="16dp">
 
                             <TextView
-                                android:id="@+id/tvFormatTitle"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="AI Powered Smart Mode Guide:"
+                                android:text="Format Guide:"
                                 android:textColor="@color/presyo_darkblue"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:textStyle="bold" />
 
-                            <ImageView
-                                android:layout_width="16dp"
-                                android:layout_height="16dp"
-                                android:src="@drawable/bg_dialog_info"
-                                android:layout_alignParentEnd="true"
-                                android:layout_alignParentTop="true"
-                                android:contentDescription="Info" />
-
                             <TextView
-                                android:id="@+id/tvFormatContent"
-                                android:layout_width="match_parent"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_below="@id/tvFormatTitle"
-                                android:layout_marginTop="6dp"
-                                android:text="You can type or paste items in any format (even without category headers).\nThe AI will automatically parse the items and assign them to one of your existing store categories if it fits!"
-                                android:textColor="@color/edittext_hint"
-                                android:textSize="11sp"
-                                android:fontFamily="monospace" />
+                                android:layout_marginTop="8dp"
+                                android:fontFamily="monospace"
+                                android:text="[Category Name]\n- Item name (descriptions) - P 15.00 | unit\n- Item name - P 15.00 | unit"
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_below="@id/tvFormatContent"
                                 android:layout_marginTop="8dp"
-                                android:text="Examples:\n  • Fresh Milk 1L - ₱95.00\n  • Apples (Fuji red) - 150/kg\n  • asdfghj - 100 (labeled as invalid)"
+                                android:text="Descriptions are optional. You can view the valid formats to see which one is easiest for you to use."
                                 android:textColor="@color/edittext_hint"
-                                android:textSize="11sp" />
+                                android:textSize="12sp" />
 
-                        </RelativeLayout>
-
+                        </LinearLayout>
                     </androidx.cardview.widget.CardView>
 
                     <!-- Instruction Text -->

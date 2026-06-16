@@ -7,7 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.google.android.material.button.MaterialButton
+import androidx.appcompat.widget.AppCompatButton
 
 object ReusableDialogHelper {
 
@@ -29,8 +29,8 @@ object ReusableDialogHelper {
 
         val tvTitle = view.findViewById<TextView>(R.id.dialogTitle)
         val tvMessage = view.findViewById<TextView>(R.id.dialogMessage)
-        val btnPositive = view.findViewById<MaterialButton>(R.id.btnPositive)
-        val btnNegative = view.findViewById<MaterialButton>(R.id.btnNegative)
+        val btnPositive = view.findViewById<AppCompatButton>(R.id.btnPositive)
+        val btnNegative = view.findViewById<AppCompatButton>(R.id.btnNegative)
 
         tvTitle.text = title
         tvMessage.text = message

@@ -140,7 +140,8 @@ class HomeActivity : AppCompatActivity() {
         val branch: String? = null,
         val type: String? = null,
         val role: String,
-        val is_public: Boolean = false
+        val is_public: Boolean = false,
+        val member_count: Int = 0
     )
 
     data class StoreStats(
