@@ -36,7 +36,7 @@
         android:gravity="center"
         android:weightSum="2">
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnDiscardAll"
             android:layout_width="0dp"
             android:layout_height="48dp"
@@ -44,13 +44,13 @@
             android:text="Discard All"
             android:textAllCaps="false"
             android:textColor="@color/white"
+            android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_teal"
             android:textStyle="bold"
             android:textSize="16sp"
-            app:cornerRadius="24dp"
             android:layout_marginEnd="8dp" />
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnCancel"
             android:layout_width="0dp"
             android:layout_height="48dp"
@@ -58,10 +58,10 @@
             android:text="Cancel"
             android:textAllCaps="false"
             android:textColor="@color/white"
+            android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_orange"
             android:textStyle="bold"
             android:textSize="16sp"
-            app:cornerRadius="24dp"
             android:layout_marginStart="8dp" />
 
     </LinearLayout>

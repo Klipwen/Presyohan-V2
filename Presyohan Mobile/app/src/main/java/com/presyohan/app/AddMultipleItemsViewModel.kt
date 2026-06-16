@@ -25,10 +25,10 @@ class AddMultipleItemsViewModel(application: Application) : AndroidViewModel(app
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> get() = _isLoading
 
-    private val _existingProductNames = MutableLiveData<Set<String>>(emptySet())
+    private val _existingProductNames = MutableLiveData<Set<String>>()
     val existingProductNames: LiveData<Set<String>> get() = _existingProductNames
 
-    private val _categoryIdByName = MutableLiveData<Map<String, String>>(emptyMap())
+    private val _categoryIdByName = MutableLiveData<Map<String, String>>()
     val categoryIdByName: LiveData<Map<String, String>> get() = _categoryIdByName
 
     private val _error = MutableLiveData<String?>()
