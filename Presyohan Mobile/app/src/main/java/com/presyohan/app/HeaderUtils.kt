@@ -20,7 +20,7 @@ object HeaderUtils {
 
         uT.text = "User"
         codeT?.visibility = View.GONE
-        img.setImageResource(R.drawable.icon_profile)
+        img.setImageResource(R.drawable.avatar_default)
         img.setColorFilter(ContextCompat.getColor(activity, R.color.white))
 
         activity.lifecycleScope.launch {
@@ -39,7 +39,7 @@ object HeaderUtils {
                     img.load(url) {
                         crossfade(true)
                         transformations(CircleCropTransformation())
-                        error(R.drawable.icon_profile)
+                        error(R.drawable.avatar_default)
                     }
                 }
             } else {

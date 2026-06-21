@@ -6,9 +6,22 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.app_users (id, email, created_at)
-  VALUES (NEW.id, NEW.email, NOW())
-  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.app_users (id, email, name, avatar_url, created_at)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name'),
+    COALESCE(
+      NEW.raw_user_meta_data->>'avatar_url',
+      NEW.raw_user_meta_data->>'picture',
+      NEW.raw_user_meta_data->>'photoURL'
+    ),
+    NOW()
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET 
+    name = COALESCE(EXCLUDED.name, public.app_users.name),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.app_users.avatar_url);
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;

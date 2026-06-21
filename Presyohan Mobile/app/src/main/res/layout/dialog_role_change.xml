@@ -1,67 +1,195 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="wrap_content"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="8dp">
+    android:padding="24dp"
+    android:background="@drawable/bg_dialog_custom"
+    android:gravity="center_horizontal"
+    android:minWidth="340dp">
 
-    <LinearLayout
-        android:layout_width="320dp"
+    <!-- Title: Manage Staff -->
+    <TextView
+        android:id="@+id/dialogTitle"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:minWidth="320dp"
-        android:maxWidth="400dp"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:background="@color/item_background"
-        android:padding="24dp">
+        android:text="Manage Staff"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/presyo_orange"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp" />
 
-        <TextView
-            android:id="@+id/dialogTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Change Role"
-            android:textStyle="bold"
-            android:textColor="@color/presyo_teal"
-            android:textSize="19sp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="16dp"/>
+    <!-- Staff Details Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_rounded_grey"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
 
-        <Spinner
-            android:id="@+id/spinnerRole"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"/>
+        <ImageView
+            android:id="@+id/staffAvatar"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/avatar_default"
+            android:scaleType="centerCrop"
+            android:layout_marginEnd="12dp" />
 
         <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/staffName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Caliph Juen"
+                android:textColor="@color/presyo_orange"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/staffDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PH25-0015 • Sale-Staff"
+                android:textColor="#666666"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Role Options Radio Group Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="20dp">
+
+        <!-- Option: Owner -->
+        <LinearLayout
+            android:id="@+id/layoutOptionOwner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="end">
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_card_unselected"
+            android:padding="14dp"
+            android:layout_marginBottom="8dp"
+            android:clickable="true"
+            android:focusable="true">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCancel"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:text="Cancel"
-                android:textColor="@color/presyo_teal"
-                app:cornerRadius="24dp"
-                app:backgroundTint="@color/white"
-                app:strokeColor="@color/presyo_teal"
-                app:strokeWidth="2dp"
-                android:layout_marginEnd="8dp"/>
+            <ImageView
+                android:id="@+id/imgOptionOwner"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_radio_unchecked"
+                android:layout_marginEnd="12dp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnChange"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:text="Change"
-                android:textColor="@color/white"
-                app:cornerRadius="24dp"
-                app:backgroundTint="@color/presyo_orange"
-                android:layout_marginStart="8dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Store owner"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="14sp"
+                android:textStyle="bold" />
         </LinearLayout>
+
+        <!-- Option: Manager -->
+        <LinearLayout
+            android:id="@+id/layoutOptionManager"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_card_unselected"
+            android:padding="14dp"
+            android:layout_marginBottom="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/imgOptionManager"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_radio_unchecked"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Manager"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Option: Sales Staff -->
+        <LinearLayout
+            android:id="@+id/layoutOptionSalesStaff"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_card_unselected"
+            android:padding="14dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/imgOptionSalesStaff"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_radio_unchecked"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sale-staff"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
     </LinearLayout>
-</androidx.cardview.widget.CardView> 
+
+    <!-- Dialog Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCancel"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/button_round_teal"
+            android:text="BACK"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="14sp" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnChange"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@drawable/button_round_orange"
+            android:text="UPDATE"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
+</LinearLayout>

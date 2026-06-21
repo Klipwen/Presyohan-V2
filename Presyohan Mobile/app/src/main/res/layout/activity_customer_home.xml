@@ -1,0 +1,400 @@
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#E5E5E5"
+    android:fitsSystemWindows="true">
+
+        <!-- Curved Header Container -->
+        <LinearLayout
+            android:id="@+id/curvedHeaderContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_category_filter"
+            android:orientation="vertical"
+            android:elevation="6dp"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- Part 1: Menu & Logo Header -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/headerPresyohan"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+
+                <ImageView
+                    android:id="@+id/logoIcon"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="12dp"
+                    android:contentDescription="Logo"
+                    android:src="@drawable/icon_presyohan"
+                    android:rotation="-45"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/logoText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
+                    android:text="presyo"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toEndOf="@id/logoIcon"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/logoTextBlue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="0dp"
+                    android:fontFamily="sans-serif"
+                    android:text="han"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toEndOf="@id/logoText"
+                    app:layout_constraintTop_toTopOf="@id/logoText"
+                    app:layout_constraintBottom_toBottomOf="@id/logoText" />
+
+                <ImageView
+                    android:id="@+id/notifIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="16dp"
+                    android:contentDescription="Notifications"
+                    android:src="@drawable/icon_notification"
+                    app:layout_constraintEnd_toStartOf="@id/profileIconContainer"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <View
+                    android:id="@+id/notifDot"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/indicator_dot"
+                    android:visibility="gone"
+                    app:layout_constraintEnd_toStartOf="@id/profileIconContainer"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <FrameLayout
+                    android:id="@+id/profileIconContainer"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/bg_avatar_border"
+                    android:padding="2dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <ImageView
+                        android:id="@+id/profileIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="Profile"
+                        android:src="@drawable/avatar_default" />
+                </FrameLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Search Bar Layout -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="12dp"
+                android:orientation="vertical">
+
+                <EditText
+                    android:id="@+id/searchEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_customer_search_input"
+                    android:hint="Search Item.."
+                    android:textColor="#333333"
+                    android:textColorHint="#999999"
+                    android:textSize="14sp"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:singleLine="true"
+                    android:imeOptions="actionSearch" />
+
+
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Main Content Area -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshLayout"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer"
+            app:layout_constraintBottom_toTopOf="@id/bottomNavigationContainer">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <!-- Prices Tab View -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvCustomerPrices"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="8dp"
+                    android:clipToPadding="false"
+                    android:scrollbars="vertical"
+                    tools:listitem="@layout/item_customer_product" />
+
+                <!-- Stores Tab View (Hidden by default) -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvCustomerStores"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="8dp"
+                    android:clipToPadding="false"
+                    android:scrollbars="vertical"
+                    android:visibility="gone"
+                    tools:listitem="@layout/item_customer_store" />
+
+                <!-- Empty State -->
+                <LinearLayout
+                    android:id="@+id/layoutEmptyState"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:padding="24dp">
+
+                    <ImageView
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:src="@drawable/icon_sad_robot" />
+
+                    <TextView
+                        android:id="@+id/emptyStateMessage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="No linked stores or public prices found.\nUse the + button to add a store!"
+                        android:textAlignment="center"
+                        android:textColor="#777777"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+            </FrameLayout>
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+        <!-- Bottom Navigation Section -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/bottomNavigationContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <!-- Nav Bar Background Card -->
+            <FrameLayout
+                android:id="@+id/navBarCard"
+                android:layout_width="match_parent"
+                android:layout_height="96dp"
+                android:background="@drawable/bg_nav_bar"
+                android:elevation="8dp"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <!-- Left Tab: Prices -->
+                    <LinearLayout
+                        android:id="@+id/btnTabPrices"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <FrameLayout
+                            android:id="@+id/pricesIconContainer"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:padding="8dp">
+
+                            <ImageView
+                                android:id="@+id/pricesIcon"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:src="@drawable/icon_pricelist" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/pricesText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Prices"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="#999A9A" />
+                    </LinearLayout>
+
+                    <!-- Middle space for FAB -->
+                    <View
+                        android:layout_width="72dp"
+                        android:layout_height="match_parent" />
+
+                    <!-- Right Tab: Stores -->
+                    <LinearLayout
+                        android:id="@+id/btnTabStores"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <FrameLayout
+                            android:id="@+id/storesIconContainer"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:padding="8dp">
+
+                            <ImageView
+                                android:id="@+id/storesIcon"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:src="@drawable/icon_store" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/storesText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Stores"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="#999A9A" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- Centered Floating Action Button (FAB) -->
+            <FrameLayout
+                android:id="@+id/btnNavAdd"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="12dp"
+                app:layout_constraintTop_toTopOf="@id/navBarCard"
+                app:layout_constraintBottom_toBottomOf="@id/navBarCard"
+                app:layout_constraintStart_toStartOf="@id/navBarCard"
+                app:layout_constraintEnd_toEndOf="@id/navBarCard">
+
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/button_round_orange" />
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_plus_white" />
+            </FrameLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Dimmed Background Overlay (For Bottom Sheet) -->
+        <View
+            android:id="@+id/dimmedBackground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:visibility="gone"
+            android:elevation="10dp" />
+
+        <!-- Add Store Bottom Sheet Container -->
+        <LinearLayout
+            android:id="@+id/addStoreBottomSheet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_bottom_sheet"
+            android:paddingTop="20dp"
+            android:paddingBottom="24dp"
+            android:paddingHorizontal="16dp"
+            android:elevation="24dp"
+            android:outlineAmbientShadowColor="#000000"
+            android:outlineSpotShadowColor="#000000"
+            android:outlineProvider="background"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <!-- Sheet Handle -->
+            <View
+                android:id="@+id/bottomSheetHandle"
+                android:layout_width="98dp"
+                android:layout_height="5dp"
+                android:background="@color/presyo_yellow"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Add Store"
+                android:textColor="@color/presyo_orange"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Button 1: Add Suking Tindahan -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnBottomSheetAddSuki"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_button_round_orange_pill"
+                android:text="ADD SUKING TINDAHAN"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Button 2: Presyohan -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnBottomSheetPresyohan"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_button_round_teal_pill"
+                android:text="PRESYOHAN"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+        </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

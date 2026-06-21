@@ -63,7 +63,8 @@ class CopyPricesActivity : AppCompatActivity() {
         val category: String? = null,
         val price: Double? = null,
         val units: String? = null,
-        val unit: String? = null
+        val unit: String? = null,
+        val is_public: Boolean = false
     )
     
     @Serializable
@@ -283,6 +284,16 @@ class CopyPricesActivity : AppCompatActivity() {
                 
                 sourceProducts.clear()
                 sourceProducts.addAll(rows)
+                
+                val preselected = intent.getStringExtra("preselectedCategory")
+                if (!preselected.isNullOrBlank()) {
+                    rows.forEach {
+                        if (it.category?.trim().equals(preselected.trim(), ignoreCase = true)) {
+                            selectedProductIds.add(it.product_id)
+                        }
+                    }
+                }
+                
                 updateProductAdapter()
                 updateSelectedCount()
             } catch (e: Exception) {

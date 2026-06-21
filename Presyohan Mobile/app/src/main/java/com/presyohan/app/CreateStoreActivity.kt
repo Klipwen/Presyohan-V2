@@ -30,13 +30,14 @@ class CreateStoreActivity : AppCompatActivity() {
 
         // Drawer and menu logic
         val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
-        val navigationView = findViewById<com.google.android.material.navigation.NavigationView>(R.id.navigationView)
+
         val menuIcon = findViewById<android.widget.ImageView>(R.id.menuIcon)
         menuIcon.setOnClickListener {
             drawerLayout.open()
         }
-        HeaderUtils.updateHeader(this, navigationView)
-        navigationView.setNavigationItemSelectedListener { item ->
+        DrawerHelper.setupDrawer(this, drawerLayout)
+
+        /* navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_stores -> {
                     // Navigate to StoreActivity
@@ -58,7 +59,7 @@ class CreateStoreActivity : AppCompatActivity() {
                 // Handle other menu items if needed
                 else -> false
             }
-        }
+        }*/
 
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
         notifIcon.setOnClickListener {
@@ -86,7 +87,7 @@ class CreateStoreActivity : AppCompatActivity() {
             }
         }
 
-        // Set real user name and ID in navigation drawer header
+        /* // Set real user name and ID in navigation drawer header
         val headerView = navigationView.getHeaderView(0)
         val userNameText = headerView.findViewById<TextView>(R.id.drawerUserName)
         val userCodeText = headerView.findViewById<TextView>(R.id.drawerUserCode)
@@ -105,7 +106,7 @@ class CreateStoreActivity : AppCompatActivity() {
                 val name = SupabaseAuthService.getDisplayName() ?: "User"
                 userNameText.text = name
             }
-        }
+        }*/
 
         val storeNameEditText = findViewById<EditText>(R.id.inputItemName)
         val storeBranchEditText = findViewById<EditText>(R.id.inputStoreBranch)

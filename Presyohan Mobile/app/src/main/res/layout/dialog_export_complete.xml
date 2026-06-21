@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_rounded"
+    android:gravity="center">
+
+    <ImageView
+        android:id="@+id/imageCheckmark"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@android:drawable/checkbox_on_background"
+        android:tint="#2E7D32"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Export Complete!"
+        android:textColor="#219EBC"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Prices have been successfully copied to the destination store."
+        android:textColor="#757575"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btnDone"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Done"
+        android:textColor="@android:color/white"
+        android:backgroundTint="#FB8500"
+        android:background="@drawable/button_round"
+        android:textStyle="bold" />
+</LinearLayout>

@@ -5,275 +5,436 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="24dp"
-    android:background="@drawable/bg_rounded"
-    android:minWidth="350dp"
+    android:background="@drawable/bg_dialog_custom"
     android:gravity="center_horizontal"
-    android:elevation="8dp">
+    android:minWidth="340dp">
 
-    <!-- Title and Icon -->
+    <!-- Title: Invite Staff -->
     <TextView
         android:id="@+id/inviteStaffTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Invite Staff"
-        android:textSize="24sp"
+        android:textSize="22sp"
         android:textStyle="bold"
         android:textColor="@color/presyo_orange"
-        android:gravity="center"
-        android:layout_gravity="center_horizontal"/>
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="12dp" />
 
-    <ImageView
-        android:id="@+id/inviteStaffIcon"
-        android:layout_width="72dp"
-        android:layout_height="72dp"
-        android:src="@drawable/icon_invite_staff"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="16dp"
-        android:layout_gravity="center_horizontal"/>
-
-    <!-- Expiry Text Added Here -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:gravity="center"
-        android:text="Join store code"
-        android:textColor="@color/presyo_teal"
-        android:textSize="12sp" />
-
-    <TextView
-        android:id="@+id/inviteCodeExpiry"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Expires in --:--:--"
-        android:textSize="12sp"
-        android:textColor="#888888"
-        android:layout_marginBottom="4dp"
-        android:gravity="center"/>
-
-    <!-- Store Code Row -->
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_marginBottom="16dp">
-
-        <!-- Store icon and label -->
-        <LinearLayout
-            android:orientation="vertical"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
-            android:layout_marginEnd="8dp"/>
-
-        <!-- Spacer -->
-
-        <!-- Code box with copy and generate button -->
-        <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:background="@android:color/white"
-            android:gravity="center_vertical"
-            android:paddingStart="12dp"
-            android:elevation="2dp"
-            android:layout_marginEnd="0dp"
-            android:backgroundTint="@android:color/white"
-            android:backgroundTintMode="src_in">
-
-            <TextView
-                android:id="@+id/storeCodeText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="000000"
-                android:textColor="@color/presyo_orange"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:paddingEnd="16dp"/>
-
-            <ImageView
-                android:id="@+id/btnCopyCode"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/icon_copy"
-                android:layout_marginEnd="8dp"/>
-
-            <Button
-                android:id="@+id/btnGenerateCode"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:layout_marginStart="8dp"
-                android:backgroundTint="@color/presyo_teal"
-                android:minWidth="140dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:text="Generate"
-                android:textColor="@android:color/white"
-                android:textSize="14sp" />
-        </LinearLayout>
-
-        <!-- Generate Button -->
-    </LinearLayout>
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="User ID or Email Address"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:textColor="#666666"
-        android:layout_marginBottom="6dp"/>
-
+    <!-- Icon Container: Rounded light grey container with orange person+ icon -->
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <EditText
-            android:id="@+id/searchInput"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:background="@drawable/bg_edittext"
-            android:hint="Enter valid user ID or email"
-            android:textColor="@color/black"
-            android:textSize="14sp"
-            android:paddingStart="16dp"
-            android:paddingEnd="40dp"
-            android:maxLines="1"
-            android:inputType="textEmailAddress"/>
-
-        <ProgressBar
-            android:id="@+id/searchLoader"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center_vertical|end"
-            android:layout_marginEnd="12dp"
-            android:visibility="gone"
-            android:indeterminateTint="@color/presyo_orange"/>
+        android:layout_height="96dp"
+        android:background="@drawable/bg_rounded_grey"
+        android:layout_marginBottom="12dp"
+        android:padding="16dp">
 
         <ImageView
-            android:id="@+id/searchIconStatic"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/icon_search"
-            android:layout_gravity="center_vertical|end"
-            android:layout_marginEnd="12dp"
-            app:tint="#999999"/>
+            android:id="@+id/inviteStaffIcon"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
+            android:src="@drawable/icon_invite_staff"
+            app:tint="@color/presyo_orange" />
+
     </FrameLayout>
 
-    <TextView
-        android:id="@+id/textNotFound"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="No user found with this ID or Email."
-        android:textColor="@color/edittext_hint"
-        android:textSize="12sp"
-        android:layout_marginTop="4dp"
-        android:visibility="gone"/>
-
+    <!-- SECTION 1: DIRECT INVITATION -->
     <LinearLayout
-        android:id="@+id/userResultContainer"
+        android:id="@+id/layoutDirectInvitation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="#FFFBE6"
-        android:padding="12dp"
-        android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:visibility="gone">
-        <ImageView
-            android:id="@+id/foundUserAvatar"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/icon_profile"
-            android:scaleType="centerCrop"
-            android:background="#E0E0E0"/>
+        android:orientation="vertical"
+        android:visibility="visible">
 
+        <!-- Trigger to Join Store Code -->
+        <TextView
+            android:id="@+id/btnSwitchToCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Join Store Code >"
+            android:textColor="@color/presyo_orange"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:layout_gravity="end"
+            android:layout_marginBottom="12dp"
+            android:clickable="true"
+            android:focusable="true"/>
+
+        <!-- User ID TextInputLayout -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/layoutSearchInput"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:boxStrokeColor="@color/stroke_orange"
+            app:hintTextColor="@color/presyo_orange"
+            android:textColorHint="@color/presyo_orange"
+            app:expandedHintEnabled="false"
+            app:boxCornerRadiusTopStart="24dp"
+            app:boxCornerRadiusTopEnd="24dp"
+            app:boxCornerRadiusBottomStart="24dp"
+            app:boxCornerRadiusBottomEnd="24dp"
+            android:layout_marginBottom="12dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/searchInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="User ID"
+                android:inputType="textEmailAddress"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="15sp"
+                android:paddingVertical="10dp"
+                android:paddingHorizontal="16dp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Loader / NotFound / UserResult States -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ProgressBar
+                android:id="@+id/searchLoader"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"
+                android:indeterminateTint="@color/presyo_orange"/>
+
+            <TextView
+                android:id="@+id/textNotFound"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No user found with this ID or Email."
+                android:textColor="@color/edittext_hint"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"/>
+
+            <LinearLayout
+                android:id="@+id/userResultContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="#FFFBE6"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/foundUserAvatar"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/icon_profile"
+                    android:scaleType="centerCrop"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:id="@+id/foundUserName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="User Name"
+                        android:textStyle="bold"
+                        android:textColor="#333333"
+                        android:textSize="13sp"/>
+
+                    <TextView
+                        android:id="@+id/foundUserDetails"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="code • email"
+                        android:textColor="#666666"
+                        android:textSize="11sp"
+                        android:ellipsize="end"
+                        android:maxLines="1"/>
+                </LinearLayout>
+            </LinearLayout>
+
+        </FrameLayout>
+
+        <!-- Staff Role TextInputLayout -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/layoutRoleSpinner"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:boxStrokeColor="@color/stroke_teal"
+            app:hintTextColor="@color/presyo_teal"
+            android:textColorHint="@color/presyo_teal"
+            app:expandedHintEnabled="false"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusTopEnd="12dp"
+            app:boxCornerRadiusBottomStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            android:layout_marginBottom="16dp">
+
+            <AutoCompleteTextView
+                android:id="@+id/spinnerRole"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Staff Role"
+                android:inputType="none"
+                android:textColor="@color/presyo_teal"
+                android:textSize="15sp"
+                android:paddingVertical="10dp"
+                android:paddingHorizontal="16dp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Direct Invite Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginStart="12dp">
-            
-            <TextView
-                android:id="@+id/foundUserName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="User Name"
-                android:textStyle="bold"
-                android:textColor="#333333"
-                android:textSize="14sp"/>
+            android:orientation="horizontal"
+            android:gravity="center">
 
-            <TextView
-                android:id="@+id/foundUserDetails"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="PH25-0001 • email@example.com"
-                android:textColor="#666666"
-                android:textSize="12sp"
-                android:ellipsize="end"
-                android:maxLines="1"/>
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnBack"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/button_round_teal"
+                android:text="BACK"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:textSize="14sp" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnInvite"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_round_orange"
+                android:text="INVITE"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:textSize="14sp" />
+
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/inviteErrorText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#D32F2F"
+            android:textSize="12sp"
+            android:layout_marginTop="8dp"
+            android:layout_gravity="center"
+            android:visibility="gone"/>
+
     </LinearLayout>
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Staff Role"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:textColor="#666666"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="6dp"/>
-
-    <Spinner
-        android:id="@+id/roleSpinner"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="@drawable/bg_edittext"
-        android:paddingStart="4dp"
-        android:layout_marginBottom="24dp"/>
-
-    <!-- Buttons -->
+    <!-- SECTION 2: JOIN STORE CODE -->
     <LinearLayout
-        android:orientation="horizontal"
+        android:id="@+id/layoutJoinStoreCode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center">
+        android:orientation="vertical"
+        android:visibility="gone">
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btnBack"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/button_round"
-            android:backgroundTint="@color/presyo_teal"
-            android:text="Back"
-            android:textColor="@android:color/white"
+        <!-- Label with Info Icon -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Join store code"
+                android:textColor="#888888"
+                android:textSize="13sp" />
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/icon_info"
+                app:tint="#888888"
+                android:contentDescription="Info" />
+
+        </LinearLayout>
+
+        <!-- CODE GENERATE ROW (INACTIVE STATE) -->
+        <LinearLayout
+            android:id="@+id/layoutCodeInactive"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp"
+            android:visibility="visible">
+
+            <!-- Dashed Placeholder Box -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/bg_code_box_border">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="------"
+                    android:textColor="#FB8500"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1"/>
+
+            </FrameLayout>
+
+            <!-- Generate Button (Rectangular, not fully rounded/oval) -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnGenerateCodeInactive"
+                android:layout_width="wrap_content"
+                android:layout_height="50dp"
+                android:background="@drawable/bg_button_rect_teal"
+                android:text="Generate"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                android:textAllCaps="false"
+                android:paddingHorizontal="16dp"/>
+
+        </LinearLayout>
+
+        <!-- CODE GENERATE ROW (ACTIVE STATE) -->
+        <LinearLayout
+            android:id="@+id/layoutCodeActive"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
+
+            <!-- Active Code Box -->
+            <RelativeLayout
+                android:id="@+id/btnCopyCodeActive"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/bg_code_box_border"
+                android:paddingHorizontal="12dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true">
+
+                    <TextView
+                        android:id="@+id/storeCodeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="758201"
+                        android:textColor="#FB8500"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:includeFontPadding="false"
+                        android:lineSpacingExtra="0dp"/>
+
+                    <TextView
+                        android:id="@+id/inviteCodeExpiry"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Valid only in --:--:--"
+                        android:textColor="#FB8500"
+                        android:textSize="8sp"
+                        android:includeFontPadding="false"/>
+
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/icon_copy"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    app:tint="#FB8500" />
+
+            </RelativeLayout>
+
+            <!-- Active Action Buttons (Stacked Vertically) -->
+            <LinearLayout
+                android:layout_width="110dp"
+                android:layout_height="50dp"
+                android:orientation="vertical"
+                android:gravity="center_vertical">
+
+                <!-- Generate New Button (Rectangular, not fully rounded/oval) -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnGenerateCodeActive"
+                    android:layout_width="match_parent"
+                    android:layout_height="23dp"
+                    android:background="@drawable/bg_button_rect_teal"
+                    android:text="Generate new"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:textAllCaps="false"
+                    android:paddingHorizontal="4dp"
+                    android:layout_marginBottom="4dp"/>
+
+                <!-- Revoke Button (Rectangular with teal outline, not fully rounded) -->
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnRevokeCodeActive"
+                    android:layout_width="match_parent"
+                    android:layout_height="23dp"
+                    android:background="@drawable/bg_button_rect_outline_teal"
+                    android:text="Revoke"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="10sp"
+                    android:textAllCaps="false"
+                    android:paddingHorizontal="4dp"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Trigger to switch back to Direct Invitation -->
+        <TextView
+            android:id="@+id/btnSwitchToDirect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="&lt; Direct Invitation"
+            android:textColor="@color/presyo_orange"
+            android:textSize="13sp"
             android:textStyle="bold"
-            android:textSize="16sp" />
+            android:layout_gravity="start"
+            android:layout_marginBottom="16dp"
+            android:clickable="true"
+            android:focusable="true"/>
 
+        <!-- DONE Button (Oval/rounded corner) -->
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btnInvite"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:background="@drawable/button_round"
-            android:backgroundTint="@color/presyo_orange"
-            android:text="Invite"
-            android:textColor="@android:color/white"
+            android:id="@+id/btnDone"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="@drawable/button_round_orange"
+            android:text="DONE"
+            android:textColor="@color/white"
             android:textStyle="bold"
-            android:textSize="16sp" />
+            android:textSize="14sp" />
 
-    <TextView
-        android:id="@+id/inviteErrorText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#D32F2F"
-        android:textSize="12sp"
-        android:layout_marginTop="8dp"
-        android:visibility="gone"/>
     </LinearLayout>
 
 </LinearLayout>

@@ -1,0 +1,124 @@
+========================================================================
+PRESYOHAN MOBILE - MANAGE ITEMS FEATURE REDESIGN & COPY FLOW PLAN
+========================================================================
+
+OBJECTIVE
+---------
+To refactor the existing inline-edit "Manage Items" screen into a premium, read-only grouped category list interface, supporting bulk operations (Publish, Unpublish, Convert, Copy, and Delete) through a dedicated Selection Mode. The copy flow will integrate a new paste-code validation dialog routing to an updated Review screen.
+
+DELIVERABLES
+------------
+
+PHASE 1 - CURRENT SYSTEM ANALYSIS
+---------------------------------
+1. Inline Editing: The current screen (ManageItemsActivity / ManageItemsAdapter) allows direct editing of item name, unit, price, and descriptions inside editable EditText fields in the RecyclerView.
+2. Category Selection: The current screen uses a Spinner/dialog dropdown to filter the list to a single category or "All". It does not support showing all categories as separate sections with headers in the RecyclerView itself.
+3. Deletion: Deletion is performed inline on the item row using a delete button, which opens a simple delete confirmation.
+4. No Selection Mode: There is no selection mode, preventing bulk actions (publish, copy, convert, delete).
+5. No Category Actions: Category management (renaming, deleting) is done via ManageCategoryActivity rather than directly inside the Manage Items screen.
+6. Copy Flow: The "Copy Prices" feature is implemented as a multi-step activity (CopyPricesActivity) that starts with selection inside itself, rather than being triggered as a bulk action from the Manage Items screen.
+
+PHASE 2 - DATABASE CHANGES
+--------------------------
+1. Update RPC function `get_store_products`:
+   - The current RPC function does not return the `is_public` column from the `products` table.
+   - We must update the RPC return signature to include `is_public BOOLEAN` as an eighth column.
+   - Migration task: Create a migration SQL script that drops `public.get_store_products(...)` and recreates it with `is_public` column included.
+2. Update client-side Kotlin models:
+   - Update `UserProductRow` and `ManageItemData` to include `val is_public: Boolean` field (with default false to maintain compatibility).
+
+PHASE 3 - UI CHANGES (SCREEN-BY-SCREEN BREAKDOWN)
+--------------------------------------------------
+1. Manage Items Screen (Normal Mode):
+   - Header: Yellow toolbar with title "Manage Items" and a back arrow.
+   - Top Category Bar: Dropdown button selector "PRICELIST" on the left, and a "Manage Category" button on the right.
+   - Summary Row: Displays text `X Categories and Y total items` with `Z Public items View` link. On the right, a "Select" text link/button to toggle Selection Mode.
+   - RecyclerView Grouped Layout:
+     - Category Header Card: Shows category number and name (e.g., `1 FRUITS`), item count (e.g., `5 items`), and edit/delete icons on the right.
+     - Product Card (Read-Only): Shows product number, name, info icon `(i)`, subtitle (description text), and price/unit details (e.g., `₱15.00 500 ml`). The right side displays blue Edit (pencil) and Delete (trash) buttons.
+     - Wide "Add Item" Button: Styled as a wide teal button positioned at the end of each category's product list.
+   - Bottom elements: A yellow search FAB floating on the right and a docked bottom sheet containing a "Search item..." text box.
+
+2. Manage Items Screen (Selection Mode):
+   - Header displays `X Category and Y items selected`.
+   - Action row below header displays:
+     - Publish / Unpublish Action Button (globe icon).
+     - Copy Action Button (overlapping sheets icon).
+     - Convert Action Button (notes icon).
+     - Delete Action Button (trash icon).
+   - Below actions: "Select all" and "Cancel" text links.
+   - RecyclerView displays selection checkboxes (orange check when selected, grey circle when not) on the right side of categories and products instead of edit/delete/add buttons.
+   - Checking a category checkbox automatically checks all items inside that category.
+
+3. Dialogs & Modals:
+   - Delete Selected Items Dialog: Confirmation message with warning text for bulk deletes.
+   - Rename Category Dialog: Input field with "RENAME" button.
+   - Delete Category Dialog: Warning about deleting a category and all its products.
+   - Delete Item Dialog: Simple deletion confirmation.
+   - Publish / Unpublish Dialogs: Simple confirmation before making items public/hidden.
+   - Convert Pricelist Option Dialog: Radio buttons for "Convert as Excel" and "Convert as Notes".
+   - Convert Pricelist Preview Dialog: If "Convert as Notes" is selected, shows a scrollable plain-text catalog with a clipboard copy button and a "Share Note" button.
+   - Copy Prices Dialog: Paste-code validation field with instant verification feedback showing target store name/branch. Clicking "Next" routes to the Review screen.
+
+4. Review Screen:
+   - Header with warning alerts: `Found X Duplicates! Found Y Invalid Items!`.
+   - Category-grouped product rows showing "NEW" (orange) and "UPDATE" (blue) tags.
+   - Slided bottom sheet summary containing:
+     - New categories count.
+     - New items count.
+     - Update items count.
+     - "Confirm & Copy" orange button.
+   - Complete Export Dialog: Green checkmark showing "Export Complete!" with a "Done" button.
+
+PHASE 4 - STATE MANAGEMENT
+--------------------------
+Screen State (ManageItemsActivity):
+- `isSelectionMode` (Boolean): Mode toggle.
+- `selectedProductIds` (MutableSet<String>): Set of product IDs selected.
+- `selectedCategoryNames` (MutableSet<String>): Set of categories checked.
+- `searchQuery` (String): Search keyword filter.
+- `categoriesWithProducts` (List<CategoryGroup>): Raw and filtered data parsed from database query.
+
+PHASE 6 - NAVIGATION FLOW
+-------------------------
+- Normal Mode -> Tap "Select" -> Enter Selection Mode.
+- Selection Mode -> Tap "Cancel" -> Return to Normal Mode.
+- Selection Mode -> Select items -> Tap "Copy" -> Open "Copy Prices" Dialog -> Enter valid paste-code -> Tap "Next" -> Route to ReviewImportActivity (Review Screen) -> Tap "Confirm & Copy" -> Success dialog -> Return to Manage Items screen.
+- Selection Mode -> Select items -> Tap "Convert" -> Open "Convert Pricelist" Dialog -> Choose Note/Excel -> Export.
+- Selection Mode -> Select items -> Tap "Publish" -> Confirm Dialog -> Publish -> Return to Normal Mode.
+- Normal Mode -> Tap Category Header Rename -> Rename dialog -> Save -> Refresh.
+- Normal Mode -> Tap "Add Item" -> Open custom Add/Edit Item Dialog in Add mode.
+- Normal Mode -> Tap Item Edit -> Open custom Add/Edit Item Dialog in Edit mode.
+
+PHASE 7 - DEVELOPMENT TASKS
+----------------------------
+1. Task 1: Create SQL database migration to recreate the `get_store_products` function returning `is_public`.
+2. Task 2: Update data models `UserProductRow` and `ManageItemData` in Kotlin to include `is_public: Boolean`.
+3. Task 3: Create XML layout assets:
+   - `item_manage_category_header.xml` (Category headers with edit/delete icons and checkbox).
+   - `item_manage_product_card.xml` (Read-only item views with edit/delete icons and checkbox).
+   - Redesign `activity_manage_items.xml` (Update header, top actions bar, search bottom sheet, and action layouts).
+4. Task 4: Create custom dialog layouts:
+   - `dialog_convert_pricelist.xml` (Options selection & metadata).
+   - `dialog_notes_preview.xml` (Text preview box, share/copy actions).
+   - `dialog_copy_prices_code.xml` (Paste-code input and destination resolution text).
+5. Task 5: Refactor `ManageItemsAdapter` (or create `ManageItemsGroupedAdapter`) to bind multiple view types (Headers, Products, Add Item buttons).
+6. Task 6: Implement normal mode operations in `ManageItemsActivity`:
+   - Grouping items by category.
+   - Info icon, single Edit/Delete item clicks.
+   - Category Rename (inline input dialog) & Delete actions (confirm dialog).
+   - Add Item button triggers the custom Add/Edit dialog.
+7. Task 7: Implement selection mode toggling:
+   - Selection bar visibilities.
+   - Checkbox bindings and multi-selection logic.
+   - Checkbox category-level cascade (select all products in category).
+8. Task 8: Implement bulk operations (Bulk Deletion, Bulk Publish, and Bulk Unpublish).
+9. Task 9: Implement "Convert Pricelist" Excel and shareable plain-text export logic.
+10. Task 10: Implement "Copy Prices" paste-code validation and navigation to Review Screen.
+11. Task 11: Refactor `ReviewImportActivity` / layout to match Slide 6's Review layout and confirmation success dialog.
+
+PHASE 8 - RISKS AND EDGE CASES
+------------------------------
+1. Instant Database Mutations: In the current system, edits are saved altogether when the user clicks "Done". In the new system, category renames, deletions, and publications are committed instantly. Proper loading overlay states must be applied to prevent UI interactions during async operations.
+2. Expired Paste Codes: Dest store paste-codes expire quickly. The app must provide immediate red warning text ("Invalid or expired code") in the dialog.
+3. Ambiguous duplicates: Review screen must clearly highlight duplicates using the gray "DUPLICATE" badge and display the count accurately in the top warnings section.

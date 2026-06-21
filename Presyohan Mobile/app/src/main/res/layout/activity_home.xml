@@ -6,12 +6,13 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#F4F6F9"
     android:fitsSystemWindows="true">
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
-        android:id="@+id/coordinatorLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:fitsSystemWindows="false">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -75,14 +76,14 @@
                         app:layout_constraintTop_toTopOf="@id/logoText"
                         app:layout_constraintBottom_toBottomOf="@id/logoText" />
 
-                    <ImageView
+                     <ImageView
                         android:id="@+id/notifIcon"
                         android:layout_width="24dp"
                         android:layout_height="32dp"
                         android:layout_marginEnd="16dp"
                         android:contentDescription="Notifications"
                         android:src="@drawable/icon_notification"
-                        app:layout_constraintEnd_toStartOf="@id/profileIcon"
+                        app:layout_constraintEnd_toStartOf="@id/profileIconContainer"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent" />
 
@@ -93,19 +94,28 @@
                         android:layout_marginEnd="16dp"
                         android:background="@drawable/indicator_dot"
                         android:visibility="gone"
-                        app:layout_constraintEnd_toStartOf="@id/profileIcon"
+                        app:layout_constraintEnd_toStartOf="@id/profileIconContainer"
                         app:layout_constraintTop_toTopOf="parent" />
 
-                    <ImageView
-                        android:id="@+id/profileIcon"
+                    <FrameLayout
+                        android:id="@+id/profileIconContainer"
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:layout_marginEnd="16dp"
-                        android:contentDescription="Profile"
-                        android:src="@drawable/icon_profile"
+                        android:background="@drawable/bg_avatar_border"
+                        android:padding="2dp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
+                        app:layout_constraintBottom_toBottomOf="parent">
+
+                        <ImageView
+                            android:id="@+id/profileIcon"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop"
+                            android:contentDescription="Profile"
+                            android:src="@drawable/avatar_default" />
+                    </FrameLayout>
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -296,7 +306,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/divider"
+                app:layout_constraintTop_toBottomOf="@+id/curvedHeaderContainer"
                 tools:ignore="MissingClass">
 
                 <include layout="@layout/layout_home_shimmer" />
@@ -331,7 +341,7 @@
             android:outlineAmbientShadowColor="#000000"
             android:outlineSpotShadowColor="#000000"
             android:outlineProvider="background"
-            app:behavior_hideable="false"
+            app:behavior_hideable="true"
             app:behavior_peekHeight="114dp"
             app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
 
@@ -513,12 +523,6 @@
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <!-- Navigation Drawer -->
-    <com.google.android.material.navigation.NavigationView
-        android:id="@+id/navigationView"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        app:headerLayout="@layout/drawer_header"
-        app:menu="@menu/nav_menu" />
+    <include layout="@layout/layout_custom_drawer" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

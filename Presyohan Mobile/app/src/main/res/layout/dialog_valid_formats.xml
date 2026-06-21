@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_dialog_custom"
+    android:padding="20dp">
+
+    <!-- Main Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/dialogTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Presyohan Parser Formats"
+            android:textColor="@color/presyo_orange"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Subtitle -->
+        <TextView
+            android:id="@+id/dialogSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Standard templates supported by the Presyohan parser:"
+            android:textColor="@color/edittext_hint"
+            android:textSize="12sp" />
+
+        <!-- Teal Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="@color/presyo_teal" />
+
+        <!-- Scrollable Content -->
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="340dp"
+            android:fillViewport="true"
+            android:scrollbars="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingEnd="4dp">
+
+                <!-- 1. Bracket Category Format -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="1. Bracket Category Format"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Define groups in brackets. Each item can include description in parentheses and unit after a pipe (|)."
+                    android:textColor="#555555"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:fontFamily="monospace"
+                    android:padding="10dp"
+                    android:text="[Beverages]\n- Coca-Cola (1.5L) - ₱65.00 | bottle\n- Orange Juice - 30.00"
+                    android:textColor="#333333"
+                    android:textSize="11sp" />
+
+                <!-- 2. Simple Colon Format -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="2. Colon Category Format"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Write the category name followed by a colon. List items below it with their prices."
+                    android:textColor="#555555"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:fontFamily="monospace"
+                    android:padding="10dp"
+                    android:text="Snacks:\nPotato Chips - 25.00\nChocolate Bar - 45.00"
+                    android:textColor="#333333"
+                    android:textSize="11sp" />
+
+                <!-- 3. Multiline Item Format -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="3. Multiline Format"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Useful for chat copy-pastes where the price and unit are on the line below the item name."
+                    android:textColor="#555555"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:fontFamily="monospace"
+                    android:padding="10dp"
+                    android:text="- Fresh Milk\n₱95.00 | box\n- Wheat Bread\n60.00"
+                    android:textColor="#333333"
+                    android:textSize="11sp" />
+
+                <!-- 4. Comma-Separated Format -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="4. Comma-Separated Format"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="List multiple items horizontally on a single line separated by commas."
+                    android:textColor="#555555"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:fontFamily="monospace"
+                    android:padding="10dp"
+                    android:text="Canned Goods: Sardines - 22, Tuna - 35"
+                    android:textColor="#333333"
+                    android:textSize="11sp" />
+
+                <!-- 5. Mixed Formats -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="5. Mixed Formats (Mix &amp; Match)"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="You can freely combine different formats in one input block. The parser reads them line-by-line automatically."
+                    android:textColor="#555555"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:fontFamily="monospace"
+                    android:padding="10dp"
+                    android:text="[Beverages]\n- Cola (1.5L) - ₱65 | bottle\nOrange Juice - 30.00\nSnacks:\nPotato Chips - 25.00\n- Chocolate Bar\n₱45.00 | stick"
+                    android:textColor="#333333"
+                    android:textSize="11sp" />
+
+                <!-- Quick Guidelines Card -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_info_box_ai"
+                    android:padding="12dp"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Quick Tips:"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="6dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="• Currency symbols like ₱, P, PHP are optional."
+                        android:textColor="#333333"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="• Descriptions must be wrapped in parentheses."
+                        android:textColor="#333333"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="• Units must be after a vertical bar (e.g. | kg)."
+                        android:textColor="#333333"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="• Category headers must not contain any digits."
+                        android:textColor="#333333"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="• Multiple formats can be mixed together in the same list."
+                        android:textColor="#333333"
+                        android:textSize="11sp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnGotIt"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="16dp"
+            android:text="GOT IT"
+            android:textColor="@color/white"
+            android:background="@drawable/button_round"
+            android:backgroundTint="@color/presyo_orange"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+
+</RelativeLayout>

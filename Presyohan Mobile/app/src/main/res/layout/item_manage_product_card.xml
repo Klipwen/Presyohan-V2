@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_card_unselected"
+        android:padding="12dp">
+
+        <!-- Left Details -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- Product Number -->
+                <TextView
+                    android:id="@+id/textProductNumber"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#9E9E9E"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="6dp"
+                    android:text="1" />
+
+                <!-- Product Name -->
+                <TextView
+                    android:id="@+id/textProductName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:text="Bottle water" />
+
+                <!-- Globe Indicator -->
+                <ImageView
+                    android:id="@+id/iconPublicGlobe"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="6dp"
+                    android:src="@drawable/icon_public_indacator"
+                    app:tint="#A0A0A0"
+                    android:visibility="gone"
+                    android:contentDescription="Public Item" />
+            </LinearLayout>
+
+            <!-- Product Description -->
+            <TextView
+                android:id="@+id/textProductDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Description"
+                android:textColor="@color/edittext_hint"
+                android:textSize="13sp"
+                android:layout_marginTop="2dp" />
+
+            <!-- Price & Unit -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:id="@+id/textProductPrice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₱15.00"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textProductUnit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="500 ml"
+                    android:textColor="@color/edittext_hint"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Normal Mode Actions -->
+        <LinearLayout
+            android:id="@+id/layoutNormalActions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="visible">
+
+            <ImageView
+                android:id="@+id/btnEditProduct"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:src="@drawable/icon_edit"
+                android:background="@drawable/bg_outline_button_teal"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:clickable="true"
+                android:focusable="true"
+                app:tint="@color/presyo_teal"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="Edit" />
+
+            <ImageView
+                android:id="@+id/btnDeleteProduct"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:src="@drawable/icon_delete"
+                android:background="@drawable/bg_outline_button_teal"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:clickable="true"
+                android:focusable="true"
+                app:tint="@color/presyo_teal"
+                android:contentDescription="Delete" />
+        </LinearLayout>
+
+        <!-- Selection Mode Checkbox -->
+        <ImageView
+            android:id="@+id/checkboxProduct"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_radio_unchecked"
+            android:visibility="gone"
+            android:contentDescription="Select Product" />
+
+    </LinearLayout>
+</LinearLayout>

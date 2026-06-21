@@ -79,10 +79,14 @@ class HomeActivity : AppCompatActivity() {
     private var currentStoreId: String? = null
     private var currentStoreName: String? = null
     private var currentBranchName: String? = null // Added to capture branch name for dialog
+    private var currentStoreType: String? = null
     private var userRole: String? = null
 
     // Invite Code Countdown
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
+
+    private val spinnerCategories = mutableListOf("PRICELIST")
+    private lateinit var spinnerAdapter: android.widget.ArrayAdapter<String>
 
     // Export permission handler
     private var lastExportFilenamePending: String? = null
@@ -204,9 +208,6 @@ class HomeActivity : AppCompatActivity() {
 
     private var lastBackPress: Long = 0
 
-    // Activity Result Launchers
-    private lateinit var addItemLauncher: ActivityResultLauncher<Intent>
-    private lateinit var editItemLauncher: ActivityResultLauncher<Intent>
 
     // UI Variables for Scope
     private lateinit var searchBarContainer: View
@@ -224,17 +225,9 @@ class HomeActivity : AppCompatActivity() {
         setContentView(R.layout.activity_home)
         loadingOverlay = LoadingOverlayHelper.attach(this)
 
-        // Register Activity Result Launchers
-        addItemLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            // Snapshot listener triggers update
-        }
-        editItemLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            // Snapshot listener triggers update
-        }
 
         // --- View Initialization ---
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
-        val navigationView = findViewById<NavigationView>(R.id.navigationView)
         val menuIcon = findViewById<ImageView>(R.id.menuIcon)
         val btnBack = findViewById<ImageView>(R.id.btnBack)
         val storeText = findViewById<TextView>(R.id.textStoreName)
@@ -263,33 +256,17 @@ class HomeActivity : AppCompatActivity() {
 
         // --- Navigation & Header Logic ---
         menuIcon.setOnClickListener { drawerLayout.open() }
-
-        navigationView.setNavigationItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_stores -> {
-                    startActivity(Intent(this, StoreActivity::class.java))
-                    drawerLayout.close()
-                    true
-                }
-                R.id.nav_logout -> {
-                    showLogoutDialog(drawerLayout)
-                    true
-                }
-                R.id.nav_notifications -> {
-                    startActivity(Intent(this, NotificationActivity::class.java))
-                    drawerLayout.close()
-                    true
-                }
-                else -> false
-            }
-        }
-
-        HeaderUtils.updateHeader(this, navigationView)
+        DrawerHelper.setupDrawer(this, drawerLayout)
 
         btnBack.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
+            val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                this,
+                R.anim.slide_in_left,
+                R.anim.slide_out_right
+            )
+            startActivity(intent, options.toBundle())
             finish()
         }
 
@@ -297,7 +274,12 @@ class HomeActivity : AppCompatActivity() {
         storeText.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
+            val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                this,
+                R.anim.slide_in_left,
+                R.anim.slide_out_right
+            )
+            startActivity(intent, options.toBundle())
             finish()
         }
 
@@ -308,16 +290,23 @@ class HomeActivity : AppCompatActivity() {
             activeOverlayProductId = activeOverlayProductId,
             onEditClick = { product ->
                 if (currentStoreId.isNullOrBlank()) return@CategoryGroupAdapter
-                val intent = Intent(this, EditItemActivity::class.java)
-                intent.putExtra("productId", product.id)
-                intent.putExtra("productName", product.name)
-                intent.putExtra("productDescription", product.description)
-                intent.putExtra("productPrice", product.price)
-                intent.putExtra("productUnit", product.volume)
-                intent.putExtra("productCategory", product.category)
-                intent.putExtra("storeId", currentStoreId)
-                intent.putExtra("storeName", currentStoreName)
-                editItemLauncher.launch(intent)
+                AddEditItemDialogHelper.showAddOrEditItemDialog(
+                    activity = this@HomeActivity,
+                    storeId = currentStoreId!!,
+                    storeName = currentStoreName ?: "Store",
+                    productData = EditProductData(
+                        id = product.id,
+                        name = product.name,
+                        description = product.description,
+                        price = product.price,
+                        unit = product.volume,
+                        category = product.category,
+                        isPublic = product.is_public
+                    ),
+                    onComplete = {
+                        reloadProductsFn?.invoke()
+                    }
+                )
             },
             onDeleteClick = { product ->
                 showDeleteConfirmationDialog(product)
@@ -366,16 +355,18 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        // Load store branch name from database
+        // Load store branch name and type from database
         if (currentStoreId != null) {
             lifecycleScope.launch {
                 try {
                     val rows = supabase.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
                     val row = rows.firstOrNull { it.store_id == currentStoreId }
                     currentBranchName = row?.branch ?: ""
+                    currentStoreType = row?.type ?: ""
                 } catch (e: Exception) {
-                    Log.e("HomeActivity", "Store branch load failed", e)
+                    Log.e("HomeActivity", "Store branch/type load failed", e)
                     currentBranchName = ""
+                    currentStoreType = ""
                 }
             }
         }
@@ -459,11 +450,15 @@ class HomeActivity : AppCompatActivity() {
 
         swipeRefreshLayout.setOnRefreshListener {
             loadProductsFromSupabase(false)
+            refreshSpinnerCategories(currentStoreId)
         }
 
         // Initial Load
         if (currentStoreId != null) {
-            reloadProductsFn = { loadProductsFromSupabase(false) }
+            reloadProductsFn = {
+                loadProductsFromSupabase(false)
+                refreshSpinnerCategories(currentStoreId)
+            }
             loadProductsFromSupabase(true)
         }
 
@@ -471,7 +466,6 @@ class HomeActivity : AppCompatActivity() {
         val bottomSheetBehavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(searchBarContainer)
         bottomSheetBehavior.isHideable = true
         bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
-
         val btnSearchClear = findViewById<ImageView>(R.id.btnSearchClear)
 
         searchEditText.addTextChangedListener(object : android.text.TextWatcher {
@@ -542,13 +536,12 @@ class HomeActivity : AppCompatActivity() {
             }
         })
 
-        // Scroll Logic for Bottom Sheet Interaction
         productRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 
-                // Scrolling down hides bottom sheet completely
-                if (dy > 10) {
+                // Scrolling down hides bottom sheet completely (only if dragged by user)
+                if (dy > 10 && recyclerView.scrollState == RecyclerView.SCROLL_STATE_DRAGGING) {
                     if (bottomSheetBehavior.state != com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN) {
                         bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
                     }
@@ -585,10 +578,15 @@ class HomeActivity : AppCompatActivity() {
 
         // --- Actions ---
         addButton.setOnClickListener {
-            val intent = Intent(this, AddItemActivity::class.java)
-            intent.putExtra("storeId", currentStoreId)
-            intent.putExtra("storeName", currentStoreName)
-            addItemLauncher.launch(intent)
+            if (currentStoreId.isNullOrBlank()) return@setOnClickListener
+            AddEditItemDialogHelper.showAddOrEditItemDialog(
+                activity = this@HomeActivity,
+                storeId = currentStoreId!!,
+                storeName = currentStoreName ?: "Store",
+                onComplete = {
+                    reloadProductsFn?.invoke()
+                }
+            )
         }
 
         notifIcon.setOnClickListener {
@@ -630,8 +628,11 @@ class HomeActivity : AppCompatActivity() {
         // Bind Common Header Views
         val txtStoreName = view.findViewById<TextView>(R.id.dialogStoreName)
         val txtStoreBranch = view.findViewById<TextView>(R.id.dialogStoreBranch)
-        txtStoreName.text = sName
-        txtStoreBranch.text = if (!currentBranchName.isNullOrBlank()) "| $currentBranchName" else ""
+        val txtStoreCategory = view.findViewById<TextView>(R.id.dialogStoreCategory)
+
+        txtStoreName?.text = sName
+        txtStoreBranch?.text = currentBranchName ?: ""
+        txtStoreCategory?.text = currentStoreType ?: "Store Category"
 
         val txtCategoriesCount = view.findViewById<TextView>(R.id.dialogCategoriesCount)
         val txtItemsCount = view.findViewById<TextView>(R.id.dialogItemsCount)
@@ -640,85 +641,58 @@ class HomeActivity : AppCompatActivity() {
         val txtManagersCount = view.findViewById<TextView>(R.id.dialogManagersCount)
         val txtEmployeesCount = view.findViewById<TextView>(R.id.dialogEmployeesCount)
 
-        // Load stats and populate views
-        lifecycleScope.launch {
-            try {
-                // 1. Fetch categories count
-                val categories = supabase.postgrest.rpc(
-                    "get_user_categories",
-                    buildJsonObject { put("p_store_id", sId) }
-                ).decodeList<UserCategoryRow>()
-                val categoriesCount = categories.size
+        // Load stats and populate views (Only if views exist, i.e., in non-owner details modal)
+        if (!isOwner) {
+            lifecycleScope.launch {
+                try {
+                    // 1. Fetch categories count
+                    val categories = supabase.postgrest.rpc(
+                        "get_user_categories",
+                        buildJsonObject { put("p_store_id", sId) }
+                    ).decodeList<UserCategoryRow>()
+                    val categoriesCount = categories.size
 
-                // 2. Fetch products count
-                val products = supabase.postgrest.rpc(
-                    "get_store_products",
-                    buildJsonObject { put("p_store_id", sId) }
-                ).decodeList<UserProductRow>()
-                val productsCount = products.size
+                    // 2. Fetch products count
+                    val products = supabase.postgrest.rpc(
+                        "get_store_products",
+                        buildJsonObject { put("p_store_id", sId) }
+                    ).decodeList<UserProductRow>()
+                    val productsCount = products.size
 
-                // 3. Fetch members count & details
-                val members = supabase.postgrest.rpc(
-                    "get_store_members",
-                    buildJsonObject { put("p_store_id", sId) }
-                ).decodeList<StoreMemberUser>()
+                    // 3. Fetch members count & details
+                    val members = supabase.postgrest.rpc(
+                        "get_store_members",
+                        buildJsonObject { put("p_store_id", sId) }
+                    ).decodeList<StoreMemberUser>()
 
-                val ownersCount = members.count { it.role.equals("owner", ignoreCase = true) }
-                val managersCount = members.count { it.role.equals("manager", ignoreCase = true) }
-                val employeesCount = members.count { it.role.equals("employee", ignoreCase = true) }
-                val totalMembers = members.size
+                    val ownersCount = members.count { it.role.equals("owner", ignoreCase = true) }
+                    val managersCount = members.count { it.role.equals("manager", ignoreCase = true) }
+                    val employeesCount = members.count { it.role.equals("employee", ignoreCase = true) }
+                    val totalMembers = members.size
 
-                txtCategoriesCount.text = categoriesCount.toString()
-                txtItemsCount.text = productsCount.toString()
-                txtMembersCount.text = totalMembers.toString()
-                txtOwnersCount.text = "• Owners: $ownersCount"
-                txtManagersCount.text = "• Managers: $managersCount"
-                txtEmployeesCount.text = "• Sales staff: $employeesCount"
+                    txtCategoriesCount?.text = categoriesCount.toString()
+                    txtItemsCount?.text = productsCount.toString()
+                    txtMembersCount?.text = totalMembers.toString()
+                    txtOwnersCount?.text = ownersCount.toString()
+                    txtManagersCount?.text = managersCount.toString()
+                    txtEmployeesCount?.text = employeesCount.toString()
 
-            } catch (e: Exception) {
-                Log.e("HomeActivity", "Stats loading failed", e)
+                } catch (e: Exception) {
+                    Log.e("HomeActivity", "Stats loading failed", e)
+                }
             }
         }
 
-        view.findViewById<View>(R.id.btnBack).setOnClickListener {
+        view.findViewById<View>(R.id.btnBack)?.setOnClickListener {
             dialog.dismiss()
         }
 
         if (isOwner) {
             // OWNER SPECIFIC BINDINGS
-            val switchStoreVisibility = view.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchStoreVisibility)
             val layoutSettings = view.findViewById<View>(R.id.layoutSettings)
             val layoutInvite = view.findViewById<View>(R.id.layoutInvite)
 
-            // Fetch public visibility state of store
-            lifecycleScope.launch {
-                try {
-                    val rows = supabase.postgrest.rpc("get_user_stores").decodeList<UserStoreRow>()
-                    val row = rows.firstOrNull { it.store_id == sId }
-                    switchStoreVisibility.isChecked = row?.is_public ?: false
-                } catch (e: Exception) {
-                    Log.e("HomeActivity", "Store visibility fetch failed", e)
-                }
-            }
-
-            // Set visibility toggle action
-            switchStoreVisibility.setOnCheckedChangeListener { _, isChecked ->
-                lifecycleScope.launch {
-                    try {
-                        supabase.postgrest["stores"].update(
-                            buildJsonObject { put("is_public", isChecked) }
-                        ) {
-                            filter { eq("id", sId) }
-                        }
-                        Toast.makeText(this@HomeActivity, "Store visibility updated.", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(this@HomeActivity, "Failed to update visibility.", Toast.LENGTH_SHORT).show()
-                        switchStoreVisibility.isChecked = !isChecked // revert
-                    }
-                }
-            }
-
-            layoutSettings.setOnClickListener {
+            layoutSettings?.setOnClickListener {
                 dialog.dismiss()
                 val intent = Intent(this, ManageStoreActivity::class.java)
                 intent.putExtra("storeId", sId)
@@ -726,7 +700,7 @@ class HomeActivity : AppCompatActivity() {
                 startActivity(intent)
             }
 
-            layoutInvite.setOnClickListener {
+            layoutInvite?.setOnClickListener {
                 dialog.dismiss()
                 showInviteStaffWithCode(sId)
             }
@@ -740,8 +714,26 @@ class HomeActivity : AppCompatActivity() {
             val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
             val btnLeaveStore = view.findViewById<View>(R.id.btnLeaveStore)
 
-            txtRoleDesignation.text = "You are the ${userRole?.replaceFirstChar { it.uppercase() } ?: "Staff"} of this store."
-            txtStoreId.text = sId
+            val displayRole = when (userRole?.lowercase(Locale.ROOT)) {
+                "employee", "staff" -> "Sales staff"
+                "manager" -> "Manager"
+                else -> "Staff"
+            }
+            val prefix = "You are the "
+            val suffix = " of this store."
+            val fullText = "$prefix$displayRole$suffix"
+            val spannable = android.text.SpannableString(fullText)
+            val start = prefix.length
+            val end = start + displayRole.length
+            spannable.setSpan(
+                android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                start,
+                end,
+                android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            txtRoleDesignation?.text = spannable
+
+            txtStoreId?.text = "SID25-009"
 
             // Load store details for staff
             lifecycleScope.launch {
@@ -756,12 +748,21 @@ class HomeActivity : AppCompatActivity() {
                     val storeRow = rows.firstOrNull()
                     if (storeRow != null) {
                         // format created_at date
-                        val dateText = storeRow.created_at?.split("T")?.firstOrNull() ?: "N/A"
-                        txtCreatedAt.text = dateText
-                        txtVisibilityStatus.text = if (storeRow.is_public) "Public" else "Private"
-                        txtVisibilityStatus.setTextColor(
-                            ContextCompat.getColor(this@HomeActivity, if (storeRow.is_public) R.color.presyo_teal else R.color.red)
-                        )
+                        val rawDate = storeRow.created_at?.split("T")?.firstOrNull() ?: ""
+                        val dateText = try {
+                            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                            val parsedDate = inputFormat.parse(rawDate)
+                            if (parsedDate != null) {
+                                val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
+                                outputFormat.format(parsedDate)
+                            } else {
+                                rawDate
+                            }
+                        } catch (_: Exception) {
+                            rawDate
+                        }
+                        txtCreatedAt?.text = dateText
+                        txtVisibilityStatus?.text = if (storeRow.is_public) "Public" else "Private"
 
                         // Check invite code expiration
                         val inviteCode = storeRow.invite_code
@@ -769,21 +770,18 @@ class HomeActivity : AppCompatActivity() {
                         val createdMillis = parseInviteCreatedMillis(createdIso)
                         val isExpired = createdMillis == null || (System.currentTimeMillis() - createdMillis > 86400000L)
                         
-                        txtJoinCode.text = if (isExpired || inviteCode.isNullOrBlank()) {
+                        txtJoinCode?.text = if (isExpired || inviteCode.isNullOrBlank()) {
                             "Expired"
                         } else {
                             inviteCode
                         }
-                        txtJoinCode.setTextColor(
-                            ContextCompat.getColor(this@HomeActivity, if (isExpired || inviteCode.isNullOrBlank()) R.color.red else R.color.presyo_teal)
-                        )
                     }
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Details loading failed", e)
                 }
             }
 
-            btnLeaveStore.setOnClickListener {
+            btnLeaveStore?.setOnClickListener {
                 showLeaveDeleteConfirmation(sId, sName, isDelete = false, dialog)
             }
         }
@@ -793,26 +791,27 @@ class HomeActivity : AppCompatActivity() {
 
     private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog) {
         val confirmDialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_reusable_template, null)
         confirmDialog.setContentView(view)
         confirmDialog.setCancelable(true)
         confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val title = view.findViewById<TextView>(R.id.dialogTitle)
-        val message = view.findViewById<TextView>(R.id.confirmMessage)
-        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
-        val btnAction = view.findViewById<Button>(R.id.btnDelete)
+        val message = view.findViewById<TextView>(R.id.dialogMessage)
+        val btnCancel = view.findViewById<Button>(R.id.btnNegative)
+        val btnAction = view.findViewById<Button>(R.id.btnPositive)
 
         if (isDelete) {
             title.text = "Delete Store"
-            message.text = "Are you sure you want to delete this store?.\n\nYour store \"$storeName\" permanently erase all products, members, and data. This cannot be undone."
-            btnAction.text = "Delete Store" // Red
+            message.text = "Are you sure you want to delete this store?\n\nYour store \"$storeName\" permanently erase all products, members, and data. This cannot be undone."
+            btnAction.text = "Delete"
         } else {
             title.text = "Leave Store"
-            message.text = "Are you sure you want to leave \"$storeName\"?\n\nYou will lose access to the dashboard and products unless invited back."
-            btnAction.text = "Leave Store"
+            message.text = "Are you sure you want to leave this store?\n\nYou will no longer be a member of this store."
+            btnAction.text = "Leave"
         }
 
+        btnCancel.text = "Cancel"
         btnCancel.setOnClickListener { confirmDialog.dismiss() }
 
         btnAction.setOnClickListener {
@@ -837,21 +836,27 @@ class HomeActivity : AppCompatActivity() {
             }
         }
         confirmDialog.show()
+        confirmDialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.90).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     // --- Invite Code Logic ---
 
     private fun parseInviteCreatedMillis(createdIso: String?): Long? {
         if (createdIso.isNullOrBlank()) return null
+        val clean = createdIso.trim().replace(" ", "T")
+        val hasTimezone = clean.contains("+") || (clean.lastIndexOf("-") > clean.indexOf("T")) || clean.endsWith("Z")
+        val parsedStr = if (hasTimezone) clean else clean + "Z"
         return try {
-            java.time.Instant.parse(createdIso).toEpochMilli()
+            java.time.Instant.parse(parsedStr).toEpochMilli()
         } catch (_: Exception) {
             try {
-                java.time.OffsetDateTime.parse(createdIso).toInstant().toEpochMilli()
+                java.time.OffsetDateTime.parse(parsedStr).toInstant().toEpochMilli()
             } catch (_: Exception) {
                 try {
-                    val normalized = if (createdIso.contains("T")) createdIso else createdIso.replace(" ", "T")
-                    java.time.LocalDateTime.parse(normalized).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    java.time.LocalDateTime.parse(clean).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
                 } catch (_: Exception) { null }
             }
         }
@@ -917,14 +922,25 @@ class HomeActivity : AppCompatActivity() {
         val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
         dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
+        val layoutDirectInvitation = view.findViewById<View>(R.id.layoutDirectInvitation)
+        val layoutJoinStoreCode = view.findViewById<View>(R.id.layoutJoinStoreCode)
+        val btnSwitchToCode = view.findViewById<View>(R.id.btnSwitchToCode)
+        val btnSwitchToDirect = view.findViewById<View>(R.id.btnSwitchToDirect)
+        val btnDone = view.findViewById<View>(R.id.btnDone)
+
+        val layoutCodeInactive = view.findViewById<View>(R.id.layoutCodeInactive)
+        val layoutCodeActive = view.findViewById<View>(R.id.layoutCodeActive)
+
         val codeText = view.findViewById<TextView>(R.id.storeCodeText)
         val expiryText = view.findViewById<TextView>(R.id.inviteCodeExpiry)
-        val copyBtn = view.findViewById<View>(R.id.btnCopyCode)
-        val generateBtn = view.findViewById<TextView>(R.id.btnGenerateCode)
+        val copyBtnActive = view.findViewById<View>(R.id.btnCopyCodeActive)
+
+        val btnGenerateCodeInactive = view.findViewById<View>(R.id.btnGenerateCodeInactive)
+        val btnGenerateCodeActive = view.findViewById<View>(R.id.btnGenerateCodeActive)
+        val btnRevokeCodeActive = view.findViewById<View>(R.id.btnRevokeCodeActive)
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
         val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
@@ -938,25 +954,40 @@ class HomeActivity : AppCompatActivity() {
         var searchRunnable: Runnable? = null
 
         fun updateCodeUI(code: String?, expiresAt: Long?) {
-            codeText.text = code ?: "No Code"
             inviteCodeCountdownJob?.cancel()
-
             val now = System.currentTimeMillis()
-            if (code != null && expiresAt != null) {
-                if (expiresAt > now) {
-                    startInviteCountdown(expiryText, codeText, copyBtn, expiresAt)
-                } else {
-                    expiryText.text = "Code expired"
-                }
+            val isValid = !code.isNullOrBlank() && expiresAt != null && expiresAt > now
+
+            if (isValid) {
+                layoutCodeInactive.visibility = View.GONE
+                layoutCodeActive.visibility = View.VISIBLE
+                codeText.text = code
+                startInviteCountdown(expiryText, codeText, copyBtnActive, expiresAt)
             } else {
-                expiryText.text = if (code == null) "" else "Code expired"
+                layoutCodeInactive.visibility = View.VISIBLE
+                layoutCodeActive.visibility = View.GONE
+                expiryText.text = ""
             }
         }
         updateCodeUI(inviteCode, expiryMillis)
 
-        copyBtn.setOnClickListener {
+        btnSwitchToCode.setOnClickListener {
+            layoutDirectInvitation.visibility = View.GONE
+            layoutJoinStoreCode.visibility = View.VISIBLE
+        }
+
+        btnSwitchToDirect.setOnClickListener {
+            layoutJoinStoreCode.visibility = View.GONE
+            layoutDirectInvitation.visibility = View.VISIBLE
+        }
+
+        btnDone.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        copyBtnActive.setOnClickListener {
             val code = codeText.text.toString()
-            if (code.isNotEmpty() && code != "No Code") {
+            if (code.isNotEmpty()) {
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("Store Code", code)
                 clipboard.setPrimaryClip(clip)
@@ -964,14 +995,14 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        generateBtn.setOnClickListener {
+        fun generateCode() {
             if (userRole != "owner") {
                 Toast.makeText(this, "Only owner can generate codes.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+                return
             }
-            val sId = currentStoreId ?: return@setOnClickListener
-            generateBtn.text = "Regenerating..."
-            generateBtn.isEnabled = false
+            val sId = currentStoreId ?: return
+            btnGenerateCodeInactive.isEnabled = false
+            btnGenerateCodeActive.isEnabled = false
 
             lifecycleScope.launch {
                 try {
@@ -991,8 +1022,43 @@ class HomeActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this@HomeActivity, "Failed to generate code.", Toast.LENGTH_SHORT).show()
                 } finally {
-                    generateBtn.text = "Regenerate Code"
-                    generateBtn.isEnabled = true
+                    btnGenerateCodeInactive.isEnabled = true
+                    btnGenerateCodeActive.isEnabled = true
+                }
+            }
+        }
+
+        btnGenerateCodeInactive.setOnClickListener { generateCode() }
+        btnGenerateCodeActive.setOnClickListener { generateCode() }
+
+        btnRevokeCodeActive.setOnClickListener {
+            if (userRole != "owner") {
+                Toast.makeText(this, "Only owner can revoke codes.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val sId = currentStoreId ?: return@setOnClickListener
+            btnRevokeCodeActive.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    supabase.postgrest.from("stores").update(
+                        buildJsonObject {
+                            put("invite_code", null as String?)
+                            put("invite_code_created_at", null as String?)
+                        }
+                    ) {
+                        filter {
+                            eq("id", sId)
+                        }
+                    }
+                    runOnUiThread {
+                        updateCodeUI(null, null)
+                        Toast.makeText(this@HomeActivity, "Code revoked.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this@HomeActivity, "Failed to revoke code.", Toast.LENGTH_SHORT).show()
+                } finally {
+                    btnRevokeCodeActive.isEnabled = true
                 }
             }
         }
@@ -1004,7 +1070,6 @@ class HomeActivity : AppCompatActivity() {
 
         val performSearch = { query: String ->
             searchLoader.visibility = View.VISIBLE
-            searchIcon.visibility = View.GONE
             textNotFound.visibility = View.GONE
             userResultContainer.visibility = View.GONE
             selectedUser = null
@@ -1014,7 +1079,6 @@ class HomeActivity : AppCompatActivity() {
                 try {
                     val results = supabase.postgrest.rpc("search_app_user", buildJsonObject { put("search_term", query) }).decodeList<SearchedUser>()
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
 
                     if (results.isNotEmpty()) {
                         val user = results[0]
@@ -1032,7 +1096,7 @@ class HomeActivity : AppCompatActivity() {
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar?.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.avatar_default)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE
@@ -1040,7 +1104,6 @@ class HomeActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("InviteStaff", "Search failed", e)
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
                     textNotFound.text = "Error searching user."
                     textNotFound.visibility = View.VISIBLE
                 }
@@ -1049,14 +1112,13 @@ class HomeActivity : AppCompatActivity() {
         }
 
         searchInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) { }
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 searchRunnable?.let { searchHandler.removeCallbacks(it) }
                 inviteErrorText.visibility = View.GONE
                 val query = s.toString().trim()
                 if (query.isEmpty()) {
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
                     textNotFound.visibility = View.GONE
                     userResultContainer.visibility = View.GONE
                     selectedUser = null
@@ -1069,18 +1131,20 @@ class HomeActivity : AppCompatActivity() {
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
-        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
+        val spinnerRole = view.findViewById<android.widget.AutoCompleteTextView>(R.id.spinnerRole)
         val rolesDisplay = listOf("View only price list", "Manage prices")
         val rolesValue = listOf("employee", "manager")
         val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, rolesDisplay)
-        roleSpinner.adapter = adp
+        spinnerRole.setAdapter(adp)
+        spinnerRole.setText(rolesDisplay[0], false)
 
         view.findViewById<Button>(R.id.btnBack).setOnClickListener { dialog.dismiss() }
 
         btnInvite.setOnClickListener {
             val user = selectedUser ?: return@setOnClickListener
             val sId = currentStoreId ?: return@setOnClickListener
-            val roleIdx = roleSpinner.selectedItemPosition
+            val roleText = spinnerRole.text.toString()
+            val roleIdx = rolesDisplay.indexOf(roleText).coerceAtLeast(0)
             val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
 
             btnInvite.text = "Inviting..."
@@ -1180,28 +1244,33 @@ class HomeActivity : AppCompatActivity() {
 
     private fun showLogoutDialog(drawerLayout: DrawerLayout) {
         val dialog = android.app.Dialog(this)
-        val view = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
+        val view = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_reusable_template, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
-        view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
-        view.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener { dialog.dismiss() }
-        view.findViewById<android.widget.Button>(R.id.btnDelete).apply {
-            text = "Log Out"
-            setOnClickListener {
-                lifecycleScope.launch {
-                    try { SupabaseAuthService.signOut() } catch (_: Exception) { }
-                    val intent = Intent(this@HomeActivity, LoginActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(intent)
-                    finish()
-                }
-                dialog.dismiss()
-                drawerLayout.close()
+        view.findViewById<TextView>(R.id.dialogTitle).text = "Logout"
+        view.findViewById<TextView>(R.id.dialogMessage).text = "Are you sure you want to log out?\n\nYou can sign back in anytime. See you again soon!"
+        val btnNegative = view.findViewById<android.widget.Button>(R.id.btnNegative)
+        val btnPositive = view.findViewById<android.widget.Button>(R.id.btnPositive)
+        btnNegative.text = "Cancel"
+        btnNegative.setOnClickListener { dialog.dismiss() }
+        btnPositive.text = "Logout"
+        btnPositive.setOnClickListener {
+            lifecycleScope.launch {
+                try { SupabaseAuthService.signOut() } catch (_: Exception) { }
+                val intent = Intent(this@HomeActivity, LoginActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(intent)
+                finish()
             }
+            dialog.dismiss()
+            drawerLayout.close()
         }
         dialog.show()
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.90).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     private fun loadStoreDetails(storeId: String, storeName: String?, storeText: TextView, storeBranchText: TextView) {
@@ -1220,25 +1289,24 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setupCategorySpinner(storeId: String?, categoryLabel: TextView, categorySpinner: Spinner, categoryDrawerButton: ImageView, onCategorySelected: (String) -> Unit) {
-        val categories = mutableListOf("PRICELIST")
-        val adapterSpinner = object : android.widget.ArrayAdapter<String>(
-            this, android.R.layout.simple_spinner_dropdown_item, categories
+        spinnerAdapter = object : android.widget.ArrayAdapter<String>(
+            this, android.R.layout.simple_spinner_dropdown_item, spinnerCategories
         ) {
             override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
                 val view = super.getView(position, convertView, parent)
-                (view as? TextView)?.text = categories[position].uppercase()
+                (view as? TextView)?.text = spinnerCategories[position].uppercase()
                 return view
             }
             override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
                 val view = super.getDropDownView(position, convertView, parent)
-                (view as? TextView)?.text = categories[position].uppercase()
+                (view as? TextView)?.text = spinnerCategories[position].uppercase()
                 return view
             }
         }
-        categorySpinner.adapter = adapterSpinner
+        categorySpinner.adapter = spinnerAdapter
         categorySpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                val cat = categories[position]
+                val cat = spinnerCategories[position]
                 categoryLabel.text = cat.uppercase()
                 onCategorySelected(cat)
             }
@@ -1249,15 +1317,31 @@ class HomeActivity : AppCompatActivity() {
         categorySpinner.requestLayout()
         categoryDrawerButton.setOnClickListener { categorySpinner.performClick() }
 
-        if (storeId != null) {
-            lifecycleScope.launch {
-                try {
-                    val rows = supabase.postgrest.rpc("get_user_categories", buildJsonObject { put("p_store_id", storeId) }).decodeList<UserCategoryRow>()
-                    for (row in rows) {
-                        if (!categories.contains(row.name)) categories.add(row.name)
+        refreshSpinnerCategories(storeId)
+    }
+
+    private fun refreshSpinnerCategories(storeId: String?) {
+        val sId = storeId ?: return
+        lifecycleScope.launch {
+            try {
+                val rows = supabase.postgrest.rpc("get_user_categories", buildJsonObject { put("p_store_id", sId) }).decodeList<UserCategoryRow>()
+                val selected = spinnerCategories.getOrNull(findViewById<Spinner>(R.id.categorySpinner)?.selectedItemPosition ?: 0) ?: "PRICELIST"
+                spinnerCategories.clear()
+                spinnerCategories.add("PRICELIST")
+                for (row in rows) {
+                    val catName = row.name.uppercase()
+                    if (!spinnerCategories.contains(catName)) {
+                        spinnerCategories.add(catName)
                     }
-                    adapterSpinner.notifyDataSetChanged()
-                } catch (e: Exception) { Log.e("HomeActivity", "Cat load failed", e) }
+                }
+                spinnerAdapter.notifyDataSetChanged()
+                
+                val index = spinnerCategories.indexOf(selected)
+                if (index >= 0) {
+                    findViewById<Spinner>(R.id.categorySpinner)?.setSelection(index, false)
+                }
+            } catch (e: Exception) {
+                Log.e("HomeActivity", "Failed to refresh spinner categories: ${e.localizedMessage}")
             }
         }
     }
@@ -1282,29 +1366,40 @@ class HomeActivity : AppCompatActivity() {
 
         view.findViewById<ImageView>(R.id.btnEdit).setOnClickListener {
             if (storeId.isNullOrBlank()) return@setOnClickListener
-            val intent = Intent(this, EditItemActivity::class.java)
-            intent.putExtra("productId", product.id)
-            intent.putExtra("productName", product.name)
-            intent.putExtra("productDescription", product.description)
-            intent.putExtra("productPrice", product.price)
-            intent.putExtra("productUnit", product.volume)
-            intent.putExtra("productCategory", product.category)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            editItemLauncher.launch(intent)
             dialog.dismiss()
+            AddEditItemDialogHelper.showAddOrEditItemDialog(
+                activity = this@HomeActivity,
+                storeId = storeId,
+                storeName = storeName ?: "Store",
+                productData = EditProductData(
+                    id = product.id,
+                    name = product.name,
+                    description = product.description,
+                    price = product.price,
+                    unit = product.volume,
+                    category = product.category,
+                    isPublic = product.is_public
+                ),
+                onComplete = {
+                    reloadProductsFn?.invoke()
+                }
+            )
         }
         view.findViewById<ImageView>(R.id.btnDelete).setOnClickListener {
             val confirmDialog = android.app.Dialog(this)
-            val confirmView = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
+            val confirmView = layoutInflater.inflate(R.layout.dialog_reusable_template, null)
             confirmDialog.setContentView(confirmView)
             confirmDialog.setCancelable(true)
             confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
             confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Delete Item"
-            confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this item?"
-            confirmView.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
-            confirmView.findViewById<android.widget.Button>(R.id.btnDelete).setOnClickListener {
+            confirmView.findViewById<TextView>(R.id.dialogMessage).text = "Are you sure you want to delete this item?"
+            val btnNegative = confirmView.findViewById<android.widget.Button>(R.id.btnNegative)
+            val btnPositive = confirmView.findViewById<android.widget.Button>(R.id.btnPositive)
+            btnNegative.text = "Cancel"
+            btnNegative.setOnClickListener { confirmDialog.dismiss() }
+            btnPositive.text = "Delete"
+            btnPositive.setOnClickListener {
                 if(storeId != null) {
                     lifecycleScope.launch {
                         try {
@@ -1319,6 +1414,10 @@ class HomeActivity : AppCompatActivity() {
                 }
             }
             confirmDialog.show()
+            confirmDialog.window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.90).toInt(),
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            )
         }
         dialog.show()
     }
@@ -1326,15 +1425,19 @@ class HomeActivity : AppCompatActivity() {
     private fun showDeleteConfirmationDialog(product: com.presyohan.app.adapter.Product) {
         val sId = currentStoreId ?: return
         val confirmDialog = android.app.Dialog(this)
-        val confirmView = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
+        val confirmView = layoutInflater.inflate(R.layout.dialog_reusable_template, null)
         confirmDialog.setContentView(confirmView)
         confirmDialog.setCancelable(true)
         confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         confirmView.findViewById<TextView>(R.id.dialogTitle).text = "Delete Item"
-        confirmView.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to delete this item?"
-        confirmView.findViewById<android.widget.Button>(R.id.btnCancel).setOnClickListener { confirmDialog.dismiss() }
-        confirmView.findViewById<android.widget.Button>(R.id.btnDelete).setOnClickListener {
+        confirmView.findViewById<TextView>(R.id.dialogMessage).text = "Are you sure you want to delete this item?"
+        val btnNegative = confirmView.findViewById<android.widget.Button>(R.id.btnNegative)
+        val btnPositive = confirmView.findViewById<android.widget.Button>(R.id.btnPositive)
+        btnNegative.text = "Cancel"
+        btnNegative.setOnClickListener { confirmDialog.dismiss() }
+        btnPositive.text = "Delete"
+        btnPositive.setOnClickListener {
             confirmDialog.dismiss()
             
             // Backup the current state for rollback
@@ -1381,6 +1484,10 @@ class HomeActivity : AppCompatActivity() {
             }
         }
         confirmDialog.show()
+        confirmDialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.90).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     private fun loadNotifBadge() {
@@ -1446,7 +1553,7 @@ class HomeActivity : AppCompatActivity() {
         // Default state
         uT.text = "User"
         codeT?.visibility = View.GONE
-        img.setImageResource(R.drawable.icon_profile)
+        img.setImageResource(R.drawable.avatar_default)
         img.setColorFilter(ContextCompat.getColor(this, R.color.white))
 
         lifecycleScope.launch {
@@ -1466,7 +1573,7 @@ class HomeActivity : AppCompatActivity() {
                     img.load(profile.avatar_url) {
                         crossfade(true)
                         transformations(CircleCropTransformation())
-                        error(R.drawable.icon_profile)
+                        error(R.drawable.avatar_default)
                     }
                 }
             } else {
@@ -1483,6 +1590,7 @@ class HomeActivity : AppCompatActivity() {
         val sName = intent.getStringExtra("storeName")
         SessionManager.markStoreHome(this, sId, sName)
         reloadProductsFn?.invoke()
+        refreshSpinnerCategories(sId ?: currentStoreId)
         loadNotifBadge()
     }
 
@@ -1858,5 +1966,17 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-
+    override fun finish() {
+        super.finish()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(
+                android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
+                R.anim.slide_in_left,
+                R.anim.slide_out_right
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+        }
+    }
 }
