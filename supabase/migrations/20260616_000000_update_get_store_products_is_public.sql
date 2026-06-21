@@ -1,0 +1,85 @@
+-- Migration: Update get_store_products RPC to include is_public
+-- Drop the existing function first to allow changing the return table signature
+DROP FUNCTION IF EXISTS public.get_store_products(UUID, TEXT, TEXT);
+
+CREATE OR REPLACE FUNCTION public.get_store_products(
+  p_store_id UUID,
+  p_category_filter TEXT DEFAULT NULL,
+  p_search_query TEXT DEFAULT NULL
+)
+RETURNS TABLE(
+  product_id UUID,
+  store_id UUID,
+  name TEXT,
+  description TEXT,
+  price NUMERIC,
+  units TEXT,
+  category TEXT,
+  is_public BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  has_auth_uid BOOLEAN;
+  user_has_access BOOLEAN := FALSE;
+BEGIN
+  -- Detect app_users identity model
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'app_users' AND column_name = 'auth_uid'
+  ) INTO has_auth_uid;
+
+  -- Check if user has access to this store
+  IF has_auth_uid THEN
+    -- Legacy model: check via app_users.auth_uid mapping
+    SELECT EXISTS (
+      SELECT 1 FROM public.store_members sm
+      JOIN public.app_users u ON sm.user_id = u.id
+      WHERE sm.store_id = p_store_id AND u.auth_uid = auth.uid()
+    ) INTO user_has_access;
+  ELSE
+    -- Simple model: direct auth.uid() mapping
+    SELECT EXISTS (
+      SELECT 1 FROM public.store_members sm
+      WHERE sm.store_id = p_store_id AND sm.user_id = auth.uid()
+    ) INTO user_has_access;
+  END IF;
+
+  -- Return empty if user has no access
+  IF NOT user_has_access THEN
+    RETURN;
+  END IF;
+
+  -- Return products for the store with optional filtering
+  RETURN QUERY
+  SELECT 
+    p.id as product_id,
+    p.store_id,
+    p.name,
+    p.description,
+    p.price,
+    -- Alias underlying column 'unit' to 'units' for client compatibility
+    p.unit AS units,
+    COALESCE(c.name, '') AS category,
+    p.is_public
+  FROM public.products p
+  LEFT JOIN public.categories c ON c.id = p.category_id
+  WHERE p.store_id = p_store_id
+    AND (
+      p_category_filter IS NULL OR p_category_filter = 'PRICELIST' OR COALESCE(c.name, '') = p_category_filter
+    )
+    AND (
+      p_search_query IS NULL OR p_search_query = '' OR (
+        p.name ILIKE '%' || p_search_query || '%'
+        OR p.description ILIKE '%' || p_search_query || '%'
+        OR p.unit ILIKE '%' || p_search_query || '%'
+        OR COALESCE(c.name, '') ILIKE '%' || p_search_query || '%'
+      )
+    )
+  ORDER BY p.name;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION public.get_store_products(UUID, TEXT, TEXT) TO authenticated;

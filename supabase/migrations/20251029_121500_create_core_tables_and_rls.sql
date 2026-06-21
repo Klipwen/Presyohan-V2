@@ -72,9 +72,9 @@ ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS app_users_select_own ON public.app_users;
 DROP POLICY IF EXISTS app_users_insert_own ON public.app_users;
 DROP POLICY IF EXISTS app_users_update_own ON public.app_users;
-CREATE POLICY app_users_select_own ON public.app_users
+CREATE POLICY app_users_select_all ON public.app_users
   FOR SELECT TO authenticated
-  USING (id = auth.uid());
+  USING (true);
 CREATE POLICY app_users_insert_own ON public.app_users
   FOR INSERT TO authenticated
   WITH CHECK (id = auth.uid());

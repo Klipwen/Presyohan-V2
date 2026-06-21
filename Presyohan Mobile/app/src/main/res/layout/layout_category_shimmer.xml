@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <!-- Category Item Skeleton 1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card_unselected"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <!-- Left Column Placeholders -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/layoutRightActions"
+                    android:layout_marginEnd="12dp">
+
+                    <View
+                        android:layout_width="140dp"
+                        android:layout_height="16dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="6dp" />
+
+                    <View
+                        android:layout_width="60dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E5E5" />
+                </LinearLayout>
+
+                <!-- Right Column Placeholders -->
+                <LinearLayout
+                    android:id="@+id/layoutRightActions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true">
+
+                    <LinearLayout
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+                        <View
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="#E0E0E0" />
+                        <View
+                            android:layout_width="28dp"
+                            android:layout_height="10dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_marginStart="8dp">
+                        <View
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="#E0E0E0" />
+                        <View
+                            android:layout_width="36dp"
+                            android:layout_height="10dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- Make it Public Switch Placeholder -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="16dp">
+
+                <View
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:background="#E0E0E0" />
+
+                <View
+                    android:layout_width="80dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E5E5"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+
+            <!-- Action Buttons Placeholder -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="20dp"
+                android:weightSum="3">
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="6dp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="6dp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Category Item Skeleton 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card_unselected"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <!-- Left Column Placeholders -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/layoutRightActions2"
+                    android:layout_marginEnd="12dp">
+
+                    <View
+                        android:layout_width="100dp"
+                        android:layout_height="16dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="6dp" />
+
+                    <View
+                        android:layout_width="45dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E5E5" />
+                </LinearLayout>
+
+                <!-- Right Column Placeholders -->
+                <LinearLayout
+                    android:id="@+id/layoutRightActions2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true">
+
+                    <LinearLayout
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+                        <View
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="#E0E0E0" />
+                        <View
+                            android:layout_width="28dp"
+                            android:layout_height="10dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_marginStart="8dp">
+                        <View
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="#E0E0E0" />
+                        <View
+                            android:layout_width="36dp"
+                            android:layout_height="10dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- Make it Public Switch Placeholder -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="16dp">
+
+                <View
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:background="#E0E0E0" />
+
+                <View
+                    android:layout_width="80dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E5E5"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+
+            <!-- Action Buttons Placeholder -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="20dp"
+                android:weightSum="3">
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="6dp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="6dp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Category Item Skeleton 3 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card_unselected"
+            android:padding="16dp"
+            android:layout_marginBottom="12dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <!-- Left Column Placeholders -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/layoutRightActions3"
+                    android:layout_marginEnd="12dp">
+
+                    <View
+                        android:layout_width="160dp"
+                        android:layout_height="16dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="6dp" />
+
+                    <View
+                        android:layout_width="55dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E5E5" />
+                </LinearLayout>
+
+                <!-- Right Column Placeholders -->
+                <LinearLayout
+                    android:id="@+id/layoutRightActions3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true">
+
+                    <LinearLayout
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+                        <View
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="#E0E0E0" />
+                        <View
+                            android:layout_width="28dp"
+                            android:layout_height="10dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_marginStart="8dp">
+                        <View
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="#E0E0E0" />
+                        <View
+                            android:layout_width="36dp"
+                            android:layout_height="10dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </RelativeLayout>
+
+            <!-- Make it Public Switch Placeholder -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="16dp">
+
+                <View
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:background="#E0E0E0" />
+
+                <View
+                    android:layout_width="80dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E5E5"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+
+            <!-- Action Buttons Placeholder -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="20dp"
+                android:weightSum="3">
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="6dp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="6dp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

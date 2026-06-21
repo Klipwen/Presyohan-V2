@@ -60,9 +60,8 @@ import java.util.Locale
 import coil.load
 import coil.transform.CircleCropTransformation
 
-class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
+class StoreActivity : AppCompatActivity() {
     private lateinit var drawerLayout: DrawerLayout
-    private lateinit var navigationView: NavigationView
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: StoreAdapter
     private var allStores: List<Store> = emptyList()
@@ -157,9 +156,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         drawerLayout = findViewById(R.id.drawerLayout)
-        navigationView = findViewById(R.id.navigationView)
-        navigationView.setNavigationItemSelectedListener(this)
-        HeaderUtils.updateHeader(this, navigationView)
+        DrawerHelper.setupDrawer(this, drawerLayout)
 
         // Open drawer when menu icon is clicked
         findViewById<ImageView>(R.id.menuIcon).setOnClickListener {
@@ -181,7 +178,12 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 val intent = Intent(this, HomeActivity::class.java)
                 intent.putExtra("storeId", store.id)
                 intent.putExtra("storeName", store.name)
-                startActivity(intent)
+                val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                    this,
+                    R.anim.slide_in_right,
+                    R.anim.slide_out_left
+                )
+                startActivity(intent, options.toBundle())
             },
             onSettingsClick = { store ->
                 val intent = Intent(this, ManageStoreActivity::class.java)
@@ -274,49 +276,7 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         loadNotifBadge()
     }
 
-    override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.nav_logout) {
-            // --- LOGOUT CONFIRMATION DIALOG START ---
-            val dialog = Dialog(this)
-            val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
-            dialog.setContentView(view)
-            dialog.setCancelable(true)
-            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-            view.findViewById<TextView>(R.id.dialogTitle).text = "Log Out?"
-            view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to log out of Presyohan?"
-
-            view.findViewById<Button>(R.id.btnCancel).setOnClickListener {
-                dialog.dismiss()
-            }
-
-            view.findViewById<Button>(R.id.btnDelete).apply {
-                text = "Log Out"
-                setOnClickListener {
-                    lifecycleScope.launch {
-                        try {
-                            SupabaseAuthService.signOut()
-                        } catch (_: Exception) { }
-                        val intent = Intent(this@StoreActivity, LoginActivity::class.java)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        startActivity(intent)
-                        finish()
-                    }
-                    dialog.dismiss()
-                    drawerLayout.closeDrawer(android.view.Gravity.START)
-                }
-            }
-            dialog.show()
-            return true
-        }
-        if (item.itemId == R.id.nav_notifications) {
-            val intent = Intent(this, NotificationActivity::class.java)
-            startActivity(intent)
-            drawerLayout.closeDrawer(android.view.Gravity.START)
-            return true
-        }
-        return false
-    }
 
     override fun onBackPressed() {
         val now = System.currentTimeMillis()
@@ -349,6 +309,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
 
         dialog.show()
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun applyFilterAndSearch() {
@@ -497,9 +459,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
-
         val txtStoreName = view.findViewById<TextView>(R.id.dialogStoreName)
         val txtStoreBranch = view.findViewById<TextView>(R.id.dialogStoreBranch)
         txtStoreName.text = store.name
@@ -519,13 +478,27 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
         val btnLeaveStore = view.findViewById<View>(R.id.btnLeaveStore)
 
-        val roleDisplayName = when (store.role.lowercase()) {
+        val displayRole = when (store.role.lowercase(Locale.ROOT)) {
             "owner" -> "Owner"
+            "employee", "staff" -> "Sales staff"
             "manager" -> "Manager"
-            else -> "Sales Staff"
+            else -> "Staff"
         }
-        txtRoleDesignation.text = "You are the $roleDisplayName of this store."
-        txtStoreId.text = store.id
+        val prefix = "You are the "
+        val suffix = " of this store."
+        val fullText = "$prefix$displayRole$suffix"
+        val spannable = android.text.SpannableString(fullText)
+        val start = prefix.length
+        val end = start + displayRole.length
+        spannable.setSpan(
+            android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+            start,
+            end,
+            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        txtRoleDesignation.text = spannable
+
+        txtStoreId.text = "SID25-009"
 
         lifecycleScope.launch {
             try {
@@ -570,12 +543,21 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 
                 val storeRow = rows.firstOrNull()
                 if (storeRow != null) {
-                    val dateText = storeRow.created_at?.split("T")?.firstOrNull() ?: "N/A"
+                    val rawDate = storeRow.created_at?.split("T")?.firstOrNull() ?: ""
+                    val dateText = try {
+                        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                        val parsedDate = inputFormat.parse(rawDate)
+                        if (parsedDate != null) {
+                            val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
+                            outputFormat.format(parsedDate)
+                        } else {
+                            rawDate
+                        }
+                    } catch (_: Exception) {
+                        rawDate
+                    }
                     txtCreatedAt.text = dateText
                     txtVisibilityStatus.text = if (storeRow.is_public) "Public" else "Private"
-                    txtVisibilityStatus.setTextColor(
-                        ContextCompat.getColor(this@StoreActivity, if (storeRow.is_public) R.color.presyo_teal else R.color.red)
-                    )
 
                     val inviteCode = storeRow.invite_code
                     val createdIso = storeRow.invite_code_created_at
@@ -587,9 +569,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                     } else {
                         inviteCode
                     }
-                    txtJoinCode.setTextColor(
-                        ContextCompat.getColor(this@StoreActivity, if (isExpired || inviteCode.isNullOrBlank()) R.color.red else R.color.presyo_teal)
-                    )
                 }
             } catch (e: Exception) {
                 Log.e("StoreActivity", "Failed to load store details stats", e)
@@ -606,6 +585,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
 
         dialog.show()
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun fetchStores(showShimmer: Boolean = true) {
@@ -687,10 +668,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        // 1. Layout Fix: Set Dialog Width to 90% of Screen
-        val width = (resources.displayMetrics.widthPixels * 0.96).toInt()
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
         // Bind Headers
         view.findViewById<TextView>(R.id.menuStoreName).text = store.name
@@ -782,28 +759,32 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
 
         dialog.show()
+        val width = (resources.displayMetrics.widthPixels * 0.96).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog? = null) {
         val confirmDialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_reusable_template, null)
         confirmDialog.setContentView(view)
         confirmDialog.setCancelable(true)
         confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         val title = view.findViewById<TextView>(R.id.dialogTitle)
-        val message = view.findViewById<TextView>(R.id.confirmMessage)
-        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
-        val btnAction = view.findViewById<Button>(R.id.btnDelete)
+        val message = view.findViewById<TextView>(R.id.dialogMessage)
+        val btnCancel = view.findViewById<Button>(R.id.btnNegative)
+        val btnAction = view.findViewById<Button>(R.id.btnPositive)
+
+        btnCancel.text = "Cancel"
 
         if (isDelete) {
             title.text = "Delete Store"
-            message.text = "Are you sure you want to delete this store?.\n\nYour store \"$storeName\" permanently erase all products, members, and data. This cannot be undone."
-            btnAction.text = "Delete Store" // Red
+            message.text = "Are you sure you want to delete this store?\n\nDeleting your store \"$storeName\" will permanently delete all products, members, and categories.\n\nThis cannot be undone."
+            btnAction.text = "Delete"
         } else {
             title.text = "Leave Store"
-            message.text = "Are you sure you want to leave \"$storeName\"?\n\nYou will lose access to the dashboard and products unless invited back."
-            btnAction.text = "Leave Store"
+            message.text = "Are you sure you want to leave this store?\n\nYou will no longer be a member of this store."
+            btnAction.text = "Leave"
         }
 
         btnCancel.setOnClickListener { confirmDialog.dismiss() }
@@ -833,6 +814,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             }
         }
         confirmDialog.show()
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        confirmDialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun showImportDialogForStore(storeId: String, storeName: String) {
@@ -850,10 +833,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        // 1. Layout Fix: Set Dialog Width to 90% of Screen
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
         // Headers
         view.findViewById<TextView>(R.id.menuStoreName).text = store.name
@@ -895,6 +874,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         }
 
         dialog.show()
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun loadNotifBadge() {
@@ -1267,15 +1248,17 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
     private fun parseInviteCreatedMillis(createdIso: String?): Long? {
         if (createdIso.isNullOrBlank()) return null
+        val clean = createdIso.trim().replace(" ", "T")
+        val hasTimezone = clean.contains("+") || (clean.lastIndexOf("-") > clean.indexOf("T")) || clean.endsWith("Z")
+        val parsedStr = if (hasTimezone) clean else clean + "Z"
         return try {
-            java.time.Instant.parse(createdIso).toEpochMilli()
+            java.time.Instant.parse(parsedStr).toEpochMilli()
         } catch (_: Exception) {
             try {
-                java.time.OffsetDateTime.parse(createdIso).toInstant().toEpochMilli()
+                java.time.OffsetDateTime.parse(parsedStr).toInstant().toEpochMilli()
             } catch (_: Exception) {
                 try {
-                    val normalized = if (createdIso.contains("T")) createdIso else createdIso.replace(" ", "T")
-                    java.time.LocalDateTime.parse(normalized).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    java.time.LocalDateTime.parse(clean).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
                 } catch (_: Exception) { null }
             }
         }
@@ -1340,22 +1323,33 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
         dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
+        val layoutDirectInvitation = view.findViewById<View>(R.id.layoutDirectInvitation)
+        val layoutJoinStoreCode = view.findViewById<View>(R.id.layoutJoinStoreCode)
+        val btnSwitchToCode = view.findViewById<View>(R.id.btnSwitchToCode)
+        val btnSwitchToDirect = view.findViewById<View>(R.id.btnSwitchToDirect)
+        val btnDone = view.findViewById<View>(R.id.btnDone)
+
+        val layoutCodeInactive = view.findViewById<View>(R.id.layoutCodeInactive)
+        val layoutCodeActive = view.findViewById<View>(R.id.layoutCodeActive)
+
         val codeText = view.findViewById<TextView>(R.id.storeCodeText)
         val expiryText = view.findViewById<TextView>(R.id.inviteCodeExpiry)
-        val copyBtn = view.findViewById<View>(R.id.btnCopyCode)
-        val generateBtn = view.findViewById<TextView>(R.id.btnGenerateCode)
+        val copyBtnActive = view.findViewById<View>(R.id.btnCopyCodeActive)
+
+        val btnGenerateCodeInactive = view.findViewById<View>(R.id.btnGenerateCodeInactive)
+        val btnGenerateCodeActive = view.findViewById<View>(R.id.btnGenerateCodeActive)
+        val btnRevokeCodeActive = view.findViewById<View>(R.id.btnRevokeCodeActive)
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
         val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
         val foundName = view.findViewById<TextView>(R.id.foundUserName)
         val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
         val btnInvite = view.findViewById<Button>(R.id.btnInvite)
+        val spinnerRole = view.findViewById<android.widget.AutoCompleteTextView>(R.id.spinnerRole)
         val inviteErrorText = view.findViewById<TextView>(R.id.inviteErrorText)
-        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
 
         @Serializable
         data class SearchedUser(
@@ -1369,31 +1363,48 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         val rolesDisplay = listOf("View only price list", "Manage prices")
         val rolesValue = listOf("employee", "manager")
         val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, rolesDisplay)
-        roleSpinner.adapter = adp
+        spinnerRole.setAdapter(adp)
+        spinnerRole.setText(rolesDisplay[0], false)
 
         var selectedUser: SearchedUser? = null
         val searchHandler = Handler(Looper.getMainLooper())
         var searchRunnable: Runnable? = null
 
         fun updateCodeUI(code: String?, expiresAt: Long?) {
-            codeText.text = code ?: "No Code"
             inviteCodeCountdownJob?.cancel()
             val now = System.currentTimeMillis()
-            if (code != null && expiresAt != null) {
-                if (expiresAt > now) {
-                    startInviteCountdown(expiryText, codeText, copyBtn, expiresAt)
-                } else {
-                    expiryText.text = "Code expired"
-                }
+            val isValid = !code.isNullOrBlank() && expiresAt != null && expiresAt > now
+
+            if (isValid) {
+                layoutCodeInactive.visibility = View.GONE
+                layoutCodeActive.visibility = View.VISIBLE
+                codeText.text = code
+                startInviteCountdown(expiryText, codeText, copyBtnActive, expiresAt)
             } else {
-                expiryText.text = if (code == null) "" else "Code expired"
+                layoutCodeInactive.visibility = View.VISIBLE
+                layoutCodeActive.visibility = View.GONE
+                expiryText.text = ""
             }
         }
         updateCodeUI(inviteCode, expiryMillis)
 
-        copyBtn.setOnClickListener {
+        btnSwitchToCode.setOnClickListener {
+            layoutDirectInvitation.visibility = View.GONE
+            layoutJoinStoreCode.visibility = View.VISIBLE
+        }
+
+        btnSwitchToDirect.setOnClickListener {
+            layoutJoinStoreCode.visibility = View.GONE
+            layoutDirectInvitation.visibility = View.VISIBLE
+        }
+
+        btnDone.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        copyBtnActive.setOnClickListener {
             val code = codeText.text.toString()
-            if (code.isNotEmpty() && code != "No Code") {
+            if (code.isNotEmpty()) {
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("Store Code", code)
                 clipboard.setPrimaryClip(clip)
@@ -1401,15 +1412,16 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
             }
         }
 
-        generateBtn.setOnClickListener {
+        fun generateCode() {
             val role = storeRolesMap[store.id]?.lowercase()
             val isOwner = role == "owner"
             if (!isOwner) {
                 Toast.makeText(this, "Only owner can generate codes.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+                return
             }
-            generateBtn.isEnabled = false
-            generateBtn.text = "Regenerating..."
+            btnGenerateCodeInactive.isEnabled = false
+            btnGenerateCodeActive.isEnabled = false
+
             lifecycleScope.launch {
                 try {
                     val params = buildJsonObject { put("p_store_id", store.id) }
@@ -1430,8 +1442,43 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         Toast.makeText(applicationContext, "Failed to generate code.", Toast.LENGTH_SHORT).show()
                     }
                 } finally {
-                    generateBtn.text = "Generate"
-                    generateBtn.isEnabled = true
+                    btnGenerateCodeInactive.isEnabled = true
+                    btnGenerateCodeActive.isEnabled = true
+                }
+            }
+        }
+
+        btnGenerateCodeInactive.setOnClickListener { generateCode() }
+        btnGenerateCodeActive.setOnClickListener { generateCode() }
+
+        btnRevokeCodeActive.setOnClickListener {
+            val role = storeRolesMap[store.id]?.lowercase()
+            val isOwner = role == "owner"
+            if (!isOwner) {
+                Toast.makeText(this, "Only owner can revoke codes.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            btnRevokeCodeActive.isEnabled = false
+            lifecycleScope.launch {
+                try {
+                    SupabaseProvider.client.postgrest["stores"].update(
+                        mapOf(
+                            "invite_code" to null,
+                            "invite_code_created_at" to null
+                        )
+                    ) {
+                        filter { eq("id", store.id) }
+                    }
+                    runOnUiThread {
+                        updateCodeUI(null, null)
+                        Toast.makeText(applicationContext, "Code revoked.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(applicationContext, "Failed to revoke code.", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    btnRevokeCodeActive.isEnabled = true
                 }
             }
         }
@@ -1443,7 +1490,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
 
         val performSearch = { query: String ->
             searchLoader.visibility = View.VISIBLE
-            searchIcon.visibility = View.GONE
             textNotFound.visibility = View.GONE
             userResultContainer.visibility = View.GONE
             selectedUser = null
@@ -1456,7 +1502,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                         buildJsonObject { put("search_term", query) }
                     ).decodeList<SearchedUser>()
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
                     if (results.isNotEmpty()) {
                         val user = results[0]
                         selectedUser = user
@@ -1471,14 +1516,13 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar?.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.avatar_default)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE
                     }
                 } catch (e: Exception) {
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
                     textNotFound.text = "Error searching user."
                     textNotFound.visibility = View.VISIBLE
                 }
@@ -1494,7 +1538,6 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
                 val query = s.toString().trim()
                 if (query.isEmpty()) {
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
                     textNotFound.visibility = View.GONE
                     userResultContainer.visibility = View.GONE
                     selectedUser = null
@@ -1512,7 +1555,8 @@ class StoreActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelect
         btnInvite.setOnClickListener {
             val user = selectedUser ?: return@setOnClickListener
             val sId = store.id
-            val roleIdx = roleSpinner.selectedItemPosition
+            val roleText = spinnerRole.text.toString()
+            val roleIdx = rolesDisplay.indexOf(roleText).coerceAtLeast(0)
             val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
             btnInvite.text = "Inviting..."
             btnInvite.isEnabled = false

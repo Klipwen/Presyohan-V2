@@ -44,7 +44,6 @@ class ItemFormAdapter(
         private val price: EditText = itemView.findViewById(R.id.inputItemPrice)
         private val description: EditText = itemView.findViewById(R.id.inputItemDescription)
         private val btnDelete: ImageView = itemView.findViewById(R.id.btnDeleteItem)
-        private val priceDisplay: TextView? = itemView.findViewById(R.id.priceDisplay)
 
         fun bind(item: ItemFormData, position: Int) {
             itemNumber.text = "#${item.itemNumber}"
@@ -75,24 +74,11 @@ class ItemFormAdapter(
                     item.description = description.text.toString()
                 }
             })
-            // Format price as ₱ X.00 as user types
             price.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
-                    val value = s?.toString() ?: ""
-                    item.price = value
-                    if (value.isNotBlank()) {
-                        try {
-                            val formatted = String.format("%.2f", value.toDouble())
-                            priceDisplay?.text = "₱ $formatted"
-                            priceDisplay?.visibility = View.VISIBLE
-                        } catch (_: Exception) {
-                            priceDisplay?.visibility = View.GONE
-                        }
-                    } else {
-                        priceDisplay?.visibility = View.GONE
-                    }
+                    item.price = s?.toString() ?: ""
                 }
             })
         }

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_rounded"
+    android:gravity="start">
+
+    <TextView
+        android:id="@+id/dialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Convert Pricelist"
+        android:textColor="@color/presyo_orange"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Choose output format and settings for selected products:"
+        android:textColor="@color/presyo_darkblue"
+        android:textSize="14sp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Export Type RadioGroup -->
+    <RadioGroup
+        android:id="@+id/radioGroupFormat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/radioExcel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Excel (.xlsx)"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="14sp"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/radioNotes"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Notes (Plain Text)"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="14sp" />
+    </RadioGroup>
+
+    <!-- Notes Export Customizations Container -->
+    <LinearLayout
+        android:id="@+id/layoutNotesOptions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Notes Options:"
+            android:textColor="@color/presyo_darkblue"
+            android:textStyle="bold"
+            android:textSize="13sp"
+            android:layout_marginBottom="6dp" />
+
+        <CheckBox
+            android:id="@+id/chkIncludeTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Include Titles"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="13sp"
+            android:checked="true" />
+
+        <CheckBox
+            android:id="@+id/chkIncludeDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Include Description"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="13sp"
+            android:checked="true" />
+
+        <CheckBox
+            android:id="@+id/chkIncludePrice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Include Prices"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="13sp"
+            android:checked="true" />
+
+        <CheckBox
+            android:id="@+id/chkIncludeUnit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Include Volumes/Units"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="13sp"
+            android:checked="true" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Custom Note Footer:"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="12sp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp" />
+
+        <EditText
+            android:id="@+id/inputNoteFooter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="e.g. Prices subject to change without notice"
+            android:textSize="13sp"
+            android:textColor="@color/presyo_darkblue"
+            android:textColorHint="@color/edittext_hint"
+            android:background="@drawable/bg_edittext"
+            android:padding="8dp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- Dialog Actions -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Cancel"
+            android:textColor="@color/presyo_teal"
+            android:background="@drawable/button_round"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnConvert"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Convert"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/presyo_orange"
+            android:background="@drawable/button_round"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

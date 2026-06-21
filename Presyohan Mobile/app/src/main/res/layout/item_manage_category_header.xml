@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="10dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="4dp">
+
+    <!-- Section Divider -->
+    <View
+        android:id="@+id/categoryDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E5E5E5"
+        android:layout_marginBottom="16dp"
+        android:visibility="visible" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_unselected"
+        android:padding="12dp">
+
+        <!-- First Row: Yellow Header Bar with Title and Number -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_header_yellow_pill"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/textCategoryNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:text="1"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textCategoryName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="SCHOOL SUPPLIES"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textAllCaps="true" />
+        </RelativeLayout>
+
+        <!-- Second Row: Item Count and Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Item Count (Left) -->
+            <TextView
+                android:id="@+id/textCategoryItemCount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="6 items"
+                android:textColor="@color/presyo_teal"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginStart="14dp" />
+
+            <!-- Normal Mode Actions (Edit & Delete) -->
+            <LinearLayout
+                android:id="@+id/layoutNormalActions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="visible">
+
+                <ImageView
+                    android:id="@+id/btnRenameCategory"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:src="@drawable/icon_edit"
+                    android:padding="10dp"
+                    android:background="@drawable/bg_outline_button_teal"
+                    app:tint="@color/presyo_teal"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="Rename Category" />
+
+                <ImageView
+                    android:id="@+id/btnDeleteCategory"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:src="@drawable/icon_delete"
+                    android:padding="10dp"
+                    android:background="@drawable/bg_outline_button_teal"
+                    app:tint="@color/presyo_teal"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="Delete Category" />
+            </LinearLayout>
+
+            <!-- Selection Mode Checkbox -->
+            <ImageView
+                android:id="@+id/checkboxCategory"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:src="@drawable/ic_radio_unchecked"
+                android:visibility="gone"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="Select Category" />
+
+            <!-- Add Item Button -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnAddItemCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:background="@drawable/bg_outline_button_teal"
+                android:text="Add Item"
+                android:textColor="@color/presyo_teal"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:paddingHorizontal="16dp"
+                android:visibility="visible" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

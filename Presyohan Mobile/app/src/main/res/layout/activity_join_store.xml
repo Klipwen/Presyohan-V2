@@ -5,11 +5,12 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="false">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fitsSystemWindows="true"
         android:background="@color/white">
 
         <ImageView
@@ -59,21 +60,30 @@
             android:layout_marginEnd="16dp"
             android:contentDescription="Notifications"
             android:src="@drawable/icon_notification"
-            app:layout_constraintEnd_toStartOf="@id/profileIcon"
+            app:layout_constraintEnd_toStartOf="@id/profileIconContainer"
             app:layout_constraintTop_toTopOf="parent" />
 
 
         <!-- Profile Icon (right-most) -->
-        <ImageView
-            android:id="@+id/profileIcon"
+        <FrameLayout
+            android:id="@+id/profileIconContainer"
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_marginEnd="16dp"
             android:layout_marginTop="16dp"
-            android:src="@drawable/icon_profile"
-            android:contentDescription="Profile"
+            android:background="@drawable/bg_avatar_border"
+            android:padding="2dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/profileIcon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="Profile"
+                android:src="@drawable/avatar_default" />
+        </FrameLayout>
 
         <!-- Yellow Rounded Header -->
 
@@ -171,12 +181,6 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <com.google.android.material.navigation.NavigationView
-        android:id="@+id/navigationView"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        app:headerLayout="@layout/drawer_header"
-        app:menu="@menu/nav_menu" />
+    <include layout="@layout/layout_custom_drawer" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

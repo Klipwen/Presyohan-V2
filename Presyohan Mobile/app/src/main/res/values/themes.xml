@@ -2,7 +2,24 @@
 <resources>
 
     <style name="Theme.Presyohan" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:forceDarkAllowed">false</item>
+        <item name="statusBarBackground">@color/white</item>
+        <item name="colorPrimaryDark">@color/white</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.CustomCard" parent="">
+        <item name="cornerSizeTopRight">64dp</item>
+        <item name="cornerSizeBottomLeft">64dp</item>
+        <item name="cornerSizeTopLeft">16dp</item>
+        <item name="cornerSizeBottomRight">16dp</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.CustomCardSmall" parent="">
+        <item name="cornerSizeTopRight">20dp</item>
+        <item name="cornerSizeBottomLeft">20dp</item>
+        <item name="cornerSizeTopLeft">6dp</item>
+        <item name="cornerSizeBottomRight">6dp</item>
     </style>
 </resources>

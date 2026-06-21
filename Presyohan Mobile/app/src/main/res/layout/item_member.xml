@@ -1,25 +1,112 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="@android:color/white">
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="4dp">
 
-    <TextView
-        android:id="@+id/memberName"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:textColor="@color/presyo_darkblue"
-        android:textSize="16sp"/>
+        android:orientation="horizontal"
+        android:background="@drawable/bg_card_unselected"
+        android:padding="12dp"
+        android:gravity="center_vertical">
 
-    <TextView
-        android:id="@+id/memberRole"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#888888"
-        android:textSize="13sp"
-        android:layout_marginTop="2dp"/>
+        <!-- Member Index Number -->
+        <TextView
+            android:id="@+id/textMemberNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1"
+            android:textColor="@color/edittext_hint"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="10dp" />
 
-</LinearLayout> 
+        <!-- Circular Avatar image -->
+        <ImageView
+            android:id="@+id/imgMemberAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/avatar_default"
+            android:scaleType="centerCrop"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Name and ID Details -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- "You" Badge -->
+            <TextView
+                android:id="@+id/textYouBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="You"
+                android:textColor="#FFB703"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="2dp"
+                android:visibility="gone" />
+
+            <!-- Member Name -->
+            <TextView
+                android:id="@+id/memberName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Kaiser Gee"
+                android:textColor="@color/presyo_orange"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <!-- Member ID / Code -->
+            <TextView
+                android:id="@+id/textMemberId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ID: PH25-0008"
+                android:textColor="#888888"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <!-- Action Buttons (Edit and Delete) -->
+        <LinearLayout
+            android:id="@+id/layoutMemberActions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Edit/Change Role button -->
+            <ImageView
+                android:id="@+id/btnEditMember"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:src="@drawable/icon_edit"
+                android:padding="10dp"
+                android:background="@drawable/bg_outline_button_teal"
+                app:tint="@color/presyo_teal"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="Edit Role" />
+
+            <!-- Remove Member button -->
+            <ImageView
+                android:id="@+id/btnRemoveMember"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:src="@drawable/ic_close_gray"
+                android:padding="10dp"
+                android:background="@drawable/bg_outline_button_teal"
+                app:tint="@color/presyo_teal"
+                android:contentDescription="Remove Staff" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

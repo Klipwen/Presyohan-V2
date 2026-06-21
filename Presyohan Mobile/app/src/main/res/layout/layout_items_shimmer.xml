@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="24dp">
+
+        <!-- Category Header Placeholder 1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="22dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="12dp">
+
+                <View
+                    android:layout_width="120dp"
+                    android:layout_height="18dp"
+                    android:background="#E0E0E0"
+                    android:layout_weight="1" />
+
+                <View
+                    android:layout_width="48dp"
+                    android:layout_height="14dp"
+                    android:background="#E5E5E5"
+                    android:layout_marginEnd="12dp" />
+
+                <View
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Product Card Skeleton 1 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginTop="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <View
+                        android:layout_width="140dp"
+                        android:layout_height="16dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="6dp" />
+
+                    <View
+                        android:layout_width="180dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E5E5"
+                        android:layout_marginBottom="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <View
+                            android:layout_width="50dp"
+                            android:layout_height="14dp"
+                            android:background="#E0E0E0" />
+
+                        <View
+                            android:layout_width="40dp"
+                            android:layout_height="14dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginStart="10dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Product Card Skeleton 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginTop="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <View
+                        android:layout_width="100dp"
+                        android:layout_height="16dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="6dp" />
+
+                    <View
+                        android:layout_width="120dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E5E5"
+                        android:layout_marginBottom="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <View
+                            android:layout_width="60dp"
+                            android:layout_height="14dp"
+                            android:background="#E0E0E0" />
+
+                        <View
+                            android:layout_width="30dp"
+                            android:layout_height="14dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginStart="10dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Category Header Placeholder 2 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="22dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="12dp">
+
+                <View
+                    android:layout_width="150dp"
+                    android:layout_height="18dp"
+                    android:background="#E0E0E0"
+                    android:layout_weight="1" />
+
+                <View
+                    android:layout_width="48dp"
+                    android:layout_height="14dp"
+                    android:background="#E5E5E5"
+                    android:layout_marginEnd="12dp" />
+
+                <View
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Product Card Skeleton 3 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:layout_marginTop="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <View
+                        android:layout_width="120dp"
+                        android:layout_height="16dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="6dp" />
+
+                    <View
+                        android:layout_width="160dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E5E5"
+                        android:layout_marginBottom="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <View
+                            android:layout_width="45dp"
+                            android:layout_height="14dp"
+                            android:background="#E0E0E0" />
+
+                        <View
+                            android:layout_width="45dp"
+                            android:layout_height="14dp"
+                            android:background="#E5E5E5"
+                            android:layout_marginStart="10dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

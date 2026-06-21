@@ -15,9 +15,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Presyohan">
         <activity
-            android:name="com.presyohan.app.AddItemActivity"
-            android:exported="false" />
-        <activity
             android:name="com.presyohan.app.HomeActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize" />
@@ -56,9 +53,6 @@
             android:name=".CreateStoreActivity"
             android:exported="false" />
         <activity
-            android:name=".EditItemActivity"
-            android:exported="false" />
-        <activity
             android:name=".NotificationActivity"
             android:exported="false" />
         <activity
@@ -69,19 +63,41 @@
             android:exported="false" />
         <activity
             android:name=".ManageItemsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ManageStoreActivity"
             android:exported="false" />
         <activity
             android:name=".ManageMembersActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ManageCategoryActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CopyPricesActivity"
             android:exported="false" />
+        <activity
+            android:name=".StoreQrActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CustomerHomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

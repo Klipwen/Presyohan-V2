@@ -65,16 +65,16 @@ class JoinStoreActivity : AppCompatActivity() {
         // Initialize Drawer Layout
         val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
 
-        val navigationView = findViewById<NavigationView>(R.id.navigationView)
-        HeaderUtils.updateHeader(this, navigationView)
+
 
         // Make menuIcon open drawer
         findViewById<ImageView>(R.id.menuIcon).setOnClickListener {
             drawerLayout.open()
         }
+        DrawerHelper.setupDrawer(this, drawerLayout)
 
         // --- NAVIGATION LISTENER ADDED HERE ---
-        navigationView.setNavigationItemSelectedListener { item ->
+        /* navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_stores -> {
                     // Navigate to StoreActivity
@@ -96,7 +96,7 @@ class JoinStoreActivity : AppCompatActivity() {
                 }
                 else -> false
             }
-        }
+        }*/
 
         // Make notifIcon open NotificationActivity
         findViewById<ImageView>(R.id.notifIcon).setOnClickListener {

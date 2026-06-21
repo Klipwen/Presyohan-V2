@@ -36,7 +36,6 @@ import java.io.FileOutputStream
 import androidx.appcompat.app.AlertDialog
 import android.graphics.drawable.ColorDrawable
 import android.graphics.Color
-// Removed Apache POI imports; using FastExcel for writing XLSX
 import io.github.jan.supabase.auth.auth
 import androidx.appcompat.widget.AppCompatButton
 import java.text.NumberFormat
@@ -50,29 +49,55 @@ import coil.transform.CircleCropTransformation
 
 class ManageStoreActivity : AppCompatActivity() {
     private lateinit var loadingOverlay: android.view.View
-    private lateinit var inputStoreName: EditText
-    private lateinit var inputBranchName: EditText
-    private lateinit var spinnerStoreType: Spinner
-    private lateinit var btnEditStore: MaterialButton
-    private lateinit var btnCancelEdit: MaterialButton
-    private lateinit var btnSaveEdit: MaterialButton
-    private lateinit var editActionRow: LinearLayout
     private lateinit var btnBack: ImageView
-    private lateinit var headerLabel: TextView
-    private lateinit var inputCustomType: EditText
+    private lateinit var btnStoreQrCode: ImageView
+    private lateinit var ivStoreIcon: ImageView
+    private lateinit var tvStoreName: TextView
+    private lateinit var tvStoreType: TextView
+    private lateinit var tvStoreBranch: TextView
+    private lateinit var cbMakeStorePublic: CheckBox
+    
+    private lateinit var layoutStoreInfoToggle: LinearLayout
+    private lateinit var ivStoreInfoArrow: ImageView
+    private lateinit var layoutCollapsibleStats: LinearLayout
+    
+    private lateinit var tvStatStoreId: TextView
+    private lateinit var tvStatCreatedAt: TextView
+    private lateinit var tvStatStatus: TextView
+    private lateinit var tvStatJoinCode: TextView
+    private lateinit var tvStatPasteCode: TextView
+    private lateinit var tvStatCategories: TextView
+    private lateinit var tvStatItems: TextView
+    private lateinit var tvStatMembers: TextView
+    private lateinit var tvStatOwners: TextView
+    private lateinit var tvStatManagers: TextView
+    private lateinit var tvStatSalesStaff: TextView
+    private lateinit var tvStatSuki: TextView
+    
+    private lateinit var toolImport: LinearLayout
+    private lateinit var toolConvert: LinearLayout
+    private lateinit var toolCopy: LinearLayout
+    private lateinit var toolAddStaff: LinearLayout
+    private lateinit var toolEditStore: LinearLayout
+    private lateinit var toolDeleteStore: LinearLayout
+    
     private lateinit var storeCodeTextView: TextView
     private lateinit var storeCodeExpiryView: TextView
+    private lateinit var btnCopyPasteCode: ImageView
     private lateinit var btnGenerateCode: Button
     private lateinit var btnRevokeCode: Button
-    // Added for Copy Button
-    private lateinit var btnCopyPasteCode: ImageView
+    
+    private lateinit var btnManageMembers: Button
+    private lateinit var btnManageCategory: Button
+    private lateinit var btnManageItems: Button
 
-    private val storeTypes = arrayOf("Laundry Shop", "Car Wash", "Water Refilling Station", "Other")
     private var storeId: String? = null
     private var storeName: String? = null
     private var branchName: String? = null
     private var storeType: String? = null
-    private var isEditingStore = false
+    private var displayId: String? = null
+    private var currentUserRole: String = "employee"
+    private var isStatsExpanded = false
 
     private var lastExportFilenamePending: String? = null
     private val requestNotifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -91,8 +116,13 @@ class ManageStoreActivity : AppCompatActivity() {
         val name: String,
         val branch: String? = null,
         val type: String? = null,
+        val is_public: Boolean = false,
+        val created_at: String? = null,
         val paste_code: String? = null,
-        val paste_code_expires_at: String? = null
+        val paste_code_expires_at: String? = null,
+        val invite_code: String? = null,
+        val invite_code_created_at: String? = null,
+        val display_id: String? = null
     )
 
     @Serializable
@@ -108,6 +138,33 @@ class ManageStoreActivity : AppCompatActivity() {
         val description: String? = null,
         val units: String? = null,
         val price: Double? = null
+    )
+
+    @Serializable
+    data class SukiRelationshipRow(
+        val store_id: String
+    )
+
+    @Serializable
+    data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
+
+    @Serializable
+    data class UserProductRow(
+        val product_id: String,
+        val store_id: String,
+        val name: String,
+        val description: String? = null,
+        val price: Double = 0.0,
+        val units: String? = null,
+        val category: String? = null,
+        val is_public: Boolean = false
+    )
+
+    @Serializable
+    data class StoreMemberUser(
+        val user_id: String,
+        val name: String,
+        val role: String
     )
 
     private enum class ExportType {
@@ -127,185 +184,172 @@ class ManageStoreActivity : AppCompatActivity() {
             return
         }
 
-        inputStoreName = findViewById(R.id.inputStoreName)
-        inputBranchName = findViewById(R.id.inputBranchName)
-        spinnerStoreType = findViewById(R.id.spinnerStoreType)
-        btnEditStore = findViewById(R.id.btnEditStore)
-        btnCancelEdit = findViewById(R.id.btnCancelEdit)
-        btnSaveEdit = findViewById(R.id.btnSaveEdit)
-        editActionRow = findViewById(R.id.editActionRow)
+        // Initialize Views
         btnBack = findViewById(R.id.btnBack)
-        headerLabel = findViewById(R.id.headerLabel)
+        btnStoreQrCode = findViewById(R.id.btnStoreQrCode)
+        ivStoreIcon = findViewById(R.id.ivStoreIcon)
+        tvStoreName = findViewById(R.id.tvStoreName)
+        tvStoreType = findViewById(R.id.tvStoreType)
+        tvStoreBranch = findViewById(R.id.tvStoreBranch)
+        cbMakeStorePublic = findViewById(R.id.cbMakeStorePublic)
+        
+        layoutStoreInfoToggle = findViewById(R.id.layoutStoreInfoToggle)
+        ivStoreInfoArrow = findViewById(R.id.ivStoreInfoArrow)
+        layoutCollapsibleStats = findViewById(R.id.layoutCollapsibleStats)
+        
+        tvStatStoreId = findViewById(R.id.tvStatStoreId)
+        tvStatCreatedAt = findViewById(R.id.tvStatCreatedAt)
+        tvStatStatus = findViewById(R.id.tvStatStatus)
+        tvStatJoinCode = findViewById(R.id.tvStatJoinCode)
+        tvStatPasteCode = findViewById(R.id.tvStatPasteCode)
+        tvStatCategories = findViewById(R.id.tvStatCategories)
+        tvStatItems = findViewById(R.id.tvStatItems)
+        tvStatMembers = findViewById(R.id.tvStatMembers)
+        tvStatOwners = findViewById(R.id.tvStatOwners)
+        tvStatManagers = findViewById(R.id.tvStatManagers)
+        tvStatSalesStaff = findViewById(R.id.tvStatSalesStaff)
+        tvStatSuki = findViewById(R.id.tvStatSuki)
+        
+        toolImport = findViewById(R.id.toolImport)
+        toolConvert = findViewById(R.id.toolConvert)
+        toolCopy = findViewById(R.id.toolCopy)
+        toolAddStaff = findViewById(R.id.toolAddStaff)
+        toolEditStore = findViewById(R.id.toolEditStore)
+        toolDeleteStore = findViewById(R.id.toolDeleteStore)
+        
         storeCodeTextView = findViewById(R.id.storeCodeText)
         storeCodeExpiryView = findViewById(R.id.storeCodeExpiry)
+        btnCopyPasteCode = findViewById(R.id.btnCopyPasteCode)
         btnGenerateCode = findViewById(R.id.btnGenerateCode)
         btnRevokeCode = findViewById(R.id.btnRevokeCode)
-        // Bind Copy Button
-        btnCopyPasteCode = findViewById(R.id.btnCopyPasteCode)
+        
+        btnManageMembers = findViewById(R.id.btnManageMembers)
+        btnManageCategory = findViewById(R.id.btnManageCategory)
+        btnManageItems = findViewById(R.id.btnManageItems)
 
-        // Set up spinner before fetching store data
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, storeTypes)
-        spinnerStoreType.adapter = adapter
+        // Set Initial Visibility of Collapsible Stats
+        layoutCollapsibleStats.visibility = View.GONE
+        isStatsExpanded = false
+        ivStoreInfoArrow.rotation = 0f
 
-        inputCustomType = findViewById(R.id.inputCustomType)
-        if (inputCustomType == null) {
-            Toast.makeText(this, "Layout error: inputCustomType not found.", Toast.LENGTH_LONG).show()
-            finish()
-            return
-        }
+        // Fetch details
+        loadStoreDetails()
 
-        // Fetch current store info from Supabase
-        lifecycleScope.launch {
-            try {
-                val rows = SupabaseProvider.client.postgrest["stores"].select {
-                    filter { eq("id", storeId!!) }
-                    limit(1)
-                }.decodeList<StoreRow>()
-                val store = rows.firstOrNull()
-                storeName = store?.name ?: ""
-                branchName = store?.branch ?: ""
-                storeType = store?.type ?: storeTypes[0]
-
-                inputStoreName.setText(storeName)
-                inputBranchName.setText(branchName)
-
-                applyStoreTypeSelection(storeType)
-                // Store name and branch are shown in input fields within this screen
-                // No header storeText/storeBranchText views exist in this layout
-
-                // Initialize paste-code UI
-                if (!store?.paste_code.isNullOrBlank() && !store?.paste_code_expires_at.isNullOrBlank()) {
-                    applyPasteCode(store!!.paste_code!!, store.paste_code_expires_at!!)
-                } else {
-                    clearPasteCodeUi()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this@ManageStoreActivity, "Unable to load store.", Toast.LENGTH_LONG).show()
-                finish()
-            }
-        }
-
-        spinnerStoreType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                if (storeTypes[position] == "Other") {
-                    inputCustomType.visibility = View.VISIBLE
-                } else {
-                    inputCustomType.visibility = View.GONE
-                    if (!isEditingStore) {
-                        inputCustomType.setText("")
-                    }
-                }
-                updateCustomTypeEnabledState()
-            }
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
-
+        // Listeners
         btnBack.setOnClickListener { finish() }
 
-        btnEditStore.setOnClickListener {
-            setEditingStore(true)
-        }
-
-        btnCancelEdit.setOnClickListener {
-            setEditingStore(false)
-        }
-
-        btnSaveEdit.setOnClickListener {
-            val newName = inputStoreName.text.toString().trim()
-            val newBranch = inputBranchName.text.toString().trim()
-            val selectedType = spinnerStoreType.selectedItem?.toString() ?: storeTypes[0]
-            val newType = if (selectedType == "Other") inputCustomType.text.toString().trim() else selectedType
-            if (newName.isEmpty() || newBranch.isEmpty() || (selectedType == "Other" && newType.isEmpty())) {
-                Toast.makeText(this, "Complete all fields.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+        btnStoreQrCode.setOnClickListener {
+            if (storeId.isNullOrBlank()) return@setOnClickListener
+            val intent = Intent(this, StoreQrActivity::class.java).apply {
+                putExtra("storeId", storeId)
+                putExtra("storeName", storeName ?: "Store")
+                putExtra("displayId", displayId ?: formatStoreId(storeId!!))
+                putExtra("storeLocation", branchName ?: "Main Branch")
             }
-            // Show confirmation dialog
-            val dialog = Dialog(this)
-            val view = LayoutInflater.from(this).inflate(R.layout.dialog_confirm_delete, null)
-            dialog.setContentView(view)
-            dialog.setCancelable(true)
-            dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-            view.findViewById<TextView>(R.id.dialogTitle).text = "Confirm Changes?"
-            view.findViewById<TextView>(R.id.confirmMessage).text = "Are you sure you want to update the store details?"
-            view.findViewById<Button>(R.id.btnCancel).setOnClickListener { dialog.dismiss() }
-            view.findViewById<Button>(R.id.btnDelete).apply {
-                text = "Update"
-                setOnClickListener {
-                    lifecycleScope.launch {
-                        try {
-                            SupabaseProvider.client.postgrest["stores"].update(
-                                mapOf(
-                                    "name" to newName,
-                                    "branch" to newBranch,
-                                    "type" to newType
-                                )
-                            ) {
-                                filter { eq("id", storeId!!) }
-                            }
-                            storeName = newName
-                            branchName = newBranch
-                            storeType = newType
-                            Toast.makeText(this@ManageStoreActivity, "Store updated.", Toast.LENGTH_SHORT).show()
-                            dialog.dismiss()
-                            setEditingStore(false)
-                        } catch (e: Exception) {
-                            Toast.makeText(this@ManageStoreActivity, "Unable to update store.", Toast.LENGTH_LONG).show()
-                            dialog.dismiss()
-                        }
-                    }
-                }
-            }
-            dialog.show()
+            val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                this,
+                R.anim.slide_in_up,
+                R.anim.stay
+            )
+            startActivity(intent, options.toBundle())
         }
 
-        val btnAddItem = findViewById<Button>(R.id.btnAddItem)
-        btnAddItem.setOnClickListener {
-            val intent = android.content.Intent(this, AddItemActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
+        // Toggle Stats Collapsible
+        layoutStoreInfoToggle.setOnClickListener {
+            isStatsExpanded = !isStatsExpanded
+            layoutCollapsibleStats.visibility = if (isStatsExpanded) View.VISIBLE else View.GONE
+            ivStoreInfoArrow.animate()
+                .rotation(if (isStatsExpanded) 180f else 0f)
+                .setDuration(200)
+                .start()
         }
 
-        // Copy Prices action
-        findViewById<View>(R.id.btnCopyPrices).setOnClickListener {
-            val intent = android.content.Intent(this, CopyPricesActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-        }
+        // Setup the Public Switch Checkbox
+        setupPublicCheckbox()
 
-        val btnManageMembers = findViewById<View>(R.id.btnManageMembers)
-        btnManageMembers.setOnClickListener {
-            val intent = android.content.Intent(this, ManageMembersActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-        }
-
-        val btnManageCategory = findViewById<View>(R.id.btnManageCategory)
-        btnManageCategory.setOnClickListener {
-            val intent = android.content.Intent(this, ManageCategoryActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            intent.putExtra("storeName", storeName)
-            startActivity(intent)
-        }
-
-        // Invite Staff action
-        findViewById<View>(R.id.btnInviteStaff).setOnClickListener {
-            showInviteStaffWithCode()
-        }
-
-        // Convert (Export Excel) action
-        findViewById<View>(R.id.btnConvert).setOnClickListener {
-            exportPricelistToExcel()
-        }
-
-        // Import Prices action -> Show dialog with options (Excel, Paste-Code)
-        findViewById<View>(R.id.btnImportPrices).setOnClickListener {
+        // Tool Action: Import
+        toolImport.setOnClickListener {
             showImportDialog()
         }
 
-        // Paste-code actions
+        // Tool Action: Convert (Export)
+        toolConvert.setOnClickListener {
+            exportPricelistToExcel()
+        }
+
+        // Tool Action: Copy (Copy Prices)
+        toolCopy.setOnClickListener {
+            val intent = Intent(this, CopyPricesActivity::class.java).apply {
+                putExtra("storeId", storeId)
+                putExtra("storeName", storeName)
+            }
+            startActivity(intent)
+        }
+
+        // Tool Action: Add Staff
+        toolAddStaff.setOnClickListener {
+            showInviteStaffWithCode()
+        }
+
+        // Tool Action: Edit Store
+        toolEditStore.setOnClickListener {
+            if (storeId.isNullOrBlank()) return@setOnClickListener
+            EditStoreDialogHelper.showEditStoreDialog(
+                activity = this@ManageStoreActivity,
+                storeId = storeId!!,
+                currentName = storeName ?: "",
+                currentBranch = branchName ?: "",
+                currentType = storeType ?: "",
+                onComplete = { newName, newBranch, newType ->
+                    storeName = newName
+                    branchName = newBranch
+                    storeType = newType
+                    
+                    tvStoreName.text = newName
+                    tvStoreBranch.text = newBranch
+                    tvStoreType.text = newType
+                    setStoreIcon(newType)
+                }
+            )
+        }
+
+        // Tool Action: Delete Store
+        toolDeleteStore.setOnClickListener {
+            if (storeId.isNullOrBlank()) return@setOnClickListener
+            if (currentUserRole.lowercase() != "owner") {
+                Toast.makeText(this, "Only the owner can delete this store.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            showManageStoreDeleteConfirmation(storeId!!, storeName ?: "Store")
+        }
+
+        // Bottom Navigation Buttons
+        btnManageMembers.setOnClickListener {
+            val intent = Intent(this, ManageMembersActivity::class.java).apply {
+                putExtra("storeId", storeId)
+                putExtra("storeName", storeName)
+            }
+            startActivity(intent)
+        }
+
+        btnManageCategory.setOnClickListener {
+            val intent = Intent(this, ManageCategoryActivity::class.java).apply {
+                putExtra("storeId", storeId)
+                putExtra("storeName", storeName)
+            }
+            startActivity(intent)
+        }
+
+        btnManageItems.setOnClickListener {
+            if (storeId.isNullOrBlank()) return@setOnClickListener
+            val intent = Intent(this, ManageItemsActivity::class.java).apply {
+                putExtra("storeId", storeId)
+                putExtra("storeName", storeName)
+            }
+            startActivity(intent)
+        }
+
+        // Generate Code & Revoke Code for Paste-Code
         btnGenerateCode.setOnClickListener {
             if (storeId.isNullOrBlank()) return@setOnClickListener
             LoadingOverlayHelper.show(loadingOverlay)
@@ -317,6 +361,7 @@ class ManageStoreActivity : AppCompatActivity() {
                     ).decodeList<PasteCodeResult>().firstOrNull()
                     if (result != null) {
                         applyPasteCode(result.code, result.expires_at)
+                        tvStatPasteCode.text = result.code
                         Toast.makeText(this@ManageStoreActivity, "Paste-Code generated.", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(this@ManageStoreActivity, "Failed to generate code.", Toast.LENGTH_LONG).show()
@@ -338,6 +383,7 @@ class ManageStoreActivity : AppCompatActivity() {
                         buildJsonObject { put("p_store_id", storeId!!) }
                     )
                     clearPasteCodeUi()
+                    tvStatPasteCode.text = "None"
                     Toast.makeText(this@ManageStoreActivity, "Paste-Code revoked.", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageStoreActivity, "You must be the owner to revoke.", Toast.LENGTH_LONG).show()
@@ -346,7 +392,6 @@ class ManageStoreActivity : AppCompatActivity() {
             }
         }
 
-        // Implement Copy Paste Code Logic
         btnCopyPasteCode.setOnClickListener {
             val code = storeCodeTextView.text.toString()
             if (code.isNotEmpty() && code != "------") {
@@ -358,6 +403,204 @@ class ManageStoreActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadStoreDetails() {
+        val sId = storeId ?: return
+        LoadingOverlayHelper.show(loadingOverlay)
+        lifecycleScope.launch {
+            try {
+                // 1. Fetch store details
+                val rows = SupabaseProvider.client.postgrest["stores"].select {
+                    filter { eq("id", sId) }
+                    limit(1)
+                }.decodeList<StoreRow>()
+                val store = rows.firstOrNull()
+                if (store != null) {
+                    storeName = store.name
+                    branchName = store.branch
+                    storeType = store.type
+
+                    tvStoreName.text = store.name
+                    tvStoreBranch.text = store.branch ?: "Main Branch"
+                    tvStoreType.text = store.type ?: "General Store"
+                    setStoreIcon(store.type)
+
+                    cbMakeStorePublic.setOnCheckedChangeListener(null)
+                    cbMakeStorePublic.isChecked = store.is_public
+                    setupPublicCheckbox()
+
+                    displayId = store.display_id ?: formatStoreId(store.id)
+                    tvStatStoreId.text = displayId
+                    tvStatCreatedAt.text = formatCreatedAt(store.created_at)
+                    tvStatStatus.text = if (store.is_public) "Public" else "Private"
+
+                    // Join code and expiry countdown
+                    val now = System.currentTimeMillis()
+                    val inviteCode = store.invite_code
+                    val isInviteExpired = if (store.invite_code_created_at != null) {
+                        val expiryMillis = parseInviteCreatedMillis(store.invite_code_created_at) ?: 0L
+                        now > (expiryMillis + 86400000L)
+                    } else {
+                        true
+                    }
+                    tvStatJoinCode.text = if (inviteCode.isNullOrBlank()) "None" else if (isInviteExpired) "Expired" else inviteCode
+
+                    // Paste Code
+                    tvStatPasteCode.text = store.paste_code ?: "None"
+                    if (!store.paste_code.isNullOrBlank() && !store.paste_code_expires_at.isNullOrBlank()) {
+                        applyPasteCode(store.paste_code, store.paste_code_expires_at)
+                    } else {
+                        clearPasteCodeUi()
+                    }
+                }
+
+                // 2. Fetch Category Count
+                val categories = SupabaseProvider.client.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserCategoryRow>()
+                tvStatCategories.text = categories.size.toString()
+
+                // 3. Fetch Product Count
+                val products = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_products",
+                    buildJsonObject {
+                        put("p_store_id", sId)
+                        put("p_category_filter", "PRICELIST")
+                        put("p_search_query", null as String?)
+                    }
+                ).decodeList<UserProductRow>()
+                tvStatItems.text = products.size.toString()
+
+                // 4. Fetch Members and calculate counts by role
+                val members = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<StoreMemberUser>()
+
+                tvStatMembers.text = members.size.toString()
+                val ownersCount = members.count { it.role.lowercase() == "owner" }
+                val managersCount = members.count { it.role.lowercase() == "manager" }
+                val salesStaffCount = members.count { it.role.lowercase() == "employee" }
+
+                tvStatOwners.text = ownersCount.toString()
+                tvStatManagers.text = managersCount.toString()
+                tvStatSalesStaff.text = salesStaffCount.toString()
+
+                // Fetch current user's role
+                val uid = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
+                val currentMember = members.firstOrNull { it.user_id == uid }
+                currentUserRole = currentMember?.role ?: "employee"
+
+                // 5. Fetch Suki relationship count
+                val sukiRows = SupabaseProvider.client.postgrest["suki_relationships"].select {
+                    filter { eq("store_id", sId) }
+                }.decodeList<SukiRelationshipRow>()
+                tvStatSuki.text = sukiRows.size.toString()
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this@ManageStoreActivity, "Error loading statistics: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            } finally {
+                LoadingOverlayHelper.hide(loadingOverlay)
+            }
+        }
+    }
+
+    private fun setupPublicCheckbox() {
+        cbMakeStorePublic.setOnCheckedChangeListener { _, isChecked ->
+            lifecycleScope.launch {
+                try {
+                    SupabaseProvider.client.postgrest["stores"].update(
+                        mapOf("is_public" to isChecked)
+                    ) {
+                        filter { eq("id", storeId!!) }
+                    }
+                    tvStatStatus.text = if (isChecked) "Public" else "Private"
+                    Toast.makeText(
+                        this@ManageStoreActivity,
+                        if (isChecked) "Store is now Public." else "Store is now Private.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } catch (e: Exception) {
+                    cbMakeStorePublic.setOnCheckedChangeListener(null)
+                    cbMakeStorePublic.isChecked = !isChecked
+                    setupPublicCheckbox()
+                    Toast.makeText(this@ManageStoreActivity, "Failed to update store visibility.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun showManageStoreDeleteConfirmation(storeId: String, storeName: String) {
+        val confirmDialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_reusable_template, null)
+        confirmDialog.setContentView(view)
+        confirmDialog.setCancelable(true)
+        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val title = view.findViewById<TextView>(R.id.dialogTitle)
+        val message = view.findViewById<TextView>(R.id.dialogMessage)
+        val btnCancel = view.findViewById<Button>(R.id.btnNegative)
+        val btnAction = view.findViewById<Button>(R.id.btnPositive)
+
+        btnCancel.text = "Cancel"
+        title.text = "Delete Store"
+        message.text = "Are you sure you want to delete this store?\n\nDeleting your store \"$storeName\" will permanently delete all products, members, and categories.\n\nThis cannot be undone."
+        btnAction.text = "Delete"
+
+        btnCancel.setOnClickListener { confirmDialog.dismiss() }
+
+        btnAction.setOnClickListener {
+            lifecycleScope.launch {
+                try {
+                    SupabaseProvider.client.postgrest["stores"].delete { filter { eq("id", storeId) } }
+                    Toast.makeText(this@ManageStoreActivity, "Store deleted successfully.", Toast.LENGTH_SHORT).show()
+                    confirmDialog.dismiss()
+                    finish()
+                } catch (e: Exception) {
+                    Toast.makeText(this@ManageStoreActivity, "Action failed. Check internet.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        confirmDialog.show()
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        confirmDialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun formatStoreId(uuid: String): String {
+        return try {
+            val parts = uuid.split("-")
+            val p1 = parts[0].take(3)
+            val p2 = parts[1].take(3)
+            "SID$p1-$p2".uppercase()
+        } catch (e: Exception) {
+            "SID-" + uuid.take(6).uppercase()
+        }
+    }
+
+    private fun formatCreatedAt(isoString: String?): String {
+        if (isoString.isNullOrBlank()) return "--/--/--"
+        return try {
+            val parser = java.time.format.DateTimeFormatter.ISO_DATE_TIME
+            val date = java.time.ZonedDateTime.parse(isoString, parser)
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd/yy")
+            date.format(formatter)
+        } catch (e: Exception) {
+            try {
+                val sdfInput = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val sdfOutput = SimpleDateFormat("MM/dd/yy", Locale.getDefault())
+                val parsed = sdfInput.parse(isoString.substring(0, 10))
+                if (parsed != null) sdfOutput.format(parsed) else "--/--/--"
+            } catch (e2: Exception) {
+                "--/--/--"
+            }
+        }
+    }
+
+    private fun setStoreIcon(type: String?) {
+        ivStoreIcon.setImageResource(R.drawable.icon_store)
+    }
+
     private fun showImportDialog() {
         val intent = Intent(this, AddMultipleItemsActivity::class.java).apply {
             putExtra("storeId", storeId)
@@ -367,68 +610,56 @@ class ManageStoreActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    // Extension function for dp to px
-    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
-
     private var countdownJob: kotlinx.coroutines.Job? = null
+    private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
+
+    private fun parseInviteCreatedMillis(createdIso: String?): Long? {
+        if (createdIso.isNullOrBlank()) return null
+        val clean = createdIso.trim().replace(" ", "T")
+        val hasTimezone = clean.contains("+") || (clean.lastIndexOf("-") > clean.indexOf("T")) || clean.endsWith("Z")
+        val parsedStr = if (hasTimezone) clean else clean + "Z"
+        return try {
+            java.time.Instant.parse(parsedStr).toEpochMilli()
+        } catch (_: Exception) {
+            try {
+                java.time.OffsetDateTime.parse(parsedStr).toInstant().toEpochMilli()
+            } catch (_: Exception) {
+                try {
+                    java.time.LocalDateTime.parse(clean).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                } catch (_: Exception) { null }
+            }
+        }
+    }
+
+    private fun startInviteCountdown(expiryText: TextView, codeText: TextView, copyBtn: View, expiryMillis: Long) {
+        inviteCodeCountdownJob?.cancel()
+        inviteCodeCountdownJob = lifecycleScope.launch {
+            try {
+                while (true) {
+                    val remaining = expiryMillis - System.currentTimeMillis()
+                    if (remaining <= 0) {
+                        codeText.visibility = View.VISIBLE
+                        copyBtn.visibility = View.VISIBLE
+                        expiryText.text = "Code expired"
+                        break
+                    }
+                    val hrs = remaining / 3600000
+                    val mins = (remaining % 3600000) / 60000
+                    val secs = (remaining % 60000) / 1000
+                    expiryText.text = String.format("Expires in %02d:%02d:%02d", hrs, mins, secs)
+                    kotlinx.coroutines.delay(1000)
+                }
+            } catch (_: Exception) {
+                expiryText.text = "Expires soon"
+            }
+        }
+    }
 
     private fun clearPasteCodeUi() {
         storeCodeTextView.text = "------"
         storeCodeExpiryView.text = "No active code"
         btnCopyPasteCode.visibility = View.GONE
         countdownJob?.cancel()
-    }
-
-    private fun resetStoreFieldsToStored() {
-        inputStoreName.setText(storeName ?: "")
-        inputBranchName.setText(branchName ?: "")
-        applyStoreTypeSelection(storeType)
-    }
-
-    private fun setEditingStore(enabled: Boolean) {
-        isEditingStore = enabled
-        inputStoreName.isEnabled = enabled
-        inputBranchName.isEnabled = enabled
-        spinnerStoreType.isEnabled = enabled
-        updateCustomTypeEnabledState()
-        btnEditStore.visibility = if (enabled) View.GONE else View.VISIBLE
-        editActionRow.visibility = if (enabled) View.VISIBLE else View.GONE
-        if (!enabled) {
-            resetStoreFieldsToStored()
-        }
-    }
-
-    private fun updateCustomTypeEnabledState() {
-        val isOther = spinnerStoreType.selectedItem?.toString() == "Other"
-        inputCustomType.isEnabled = isEditingStore && isOther
-    }
-
-    private fun applyStoreTypeSelection(value: String?) {
-        val target = value ?: storeTypes[0]
-        val index = storeTypes.indexOfFirst { it.equals(target, true) }
-        var showCustom = false
-        if (index >= 0) {
-            spinnerStoreType.setSelection(index)
-            if (!storeTypes[index].equals("Other", true)) {
-                inputCustomType.setText("")
-            } else {
-                showCustom = true
-                if (inputCustomType.text.isNullOrBlank()) {
-                    inputCustomType.setText(target)
-                }
-            }
-        } else {
-            showCustom = true
-            val otherIndex = storeTypes.indexOf("Other").takeIf { it >= 0 } ?: storeTypes.lastIndex
-            spinnerStoreType.setSelection(otherIndex)
-            if (target.equals("Other", true)) {
-                inputCustomType.setText("")
-            } else {
-                inputCustomType.setText(target)
-            }
-        }
-        inputCustomType.visibility = if (showCustom) View.VISIBLE else View.GONE
-        updateCustomTypeEnabledState()
     }
 
     private fun applyPasteCode(code: String, expiresAtIso: String) {
@@ -802,7 +1033,7 @@ class ManageStoreActivity : AppCompatActivity() {
         }
     }
 
-    private fun showInviteStaffDialog(inviteCode: String?) {
+    private fun showInviteStaffDialog(inviteCode: String?, expiryMillis: Long?) {
         val dialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_invite_staff, null)
         dialog.setContentView(view)
@@ -811,67 +1042,32 @@ class ManageStoreActivity : AppCompatActivity() {
         val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
         dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
 
+        val layoutDirectInvitation = view.findViewById<View>(R.id.layoutDirectInvitation)
+        val layoutJoinStoreCode = view.findViewById<View>(R.id.layoutJoinStoreCode)
+        val btnSwitchToCode = view.findViewById<View>(R.id.btnSwitchToCode)
+        val btnSwitchToDirect = view.findViewById<View>(R.id.btnSwitchToDirect)
+        val btnDone = view.findViewById<View>(R.id.btnDone)
+
+        val layoutCodeInactive = view.findViewById<View>(R.id.layoutCodeInactive)
+        val layoutCodeActive = view.findViewById<View>(R.id.layoutCodeActive)
+
         val codeText = view.findViewById<TextView>(R.id.storeCodeText)
-        val copyBtn = view.findViewById<View>(R.id.btnCopyCode)
-        val generateBtn = view.findViewById<TextView>(R.id.btnGenerateCode)
+        val expiryText = view.findViewById<TextView>(R.id.inviteCodeExpiry)
+        val copyBtnActive = view.findViewById<View>(R.id.btnCopyCodeActive)
 
-        fun updateCodeUI(code: String?) {
-            codeText.text = code ?: ""
-            codeText.visibility = View.VISIBLE
-            copyBtn.visibility = View.VISIBLE
-        }
-        updateCodeUI(inviteCode)
-
-        copyBtn.setOnClickListener {
-            val code = codeText.text.toString()
-            if (code.isNotEmpty()) {
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Store Code", code)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "Invite code copied.", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        generateBtn.setOnClickListener {
-            LoadingOverlayHelper.show(loadingOverlay)
-            lifecycleScope.launch {
-                try {
-                    val uid = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
-                    val roleRows = SupabaseProvider.client.postgrest["store_members"].select {
-                        filter { eq("store_id", storeId!!); eq("user_id", uid) }
-                        limit(1)
-                    }.decodeList<com.presyohan.app.StoreActivity.StoreMemberRow>()
-                    val role = roleRows.firstOrNull()?.role?.lowercase()
-                    val isOwner = role == "owner"
-                    if (!isOwner) {
-                        Toast.makeText(this@ManageStoreActivity, "Only the owner can generate a code.", Toast.LENGTH_SHORT).show()
-                        return@launch
-                    }
-
-                    val rows = SupabaseProvider.client.postgrest.rpc(
-                        "regenerate_invite_code",
-                        buildJsonObject { put("p_store_id", storeId!!) }
-                    ).decodeList<com.presyohan.app.StoreActivity.InviteCodeReturn>()
-                    val newCode = rows.firstOrNull()?.invite_code
-                    runOnUiThread { updateCodeUI(newCode) }
-                    Toast.makeText(this@ManageStoreActivity, "Invite code updated.", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(this@ManageStoreActivity, "Unable to update invite code.", Toast.LENGTH_SHORT).show()
-                }
-                LoadingOverlayHelper.hide(loadingOverlay)
-            }
-        }
+        val btnGenerateCodeInactive = view.findViewById<View>(R.id.btnGenerateCodeInactive)
+        val btnGenerateCodeActive = view.findViewById<View>(R.id.btnGenerateCodeActive)
+        val btnRevokeCodeActive = view.findViewById<View>(R.id.btnRevokeCodeActive)
 
         val searchInput = view.findViewById<EditText>(R.id.searchInput)
         val searchLoader = view.findViewById<View>(R.id.searchLoader)
-        val searchIcon = view.findViewById<View>(R.id.searchIconStatic)
         val textNotFound = view.findViewById<TextView>(R.id.textNotFound)
         val userResultContainer = view.findViewById<LinearLayout>(R.id.userResultContainer)
         val foundAvatar = view.findViewById<View>(R.id.foundUserAvatar) as? ImageView
         val foundName = view.findViewById<TextView>(R.id.foundUserName)
         val foundDetails = view.findViewById<TextView>(R.id.foundUserDetails)
         val btnInvite = view.findViewById<Button>(R.id.btnInvite)
-        val roleSpinner = view.findViewById<Spinner>(R.id.roleSpinner)
+        val spinnerRole = view.findViewById<android.widget.AutoCompleteTextView>(R.id.spinnerRole)
         val inviteErrorText = view.findViewById<TextView>(R.id.inviteErrorText)
 
         @Serializable
@@ -886,11 +1082,137 @@ class ManageStoreActivity : AppCompatActivity() {
         val rolesDisplay = listOf("View only price list", "Manage prices")
         val rolesValue = listOf("employee", "manager")
         val adp = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, rolesDisplay)
-        roleSpinner.adapter = adp
+        spinnerRole.setAdapter(adp)
+        spinnerRole.setText(rolesDisplay[0], false)
 
         var selectedUser: SearchedUser? = null
         val searchHandler = Handler(Looper.getMainLooper())
         var searchRunnable: Runnable? = null
+
+        fun updateCodeUI(code: String?, expiresAt: Long?) {
+            inviteCodeCountdownJob?.cancel()
+            val now = System.currentTimeMillis()
+            val isValid = !code.isNullOrBlank() && expiresAt != null && expiresAt > now
+
+            if (isValid) {
+                layoutCodeInactive.visibility = View.GONE
+                layoutCodeActive.visibility = View.VISIBLE
+                codeText.text = code
+                startInviteCountdown(expiryText, codeText, copyBtnActive, expiresAt)
+            } else {
+                layoutCodeInactive.visibility = View.VISIBLE
+                layoutCodeActive.visibility = View.GONE
+                expiryText.text = ""
+            }
+        }
+        updateCodeUI(inviteCode, expiryMillis)
+
+        btnSwitchToCode.setOnClickListener {
+            layoutDirectInvitation.visibility = View.GONE
+            layoutJoinStoreCode.visibility = View.VISIBLE
+        }
+
+        btnSwitchToDirect.setOnClickListener {
+            layoutJoinStoreCode.visibility = View.GONE
+            layoutDirectInvitation.visibility = View.VISIBLE
+        }
+
+        btnDone.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        copyBtnActive.setOnClickListener {
+            val code = codeText.text.toString()
+            if (code.isNotEmpty()) {
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Store Code", code)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Code copied.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        fun generateCode() {
+            val sId = storeId ?: return
+            btnGenerateCodeInactive.isEnabled = false
+            btnGenerateCodeActive.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    val uid = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
+                    val roleRows = SupabaseProvider.client.postgrest["store_members"].select {
+                        filter { eq("store_id", sId); eq("user_id", uid) }
+                        limit(1)
+                    }.decodeList<com.presyohan.app.StoreActivity.StoreMemberRow>()
+                    val role = roleRows.firstOrNull()?.role?.lowercase()
+                    val isOwner = role == "owner"
+                    if (!isOwner) {
+                        Toast.makeText(this@ManageStoreActivity, "Only the owner can generate a code.", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    val rows = SupabaseProvider.client.postgrest.rpc(
+                        "regenerate_invite_code",
+                        buildJsonObject { put("p_store_id", sId) }
+                    ).decodeList<com.presyohan.app.StoreActivity.InviteCodeReturn>()
+                    val newCode = rows.firstOrNull()?.invite_code
+                    val created = rows.firstOrNull()?.invite_code_created_at
+
+                    val newCreatedMillis = parseInviteCreatedMillis(created)
+                    val newExpiry = newCreatedMillis?.plus(86400000L)
+
+                    runOnUiThread {
+                        updateCodeUI(newCode, newExpiry)
+                        Toast.makeText(this@ManageStoreActivity, "Invite code updated.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this@ManageStoreActivity, "Unable to update invite code.", Toast.LENGTH_SHORT).show()
+                } finally {
+                    btnGenerateCodeInactive.isEnabled = true
+                    btnGenerateCodeActive.isEnabled = true
+                }
+            }
+        }
+
+        btnGenerateCodeInactive.setOnClickListener { generateCode() }
+        btnGenerateCodeActive.setOnClickListener { generateCode() }
+
+        btnRevokeCodeActive.setOnClickListener {
+            val sId = storeId ?: return@setOnClickListener
+            btnRevokeCodeActive.isEnabled = false
+            lifecycleScope.launch {
+                try {
+                    val uid = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
+                    val roleRows = SupabaseProvider.client.postgrest["store_members"].select {
+                        filter { eq("store_id", sId); eq("user_id", uid) }
+                        limit(1)
+                    }.decodeList<com.presyohan.app.StoreActivity.StoreMemberRow>()
+                    val role = roleRows.firstOrNull()?.role?.lowercase()
+                    val isOwner = role == "owner"
+                    if (!isOwner) {
+                        Toast.makeText(this@ManageStoreActivity, "Only the owner can revoke code.", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    SupabaseProvider.client.postgrest["stores"].update(
+                        mapOf(
+                            "invite_code" to null,
+                            "invite_code_created_at" to null
+                        )
+                    ) {
+                        filter { eq("id", sId) }
+                    }
+
+                    runOnUiThread {
+                        updateCodeUI(null, null)
+                        Toast.makeText(this@ManageStoreActivity, "Invite code revoked.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this@ManageStoreActivity, "Failed to revoke code.", Toast.LENGTH_SHORT).show()
+                } finally {
+                    btnRevokeCodeActive.isEnabled = true
+                }
+            }
+        }
 
         fun toggleInviteButton() {
             btnInvite.isEnabled = selectedUser != null
@@ -899,7 +1221,6 @@ class ManageStoreActivity : AppCompatActivity() {
 
         val performSearch = { query: String ->
             searchLoader.visibility = View.VISIBLE
-            searchIcon.visibility = View.GONE
             textNotFound.visibility = View.GONE
             userResultContainer.visibility = View.GONE
             selectedUser = null
@@ -913,7 +1234,6 @@ class ManageStoreActivity : AppCompatActivity() {
                     ).decodeList<SearchedUser>()
 
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
 
                     if (results.isNotEmpty()) {
                         val user = results[0]
@@ -930,14 +1250,13 @@ class ManageStoreActivity : AppCompatActivity() {
                                 transformations(CircleCropTransformation())
                             }
                         } else {
-                            foundAvatar?.setImageResource(R.drawable.icon_profile)
+                            foundAvatar?.setImageResource(R.drawable.avatar_default)
                         }
                     } else {
                         textNotFound.visibility = View.VISIBLE
                     }
                 } catch (e: Exception) {
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
                     textNotFound.text = "Error searching user."
                     textNotFound.visibility = View.VISIBLE
                 }
@@ -953,7 +1272,6 @@ class ManageStoreActivity : AppCompatActivity() {
                 val query = s.toString().trim()
                 if (query.isEmpty()) {
                     searchLoader.visibility = View.GONE
-                    searchIcon.visibility = View.VISIBLE
                     textNotFound.visibility = View.GONE
                     userResultContainer.visibility = View.GONE
                     selectedUser = null
@@ -971,7 +1289,8 @@ class ManageStoreActivity : AppCompatActivity() {
         btnInvite.setOnClickListener {
             val user = selectedUser ?: return@setOnClickListener
             val sId = storeId ?: return@setOnClickListener
-            val roleIdx = roleSpinner.selectedItemPosition
+            val roleText = spinnerRole.text.toString()
+            val roleIdx = rolesDisplay.indexOf(roleText).coerceAtLeast(0)
             val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
 
             btnInvite.text = "Inviting..."
@@ -1014,13 +1333,18 @@ class ManageStoreActivity : AppCompatActivity() {
                 }.decodeList<StoreInviteFields>()
                 val row = rows.firstOrNull()
                 val code = row?.invite_code
-                showInviteStaffDialog(code)
+                val created = row?.invite_code_created_at
+
+                val createdMillis = parseInviteCreatedMillis(created)
+                val expiryMillis = createdMillis?.plus(86400000L)
+                showInviteStaffDialog(code, expiryMillis)
             } catch (_: Exception) {
                 Toast.makeText(this@ManageStoreActivity, "Unable to fetch invite code. Generate a new one.", Toast.LENGTH_SHORT).show()
-                showInviteStaffDialog(null)
+                showInviteStaffDialog(null, null)
             }
         }
     }
+
     override fun onResume() {
         super.onResume()
         SessionManager.markStoreHome(this, storeId, storeName)

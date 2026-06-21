@@ -27,6 +27,12 @@ import kotlinx.coroutines.Dispatchers
 import android.util.TypedValue
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import android.widget.Button
 
 class ReviewImportActivity : AppCompatActivity() {
 
@@ -101,16 +107,24 @@ class ReviewImportActivity : AppCompatActivity() {
 
         btnBack.setOnClickListener { onBackPressed() }
 
-        btnEditItems.setOnClickListener {
-            // Route back to AddMultipleItemsActivity in Simple Mode with the current session
-            val intent = Intent(this, AddMultipleItemsActivity::class.java).apply {
-                putExtra("storeId", storeId)
-                putExtra("storeName", storeName)
-                putExtra("draftSessionId", draftSessionId)
-                putExtra("isFromReview", true)
+        val isCopyPrices = intent.getBooleanExtra("isCopyPrices", false)
+        if (isCopyPrices) {
+            btnEditItems.visibility = View.GONE
+            btnConfirmImport.text = "Confirm & Copy"
+        } else {
+            btnEditItems.visibility = View.VISIBLE
+            btnConfirmImport.text = "DONE"
+            btnEditItems.setOnClickListener {
+                // Route back to AddMultipleItemsActivity in Simple Mode with the current session
+                val intent = Intent(this, AddMultipleItemsActivity::class.java).apply {
+                    putExtra("storeId", storeId)
+                    putExtra("storeName", storeName)
+                    putExtra("draftSessionId", draftSessionId)
+                    putExtra("isFromReview", true)
+                }
+                startActivity(intent)
+                finish()
             }
-            startActivity(intent)
-            finish()
         }
 
         btnConfirmImport.setOnClickListener {
@@ -317,6 +331,48 @@ class ReviewImportActivity : AppCompatActivity() {
             return
         }
 
+        val isCopyPrices = intent.getBooleanExtra("isCopyPrices", false)
+        if (isCopyPrices) {
+            val destPasteCode = intent.getStringExtra("destPasteCode") ?: ""
+            val srcStoreId = intent.getStringExtra("sourceStoreId") ?: ""
+            val selectedIds = intent.getStringArrayListExtra("selectedProductIds") ?: emptyList()
+
+            LoadingOverlayHelper.show(loadingOverlay)
+            lifecycleScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        SupabaseProvider.client.postgrest.rpc(
+                            "copy_prices",
+                            buildJsonObject {
+                                put("p_source_store_id", srcStoreId)
+                                put("p_dest_paste_code", destPasteCode)
+                                put("p_items", buildJsonArray {
+                                    selectedIds.forEach { add(JsonPrimitive(it) as kotlinx.serialization.json.JsonElement) }
+                                })
+                                put("p_dry_run", false)
+                            }
+                        )
+                    }
+
+                    // Delete the draft session
+                    withContext(Dispatchers.IO) {
+                        ImportDraftStore(application).deleteSession(currentSession.sessionId)
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        LoadingOverlayHelper.hide(loadingOverlay)
+                        showExportCompleteDialog()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        LoadingOverlayHelper.hide(loadingOverlay)
+                        Toast.makeText(this@ReviewImportActivity, "Copy failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            return
+        }
+
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
@@ -357,6 +413,25 @@ class ReviewImportActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun showExportCompleteDialog() {
+        val dialog = Dialog(this)
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_export_complete, null)
+        dialog.setContentView(dialogView)
+        dialog.setCancelable(false)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.90).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
+        dialogView.findViewById<Button>(R.id.btnDone).setOnClickListener {
+            dialog.dismiss()
+            finish()
+        }
+        dialog.show()
     }
 
     // --- RECYCLER LIST MODEL ---

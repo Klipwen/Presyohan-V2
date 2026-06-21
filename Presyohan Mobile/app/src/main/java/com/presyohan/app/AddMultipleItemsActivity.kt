@@ -49,6 +49,33 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private lateinit var inputRawText: EditText
     private lateinit var btnBack: ImageView
     private lateinit var loadingOverlay: View
+
+    // Redesigned Smart Mode UI Components
+    private lateinit var btnSmartModeInfo: ImageView
+    private lateinit var layoutParserSelector: View
+    private lateinit var imgSelectedParserIcon: ImageView
+    private lateinit var tvSelectedParserTitle: TextView
+    private lateinit var tvSelectedParserBadge: TextView
+    private lateinit var tvSelectedParserSubtext: TextView
+    private lateinit var viewParserDivider: View
+    private lateinit var layoutBodyAi: View
+    private lateinit var layoutBodyPresyohan: View
+    private lateinit var tvAiGreeting: TextView
+    private lateinit var btnScanPhoto: View
+    private lateinit var btnViewFormats: View
+    private lateinit var tvParserFooterNote: TextView
+    private lateinit var layoutDropdownOverlay: View
+    private lateinit var btnOptionAi: View
+    private lateinit var btnOptionPresyohan: View
+    private lateinit var imgCheckAi: ImageView
+    private lateinit var imgCheckPresyohan: ImageView
+
+    private enum class ParserType {
+        AI,
+        PRESYOHAN
+    }
+    private var selectedParserType = ParserType.AI
+
     // ViewModel
     private lateinit var viewModel: AddMultipleItemsViewModel
 
@@ -88,7 +115,12 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 btnSelect.text = "Change"
                 layoutSelected.visibility = View.VISIBLE
                 tvSelected.text = "Selected: ${getFileName(uri)}"
-                dlg.findViewById<View>(R.id.btnNext)?.visibility = View.VISIBLE
+                
+                val btnNext = dlg.findViewById<View>(R.id.btnNext)
+                if (btnNext != null) {
+                    btnNext.isEnabled = true
+                    btnNext.alpha = 1.0f
+                }
             }
         }
     }
@@ -180,6 +212,70 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         inputRawText = findViewById(R.id.inputRawText)
         btnBack = findViewById(R.id.btnBack)
 
+        // Bind redesigned Smart Mode UI elements
+        btnSmartModeInfo = findViewById(R.id.btnSmartModeInfo)
+        layoutParserSelector = findViewById(R.id.layoutParserSelector)
+        imgSelectedParserIcon = findViewById(R.id.imgSelectedParserIcon)
+        tvSelectedParserTitle = findViewById(R.id.tvSelectedParserTitle)
+        tvSelectedParserBadge = findViewById(R.id.tvSelectedParserBadge)
+        tvSelectedParserSubtext = findViewById(R.id.tvSelectedParserSubtext)
+        viewParserDivider = findViewById(R.id.viewParserDivider)
+        layoutBodyAi = findViewById(R.id.layoutBodyAi)
+        layoutBodyPresyohan = findViewById(R.id.layoutBodyPresyohan)
+        tvAiGreeting = findViewById(R.id.tvAiGreeting)
+        btnScanPhoto = findViewById(R.id.btnScanPhoto)
+        btnViewFormats = findViewById(R.id.btnViewFormats)
+        tvParserFooterNote = findViewById(R.id.tvParserFooterNote)
+        layoutDropdownOverlay = findViewById(R.id.layoutDropdownOverlay)
+        btnOptionAi = findViewById(R.id.btnOptionAi)
+        btnOptionPresyohan = findViewById(R.id.btnOptionPresyohan)
+        imgCheckAi = findViewById(R.id.imgCheckAi)
+        imgCheckPresyohan = findViewById(R.id.imgCheckPresyohan)
+
+        // Load User Name for greeting
+        lifecycleScope.launch {
+            try {
+                val profile = SupabaseAuthService.getUserProfile()
+                val firstName = profile?.name?.trim()?.substringBefore(" ") 
+                    ?: SupabaseAuthService.getDisplayName()?.trim()?.substringBefore(" ") 
+                    ?: "Caliph"
+                tvAiGreeting.text = "Hi $firstName!"
+            } catch (e: Exception) {
+                tvAiGreeting.text = "Hi Caliph!"
+            }
+        }
+
+        // Setup Dropdown toggle and options
+        layoutParserSelector.setOnClickListener {
+            layoutDropdownOverlay.visibility = if (layoutDropdownOverlay.visibility == View.VISIBLE) {
+                View.GONE
+            } else {
+                View.VISIBLE
+            }
+        }
+
+        btnOptionAi.setOnClickListener {
+            selectParser(ParserType.AI)
+            layoutDropdownOverlay.visibility = View.GONE
+        }
+
+        btnOptionPresyohan.setOnClickListener {
+            selectParser(ParserType.PRESYOHAN)
+            layoutDropdownOverlay.visibility = View.GONE
+        }
+
+        btnScanPhoto.setOnClickListener {
+            Toast.makeText(this, "Photo scanning coming soon!", Toast.LENGTH_SHORT).show()
+        }
+
+        btnViewFormats.setOnClickListener {
+            showValidFormatsDialog()
+        }
+
+        btnSmartModeInfo.setOnClickListener {
+            showSmartModeInfoDialog()
+        }
+
         simpleRecyclerView.layoutManager = LinearLayoutManager(this)
 
         btnBack.setOnClickListener { onBackPressed() }
@@ -188,16 +284,19 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         // Mode Toggle Button click
         btnToggleMode.setOnClickListener {
             currentFocus?.clearFocus()
+            layoutDropdownOverlay.visibility = View.GONE
             if (currentMode == EntryMode.SIMPLE) {
                 currentMode = EntryMode.FAST
                 btnToggleMode.text = "Simple Mode"
-                tvSubHeaderTitle.text = "Fast Mode"
+                tvSubHeaderTitle.text = "Smart Mode"
+                btnSmartModeInfo.visibility = View.VISIBLE
                 tvSubHeaderSubtitle.visibility = View.VISIBLE
                 containerSimple.visibility = View.GONE
                 containerFast.visibility = View.VISIBLE
             } else {
                 currentMode = EntryMode.SIMPLE
-                btnToggleMode.text = "Fast Mode"
+                btnToggleMode.text = "Smart Mode"
+                btnSmartModeInfo.visibility = View.GONE
                 tvSubHeaderSubtitle.visibility = View.GONE
                 containerSimple.visibility = View.VISIBLE
                 containerFast.visibility = View.GONE
@@ -209,6 +308,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         // Review Header Button click
         btnReviewHeader.setOnClickListener {
             currentFocus?.clearFocus()
+            layoutDropdownOverlay.visibility = View.GONE
             if (currentMode == EntryMode.SIMPLE) {
                 performSaveSimpleMode()
             } else {
@@ -377,6 +477,121 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         }
     }
 
+    private fun onParsingSuccess(parseResult: ParseResult, dbProds: List<DbProduct>) {
+        val session = viewModel.draftSession.value ?: return
+        lifecycleScope.launch {
+            try {
+                val mappedCategories = parseResult.categories.map { cat ->
+                    val normName = cat.name.trim().uppercase()
+                    val catId = categoryIdByName[normName] ?: cat.categoryId
+                    cat.copy(
+                        categoryId = catId,
+                        items = cat.items.map { item ->
+                            item.copy(categoryId = catId)
+                        }.toMutableList()
+                    )
+                }.toMutableList()
+                val updatedSession = session.copy(
+                    categories = mappedCategories,
+                    isDirty = true
+                )
+                val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+                val validatedSession = withContext(Dispatchers.IO) {
+                    ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
+                }
+
+                viewModel.updateSession(validatedSession)
+
+                withContext(Dispatchers.Main) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                    val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
+                        putExtra("draftSessionId", validatedSession.sessionId)
+                        putExtra("storeId", storeId)
+                        putExtra("storeName", storeName)
+                    }
+                    startActivity(intent)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                    Toast.makeText(this@AddMultipleItemsActivity, "Failed to save smart parse session: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun selectParser(parserType: ParserType) {
+        selectedParserType = parserType
+        if (parserType == ParserType.AI) {
+            imgSelectedParserIcon.setImageResource(R.drawable.icon_happy_robot)
+            tvSelectedParserTitle.text = "AI-powered parser"
+            tvSelectedParserTitle.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
+            tvSelectedParserBadge.text = "Smart"
+            tvSelectedParserBadge.setBackgroundResource(R.drawable.bg_badge_orange)
+            tvSelectedParserSubtext.text = "Reads any custom layout or format."
+            viewParserDivider.setBackgroundColor(ContextCompat.getColor(this, R.color.presyo_orange))
+            
+            layoutBodyAi.visibility = View.VISIBLE
+            layoutBodyPresyohan.visibility = View.GONE
+            
+            inputRawText.hint = "Type your pricelist here or paste the Presyohan-generated pricelist..."
+            inputRawText.setBackgroundResource(R.drawable.bg_edittext_orange_border)
+            
+            tvParserFooterNote.text = "Note: The AI needs a stable connection to work."
+            
+            imgCheckAi.visibility = View.VISIBLE
+            imgCheckPresyohan.visibility = View.INVISIBLE
+        } else {
+            imgSelectedParserIcon.setImageResource(R.drawable.icon_presyohan_parser)
+            tvSelectedParserTitle.text = "Presyohan parser"
+            tvSelectedParserTitle.setTextColor(ContextCompat.getColor(this, R.color.presyo_teal))
+            tvSelectedParserBadge.text = "Fast"
+            tvSelectedParserBadge.setBackgroundResource(R.drawable.bg_badge_teal)
+            tvSelectedParserSubtext.text = "Reads standard templates instantly."
+            viewParserDivider.setBackgroundColor(ContextCompat.getColor(this, R.color.presyo_teal))
+            
+            layoutBodyAi.visibility = View.GONE
+            layoutBodyPresyohan.visibility = View.VISIBLE
+            
+            inputRawText.hint = "Paste your exported Presyohan prices or standard formatted text here..."
+            inputRawText.setBackgroundResource(R.drawable.bg_edittext_blue_border)
+            
+            tvParserFooterNote.text = "Note: Descriptions are optional"
+            
+            imgCheckAi.visibility = View.INVISIBLE
+            imgCheckPresyohan.visibility = View.VISIBLE
+        }
+    }
+
+    private fun showValidFormatsDialog() {
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_valid_formats, null)
+        dialog.setContentView(view)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        val width = (resources.displayMetrics.widthPixels * 0.95).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        
+        val btnGotIt = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnGotIt)
+        btnGotIt.setOnClickListener { dialog.dismiss() }
+        
+        dialog.show()
+    }
+
+    private fun showSmartModeInfoDialog() {
+        val view = LayoutInflater.from(this).inflate(R.layout.popup_smart_mode_info, null)
+        val popupWindow = android.widget.PopupWindow(
+            view,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+        
+        popupWindow.elevation = 10f
+        popupWindow.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        
+        popupWindow.showAsDropDown(btnSmartModeInfo, 0, 10)
+    }
+
     private fun performPreviewSmartMode() {
         val raw = inputRawText.text.toString()
         if (raw.isBlank()) {
@@ -395,57 +610,32 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
 
                 withContext(Dispatchers.Main) {
-                    LoadingOverlayHelper.hide(loadingOverlay)
-
-                    AiParsingDialogHelper(
-                        activity = this@AddMultipleItemsActivity,
-                        coroutineScope = lifecycleScope,
-                        rawText = raw,
-                        categoryIdByName = categoryIdByName,
-                        existingProductNames = existingProducts,
-                        onSuccess = { parseResult ->
-                            LoadingOverlayHelper.show(loadingOverlay)
-                            lifecycleScope.launch {
-                                try {
-                                    val mappedCategories = parseResult.categories.map { cat ->
-                                        val normName = cat.name.trim().uppercase()
-                                        val catId = categoryIdByName[normName] ?: cat.categoryId
-                                        cat.copy(
-                                            categoryId = catId,
-                                            items = cat.items.map { item ->
-                                                item.copy(categoryId = catId)
-                                            }.toMutableList()
-                                        )
-                                    }.toMutableList()
-                                    val updatedSession = session.copy(
-                                        categories = mappedCategories,
-                                        isDirty = true
-                                    )
-                                    val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
-                                    val validatedSession = withContext(Dispatchers.IO) {
-                                        ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
-                                    }
-
-                                    viewModel.updateSession(validatedSession)
-
-                                    withContext(Dispatchers.Main) {
-                                        LoadingOverlayHelper.hide(loadingOverlay)
-                                        val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
-                                            putExtra("draftSessionId", validatedSession.sessionId)
-                                            putExtra("storeId", storeId)
-                                            putExtra("storeName", storeName)
-                                        }
-                                        startActivity(intent)
-                                    }
-                                } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) {
-                                        LoadingOverlayHelper.hide(loadingOverlay)
-                                        Toast.makeText(this@AddMultipleItemsActivity, "Failed to save smart parse session: ${e.message}", Toast.LENGTH_LONG).show()
-                                    }
+                    if (selectedParserType == ParserType.AI) {
+                        LoadingOverlayHelper.hide(loadingOverlay)
+                        AiParsingDialogHelper(
+                            activity = this@AddMultipleItemsActivity,
+                            coroutineScope = lifecycleScope,
+                            rawText = raw,
+                            categoryIdByName = categoryIdByName,
+                            existingProductNames = existingProducts,
+                            onSuccess = { parseResult ->
+                                onParsingSuccess(parseResult, dbProds)
+                            }
+                        ).show()
+                    } else {
+                        // Presyohan Parser (Offline / Standard)
+                        lifecycleScope.launch {
+                            try {
+                                val parseResult = withContext(Dispatchers.IO) {
+                                    AddMultipleItemsParser.parseTextToResult(raw, existingProducts)
                                 }
+                                onParsingSuccess(parseResult, dbProds)
+                            } catch (e: Exception) {
+                                LoadingOverlayHelper.hide(loadingOverlay)
+                                Toast.makeText(this@AddMultipleItemsActivity, "Failed to parse: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
-                    ).show()
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -492,12 +682,13 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
         // Selection style update helper
         fun updateNextButtonVisibility() {
-            if (selectedMethod == ImportMethod.EXCEL) {
-                btnNext.visibility = if (selectedExcelUri != null) View.VISIBLE else View.GONE
+            val isEnabled = if (selectedMethod == ImportMethod.EXCEL) {
+                selectedExcelUri != null
             } else {
-                val text = inputDialogPaste.text.toString().trim()
-                btnNext.visibility = if (text.isNotEmpty()) View.VISIBLE else View.GONE
+                inputDialogPaste.text.toString().trim().isNotEmpty()
             }
+            btnNext.isEnabled = isEnabled
+            btnNext.alpha = if (isEnabled) 1.0f else 0.35f
         }
 
         fun updateSelectionUI() {
@@ -721,17 +912,8 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
     private fun setupDrawer() {
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
-        val navigationView = findViewById<NavigationView>(R.id.navigationView)
         findViewById<ImageView>(R.id.menuIcon)?.setOnClickListener { drawerLayout.open() }
-
-        HeaderUtils.updateHeader(this, navigationView)
-        navigationView.setNavigationItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_stores -> startActivity(Intent(this, StoreActivity::class.java))
-            }
-            drawerLayout.close()
-            true
-        }
+        DrawerHelper.setupDrawer(this, drawerLayout)
     }
 
     private fun checkAutoOpenCategoryMenu() {

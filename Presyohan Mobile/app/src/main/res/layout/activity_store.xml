@@ -4,11 +4,12 @@
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="false">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fitsSystemWindows="true"
         android:background="#F4F6F9">
 
         <!-- Curved Header Container -->
@@ -72,13 +73,13 @@
                 <!-- Notifications -->
                 <ImageView
                     android:id="@+id/notifIcon"
-                    android:layout_width="24dp"
+                     android:layout_width="24dp"
                     android:layout_height="32dp"
                     android:layout_marginEnd="16dp"
                     android:contentDescription="Notifications"
                     android:src="@drawable/icon_notification"
                     app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/profileIcon"
+                    app:layout_constraintEnd_toStartOf="@id/profileIconContainer"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <View
@@ -88,20 +89,29 @@
                     android:layout_marginEnd="16dp"
                     android:background="@drawable/indicator_dot"
                     android:visibility="gone"
-                    app:layout_constraintEnd_toStartOf="@id/profileIcon"
+                    app:layout_constraintEnd_toStartOf="@id/profileIconContainer"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <!-- Profile -->
-                <ImageView
-                    android:id="@+id/profileIcon"
+                <FrameLayout
+                    android:id="@+id/profileIconContainer"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_marginEnd="16dp"
-                    android:contentDescription="Profile"
-                    android:src="@drawable/icon_profile"
+                    android:background="@drawable/bg_avatar_border"
+                    android:padding="2dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <ImageView
+                        android:id="@+id/profileIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:contentDescription="Profile"
+                        android:src="@drawable/avatar_default" />
+                </FrameLayout>
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -110,9 +120,8 @@
                 android:id="@+id/imgHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:layout_marginBottom="8dp"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginBottom="4dp"
                 android:background="@drawable/bg_header_yellow"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="8dp">
@@ -136,9 +145,8 @@
             <RelativeLayout
                 android:id="@+id/searchBarLayout"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginHorizontal="8dp"
-                android:layout_marginBottom="8dp"
+                android:layout_height="44dp"
+                android:layout_marginHorizontal="16dp"
                 android:background="@drawable/bg_search_input"
                 android:paddingHorizontal="12dp">
 
@@ -187,7 +195,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="4dp"
                 android:background="@drawable/bg_segmented_control"
                 android:padding="3dp">
 
@@ -261,14 +269,18 @@
         </LinearLayout>
 
         <!-- Pull to Refresh surrounding List -->
+
+        <!-- Shimmer loading state (overlapping list) -->
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipeRefreshLayout"
             android:layout_width="0dp"
             android:layout_height="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer">
+            app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer"
+            app:layout_constraintVertical_bias="0.0">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewStores"
@@ -279,7 +291,6 @@
                 android:paddingBottom="140dp" />
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-        <!-- Shimmer loading state (overlapping list) -->
         <com.facebook.shimmer.ShimmerFrameLayout
             android:id="@+id/shimmerContainer"
             android:layout_width="0dp"
@@ -358,12 +369,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Side Navigation Menu Drawer -->
-    <com.google.android.material.navigation.NavigationView
-        android:id="@+id/navigationView"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        app:headerLayout="@layout/drawer_header"
-        app:menu="@menu/nav_menu" />
+    <include layout="@layout/layout_custom_drawer" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

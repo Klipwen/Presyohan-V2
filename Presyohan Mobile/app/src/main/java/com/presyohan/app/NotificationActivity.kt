@@ -66,13 +66,13 @@ class NotificationActivity : AppCompatActivity() {
         loadingOverlay = LoadingOverlayHelper.attach(this)
 
         val drawerLayout = findViewById<DrawerLayout>(R.id.drawerLayout)
-        val navigationView = findViewById<NavigationView>(R.id.navigationView)
+
         val menuIcon = findViewById<ImageView>(R.id.menuIcon)
         menuIcon.setOnClickListener {
             drawerLayout.openDrawer(Gravity.START)
         }
-        HeaderUtils.updateHeader(this, navigationView)
-        navigationView.setNavigationItemSelectedListener { item ->
+        DrawerHelper.setupDrawer(this, drawerLayout)
+        /* navigationView.setNavigationItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_stores -> {
                     val intent = Intent(this, StoreActivity::class.java)
@@ -98,7 +98,7 @@ class NotificationActivity : AppCompatActivity() {
                 }
                 else -> false
             }
-        }
+        }*/
 
         // Back button closes the activity
         findViewById<ImageView>(R.id.btnBack).setOnClickListener {

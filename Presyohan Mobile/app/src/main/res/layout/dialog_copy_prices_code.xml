@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_rounded"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Copy Prices"
+        android:textColor="@color/presyo_orange"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enter the 6-digit paste-code from the destination store:"
+        android:textColor="@color/presyo_darkblue"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <EditText
+        android:id="@+id/inputPasteCode"
+        android:layout_width="160dp"
+        android:layout_height="48dp"
+        android:hint="Paste-code"
+        android:inputType="number"
+        android:maxLength="6"
+        android:textSize="18sp"
+        android:letterSpacing="0.1"
+        android:gravity="center"
+        android:background="@drawable/bg_edittext"
+        android:layout_marginBottom="12dp"
+        android:singleLine="true" />
+
+    <!-- Validation Text -->
+    <TextView
+        android:id="@+id/textValidationStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Destination: Store Name (verified)"
+        android:textColor="@color/presyo_teal"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Dialog Actions -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Cancel"
+            android:textColor="@color/presyo_teal"
+            android:background="@drawable/button_round"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnNext"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Next"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/presyo_orange"
+            android:background="@drawable/button_round"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:enabled="false" />
+    </LinearLayout>
+</LinearLayout>
