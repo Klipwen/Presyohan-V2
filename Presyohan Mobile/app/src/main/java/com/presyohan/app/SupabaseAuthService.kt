@@ -181,6 +181,21 @@ object SupabaseAuthService {
         val profile = getUserProfile()
         return profile?.name
     }
+
+    suspend fun updateUserHeartbeat(): Boolean = withContext(Dispatchers.IO) {
+        val uid = client.auth.currentUserOrNull()?.id ?: return@withContext false
+        try {
+            val isoString = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.US).format(java.util.Date())
+            client.postgrest["app_users"].update(
+                mapOf("last_activity_at" to isoString)
+            ) {
+                filter { eq("id", uid) }
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 }
 
 // Made public for header usage

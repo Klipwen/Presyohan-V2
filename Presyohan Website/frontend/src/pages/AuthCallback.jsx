@@ -48,6 +48,27 @@ export default function AuthCallback() {
     }
   };
 
+  const handleRedirect = async (userId) => {
+    try {
+      const passcodePassed = sessionStorage.getItem('admin_passcode_passed') === 'true';
+      if (passcodePassed) {
+        const { data: profile } = await supabase
+          .from('app_users')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile?.role === 'admin') {
+          navigate('/admin/dashboard', { replace: true });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Admin check redirect failed:', err);
+    }
+    navigate('/stores', { replace: true });
+  };
+
   useEffect(() => {
     const oauthError = extractOAuthError();
     if (oauthError) {
@@ -102,47 +123,47 @@ export default function AuthCallback() {
           // Non-fatal: proceed even if profile upsert fails
           console.warn('Profile upsert failed in OAuth callback:', err);
         }
-  navigate('/stores', { replace: true });
+        await handleRedirect(session.user.id);
         return;
       }
       const listener = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        // Upsert profile as soon as session appears
-        (async () => {
-          try {
-            let userEmail = session.user.email || null;
-            if (!userEmail && session.provider === 'facebook') {
-              userEmail = await fetchFacebookEmail(session);
-            }
-            if (!userEmail) {
-              setNeedEmail(true);
-              setStatus('Facebook signed in. Please provide your email to continue.');
-              return;
-            }
-            const { data: existing } = await supabase
-              .from('app_users')
-              .select('id, name, email, avatar_url')
-              .eq('id', session.user.id)
-              .maybeSingle();
-            const finalName = existing?.name ?? (session.user.user_metadata?.name || null);
-            const finalAvatar = existing?.avatar_url ?? (session.user.user_metadata?.avatar_url || null);
-            if (existing?.id) {
-              await supabase
+        if (session) {
+          // Upsert profile as soon as session appears
+          (async () => {
+            try {
+              let userEmail = session.user.email || null;
+              if (!userEmail && session.provider === 'facebook') {
+                userEmail = await fetchFacebookEmail(session);
+              }
+              if (!userEmail) {
+                setNeedEmail(true);
+                setStatus('Facebook signed in. Please provide your email to continue.');
+                return;
+              }
+              const { data: existing } = await supabase
                 .from('app_users')
-                .update({ email: userEmail ?? existing.email })
-                .eq('id', session.user.id);
-            } else {
-              await supabase
-                .from('app_users')
-                .insert({ id: session.user.id, email: userEmail, name: finalName, avatar_url: finalAvatar });
+                .select('id, name, email, avatar_url')
+                .eq('id', session.user.id)
+                .maybeSingle();
+              const finalName = existing?.name ?? (session.user.user_metadata?.name || null);
+              const finalAvatar = existing?.avatar_url ?? (session.user.user_metadata?.avatar_url || null);
+              if (existing?.id) {
+                await supabase
+                  .from('app_users')
+                  .update({ email: userEmail ?? existing.email })
+                  .eq('id', session.user.id);
+              } else {
+                await supabase
+                  .from('app_users')
+                  .insert({ id: session.user.id, email: userEmail, name: finalName, avatar_url: finalAvatar });
+              }
+              await supabase.auth.updateUser({ data: { name: finalName, avatar_url: finalAvatar } });
+            } catch (e) {
+              console.warn('Profile upsert failed in auth state change:', e);
             }
-            await supabase.auth.updateUser({ data: { name: finalName, avatar_url: finalAvatar } });
-          } catch (e) {
-            console.warn('Profile upsert failed in auth state change:', e);
-          }
-          navigate('/stores', { replace: true });
-        })();
-      }
+            await handleRedirect(session.user.id);
+          })();
+        }
       });
       subscription = listener.data.subscription;
       timer = setTimeout(() => setStatus('No session found. Please try logging in again.'), 4000);
@@ -186,7 +207,7 @@ export default function AuthCallback() {
           .insert({ id: userId, email: emailInput, name: finalName, avatar_url: finalAvatar });
       }
       await supabase.auth.updateUser({ data: { name: finalName, avatar_url: finalAvatar } });
-      navigate('/stores', { replace: true });
+      await handleRedirect(userId);
     } catch (e) {
       setStatus(e.message || 'Failed to save email. Please try again.');
     } finally {

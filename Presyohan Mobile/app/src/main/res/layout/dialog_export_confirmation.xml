@@ -222,7 +222,8 @@
             android:textAllCaps="false"
             android:textColor="@android:color/white"
             android:textSize="15sp"
-            android:background="@drawable/button_round_orange" />
+            android:background="@drawable/button_round"
+            android:backgroundTint="@color/presyo_orange" />
     </LinearLayout>
 
 </LinearLayout>

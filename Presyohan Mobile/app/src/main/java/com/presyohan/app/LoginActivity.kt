@@ -44,8 +44,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                 lifecycleScope.launch {
                     try {
                         SupabaseAuthService.signInWithGoogleIdToken(idToken)
-                        startActivity(Intent(this@LoginActivity, StoreActivity::class.java))
-                        finish()
+                        navigateToLastActivity()
                     } catch (e: Exception) {
                         Toast.makeText(this@LoginActivity, "Unable to sign in with Google.", Toast.LENGTH_SHORT).show()
                     }
@@ -91,8 +90,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                 lifecycleScope.launch {
                     try {
                         SupabaseAuthService.signInWithGoogleIdToken(idToken)
-                        startActivity(Intent(this@LoginActivity, StoreActivity::class.java))
-                        finish()
+                        navigateToLastActivity()
                     } catch (e: Exception) {
                         Toast.makeText(this@LoginActivity, "Unable to sign in with Google.", Toast.LENGTH_SHORT).show()
                     }
@@ -140,8 +138,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             lifecycleScope.launch {
                 try {
                     SupabaseAuthService.signInEmail(email, password)
-                    startActivity(Intent(this@LoginActivity, StoreActivity::class.java))
-                    finish()
+                    navigateToLastActivity()
                 } catch (e: Exception) {
                     Toast.makeText(this@LoginActivity, "Unable to sign in.", Toast.LENGTH_SHORT).show()
                 }
@@ -174,8 +171,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             SupabaseProvider.client.handleDeeplinks(incoming)
             val session = SupabaseProvider.client.auth.currentSessionOrNull()
             if (session != null) {
-                startActivity(Intent(this, StoreActivity::class.java))
-                finish()
+                navigateToLastActivity()
             }
         }
     }
@@ -185,8 +181,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
         SupabaseProvider.client.handleDeeplinks(intent)
         val session = SupabaseProvider.client.auth.currentSessionOrNull()
         if (session != null) {
-            startActivity(Intent(this, StoreActivity::class.java))
-            finish()
+            navigateToLastActivity()
         }
     }
 
@@ -200,5 +195,30 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             api.getErrorDialog(this, status, 9000)?.show()
             false
         }
+    }
+
+    private fun navigateToLastActivity() {
+        val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+        val lastScreenKey = SessionManager.getScopedKey(this, SessionManager.KEY_LAST_SCREEN)
+        val lastScreen = prefs.getString(lastScreenKey, SessionManager.SCREEN_STORE)
+        if (lastScreen == SessionManager.SCREEN_CUSTOMER_HOME) {
+            startActivity(Intent(this, CustomerHomeActivity::class.java))
+        } else if (lastScreen == SessionManager.SCREEN_STORE) {
+            startActivity(Intent(this, StoreActivity::class.java))
+        } else {
+            val storeIdKey = SessionManager.getScopedKey(this, SessionManager.KEY_STORE_ID)
+            val storeNameKey = SessionManager.getScopedKey(this, SessionManager.KEY_STORE_NAME)
+            val storeId = prefs.getString(storeIdKey, null)
+            val storeName = prefs.getString(storeNameKey, null)
+            if (storeId != null && storeName != null) {
+                val intent = Intent(this, HomeActivity::class.java)
+                intent.putExtra("storeId", storeId)
+                intent.putExtra("storeName", storeName)
+                startActivity(intent)
+            } else {
+                startActivity(Intent(this, StoreActivity::class.java))
+            }
+        }
+        finish()
     }
 }

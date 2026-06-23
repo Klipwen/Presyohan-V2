@@ -205,7 +205,8 @@
                 android:layout_height="44dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="8dp"
-                android:background="@drawable/button_round_teal"
+                android:background="@drawable/button_round"
+                android:backgroundTint="@color/presyo_teal"
                 android:text="BACK"
                 android:textColor="@color/white"
                 android:textStyle="bold"
@@ -216,7 +217,8 @@
                 android:layout_width="0dp"
                 android:layout_height="44dp"
                 android:layout_weight="1"
-                android:background="@drawable/button_round_orange"
+                android:background="@drawable/button_round"
+                android:backgroundTint="@color/presyo_orange"
                 android:text="INVITE"
                 android:textColor="@color/white"
                 android:textStyle="bold"
@@ -277,12 +279,12 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_marginBottom="16dp"
-            android:visibility="visible">
+            android:visibility="gone">
 
             <!-- Dashed Placeholder Box -->
             <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="50dp"
+                android:layout_height="56dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="12dp"
                 android:background="@drawable/bg_code_box_border">
@@ -303,13 +305,13 @@
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnGenerateCodeInactive"
                 android:layout_width="wrap_content"
-                android:layout_height="50dp"
+                android:layout_height="28dp"
                 android:background="@drawable/bg_button_rect_teal"
                 android:text="Generate"
                 android:textColor="@color/white"
                 android:textSize="13sp"
                 android:textAllCaps="false"
-                android:paddingHorizontal="16dp"/>
+                android:paddingHorizontal="34dp"/>
 
         </LinearLayout>
 
@@ -327,7 +329,7 @@
             <RelativeLayout
                 android:id="@+id/btnCopyCodeActive"
                 android:layout_width="0dp"
-                android:layout_height="50dp"
+                android:layout_height="60dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="12dp"
                 android:background="@drawable/bg_code_box_border"
@@ -348,7 +350,7 @@
                         android:layout_height="wrap_content"
                         android:text="758201"
                         android:textColor="#FB8500"
-                        android:textSize="18sp"
+                        android:textSize="26sp"
                         android:textStyle="bold"
                         android:includeFontPadding="false"
                         android:lineSpacingExtra="0dp"/>
@@ -359,14 +361,14 @@
                         android:layout_height="wrap_content"
                         android:text="Valid only in --:--:--"
                         android:textColor="#FB8500"
-                        android:textSize="8sp"
+                        android:textSize="12sp"
                         android:includeFontPadding="false"/>
 
                 </LinearLayout>
 
                 <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:src="@drawable/icon_copy"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
@@ -376,7 +378,7 @@
 
             <!-- Active Action Buttons (Stacked Vertically) -->
             <LinearLayout
-                android:layout_width="110dp"
+                android:layout_width="120dp"
                 android:layout_height="50dp"
                 android:orientation="vertical"
                 android:gravity="center_vertical">
@@ -385,26 +387,28 @@
                 <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/btnGenerateCodeActive"
                     android:layout_width="match_parent"
-                    android:layout_height="23dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_button_rect_teal"
                     android:text="Generate new"
                     android:textColor="@color/white"
                     android:textSize="10sp"
                     android:textAllCaps="false"
                     android:paddingHorizontal="4dp"
-                    android:layout_marginBottom="4dp"/>
+                    android:layout_marginBottom="2dp"
+                    android:layout_marginTop="2dp"/>
 
                 <!-- Revoke Button (Rectangular with teal outline, not fully rounded) -->
                 <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/btnRevokeCodeActive"
                     android:layout_width="match_parent"
-                    android:layout_height="23dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_button_rect_outline_teal"
                     android:text="Revoke"
                     android:textColor="@color/presyo_teal"
                     android:textSize="10sp"
                     android:textAllCaps="false"
-                    android:paddingHorizontal="4dp"/>
+                    android:paddingHorizontal="4dp"
+                    android:layout_marginBottom="2dp"/>
 
             </LinearLayout>
 
@@ -429,7 +433,8 @@
             android:id="@+id/btnDone"
             android:layout_width="match_parent"
             android:layout_height="44dp"
-            android:background="@drawable/button_round_orange"
+            android:background="@drawable/button_round"
+            android:backgroundTint="@color/presyo_orange"
             android:text="DONE"
             android:textColor="@color/white"
             android:textStyle="bold"

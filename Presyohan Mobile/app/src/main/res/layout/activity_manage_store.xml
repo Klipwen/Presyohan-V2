@@ -139,14 +139,105 @@
                             android:focusable="true" />
                     </LinearLayout>
 
-                    <!-- Store Card (Inner Light Grey Card with stroke and corners) -->
-                    <LinearLayout
+                    <!-- FrameLayout containing Shimmer skeleton and actual card content -->
+                    <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:background="@drawable/bg_store_card_inner"
-                        android:padding="16dp"
                         android:layout_marginBottom="16dp">
+
+                        <!-- Shimmer Skeleton Loading -->
+                        <com.facebook.shimmer.ShimmerFrameLayout
+                            android:id="@+id/shimmerStoreSettings"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <!-- Mock card skeleton layout -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:background="@drawable/bg_store_card_inner"
+                                android:padding="16dp">
+
+                                <!-- Top section skeleton -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical">
+
+                                    <View
+                                        android:layout_width="64dp"
+                                        android:layout_height="64dp"
+                                        android:background="#E8E8E8" />
+
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="vertical"
+                                        android:layout_marginStart="16dp">
+
+                                        <View
+                                            android:layout_width="140dp"
+                                            android:layout_height="18dp"
+                                            android:background="#E8E8E8"
+                                            android:layout_marginBottom="6dp" />
+
+                                        <View
+                                            android:layout_width="100dp"
+                                            android:layout_height="14dp"
+                                            android:background="#E8E8E8"
+                                            android:layout_marginBottom="6dp" />
+
+                                        <View
+                                            android:layout_width="80dp"
+                                            android:layout_height="14dp"
+                                            android:background="#E8E8E8" />
+                                    </LinearLayout>
+                                </LinearLayout>
+
+                                <!-- Middle section skeleton -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginTop="16dp">
+
+                                    <View
+                                        android:layout_width="80dp"
+                                        android:layout_height="14dp"
+                                        android:background="#E8E8E8" />
+
+                                    <View
+                                        android:layout_width="0dp"
+                                        android:layout_height="1dp"
+                                        android:layout_weight="1" />
+
+                                    <!-- Mock tools row -->
+                                    <LinearLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal">
+                                        <View android:layout_width="30dp" android:layout_height="30dp" android:background="#E8E8E8" android:layout_marginEnd="6dp" />
+                                        <View android:layout_width="30dp" android:layout_height="30dp" android:background="#E8E8E8" android:layout_marginEnd="6dp" />
+                                        <View android:layout_width="30dp" android:layout_height="30dp" android:background="#E8E8E8" android:layout_marginEnd="6dp" />
+                                        <View android:layout_width="30dp" android:layout_height="30dp" android:background="#E8E8E8" android:layout_marginEnd="6dp" />
+                                        <View android:layout_width="30dp" android:layout_height="30dp" android:background="#E8E8E8" android:layout_marginEnd="6dp" />
+                                        <View android:layout_width="30dp" android:layout_height="30dp" android:background="#E8E8E8" />
+                                    </LinearLayout>
+                                </LinearLayout>
+                            </LinearLayout>
+                        </com.facebook.shimmer.ShimmerFrameLayout>
+
+                        <!-- Actual Store Card Content -->
+                        <LinearLayout
+                            android:id="@+id/layoutStoreCardInner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_store_card_inner"
+                            android:padding="16dp">
 
                         <!-- Store Info Top Section -->
                         <LinearLayout
@@ -369,6 +460,7 @@
                                     android:focusable="true"
                                     android:contentDescription="Delete store">
                                     <ImageView
+                                        android:id="@+id/ivDeleteStoreIcon"
                                         android:layout_width="18dp"
                                         android:layout_height="18dp"
                                         android:src="@drawable/icon_delete"
@@ -698,6 +790,7 @@
                             </LinearLayout>
                         </LinearLayout>
                     </LinearLayout>
+                </FrameLayout>
 
 
                     <!-- Paste-Code Description -->

@@ -80,6 +80,7 @@ class ManageStoreActivity : AppCompatActivity() {
     private lateinit var toolAddStaff: LinearLayout
     private lateinit var toolEditStore: LinearLayout
     private lateinit var toolDeleteStore: LinearLayout
+    private lateinit var ivDeleteStoreIcon: ImageView
     
     private lateinit var storeCodeTextView: TextView
     private lateinit var storeCodeExpiryView: TextView
@@ -90,6 +91,9 @@ class ManageStoreActivity : AppCompatActivity() {
     private lateinit var btnManageMembers: Button
     private lateinit var btnManageCategory: Button
     private lateinit var btnManageItems: Button
+
+    private lateinit var shimmerStoreSettings: com.facebook.shimmer.ShimmerFrameLayout
+    private lateinit var layoutStoreCardInner: LinearLayout
 
     private var storeId: String? = null
     private var storeName: String? = null
@@ -216,6 +220,7 @@ class ManageStoreActivity : AppCompatActivity() {
         toolAddStaff = findViewById(R.id.toolAddStaff)
         toolEditStore = findViewById(R.id.toolEditStore)
         toolDeleteStore = findViewById(R.id.toolDeleteStore)
+        ivDeleteStoreIcon = findViewById(R.id.ivDeleteStoreIcon)
         
         storeCodeTextView = findViewById(R.id.storeCodeText)
         storeCodeExpiryView = findViewById(R.id.storeCodeExpiry)
@@ -226,6 +231,9 @@ class ManageStoreActivity : AppCompatActivity() {
         btnManageMembers = findViewById(R.id.btnManageMembers)
         btnManageCategory = findViewById(R.id.btnManageCategory)
         btnManageItems = findViewById(R.id.btnManageItems)
+
+        shimmerStoreSettings = findViewById(R.id.shimmerStoreSettings)
+        layoutStoreCardInner = findViewById(R.id.layoutStoreCardInner)
 
         // Set Initial Visibility of Collapsible Stats
         layoutCollapsibleStats.visibility = View.GONE
@@ -405,7 +413,9 @@ class ManageStoreActivity : AppCompatActivity() {
 
     private fun loadStoreDetails() {
         val sId = storeId ?: return
-        LoadingOverlayHelper.show(loadingOverlay)
+        shimmerStoreSettings.visibility = View.VISIBLE
+        shimmerStoreSettings.startShimmer()
+        layoutStoreCardInner.visibility = View.GONE
         lifecycleScope.launch {
             try {
                 // 1. Fetch store details
@@ -497,11 +507,42 @@ class ManageStoreActivity : AppCompatActivity() {
                 }.decodeList<SukiRelationshipRow>()
                 tvStatSuki.text = sukiRows.size.toString()
 
+                // Dynamically update the Delete Store button to Leave Store if there are multiple owners
+                val isUserOwner = currentUserRole.lowercase() == "owner"
+                if (isUserOwner) {
+                    toolDeleteStore.visibility = View.VISIBLE
+                    if (ownersCount > 1) {
+                        ivDeleteStoreIcon.setImageResource(R.drawable.icon_leave_store)
+                        val sizePx = (22 * resources.displayMetrics.density).toInt()
+                        ivDeleteStoreIcon.layoutParams.width = sizePx
+                        ivDeleteStoreIcon.layoutParams.height = sizePx
+                        ivDeleteStoreIcon.requestLayout()
+                        toolDeleteStore.contentDescription = "Leave store"
+                        toolDeleteStore.setOnClickListener {
+                            showManageStoreLeaveConfirmation(sId, storeName ?: "Store")
+                        }
+                    } else {
+                        ivDeleteStoreIcon.setImageResource(R.drawable.icon_delete)
+                        val sizePx = (18 * resources.displayMetrics.density).toInt()
+                        ivDeleteStoreIcon.layoutParams.width = sizePx
+                        ivDeleteStoreIcon.layoutParams.height = sizePx
+                        ivDeleteStoreIcon.requestLayout()
+                        toolDeleteStore.contentDescription = "Delete store"
+                        toolDeleteStore.setOnClickListener {
+                            showManageStoreDeleteConfirmation(sId, storeName ?: "Store")
+                        }
+                    }
+                } else {
+                    toolDeleteStore.visibility = View.GONE
+                }
+
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(this@ManageStoreActivity, "Error loading statistics: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             } finally {
-                LoadingOverlayHelper.hide(loadingOverlay)
+                shimmerStoreSettings.stopShimmer()
+                shimmerStoreSettings.visibility = View.GONE
+                layoutStoreCardInner.visibility = View.VISIBLE
             }
         }
     }
@@ -559,6 +600,48 @@ class ManageStoreActivity : AppCompatActivity() {
                     finish()
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageStoreActivity, "Action failed. Check internet.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        confirmDialog.show()
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        confirmDialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    private fun showManageStoreLeaveConfirmation(storeId: String, storeName: String) {
+        val confirmDialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_reusable_template, null)
+        confirmDialog.setContentView(view)
+        confirmDialog.setCancelable(true)
+        confirmDialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val title = view.findViewById<TextView>(R.id.dialogTitle)
+        val message = view.findViewById<TextView>(R.id.dialogMessage)
+        val btnCancel = view.findViewById<Button>(R.id.btnNegative)
+        val btnAction = view.findViewById<Button>(R.id.btnPositive)
+
+        btnCancel.text = "Cancel"
+        title.text = "Leave Store"
+        btnAction.text = "Leave"
+        message.text = "Are you sure you want to leave this store?\n\nThe store will remain active, but you will lose all access and ownership rights."
+
+        btnCancel.setOnClickListener { confirmDialog.dismiss() }
+
+        btnAction.setOnClickListener {
+            LoadingOverlayHelper.show(loadingOverlay)
+            lifecycleScope.launch {
+                try {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "leave_store",
+                        buildJsonObject { put("p_store_id", storeId) }
+                    )
+                    Toast.makeText(this@ManageStoreActivity, "You have left the store.", Toast.LENGTH_SHORT).show()
+                    confirmDialog.dismiss()
+                    finish()
+                } catch (e: Exception) {
+                    Toast.makeText(this@ManageStoreActivity, "Action failed. Check internet.", Toast.LENGTH_LONG).show()
+                } finally {
+                    LoadingOverlayHelper.hide(loadingOverlay)
                 }
             }
         }

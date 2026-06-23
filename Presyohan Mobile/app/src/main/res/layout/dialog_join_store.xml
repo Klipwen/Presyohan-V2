@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_dialog1"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <!-- Dialog Header -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_header_yellow"
+        android:paddingVertical="8dp"
+        android:paddingHorizontal="16dp">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_centerVertical="true"
+            android:src="@drawable/icon_back"
+            app:tint="@color/white"
+            android:contentDescription="Back" />
+
+        <TextView
+            android:id="@+id/dialogTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="Join Store"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
+
+    <!-- Guide Text -->
+    <TextView
+        android:id="@+id/tvGuideText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginHorizontal="20dp"
+        android:gravity="center"
+        android:text="Enter the 6-digit code provided by the store owner"
+        android:textColor="#555555"
+        android:textSize="13sp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="12dp">
+
+            <!-- Card Container -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_unselected"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+
+
+                <!-- Store Preview Card (Dynamic state) -->
+                <FrameLayout
+                    android:id="@+id/storePreviewContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:padding="12dp"
+                    android:layout_marginBottom="16dp">
+
+                    <!-- Default / No Store State -->
+                    <LinearLayout
+                        android:id="@+id/layoutNoStore"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="48dp"
+                            android:layout_height="36dp"
+                            android:src="@drawable/icon_store" />
+
+                        <TextView
+                            android:id="@+id/tvNoStoreText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="no store found"
+                            android:textColor="@color/presyo_orange"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:visibility="invisible" />
+                    </LinearLayout>
+
+                    <!-- Store Details State -->
+                    <RelativeLayout
+                        android:id="@+id/layoutStoreDetails"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone">
+
+                        <ImageView
+                            android:id="@+id/ivStorePreviewIcon"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_centerVertical="true"
+                            android:src="@drawable/icon_store" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_toEndOf="@id/ivStorePreviewIcon"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="12dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvStorePreviewName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Store Name"
+                                android:textColor="@color/presyo_orange"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvStorePreviewType"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Store Type"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="12dp"
+                                    android:layout_height="12dp"
+                                    android:src="@drawable/ic_location"
+                                    app:tint="#888888" />
+
+                                <TextView
+                                    android:id="@+id/tvStorePreviewLocation"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:text="Location branch"
+                                    android:textColor="#888888"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
+                        </LinearLayout>
+                    </RelativeLayout>
+                </FrameLayout>
+
+                <!-- Code input title -->
+                <TextView
+                    android:id="@+id/tvCodeInputTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Enter Join Store Code"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp" />
+
+                <!-- 6 code boxes row with overlay input -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:id="@+id/layoutCodeBoxes"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center"
+                        android:weightSum="6">
+
+                        <TextView
+                            android:id="@+id/box1"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_margin="3dp"
+                            android:background="@drawable/bg_code_box_empty"
+                            android:gravity="center"
+                            android:textColor="@color/presyo_darkblue"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/box2"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_margin="3dp"
+                            android:background="@drawable/bg_code_box_empty"
+                            android:gravity="center"
+                            android:textColor="@color/presyo_darkblue"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/box3"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_margin="3dp"
+                            android:background="@drawable/bg_code_box_empty"
+                            android:gravity="center"
+                            android:textColor="@color/presyo_darkblue"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/box4"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_margin="3dp"
+                            android:background="@drawable/bg_code_box_empty"
+                            android:gravity="center"
+                            android:textColor="@color/presyo_darkblue"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/box5"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_margin="3dp"
+                            android:background="@drawable/bg_code_box_empty"
+                            android:gravity="center"
+                            android:textColor="@color/presyo_darkblue"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/box6"
+                            android:layout_width="0dp"
+                            android:layout_height="52dp"
+                            android:layout_weight="1"
+                            android:layout_margin="3dp"
+                            android:background="@drawable/bg_code_box_empty"
+                            android:gravity="center"
+                            android:textColor="@color/presyo_darkblue"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Transparent overlay EditText that covers the boxes -->
+                    <EditText
+                        android:id="@+id/hiddenCodeInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:background="@android:color/transparent"
+                        android:textColor="@android:color/transparent"
+                        android:cursorVisible="false"
+                        android:inputType="number"
+                        android:maxLength="6"
+                        android:textCursorDrawable="@null"
+                        android:privateImeOptions="nm" />
+                </FrameLayout>
+
+            </LinearLayout>
+
+            <!-- Request To Join Button -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/buttonRequestJoin"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/button_round"
+                android:backgroundTint="@color/presyo_orange"
+                android:alpha="0.5"
+                android:enabled="false"
+                android:text="REQUEST TO JOIN"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <!-- Inline message/warning below the button -->
+            <TextView
+                android:id="@+id/tvInlineWarning"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:textColor="@color/presyo_orange"
+                android:textSize="12sp"
+                android:visibility="invisible" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>

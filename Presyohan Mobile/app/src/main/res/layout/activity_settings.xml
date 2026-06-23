@@ -220,7 +220,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Account Security"
-                        android:textColor="@color/presyo_darkblue"
+                        android:textColor="#757575"
                         android:textSize="15sp"
                         android:textStyle="bold"/>
 
@@ -272,7 +272,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Memberships"
-                        android:textColor="@color/presyo_darkblue"
+                        android:textColor="#757575"
                         android:textSize="15sp"
                         android:textStyle="bold"/>
 
@@ -330,10 +330,10 @@
                 android:focusable="true">
 
                 <FrameLayout
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
                     android:background="@drawable/bg_rounded_grey"
-                    android:padding="10dp">
+                    android:padding="6dp">
                     <ImageView
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
@@ -352,7 +352,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Atong Presyohan?"
-                        android:textColor="@color/presyo_darkblue"
+                        android:textColor="#757575"
                         android:textSize="15sp"
                         android:textStyle="bold"/>
 
@@ -404,7 +404,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Support"
-                        android:textColor="@color/presyo_darkblue"
+                        android:textColor="#757575"
                         android:textSize="15sp"
                         android:textStyle="bold"/>
 
@@ -456,7 +456,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Contact Us"
-                        android:textColor="@color/presyo_darkblue"
+                        android:textColor="#757575"
                         android:textSize="15sp"
                         android:textStyle="bold"/>
 
@@ -508,7 +508,8 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:background="@drawable/bg_card_unselected"
-                android:padding="16dp"
+                android:paddingVertical="20dp"
+                android:paddingHorizontal="16dp"
                 android:layout_marginBottom="16dp"
                 android:clickable="true"
                 android:focusable="true">
@@ -540,7 +541,7 @@
                 <ImageView
                     android:layout_width="28dp"
                     android:layout_height="28dp"
-                    android:src="@drawable/icon_logout"
+                    android:src="@drawable/icon_leave_store"
                     app:tint="@color/presyo_teal" />
 
             </LinearLayout>

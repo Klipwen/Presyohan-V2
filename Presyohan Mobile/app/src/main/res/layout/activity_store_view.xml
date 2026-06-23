@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#E5E5E5"
+    android:fitsSystemWindows="false">
+
+    <!-- Curved Header Container -->
+    <LinearLayout
+        android:id="@+id/curvedHeaderContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_category_filter"
+        android:orientation="vertical"
+        android:elevation="6dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Header Area (Back, Title, Subscribe, Unsubscribe) -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/storeViewHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp">
+
+            <!-- Back Button (Circular) -->
+            <FrameLayout
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_rounded_cream_box"
+                android:backgroundTint="#FDF2E9"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_back"
+                    app:tint="@color/presyo_orange"
+                    android:contentDescription="Go Back" />
+            </FrameLayout>
+
+            <!-- Store Details (Title and Subtitle) -->
+            <LinearLayout
+                android:id="@+id/layoutStoreHeaderDetails"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground"
+                app:layout_constraintStart_toEndOf="@id/btnBack"
+                app:layout_constraintEnd_toStartOf="@id/btnToggleSubscribe"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <TextView
+                    android:id="@+id/tvStoreName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Store Name"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/tvStoreBranch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Branch Location"
+                    android:textColor="#94A3B8"
+                    android:textSize="12sp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+            </LinearLayout>
+
+            <!-- Subscribe/Eye Button (Circular) -->
+            <FrameLayout
+                android:id="@+id/btnToggleSubscribe"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:layout_constraintEnd_toStartOf="@id/btnUnsubscribe"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageView
+                    android:id="@+id/ivSubscribeIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_view"
+                    app:tint="@color/presyo_orange"
+                    android:contentDescription="Toggle Suki Status" />
+            </FrameLayout>
+
+            <!-- Unsubscribe/Trash Button (Circular) -->
+            <FrameLayout
+                android:id="@+id/btnUnsubscribe"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/icon_delete"
+                    app:tint="@color/presyo_orange"
+                    android:contentDescription="Unsubscribe Store" />
+            </FrameLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Search Bar -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_customer_search_input">
+
+            <EditText
+                android:id="@+id/searchEditText"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:hint="Search Item..."
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:paddingHorizontal="16dp"
+                android:textColor="#334155"
+                android:textColorHint="#94A3B8"
+                android:textSize="14sp" />
+        </FrameLayout>
+
+        <!-- Category Dropdown Trigger -->
+        <LinearLayout
+            android:id="@+id/layoutPricelistTrigger"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="8dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/categoryLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="PRICELIST"
+                android:textColor="@color/presyo_orange"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/icon_category_drawer"
+                app:tint="@color/presyo_orange" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Invisible Category Spinner for Dialog Triggering -->
+    <Spinner
+        android:id="@+id/categorySpinner"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- RecyclerView for Grouped Products -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvStoreProducts"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="24dp"
+        app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- Private Store State Container -->
+    <LinearLayout
+        android:id="@+id/layoutPrivateStoreState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/icon_store"
+            app:tint="#94A3B8"
+            android:contentDescription="Store Private Icon" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="This store is private"
+            android:textColor="#94A3B8"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+
+
+
+    <!-- Loading Shimmer Skeleton Container -->
+    <com.facebook.shimmer.ShimmerFrameLayout
+        android:id="@+id/shimmerContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:shimmer_auto_start="true"
+        app:shimmer_base_alpha="0.4"
+        app:shimmer_highlight_alpha="1.0"
+        app:shimmer_duration="1200"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer"
+        tools:ignore="MissingClass">
+
+        <include layout="@layout/layout_home_shimmer" />
+
+    </com.facebook.shimmer.ShimmerFrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

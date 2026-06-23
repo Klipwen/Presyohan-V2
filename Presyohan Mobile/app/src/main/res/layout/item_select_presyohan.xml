@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginTop="4dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@android:color/white">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="14dp"
+        android:paddingHorizontal="16dp">
+
+        <!-- Store Type Tag Header -->
+        <TextView
+            android:id="@+id/tvStoreTypeTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Presyohan"
+            android:textColor="#888888"
+            android:textSize="10sp"
+            app:layout_constraintEnd_toEndOf="@+id/storeIconContainer"
+            app:layout_constraintStart_toStartOf="@+id/storeIconContainer"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Selection Checkbox/Radio Circle -->
+        <ImageView
+            android:id="@+id/ivSelectCircle"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_radio_unchecked"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="Select Store" />
+
+        <TextView
+            android:id="@+id/tvSelectedLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Selected"
+            android:textColor="#757575"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <FrameLayout
+            android:id="@+id/storeIconContainer"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_rounded_store_icon"
+            app:layout_constraintTop_toBottomOf="@id/tvStoreTypeTag"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <ImageView
+                android:id="@+id/ivStoreIcon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:rotation="-45"
+                android:src="@drawable/icon_presyohan" />
+        </FrameLayout>
+
+        <!-- Store Name -->
+        <TextView
+            android:id="@+id/tvStoreName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:text="Pharmacy"
+            android:textColor="@color/presyo_orange"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/ivSelectCircle"
+            app:layout_constraintStart_toEndOf="@id/storeIconContainer"
+            app:layout_constraintTop_toTopOf="@+id/tvStoreTypeTag" />
+
+        <!-- Store Subtitle (Type of merchandise) -->
+        <TextView
+            android:id="@+id/tvStoreSubtitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Medicine Prices"
+            android:textColor="@color/presyo_teal"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/tvStoreName"
+            app:layout_constraintStart_toStartOf="@id/tvStoreName"
+            app:layout_constraintEnd_toStartOf="@id/ivSelectCircle"
+            android:layout_marginEnd="16dp" />
+
+        <!-- Pin Icon and Location -->
+        <LinearLayout
+            android:id="@+id/linearLayout4"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toStartOf="@id/tvStoreItemCount"
+            app:layout_constraintStart_toStartOf="@id/tvStoreName"
+            app:layout_constraintTop_toBottomOf="@id/tvStoreSubtitle">
+
+            <ImageView
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/ic_location"
+                app:tint="#888888" />
+
+            <TextView
+                android:id="@+id/tvStoreLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="Presyohan App"
+                android:textColor="#888888"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Item Count (Bottom right) -->
+        <TextView
+            android:id="@+id/tvStoreItemCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="211 Items"
+            android:textColor="@color/presyo_teal"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/linearLayout4" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>
