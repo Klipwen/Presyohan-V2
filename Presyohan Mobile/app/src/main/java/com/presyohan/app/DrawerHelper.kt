@@ -129,6 +129,16 @@ object DrawerHelper {
                 val intent = Intent(activity, CustomerHomeActivity::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                 activity.startActivity(intent)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    activity.overrideActivityTransition(
+                        android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                        R.anim.slide_in_up,
+                        R.anim.stay
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    activity.overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+                }
             }
         }
 

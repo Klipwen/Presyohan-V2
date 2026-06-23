@@ -1,0 +1,165 @@
+.gatekeeper-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+  font-family: 'Poppins', sans-serif;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle grocery background overlay matching main login page */
+.gatekeeper-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/background_grocery.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gatekeeper-card {
+  width: 100%;
+  max-width: 450px;
+  background: white;
+  border-radius: 40px;
+  padding: 50px 40px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  z-index: 1;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gatekeeper-logo-container {
+  width: 100px;
+  height: 100px;
+  background: #fff8f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  border: 3px solid #ff8c00;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(255, 140, 0, 0.1);
+}
+
+.gatekeeper-logo-container img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+}
+
+.gatekeeper-card h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.gatekeeper-card h1 .presyo {
+  color: #ff8c00;
+}
+
+.gatekeeper-card h1 .han {
+  color: #00bcd4;
+}
+
+.gatekeeper-card h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.gatekeeper-card p {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.gatekeeper-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.gatekeeper-input-group {
+  position: relative;
+}
+
+.gatekeeper-input {
+  width: 100%;
+  padding: 15px 20px;
+  border: 2px solid #e8e8e8;
+  background: white;
+  border-radius: 25px;
+  font-size: 0.95rem;
+  outline: none;
+  text-align: center;
+  transition: all 0.3s ease;
+  color: #333;
+}
+
+.gatekeeper-input:focus {
+  border-color: #ff8c00;
+  box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.15);
+}
+
+.gatekeeper-input::placeholder {
+  color: #bbb;
+}
+
+.gatekeeper-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #ffb800 0%, #ff8c00 100%);
+  color: white;
+  text-transform: uppercase;
+  margin-top: 10px;
+  transition: all 0.3s ease;
+}
+
+.gatekeeper-btn:hover {
+  opacity: 0.9;
+  box-shadow: 0 5px 15px rgba(255, 140, 0, 0.3);
+}
+
+.gatekeeper-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.gatekeeper-error {
+  background: #ffe8e6;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  margin-top: 15px;
+  line-height: 1.4;
+}

@@ -110,6 +110,42 @@ export default function LoginSignupPage() {
       return;
     }
     if (data?.session) {
+      try {
+        let { data: profile } = await supabase
+          .from('app_users')
+          .select('role, is_suspended')
+          .eq('id', data.session.user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          try {
+            const { data: fallbackProfile } = await supabase
+              .from('app_users')
+              .select('role, is_suspended')
+              .eq('auth_uid', data.session.user.id)
+              .maybeSingle();
+            if (fallbackProfile) {
+              profile = fallbackProfile;
+            }
+          } catch (_) {}
+        }
+
+        if (profile?.is_suspended) {
+          setLoginFormError('Your account has been suspended by an administrator.');
+          await supabase.auth.signOut();
+          setIsSubmittingLogin(false);
+          return;
+        }
+
+        const passcodePassed = sessionStorage.getItem('admin_passcode_passed') === 'true';
+        if (passcodePassed && profile?.role === 'admin') {
+          navigate('/admin/dashboard', { replace: true });
+          setIsSubmittingLogin(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error checking user profile on login:', err);
+      }
       navigate('/stores', { replace: true });
     }
     setIsSubmittingLogin(false);

@@ -1,12 +1,23 @@
 package com.presyohan.app.helper
 
 import android.graphics.Canvas
+import android.view.View
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import com.presyohan.app.adapter.StoreAdapter
+
+interface ISwipeAdapter {
+    fun isSwiped(position: Int): Boolean
+    fun onItemSwiped(position: Int)
+    fun closeSwipedItem()
+}
+
+interface ISwipeViewHolder {
+    val foregroundCardView: View
+    val backgroundActionCard: View
+}
 
 class SwipeRevealTouchHelper(
-    private val adapter: StoreAdapter
+    private val adapter: ISwipeAdapter
 ) : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
 
     override fun getSwipeDirs(
@@ -56,7 +67,7 @@ class SwipeRevealTouchHelper(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
-        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && viewHolder is StoreAdapter.StoreViewHolder) {
+        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && viewHolder is ISwipeViewHolder) {
             val foregroundView = viewHolder.foregroundCardView
             val backgroundCard = viewHolder.backgroundActionCard
             val maxSwipe = -backgroundCard.width.toFloat().coerceAtLeast(1f)
@@ -85,7 +96,7 @@ class SwipeRevealTouchHelper(
 
     override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
         super.clearView(recyclerView, viewHolder)
-        if (viewHolder is StoreAdapter.StoreViewHolder) {
+        if (viewHolder is ISwipeViewHolder) {
             val position = viewHolder.adapterPosition
             if (position != RecyclerView.NO_POSITION) {
                 if (adapter.isSwiped(position)) {

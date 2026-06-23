@@ -29,10 +29,12 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnSupport: View
     private lateinit var btnContactUs: View
     private lateinit var btnLogout: View
+    private lateinit var loadingOverlay: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        loadingOverlay = LoadingOverlayHelper.attach(this)
 
         // Initialize Views
         btnBack = findViewById(R.id.btnBack)
@@ -74,9 +76,29 @@ class SettingsActivity : AppCompatActivity() {
         // Navigate back to Atong Presyohan? (Staff StoreActivity)
         btnAtongPresyohan.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             startActivity(intent)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                    R.anim.slide_in_up,
+                    R.anim.stay
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+            }
             finish()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
+                    R.anim.stay,
+                    R.anim.stay
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(R.anim.stay, R.anim.stay)
+            }
         }
 
         // Support
@@ -91,16 +113,33 @@ class SettingsActivity : AppCompatActivity() {
 
         // Logout action
         btnLogout.setOnClickListener {
-            lifecycleScope.launch {
-                try {
+            showReusableDialog(
+                title = "Logout",
+                message = "Are you sure you want to log out?\n\nYou can sign back in anytime. See you again soon!",
+                positiveButtonText = "Logout",
+                positiveAction = {
+                    performLogout()
+                },
+                negativeButtonText = "Cancel"
+            )
+        }
+    }
+
+    private fun performLogout() {
+        LoadingOverlayHelper.show(loadingOverlay)
+        lifecycleScope.launch {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(2500) {
                     SupabaseAuthService.signOut()
-                    val intent = Intent(this@SettingsActivity, LoginActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish()
-                } catch (e: Exception) {
-                    Toast.makeText(this@SettingsActivity, "Logout failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                LoadingOverlayHelper.hide(loadingOverlay)
+                val intent = Intent(this@SettingsActivity, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
             }
         }
     }

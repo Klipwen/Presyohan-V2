@@ -327,6 +327,7 @@
                 app:tint="@color/edittext_hint" />
 
             <TextView
+                android:id="@+id/emptyStateText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
@@ -365,6 +366,68 @@
             android:src="@drawable/button_add_store"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Dimmed Background Overlay (For Bottom Sheet) -->
+        <View
+            android:id="@+id/dimmedBackground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:visibility="gone"
+            android:elevation="30dp" />
+
+        <!-- Add Store Bottom Sheet Container -->
+        <LinearLayout
+            android:id="@+id/addStoreBottomSheet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_bottom_sheet"
+            android:paddingTop="18dp"
+            android:paddingBottom="24dp"
+            android:paddingHorizontal="16dp"
+            android:elevation="32dp"
+            android:outlineAmbientShadowColor="#000000"
+            android:outlineSpotShadowColor="#000000"
+            android:outlineProvider="background"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Add Store"
+                android:textColor="@color/presyo_orange"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Button 1: Join Store -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnBottomSheetJoinStore"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_button_round_teal_pill"
+                android:text="JOIN STORE"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Button 2: Create Store -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnBottomSheetCreateStore"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_button_round_orange_pill"
+                android:text="CREATE STORE"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

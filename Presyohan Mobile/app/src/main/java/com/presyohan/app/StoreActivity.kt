@@ -74,9 +74,14 @@ class StoreActivity : AppCompatActivity() {
     private var storeRolesMap: Map<String, String> = emptyMap()
     private var lastBackPress: Long = 0
     private lateinit var loadingOverlay: android.view.View
+    private lateinit var dimmedBackground: android.view.View
+    private lateinit var addStoreBottomSheet: android.widget.LinearLayout
+    private lateinit var btnBottomSheetJoinStore: android.view.View
+    private lateinit var btnBottomSheetCreateStore: android.view.View
 
     // To track the countdown job inside the dialog
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
+    private var hasAutoOpenedBottomSheet = false
 
     // Export permission handler
     private var lastExportFilenamePending: String? = null
@@ -90,12 +95,6 @@ class StoreActivity : AppCompatActivity() {
         }
     }
 
-    private val createStoreLauncher = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-    ) { _ ->
-        // After returning from CreateStoreActivity, refresh list
-        fetchStores()
-    }
 
     @Serializable
     data class StoreMemberRow(val store_id: String, val user_id: String, val role: String)
@@ -152,6 +151,16 @@ class StoreActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_store)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(
+                android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                R.anim.slide_in_up,
+                R.anim.stay
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+        }
         loadingOverlay = LoadingOverlayHelper.attach(this)
 
         val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
@@ -163,9 +172,31 @@ class StoreActivity : AppCompatActivity() {
             drawerLayout.open()
         }
 
+        // Bottom Sheet
+        dimmedBackground = findViewById(R.id.dimmedBackground)
+        addStoreBottomSheet = findViewById(R.id.addStoreBottomSheet)
+        btnBottomSheetJoinStore = findViewById(R.id.btnBottomSheetJoinStore)
+        btnBottomSheetCreateStore = findViewById(R.id.btnBottomSheetCreateStore)
+
+        dimmedBackground.setOnClickListener { hideBottomSheet() }
+
+        btnBottomSheetJoinStore.setOnClickListener {
+            hideBottomSheet()
+            JoinStoreDialogHelper.showJoinStoreDialog(this) {
+                fetchStores()
+            }
+        }
+
+        btnBottomSheetCreateStore.setOnClickListener {
+            hideBottomSheet()
+            CreateStoreDialogHelper.showCreateStoreDialog(this) {
+                fetchStores()
+            }
+        }
+
         // Add Store button logic
         findViewById<ImageButton>(R.id.addStoreButton).setOnClickListener {
-            showStoreChoiceDialog()
+            showBottomSheet()
         }
 
         recyclerView = findViewById(R.id.recyclerViewStores)
@@ -180,8 +211,8 @@ class StoreActivity : AppCompatActivity() {
                 intent.putExtra("storeName", store.name)
                 val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
                     this,
-                    R.anim.slide_in_right,
-                    R.anim.slide_out_left
+                    R.anim.slide_in_up,
+                    R.anim.stay
                 )
                 startActivity(intent, options.toBundle())
             },
@@ -195,10 +226,11 @@ class StoreActivity : AppCompatActivity() {
                 showStoreDetailsDialog(store)
             },
             onDeleteClick = { store ->
-                showLeaveDeleteConfirmation(store.id, store.name, isDelete = true, null)
+                showLeaveDeleteConfirmation(store.id, store.name, isDelete = true, isOwner = true, null)
             },
             onLeaveClick = { store ->
-                showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, null)
+                val isOwner = store.role.lowercase() == "owner"
+                showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, isOwner = isOwner, null)
             }
         )
         recyclerView.adapter = adapter
@@ -268,17 +300,41 @@ class StoreActivity : AppCompatActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(
+                android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                R.anim.slide_in_up,
+                R.anim.stay
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         SessionManager.markStoreList(this)
         fetchStores(showShimmer = isFirstLoad)
         isFirstLoad = false
         loadNotifBadge()
+        lifecycleScope.launch {
+            try {
+                SupabaseAuthService.updateUserHeartbeat()
+            } catch (_: Exception) {}
+        }
     }
 
 
 
     override fun onBackPressed() {
+        if (::addStoreBottomSheet.isInitialized && addStoreBottomSheet.visibility == View.VISIBLE) {
+            hideBottomSheet()
+            return
+        }
         val now = System.currentTimeMillis()
         if (now - lastBackPress < 2000) {
             finishAffinity()
@@ -288,29 +344,39 @@ class StoreActivity : AppCompatActivity() {
         }
     }
 
-    private fun showStoreChoiceDialog() {
-        val dialog = Dialog(this)
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_store_choice, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        val btnCreate = view.findViewById<Button>(R.id.btnCreateStore)
-        val btnJoin = view.findViewById<Button>(R.id.btnJoinStore)
-
-        btnCreate.setOnClickListener {
-            createStoreLauncher.launch(Intent(this, CreateStoreActivity::class.java))
-            dialog.dismiss()
+    private fun showBottomSheet() {
+        dimmedBackground.visibility = View.VISIBLE
+        addStoreBottomSheet.visibility = View.VISIBLE
+        addStoreBottomSheet.post {
+            val height = addStoreBottomSheet.height.toFloat()
+            addStoreBottomSheet.translationY = height
+            addStoreBottomSheet.animate()
+                .translationY(0f)
+                .setDuration(300)
+                .start()
         }
+        dimmedBackground.alpha = 0f
+        dimmedBackground.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .start()
+    }
 
-        btnJoin.setOnClickListener {
-            startActivity(Intent(this, com.presyohan.app.JoinStoreActivity::class.java))
-            dialog.dismiss()
-        }
+    private fun hideBottomSheet() {
+        val height = addStoreBottomSheet.height.toFloat()
+        addStoreBottomSheet.animate()
+            .translationY(height)
+            .setDuration(300)
+            .withEndAction {
+                addStoreBottomSheet.visibility = View.GONE
+                dimmedBackground.visibility = View.GONE
+            }
+            .start()
 
-        dialog.show()
-        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
-        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        dimmedBackground.animate()
+            .alpha(0f)
+            .setDuration(300)
+            .start()
     }
 
     private fun applyFilterAndSearch() {
@@ -332,6 +398,12 @@ class StoreActivity : AppCompatActivity() {
         if (filtered.isEmpty()) {
             layoutEmptyState.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
+            val emptyStateText = findViewById<TextView>(R.id.emptyStateText)
+            if (allStores.isEmpty()) {
+                emptyStateText?.text = "No store yet"
+            } else {
+                emptyStateText?.text = "No stores found"
+            }
         } else {
             layoutEmptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
@@ -470,6 +542,7 @@ class StoreActivity : AppCompatActivity() {
         val txtOwnersCount = view.findViewById<TextView>(R.id.dialogOwnersCount)
         val txtManagersCount = view.findViewById<TextView>(R.id.dialogManagersCount)
         val txtEmployeesCount = view.findViewById<TextView>(R.id.dialogEmployeesCount)
+        val txtSukiCount = view.findViewById<TextView>(R.id.dialogSukiCount)
 
         val txtRoleDesignation = view.findViewById<TextView>(R.id.textRoleDesignation)
         val txtStoreId = view.findViewById<TextView>(R.id.dialogStoreId)
@@ -498,7 +571,12 @@ class StoreActivity : AppCompatActivity() {
         )
         txtRoleDesignation.text = spannable
 
-        txtStoreId.text = "SID25-009"
+        val shimmerLayout = view.findViewById<com.facebook.shimmer.ShimmerFrameLayout>(R.id.dialogShimmerLayout)
+        val statsLayout = view.findViewById<android.view.View>(R.id.dialogStatsLayout)
+
+        shimmerLayout.startShimmer()
+        shimmerLayout.visibility = android.view.View.VISIBLE
+        statsLayout.visibility = android.view.View.GONE
 
         lifecycleScope.launch {
             try {
@@ -524,13 +602,21 @@ class StoreActivity : AppCompatActivity() {
                 val employees = members.count { it.role.equals("employee", ignoreCase = true) }
 
                 txtMembersCount.text = members.size.toString()
-                txtOwnersCount.text = "• Owners: $owners"
-                txtManagersCount.text = "• Managers: $managers"
-                txtEmployeesCount.text = "• Sales staff: $employees"
+                txtOwnersCount.text = owners.toString()
+                txtManagersCount.text = managers.toString()
+                txtEmployeesCount.text = employees.toString()
+
+                @Serializable
+                data class SukiRow(val store_id: String)
+                val sukiRows = SupabaseProvider.client.postgrest["suki_relationships"].select {
+                    filter { eq("store_id", store.id) }
+                }.decodeList<SukiRow>()
+                txtSukiCount.text = sukiRows.size.toString()
 
                 @Serializable
                 data class StoreDetailsLite(
                     val id: String,
+                    val display_id: String? = null,
                     val created_at: String? = null,
                     val is_public: Boolean = false,
                     val invite_code: String? = null,
@@ -543,6 +629,7 @@ class StoreActivity : AppCompatActivity() {
                 
                 val storeRow = rows.firstOrNull()
                 if (storeRow != null) {
+                    txtStoreId.text = storeRow.display_id ?: storeRow.id
                     val rawDate = storeRow.created_at?.split("T")?.firstOrNull() ?: ""
                     val dateText = try {
                         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -572,6 +659,10 @@ class StoreActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 Log.e("StoreActivity", "Failed to load store details stats", e)
+            } finally {
+                shimmerLayout.stopShimmer()
+                shimmerLayout.visibility = android.view.View.GONE
+                statsLayout.visibility = android.view.View.VISIBLE
             }
         }
 
@@ -581,7 +672,8 @@ class StoreActivity : AppCompatActivity() {
 
         btnLeaveStore.setOnClickListener {
             dialog.dismiss()
-            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, null)
+            val isOwner = store.role.lowercase() == "owner"
+            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, isOwner = isOwner, null)
         }
 
         dialog.show()
@@ -616,15 +708,35 @@ class StoreActivity : AppCompatActivity() {
                     allStores = emptyList()
                     storeRolesMap = emptyMap()
                     adapter.updateStores(emptyList(), emptyMap())
+                    findViewById<TextView>(R.id.emptyStateText)?.text = "No store yet"
                     layoutEmptyState.visibility = View.VISIBLE
                     recyclerView.visibility = View.GONE
                     noStoreLabel.visibility = View.GONE
+                    if (!hasAutoOpenedBottomSheet) {
+                        hasAutoOpenedBottomSheet = true
+                        showBottomSheet()
+                    }
                     return@launch
                 }
 
                 val roles = rows.associate { it.store_id to it.role }
+                val ownersMap = mutableMapOf<String, Int>()
+                rows.filter { it.role.lowercase() == "owner" }.forEach { r ->
+                    try {
+                        val members = client.postgrest.rpc(
+                            "get_store_members",
+                            buildJsonObject { put("p_store_id", r.store_id) }
+                        ).decodeList<StoreMemberUser>()
+                        val oCount = members.count { it.role.lowercase() == "owner" }
+                        ownersMap[r.store_id] = oCount
+                    } catch (e: Exception) {
+                        Log.e("StoreActivity", "Failed to query owner counts for ${r.store_id}: ${e.message}", e)
+                    }
+                }
+
                 val fetchedStores = rows.map { r ->
-                    Store(r.store_id, r.name, r.branch ?: "", r.type ?: "", r.member_count, r.role)
+                    val oCount = ownersMap[r.store_id] ?: 1
+                    Store(r.store_id, r.name, r.branch ?: "", r.type ?: "", r.member_count, r.role, oCount)
                 }
                 storeRolesMap = roles
 
@@ -737,23 +849,38 @@ class StoreActivity : AppCompatActivity() {
                     btnLeaveDelete.setImageResource(R.drawable.icon_delete)
                     btnLeaveDelete.setColorFilter(android.graphics.Color.parseColor("#D32F2F"))
 
+                    val sizePx = (32 * resources.displayMetrics.density).toInt()
+                    btnLeaveDelete.layoutParams.width = sizePx
+                    btnLeaveDelete.layoutParams.height = sizePx
+                    btnLeaveDelete.requestLayout()
+
                     btnLeaveDelete.setOnClickListener {
-                        showLeaveDeleteConfirmation(store.id, store.name, isDelete = true, dialog)
+                        showLeaveDeleteConfirmation(store.id, store.name, isDelete = true, isOwner = true, dialog)
                     }
                 } else {
                     // Leave Mode
                     btnLeaveDelete.setImageResource(R.drawable.icon_leave_store)
                     btnLeaveDelete.setColorFilter(ContextCompat.getColor(this@StoreActivity, R.color.presyo_teal))
 
+                    val sizePx = (38 * resources.displayMetrics.density).toInt()
+                    btnLeaveDelete.layoutParams.width = sizePx
+                    btnLeaveDelete.layoutParams.height = sizePx
+                    btnLeaveDelete.requestLayout()
+
                     btnLeaveDelete.setOnClickListener {
-                        showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, dialog)
+                        showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, isOwner = true, dialog)
                     }
                 }
             } catch (_: Exception) {
                 // Fallback
                 btnLeaveDelete.setImageResource(R.drawable.icon_logout)
+                val sizePx = (38 * resources.displayMetrics.density).toInt()
+                btnLeaveDelete.layoutParams.width = sizePx
+                btnLeaveDelete.layoutParams.height = sizePx
+                btnLeaveDelete.requestLayout()
+
                 btnLeaveDelete.setOnClickListener {
-                    showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, dialog)
+                    showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, isOwner = true, dialog)
                 }
             }
         }
@@ -763,7 +890,7 @@ class StoreActivity : AppCompatActivity() {
         dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
-    private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog? = null) {
+    private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, isOwner: Boolean = false, menuDialog: Dialog? = null) {
         val confirmDialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_reusable_template, null)
         confirmDialog.setContentView(view)
@@ -783,7 +910,11 @@ class StoreActivity : AppCompatActivity() {
             btnAction.text = "Delete"
         } else {
             title.text = "Leave Store"
-            message.text = "Are you sure you want to leave this store?\n\nYou will no longer be a member of this store."
+            if (isOwner) {
+                message.text = "Are you sure you want to leave this store?\n\nThe store will remain active, but you will lose all access and ownership rights."
+            } else {
+                message.text = "Are you sure you want to leave this store?\n\nYou will no longer be a member of this store."
+            }
             btnAction.text = "Leave"
         }
 
@@ -870,7 +1001,7 @@ class StoreActivity : AppCompatActivity() {
         btnLeaveDelete.setColorFilter(ContextCompat.getColor(this, R.color.presyo_teal))
 
         btnLeaveDelete.setOnClickListener {
-            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, dialog)
+            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, menuDialog = dialog)
         }
 
         dialog.show()

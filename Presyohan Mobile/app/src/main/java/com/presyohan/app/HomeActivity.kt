@@ -84,6 +84,7 @@ class HomeActivity : AppCompatActivity() {
 
     // Invite Code Countdown
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
+    private var hasAutoOpenedAddDialog = false
 
     private val spinnerCategories = mutableListOf("PRICELIST")
     private lateinit var spinnerAdapter: android.widget.ArrayAdapter<String>
@@ -261,26 +262,56 @@ class HomeActivity : AppCompatActivity() {
         btnBack.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
-                this,
-                R.anim.slide_in_left,
-                R.anim.slide_out_right
-            )
-            startActivity(intent, options.toBundle())
+            startActivity(intent)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                    R.anim.slide_in_up,
+                    R.anim.stay
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+            }
             finish()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
+                    R.anim.stay,
+                    R.anim.slide_out_down
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(R.anim.stay, R.anim.slide_out_down)
+            }
         }
 
         storeText.text = currentStoreName ?: "Store"
         storeText.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
-                this,
-                R.anim.slide_in_left,
-                R.anim.slide_out_right
-            )
-            startActivity(intent, options.toBundle())
+            startActivity(intent)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                    R.anim.slide_in_up,
+                    R.anim.stay
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+            }
             finish()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
+                    R.anim.stay,
+                    R.anim.slide_out_down
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(R.anim.stay, R.anim.slide_out_down)
+            }
         }
 
         // --- Product List & Role Logic ---
@@ -348,6 +379,13 @@ class HomeActivity : AppCompatActivity() {
 
                     // --- UI UPDATE BASED ON ROLE ---
                     updateUiForRole(role)
+
+                    // If products are already loaded and empty, trigger dialog
+                    if (productGroups.isEmpty() && currentQuery.isBlank() && (selectedCategory == null || selectedCategory == "PRICELIST")) {
+                        if (role == "owner" || role == "manager") {
+                            triggerAddProductDialog()
+                        }
+                    }
 
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Role fetch failed", e)
@@ -426,6 +464,11 @@ class HomeActivity : AppCompatActivity() {
                     if (productGroups.isEmpty()) {
                         layoutEmptyState.visibility = View.VISIBLE
                         productRecyclerView.visibility = View.GONE
+                        if (currentQuery.isBlank() && (selectedCategory == null || selectedCategory == "PRICELIST")) {
+                            if (userRole == "owner" || userRole == "manager") {
+                                triggerAddProductDialog()
+                            }
+                        }
                     } else {
                         layoutEmptyState.visibility = View.GONE
                         productRecyclerView.visibility = View.VISIBLE
@@ -641,8 +684,66 @@ class HomeActivity : AppCompatActivity() {
         val txtManagersCount = view.findViewById<TextView>(R.id.dialogManagersCount)
         val txtEmployeesCount = view.findViewById<TextView>(R.id.dialogEmployeesCount)
 
-        // Load stats and populate views (Only if views exist, i.e., in non-owner details modal)
-        if (!isOwner) {
+        view.findViewById<View>(R.id.btnBack)?.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        if (isOwner) {
+            // OWNER SPECIFIC BINDINGS
+            val layoutSettings = view.findViewById<View>(R.id.layoutSettings)
+            val layoutInvite = view.findViewById<View>(R.id.layoutInvite)
+
+            layoutSettings?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this, ManageStoreActivity::class.java)
+                intent.putExtra("storeId", sId)
+                intent.putExtra("storeName", sName)
+                startActivity(intent)
+            }
+
+            layoutInvite?.setOnClickListener {
+                dialog.dismiss()
+                showInviteStaffWithCode(sId)
+            }
+
+        } else {
+            // STAFF/MANAGER SPECIFIC BINDINGS
+            val txtRoleDesignation = view.findViewById<TextView>(R.id.textRoleDesignation)
+            val txtStoreId = view.findViewById<TextView>(R.id.dialogStoreId)
+            val txtCreatedAt = view.findViewById<TextView>(R.id.dialogCreatedAt)
+            val txtVisibilityStatus = view.findViewById<TextView>(R.id.dialogVisibilityStatus)
+            val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
+            val btnLeaveStore = view.findViewById<View>(R.id.btnLeaveStore)
+            val txtSukiCount = view.findViewById<TextView>(R.id.dialogSukiCount)
+
+            val shimmerLayout = view.findViewById<com.facebook.shimmer.ShimmerFrameLayout>(R.id.dialogShimmerLayout)
+            val statsLayout = view.findViewById<android.view.View>(R.id.dialogStatsLayout)
+
+            val displayRole = when (userRole?.lowercase(Locale.ROOT)) {
+                "employee", "staff" -> "Sales staff"
+                "manager" -> "Manager"
+                else -> "Staff"
+            }
+            val prefix = "You are the "
+            val suffix = " of this store."
+            val fullText = "$prefix$displayRole$suffix"
+            val spannable = android.text.SpannableString(fullText)
+            val start = prefix.length
+            val end = start + displayRole.length
+            spannable.setSpan(
+                android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                start,
+                end,
+                android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            txtRoleDesignation?.text = spannable
+
+            txtStoreId?.text = "SID25-009"
+
+            shimmerLayout?.startShimmer()
+            shimmerLayout?.visibility = android.view.View.VISIBLE
+            statsLayout?.visibility = android.view.View.GONE
+
             lifecycleScope.launch {
                 try {
                     // 1. Fetch categories count
@@ -677,69 +778,16 @@ class HomeActivity : AppCompatActivity() {
                     txtManagersCount?.text = managersCount.toString()
                     txtEmployeesCount?.text = employeesCount.toString()
 
-                } catch (e: Exception) {
-                    Log.e("HomeActivity", "Stats loading failed", e)
-                }
-            }
-        }
-
-        view.findViewById<View>(R.id.btnBack)?.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        if (isOwner) {
-            // OWNER SPECIFIC BINDINGS
-            val layoutSettings = view.findViewById<View>(R.id.layoutSettings)
-            val layoutInvite = view.findViewById<View>(R.id.layoutInvite)
-
-            layoutSettings?.setOnClickListener {
-                dialog.dismiss()
-                val intent = Intent(this, ManageStoreActivity::class.java)
-                intent.putExtra("storeId", sId)
-                intent.putExtra("storeName", sName)
-                startActivity(intent)
-            }
-
-            layoutInvite?.setOnClickListener {
-                dialog.dismiss()
-                showInviteStaffWithCode(sId)
-            }
-
-        } else {
-            // STAFF/MANAGER SPECIFIC BINDINGS
-            val txtRoleDesignation = view.findViewById<TextView>(R.id.textRoleDesignation)
-            val txtStoreId = view.findViewById<TextView>(R.id.dialogStoreId)
-            val txtCreatedAt = view.findViewById<TextView>(R.id.dialogCreatedAt)
-            val txtVisibilityStatus = view.findViewById<TextView>(R.id.dialogVisibilityStatus)
-            val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
-            val btnLeaveStore = view.findViewById<View>(R.id.btnLeaveStore)
-
-            val displayRole = when (userRole?.lowercase(Locale.ROOT)) {
-                "employee", "staff" -> "Sales staff"
-                "manager" -> "Manager"
-                else -> "Staff"
-            }
-            val prefix = "You are the "
-            val suffix = " of this store."
-            val fullText = "$prefix$displayRole$suffix"
-            val spannable = android.text.SpannableString(fullText)
-            val start = prefix.length
-            val end = start + displayRole.length
-            spannable.setSpan(
-                android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                start,
-                end,
-                android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            txtRoleDesignation?.text = spannable
-
-            txtStoreId?.text = "SID25-009"
-
-            // Load store details for staff
-            lifecycleScope.launch {
-                try {
                     @Serializable
-                    data class StoreDetailsRow(val id: String, val created_at: String? = null, val is_public: Boolean = false, val invite_code: String? = null, val invite_code_created_at: String? = null)
+                    data class SukiRow(val store_id: String)
+                    val sukiRows = supabase.postgrest["suki_relationships"].select {
+                        filter { eq("store_id", sId) }
+                    }.decodeList<SukiRow>()
+                    txtSukiCount?.text = sukiRows.size.toString()
+
+                    // 4. Fetch store details for staff
+                    @Serializable
+                    data class StoreDetailsRow(val id: String, val display_id: String? = null, val created_at: String? = null, val is_public: Boolean = false, val invite_code: String? = null, val invite_code_created_at: String? = null)
                     val rows = supabase.postgrest["stores"].select {
                         filter { eq("id", sId) }
                         limit(1)
@@ -747,6 +795,7 @@ class HomeActivity : AppCompatActivity() {
                     
                     val storeRow = rows.firstOrNull()
                     if (storeRow != null) {
+                        txtStoreId?.text = storeRow.display_id ?: storeRow.id
                         // format created_at date
                         val rawDate = storeRow.created_at?.split("T")?.firstOrNull() ?: ""
                         val dateText = try {
@@ -778,18 +827,23 @@ class HomeActivity : AppCompatActivity() {
                     }
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Details loading failed", e)
+                } finally {
+                    shimmerLayout?.stopShimmer()
+                    shimmerLayout?.visibility = android.view.View.GONE
+                    statsLayout?.visibility = android.view.View.VISIBLE
                 }
             }
 
             btnLeaveStore?.setOnClickListener {
-                showLeaveDeleteConfirmation(sId, sName, isDelete = false, dialog)
+                val isUserOwner = userRole == "owner"
+                showLeaveDeleteConfirmation(sId, sName, isDelete = false, isOwner = isUserOwner, menuDialog = dialog)
             }
         }
 
         dialog.show()
     }
 
-    private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, menuDialog: Dialog) {
+    private fun showLeaveDeleteConfirmation(storeId: String, storeName: String, isDelete: Boolean, isOwner: Boolean = false, menuDialog: Dialog) {
         val confirmDialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_reusable_template, null)
         confirmDialog.setContentView(view)
@@ -807,7 +861,11 @@ class HomeActivity : AppCompatActivity() {
             btnAction.text = "Delete"
         } else {
             title.text = "Leave Store"
-            message.text = "Are you sure you want to leave this store?\n\nYou will no longer be a member of this store."
+            if (isOwner) {
+                message.text = "Are you sure you want to leave this store?\n\nThe store will remain active, but you will lose all access and ownership rights."
+            } else {
+                message.text = "Are you sure you want to leave this store?\n\nYou will no longer be a member of this store."
+            }
             btnAction.text = "Leave"
         }
 
@@ -1592,6 +1650,11 @@ class HomeActivity : AppCompatActivity() {
         reloadProductsFn?.invoke()
         refreshSpinnerCategories(sId ?: currentStoreId)
         loadNotifBadge()
+        lifecycleScope.launch {
+            try {
+                SupabaseAuthService.updateUserHeartbeat()
+            } catch (_: Exception) {}
+        }
     }
 
     override fun onBackPressed() {
@@ -1971,12 +2034,26 @@ class HomeActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             overrideActivityTransition(
                 android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
-                R.anim.slide_in_left,
-                R.anim.slide_out_right
+                R.anim.stay,
+                R.anim.slide_out_down
             )
         } else {
             @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+            overridePendingTransition(R.anim.stay, R.anim.slide_out_down)
         }
+    }
+
+    private fun triggerAddProductDialog() {
+        if (hasAutoOpenedAddDialog) return
+        val sId = currentStoreId ?: return
+        hasAutoOpenedAddDialog = true
+        AddEditItemDialogHelper.showAddOrEditItemDialog(
+            activity = this,
+            storeId = sId,
+            storeName = currentStoreName ?: "Store",
+            onComplete = {
+                reloadProductsFn?.invoke()
+            }
+        )
     }
 }

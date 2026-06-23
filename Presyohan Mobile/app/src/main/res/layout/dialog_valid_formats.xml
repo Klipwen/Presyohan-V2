@@ -20,7 +20,7 @@
             android:layout_marginTop="8dp"
             android:text="Presyohan Parser Formats"
             android:textColor="@color/presyo_orange"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold" />
 
         <!-- Subtitle -->

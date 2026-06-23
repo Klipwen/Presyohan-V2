@@ -7,6 +7,8 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.presyohan.app.R
+import com.presyohan.app.helper.ISwipeAdapter
+import com.presyohan.app.helper.ISwipeViewHolder
 
 // Store data class
 data class Store(
@@ -15,7 +17,8 @@ data class Store(
     val branch: String,
     val type: String,
     val memberCount: Int = 0,
-    val role: String = ""
+    val role: String = "",
+    val ownersCount: Int = 1
 )
 
 class StoreAdapter(
@@ -26,14 +29,14 @@ class StoreAdapter(
     private val onViewClick: (store: Store) -> Unit,
     private val onDeleteClick: (store: Store) -> Unit,
     private val onLeaveClick: (store: Store) -> Unit
-) : RecyclerView.Adapter<StoreAdapter.StoreViewHolder>() {
+) : RecyclerView.Adapter<StoreAdapter.StoreViewHolder>(), ISwipeAdapter {
 
     var swipedPosition: Int = -1
         private set
 
-    inner class StoreViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val foregroundCardView: androidx.cardview.widget.CardView = itemView.findViewById(R.id.foregroundCardView)
-        val backgroundActionCard: androidx.cardview.widget.CardView = itemView.findViewById(R.id.backgroundActionCard)
+    inner class StoreViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), ISwipeViewHolder {
+        override val foregroundCardView: androidx.cardview.widget.CardView = itemView.findViewById(R.id.foregroundCardView)
+        override val backgroundActionCard: androidx.cardview.widget.CardView = itemView.findViewById(R.id.backgroundActionCard)
         val icon: ImageView = itemView.findViewById(R.id.imageStoreIcon)
         val name: TextView = itemView.findViewById(R.id.textStoreName)
         val branch: TextView = itemView.findViewById(R.id.textStoreBranch)
@@ -55,11 +58,20 @@ class StoreAdapter(
 
     override fun onBindViewHolder(holder: StoreViewHolder, position: Int) {
         val store = stores[position]
-        holder.icon.setImageResource(R.drawable.icon_store)
         holder.name.text = store.name
         holder.branch.text = store.branch
-        holder.type.text = store.type
         holder.memberCount.text = store.memberCount.toString()
+
+        val isPresyohan = store.type.lowercase(java.util.Locale.US) == "presyohan"
+        if (isPresyohan) {
+            holder.type.text = "Presyohan"
+            holder.icon.setImageResource(R.drawable.icon_presyohan)
+            holder.icon.rotation = -45f
+        } else {
+            holder.type.text = store.type.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+            holder.icon.setImageResource(R.drawable.icon_store)
+            holder.icon.rotation = 0f
+        }
 
         val isOwner = store.role.lowercase() == "owner"
         holder.storeIconFrame.setBackgroundResource(
@@ -90,11 +102,28 @@ class StoreAdapter(
                 onSettingsClick(store)
             }
 
-            holder.imageAction2.setImageResource(R.drawable.icon_delete)
-            holder.imageAction2.setColorFilter(ctx.getColor(R.color.presyo_teal))
-            holder.btnAction2.setOnClickListener {
-                closeSwipedItem()
-                onDeleteClick(store)
+            if (store.ownersCount > 1) {
+                holder.imageAction2.setImageResource(R.drawable.icon_leave_store)
+                holder.imageAction2.setColorFilter(ctx.getColor(R.color.presyo_teal))
+                val sizePx = (28f * density).toInt()
+                holder.imageAction2.layoutParams.width = sizePx
+                holder.imageAction2.layoutParams.height = sizePx
+                holder.imageAction2.requestLayout()
+                holder.btnAction2.setOnClickListener {
+                    closeSwipedItem()
+                    onLeaveClick(store)
+                }
+            } else {
+                holder.imageAction2.setImageResource(R.drawable.icon_delete)
+                holder.imageAction2.setColorFilter(ctx.getColor(R.color.presyo_teal))
+                val sizePx = (24f * density).toInt()
+                holder.imageAction2.layoutParams.width = sizePx
+                holder.imageAction2.layoutParams.height = sizePx
+                holder.imageAction2.requestLayout()
+                holder.btnAction2.setOnClickListener {
+                    closeSwipedItem()
+                    onDeleteClick(store)
+                }
             }
         } else {
             holder.imageAction1.setImageResource(R.drawable.icon_view)
@@ -106,6 +135,10 @@ class StoreAdapter(
 
             holder.imageAction2.setImageResource(R.drawable.icon_leave_store)
             holder.imageAction2.setColorFilter(ctx.getColor(R.color.presyo_teal))
+            val sizePx = (28f * density).toInt()
+            holder.imageAction2.layoutParams.width = sizePx
+            holder.imageAction2.layoutParams.height = sizePx
+            holder.imageAction2.requestLayout()
             holder.btnAction2.setOnClickListener {
                 closeSwipedItem()
                 onLeaveClick(store)
@@ -140,7 +173,7 @@ class StoreAdapter(
         notifyDataSetChanged()
     }
 
-    fun onItemSwiped(position: Int) {
+    override fun onItemSwiped(position: Int) {
         val previousSwiped = swipedPosition
         if (swipedPosition == position) return
         swipedPosition = position
@@ -150,11 +183,11 @@ class StoreAdapter(
         notifyItemChanged(swipedPosition)
     }
 
-    fun isSwiped(position: Int): Boolean {
+    override fun isSwiped(position: Int): Boolean {
         return swipedPosition == position
     }
 
-    fun closeSwipedItem() {
+    override fun closeSwipedItem() {
         if (swipedPosition != -1) {
             val prev = swipedPosition
             swipedPosition = -1

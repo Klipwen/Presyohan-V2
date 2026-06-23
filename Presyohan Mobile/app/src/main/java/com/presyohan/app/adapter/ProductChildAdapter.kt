@@ -57,8 +57,8 @@ class ProductChildAdapter(
         holder.productPrice.text = "₱%,.2f".format(java.util.Locale.US, product.price)
         holder.productVolume.text = product.volume
 
-        // Public Indicator
-        if (product.is_public) {
+        // Public Indicator (Only visible to staff/roles, not on customer side where userRole is null)
+        if (product.is_public && userRole != null) {
             holder.imagePublicIndicator.visibility = View.VISIBLE
         } else {
             holder.imagePublicIndicator.visibility = View.GONE

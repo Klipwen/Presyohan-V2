@@ -46,12 +46,7 @@
         <activity
             android:name="com.presyohan.app.StoreActivity"
             android:exported="false" />
-        <activity
-            android:name="com.presyohan.app.JoinStoreActivity"
-            android:exported="false" />
-        <activity
-            android:name=".CreateStoreActivity"
-            android:exported="false" />
+
         <activity
             android:name=".NotificationActivity"
             android:exported="false" />
@@ -84,7 +79,16 @@
             android:exported="false" />
         <activity
             android:name=".CustomerHomeActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name=".SelectPresyohanActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name=".StoreViewActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
         <activity
             android:name=".SettingsActivity"
             android:exported="false" />
