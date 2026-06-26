@@ -34,6 +34,7 @@ class ManageMembersActivity : AppCompatActivity() {
     private var inviteCodeCreatedAt: String? = null
     private lateinit var loadingOverlay: android.view.View
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,6 +110,22 @@ class ManageMembersActivity : AppCompatActivity() {
         // Setup Search Bottom Sheet
         val bottomSheet = findViewById<View>(R.id.bottomSheet)
         val behavior = BottomSheetBehavior.from(bottomSheet)
+
+        fun updateRecyclerPadding(bottomHeight: Int) {
+            val safetyPadding = (16 * resources.displayMetrics.density).toInt()
+            val targetPadding = bottomHeight + safetyPadding
+            if (recyclerView.paddingBottom != targetPadding) {
+                recyclerView.setPadding(
+                    recyclerView.paddingLeft,
+                    recyclerView.paddingTop,
+                    recyclerView.paddingRight,
+                    targetPadding
+                )
+            }
+        }
+        updateRecyclerPadding(0)
+        recyclerView.isNestedScrollingEnabled = false
+
         behavior.isHideable = true
         behavior.state = BottomSheetBehavior.STATE_HIDDEN
         val fabSearch = findViewById<View>(R.id.fabSearch)
@@ -124,36 +141,26 @@ class ManageMembersActivity : AppCompatActivity() {
                 when (newState) {
                     BottomSheetBehavior.STATE_EXPANDED -> {
                         fabSearch?.visibility = View.GONE
+                        updateRecyclerPadding(bottomSheet.height)
                     }
                     BottomSheetBehavior.STATE_COLLAPSED -> {
                         fabSearch?.visibility = View.GONE
                         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                         imm.hideSoftInputFromWindow(bottomSearchEditText.windowToken, 0)
+                        updateRecyclerPadding(behavior.peekHeight)
                     }
                     BottomSheetBehavior.STATE_HIDDEN -> {
                         fabSearch?.visibility = View.VISIBLE
                         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                         imm.hideSoftInputFromWindow(bottomSearchEditText.windowToken, 0)
+                        updateRecyclerPadding(0)
                     }
                     else -> {}
                 }
             }
 
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                val collapsedHeight = behavior.peekHeight
-                val expandedHeight = bottomSheet.height
-                val currentHeight = if (slideOffset >= 0) {
-                    collapsedHeight + (expandedHeight - collapsedHeight) * slideOffset
-                } else {
-                    collapsedHeight * (1 + slideOffset)
-                }
-                val safetyPadding = (16 * resources.displayMetrics.density).toInt()
-                recyclerView.setPadding(
-                    recyclerView.paddingLeft,
-                    recyclerView.paddingTop,
-                    recyclerView.paddingRight,
-                    (currentHeight + safetyPadding).toInt()
-                )
+                // Empty to prevent recursive layout requests during drag/slide gestures
             }
         })
 
@@ -172,15 +179,20 @@ class ManageMembersActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val query = s.toString().trim()
-                adapter.filter(query)
                 btnSearchClear.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    kotlinx.coroutines.delay(180)
+                    adapter.filter(query, this)
+                }
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
         btnSearchClear.setOnClickListener {
             bottomSearchEditText.setText("")
-            adapter.filter("")
+            searchJob?.cancel()
+            adapter.filter("", lifecycleScope)
         }
     }
 
@@ -751,19 +763,55 @@ class MembersAdapter(
 
     fun setMembers(members: List<Member>) {
         this.allMembers = members
-        filter("")
+        this.groupedMembers = members.groupBy { it.role }
+        notifyDataSetChanged()
     }
 
-    fun filter(query: String) {
-        val filtered = if (query.isBlank()) {
-            allMembers
-        } else {
-            allMembers.filter {
-                it.name.contains(query, ignoreCase = true) || (it.userCode ?: "").contains(query, ignoreCase = true)
+    fun filter(query: String, scope: kotlinx.coroutines.CoroutineScope) {
+        scope.launch {
+            val filtered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                if (query.isBlank()) {
+                    allMembers
+                } else {
+                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    
+                    val matchedMembers = allMembers.filter { member ->
+                        var isMatch = true
+                        for (token in tokens) {
+                            val matchesName = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, member.name)
+                            val matchesCode = member.userCode?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
+                            val matchesRole = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, member.role)
+                            
+                            if (!matchesName && !matchesCode && !matchesRole) {
+                                isMatch = false
+                                break
+                            }
+                        }
+                        isMatch
+                    }
+
+                    matchedMembers.map { member ->
+                        var score = 0.0
+                        val cleanName = member.name.lowercase(Locale.getDefault())
+                        val cleanQuery = query.lowercase(Locale.getDefault())
+                        
+                        if (cleanName == cleanQuery) score += 1000.0
+                        if (cleanName.startsWith(cleanQuery)) score += 500.0
+                        if (cleanName.contains(cleanQuery)) score += 200.0
+                        
+                        for (token in tokens) {
+                            if (com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, member.name)) score += 100.0
+                            if (member.userCode != null && com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, member.userCode)) score += 50.0
+                        }
+                        Pair(member, score)
+                    }
+                    .sortedByDescending { it.second }
+                    .map { it.first }
+                }
             }
+            groupedMembers = filtered.groupBy { it.role }
+            notifyDataSetChanged()
         }
-        groupedMembers = filtered.groupBy { it.role }
-        notifyDataSetChanged()
     }
 
     override fun getItemCount(): Int {

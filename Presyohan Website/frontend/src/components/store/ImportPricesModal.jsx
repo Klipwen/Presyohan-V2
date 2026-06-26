@@ -43,6 +43,41 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
     setError('')
     setIsBusy(true)
     setFileName(file.name)
+    // Shared column aliases — same set used by the Android ExcelImportParser.
+    // Keys are canonical names; values are all accepted lowercase cell labels.
+    const COLUMN_ALIASES = {
+      category:    ['category', 'cat'],
+      name:        ['name', 'product', 'item', 'item name'],
+      description: ['description', 'desc', 'details'],
+      unit:        ['unit', 'units', 'uom', 'size'],
+      price:       ['price', 'amount', 'cost']
+    }
+
+    /**
+     * Scan up to maxRows rows of a 2-D array (each row is an array of cell values)
+     * looking for a header row. Returns { headerRowIndex, col } where col maps each
+     * canonical key to its 0-based column index (-1 if not found).
+     * Requires at least "name" + "price" to count as a valid header row.
+     */
+    const findHeaderRow = (rowsArr, maxRows = 25) => {
+      for (let r = 0; r < Math.min(rowsArr.length, maxRows); r++) {
+        const row = rowsArr[r] || []
+        const idx = { category: -1, name: -1, description: -1, unit: -1, price: -1 }
+        for (let c = 0; c < row.length; c++) {
+          const cell = String(row[c] || '').trim().toLowerCase()
+          for (const key of Object.keys(COLUMN_ALIASES)) {
+            if (idx[key] === -1 && COLUMN_ALIASES[key].includes(cell)) idx[key] = c
+          }
+        }
+        // Only name + price are required; other columns are optional
+        if (idx.name >= 0 && idx.price >= 0) return { headerRowIndex: r, col: idx }
+      }
+      return { headerRowIndex: -1, col: null }
+    }
+
+    const parsePrice = (raw) =>
+      typeof raw === 'number' ? raw : Number(String(raw ?? '').replace(/[^0-9.,\-]/g, '').replace(/,/g, ''))
+
     try {
       // Primary parser: exceljs
       const [{ default: ExcelJS }] = await Promise.all([
@@ -56,28 +91,31 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
         const ws = wb.worksheets[0]
         if (!ws) throw new Error('Worksheet not found')
 
-        const expected = ['Category', 'Name', 'Description', 'Unit', 'Price']
-        let headerRowIndex = -1
-        for (let r = 1; r <= Math.min(ws.rowCount, 20); r++) {
-          const vals = (ws.getRow(r).values || []).slice(1).map(v => String(v || '').trim())
-          const head = vals.slice(0, 5)
-          const match = head.length >= 5 && head.every((v, i) => v.toLowerCase() === expected[i].toLowerCase())
-          if (match) { headerRowIndex = r; break }
-        }
+        // Build a 2-D array from the exceljs worksheet so we can reuse findHeaderRow
+        const rowsArr = []
+        ws.eachRow({ includeEmpty: false }, (row) => {
+          rowsArr.push((row.values || []).slice(1).map(v => {
+            // exceljs rich-text / formula cells need .result or .text
+            if (v && typeof v === 'object') return String(v.result ?? v.text ?? v) 
+            return String(v ?? '')
+          }))
+        })
+
+        const { headerRowIndex, col } = findHeaderRow(rowsArr)
         if (headerRowIndex === -1) throw new Error('headers_not_found')
 
-        for (let r = headerRowIndex + 1; r <= ws.rowCount; r++) {
-          const row = ws.getRow(r)
-          const vals = (row.values || []).slice(1)
-          const category = String(vals[0] ?? '').trim()
-          const name = String(vals[1] ?? '').trim()
-          const description = String(vals[2] ?? '').trim()
-          const unit = String(vals[3] ?? '').trim()
-          const priceRaw = vals[4]
-          const price = typeof priceRaw === 'number' ? priceRaw : Number(String(priceRaw ?? '').replace(/[^0-9.,\-]/g, '').replace(/,/g, ''))
-          const emptyRow = !category && !name && !description && !unit && (price === 0 || Number.isNaN(price))
+        for (let r = headerRowIndex + 1; r < rowsArr.length; r++) {
+          const row = rowsArr[r] || []
+          const getCol = (key) => col[key] >= 0 ? String(row[col[key]] ?? '').trim() : ''
+          const category    = getCol('category')
+          const name        = getCol('name')
+          const description = getCol('description')
+          const unit        = getCol('unit')
+          const priceRaw    = col.price >= 0 ? row[col.price] : ''
+          const price       = parsePrice(priceRaw)
+          const emptyRow    = !category && !name && !description && !unit && (price === 0 || Number.isNaN(price))
           if (emptyRow) continue
-          parsed.push({ rowIndex: r, category, name, description, unit, price })
+          parsed.push({ rowIndex: r + 1, category, name, description, unit: unit || '1pc', price })
         }
       } catch (excelErr) {
         // Fallback parser: sheetjs/xlsx — more tolerant to XML differences
@@ -90,42 +128,23 @@ export default function ImportPricesModal({ open, onClose, storeId, storeName, r
         const sheetName = wb2.SheetNames[0]
         const sheet = wb2.Sheets[sheetName]
         const rowsArr = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false })
-        const aliases = {
-          category: ['category', 'cat'],
-          name: ['name', 'item', 'item name', 'product'],
-          description: ['description', 'desc', 'details'],
-          unit: ['unit', 'units', 'uom'],
-          price: ['price', 'amount', 'cost']
-        }
-        const norm = (v) => String(v || '').trim().toLowerCase()
-        let headerRowIndex = -1
-        let col = { category: -1, name: -1, description: -1, unit: -1, price: -1 }
-        for (let r = 0; r < Math.min(rowsArr.length, 25); r++) {
-          const row = rowsArr[r] || []
-          const idx = { category: -1, name: -1, description: -1, unit: -1, price: -1 }
-          for (let c = 0; c < row.length; c++) {
-            const cell = norm(row[c])
-            for (const key of Object.keys(aliases)) {
-              if (aliases[key].some(a => cell === a)) idx[key] = c
-            }
-          }
-          const gotAll = Object.values(idx).every(v => v >= 0)
-          if (gotAll) { headerRowIndex = r; col = idx; break }
-        }
+
+        const { headerRowIndex, col } = findHeaderRow(rowsArr)
         if (headerRowIndex === -1) throw new Error('headers_not_found')
 
         parsed = []
         for (let r = headerRowIndex + 1; r < rowsArr.length; r++) {
           const row = rowsArr[r] || []
-          const category = String(row[col.category] ?? '').trim()
-          const name = String(row[col.name] ?? '').trim()
-          const description = String(row[col.description] ?? '').trim()
-          const unit = String(row[col.unit] ?? '').trim()
-          const priceCell = row[col.price]
-          const price = typeof priceCell === 'number' ? priceCell : Number(String(priceCell ?? '').replace(/[^0-9.,\-]/g, '').replace(/,/g, ''))
-          const emptyRow = !category && !name && !description && !unit && (price === 0 || Number.isNaN(price))
+          const getCol = (key) => col[key] >= 0 ? String(row[col[key]] ?? '').trim() : ''
+          const category    = getCol('category')
+          const name        = getCol('name')
+          const description = getCol('description')
+          const unit        = getCol('unit')
+          const priceCell   = col.price >= 0 ? row[col.price] : ''
+          const price       = parsePrice(priceCell)
+          const emptyRow    = !category && !name && !description && !unit && (price === 0 || Number.isNaN(price))
           if (emptyRow) continue
-          parsed.push({ rowIndex: r + 1, category, name, description, unit, price })
+          parsed.push({ rowIndex: r + 1, category, name, description, unit: unit || '1pc', price })
         }
       }
 

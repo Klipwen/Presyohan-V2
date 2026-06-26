@@ -81,6 +81,7 @@ class CustomerHomeActivity : AppCompatActivity() {
     private var isPricesTabActive = false
     private var currentSearchQuery = ""
     private var lastBackPress: Long = 0
+    private var hasAutoOpenedBottomSheet = false
 
     // Adapters
     private lateinit var searchAdapter: CustomerSearchAdapter
@@ -237,6 +238,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         // Setup Avatar click to Settings
         profileIconContainer.setOnClickListener {
             val intent = Intent(this, SettingsActivity::class.java)
+            intent.putExtra("from_side", "customer")
             startActivity(intent)
         }
 
@@ -611,6 +613,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             val integrator = IntentIntegrator(this@CustomerHomeActivity)
             integrator.setPrompt("Scan Store QR Code")
             integrator.setOrientationLocked(false)
+            integrator.setCaptureActivity(CustomScannerActivity::class.java)
             integrator.initiateScan()
         }
 
@@ -791,9 +794,13 @@ class CustomerHomeActivity : AppCompatActivity() {
                     .decodeList<ProductDetailRow>()
 
                 // Precompute baseProducts once data is successfully loaded to avoid lag during search queries
+                // Only include products from PUBLIC stores — private stores hide their prices on customer view
+                val publicStoreIds = allStores.filter { it.is_public }.map { it.id }.toSet()
                 val storeMap = allStores.associateBy { it.id }
                 val categoryMap = allCategories.associateBy { it.id }
-                baseProducts = allProducts.map { prod ->
+                baseProducts = allProducts
+                    .filter { it.store_id in publicStoreIds }
+                    .map { prod ->
                     val store = storeMap[prod.store_id]
                     val category = categoryMap[prod.category_id]
                     DisplayProduct(
@@ -822,68 +829,37 @@ class CustomerHomeActivity : AppCompatActivity() {
                     shimmerStoresContainer.visibility = View.GONE
                     swipeRefreshLayout.visibility = View.VISIBLE
                 }
+
+                if (allStores.isEmpty() && !hasAutoOpenedBottomSheet) {
+                    hasAutoOpenedBottomSheet = true
+                    showBottomSheet()
+                }
             }
         }
     }
 
     private fun levenshteinDistance(s1: String, s2: String): Int {
-        val dp = Array(s1.length + 1) { IntArray(s2.length + 1) }
-        for (i in 0..s1.length) dp[i][0] = i
-        for (j in 0..s2.length) dp[0][j] = j
-        for (i in 1..s1.length) {
-            for (j in 1..s2.length) {
-                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
-                dp[i][j] = minOf(
-                    dp[i - 1][j] + 1,
-                    dp[i][j - 1] + 1,
-                    dp[i - 1][j - 1] + cost
-                )
-            }
-        }
-        return dp[s1.length][s2.length]
+        return com.presyohan.app.helper.SearchHelper.levenshteinDistance(s1, s2)
     }
 
     private fun isFuzzyMatch(token: String, text: String): Boolean {
-        val cleanText = text.lowercase(Locale.getDefault())
-        val cleanToken = token.lowercase(Locale.getDefault())
-
-        if (cleanText.contains(cleanToken)) return true
-
-        val words = cleanText.split(Regex("[\\s,\\.\\-\\(\\)\\[\\]]+"))
-        for (word in words) {
-            if (word.isEmpty()) continue
-            if (word.contains(cleanToken)) return true
-
-            if (cleanToken.length >= 3) {
-                val maxAllowedDistance = if (cleanToken.length <= 4) 1 else 2
-                if (levenshteinDistance(cleanToken, word) <= maxAllowedDistance) {
-                    return true
-                }
-            }
-        }
-        return false
+        return com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, text)
     }
 
     private fun matchPrice(token: String, price: Double): Boolean {
-        val cleanToken = token.lowercase(Locale.getDefault()).replace("₱", "").replace(",", "").trim()
-        if (cleanToken.isEmpty()) return false
-
-        val priceStr1 = String.format(Locale.getDefault(), "%.2f", price)
-        val priceStr2 = price.toInt().toString()
-
-        return priceStr1.contains(cleanToken) || priceStr2.contains(cleanToken)
+        return com.presyohan.app.helper.SearchHelper.matchPrice(token, price)
     }
 
     private fun matchesProduct(tokens: List<String>, product: DisplayProduct): Boolean {
         for (token in tokens) {
             if (token.isEmpty()) continue
 
-            val matchesName = isFuzzyMatch(token, product.name)
-            val matchesDesc = product.description?.let { isFuzzyMatch(token, it) } ?: false
-            val matchesCategory = isFuzzyMatch(token, product.categoryName)
-            val matchesStore = isFuzzyMatch(token, product.storeName)
-            val matchesUnit = product.unit?.let { isFuzzyMatch(token, it) } ?: false
-            val matchesPrice = matchPrice(token, product.price)
+            val matchesName = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, product.name)
+            val matchesDesc = product.description?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
+            val matchesCategory = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, product.categoryName)
+            val matchesStore = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, product.storeName)
+            val matchesUnit = product.unit?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
+            val matchesPrice = com.presyohan.app.helper.SearchHelper.matchPrice(token, product.price)
 
             if (!matchesName && !matchesDesc && !matchesCategory && !matchesStore && !matchesUnit && !matchesPrice) {
                 return false
@@ -893,88 +869,13 @@ class CustomerHomeActivity : AppCompatActivity() {
     }
 
     private fun calculateMatchScore(query: String, product: DisplayProduct): Double {
-        val q = query.lowercase(Locale.getDefault()).trim()
-        if (q.isEmpty()) return 0.0
-        
-        val pName = product.name.lowercase(Locale.getDefault()).trim()
-        val pDesc = (product.description ?: "").lowercase(Locale.getDefault()).trim()
-        val pCat = product.categoryName.lowercase(Locale.getDefault()).trim()
-        val pStore = product.storeName.lowercase(Locale.getDefault()).trim()
-        
-        var score = 0.0
-        
-        // 1. Exact name match
-        if (pName == q) {
-            score += 10000.0
-        }
-        
-        // 2. Name starts with query
-        if (pName.startsWith(q)) {
-            score += 5000.0
-        }
-        
-        // 3. Name contains query
-        if (pName.contains(q)) {
-            score += 2000.0
-        }
-        
-        // Token based checks
-        val tokens = q.split(Regex("\\s+")).filter { it.isNotEmpty() }
-        val nameWords = pName.split(Regex("[\\s,\\.\\-\\(\\)\\[\\]/]+")).filter { it.isNotEmpty() }
-        val descWords = pDesc.split(Regex("[\\s,\\.\\-\\(\\)\\[\\]/]+")).filter { it.isNotEmpty() }
-        
-        for (token in tokens) {
-            // Word exact match in name
-            if (nameWords.contains(token)) {
-                score += 1000.0
-            }
-            
-            // Contains token in name
-            if (pName.contains(token)) {
-                score += 500.0
-            }
-            
-            // Fuzzy match in name words
-            for (word in nameWords) {
-                if (word.contains(token)) {
-                    score += 200.0 * (token.length.toDouble() / word.length.toDouble())
-                } else if (token.length >= 3) {
-                    val maxDist = if (token.length <= 4) 1 else 2
-                    val dist = levenshteinDistance(token, word)
-                    if (dist <= maxDist) {
-                        score += 100.0 * (1.0 - dist.toDouble() / token.length.toDouble())
-                    }
-                }
-            }
-            
-            // Matches in description
-            if (pDesc.contains(token)) {
-                score += 50.0
-            }
-            for (word in descWords) {
-                if (word.contains(token)) {
-                    score += 20.0 * (token.length.toDouble() / word.length.toDouble())
-                } else if (token.length >= 3) {
-                    val maxDist = if (token.length <= 4) 1 else 2
-                    val dist = levenshteinDistance(token, word)
-                    if (dist <= maxDist) {
-                        score += 10.0 * (1.0 - dist.toDouble() / token.length.toDouble())
-                    }
-                }
-            }
-            
-            // Matches in Category Name
-            if (pCat.contains(token)) {
-                score += 30.0
-            }
-            
-            // Matches in Store Name
-            if (pStore.contains(token)) {
-                score += 10.0
-            }
-        }
-        
-        return score
+        return com.presyohan.app.helper.SearchHelper.calculateProductScore(
+            query = query,
+            name = product.name,
+            description = product.description,
+            categoryName = product.categoryName,
+            storeName = product.storeName
+        )
     }
 
     private fun matchesCategoryName(query: String, categoryName: String): Boolean {

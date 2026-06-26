@@ -127,53 +127,60 @@ object SupabaseAuthService {
     }
 
     suspend fun getUserProfile(): AppUserRow? = withContext(Dispatchers.IO) {
-        val uid = client.auth.currentUserOrNull()?.id ?: return@withContext null
-        return@withContext try {
+        val currentUser = client.auth.currentUserOrNull() ?: return@withContext null
+        val uid = currentUser.id
+
+        // 1. Get metadata (always available locally in cached session)
+        val metaAny: Any? = currentUser.userMetadata
+        val metaName = when (metaAny) {
+            is Map<*, *> -> metaAny["name"] as? String ?: (metaAny["full_name"] as? String)
+            is JsonObject -> metaAny["name"]?.jsonPrimitive?.contentOrNull ?: metaAny["full_name"]?.jsonPrimitive?.contentOrNull
+            else -> null
+        }
+        val metaAvatar = when (metaAny) {
+            is Map<*, *> -> {
+                val m = metaAny as Map<*, *>
+                (m["avatar_url"] as? String)
+                    ?: (m["picture"] as? String)
+                    ?: (m["photo_url"] as? String)
+                    ?: (m["photoURL"] as? String)
+                    ?: (m["image"] as? String)
+                    ?: (m["avatar"] as? String)
+            }
+            is JsonObject -> {
+                metaAny["avatar_url"]?.jsonPrimitive?.contentOrNull
+                    ?: metaAny["picture"]?.jsonPrimitive?.contentOrNull
+                    ?: metaAny["photo_url"]?.jsonPrimitive?.contentOrNull
+                    ?: metaAny["photoURL"]?.jsonPrimitive?.contentOrNull
+                    ?: metaAny["image"]?.jsonPrimitive?.contentOrNull
+                    ?: metaAny["avatar"]?.jsonPrimitive?.contentOrNull
+            }
+            else -> null
+        }
+
+        // 2. Try fetching from database
+        try {
             val rows = client.postgrest["app_users"].select {
                 filter { eq("id", uid) }
                 limit(1)
             }.decodeList<AppUserRow>()
-            var row = rows.firstOrNull()
+            val dbRow = rows.firstOrNull()
+            if (dbRow != null) {
+                val mergedName = if (dbRow.name.isNullOrBlank()) metaName else dbRow.name
+                val mergedAvatar = if (dbRow.avatar_url.isNullOrBlank()) metaAvatar else dbRow.avatar_url
+                return@withContext dbRow.copy(name = mergedName, avatar_url = mergedAvatar)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SupabaseAuth", "Failed to fetch profile from DB, falling back to metadata: ${e.localizedMessage}")
+        }
 
-            val metaAny: Any? = client.auth.currentUserOrNull()?.userMetadata
-            val metaName = when (metaAny) {
-                is Map<*, *> -> metaAny["name"] as? String
-                is JsonObject -> metaAny["name"]?.jsonPrimitive?.contentOrNull
-                else -> null
-            }
-            val metaAvatar = when (metaAny) {
-                is Map<*, *> -> {
-                    val m = metaAny as Map<*, *>
-                    (m["avatar_url"] as? String)
-                        ?: (m["picture"] as? String)
-                        ?: (m["photo_url"] as? String)
-                        ?: (m["photoURL"] as? String)
-                        ?: (m["image"] as? String)
-                        ?: (m["avatar"] as? String)
-                }
-                is JsonObject -> {
-                    metaAny["avatar_url"]?.jsonPrimitive?.contentOrNull
-                        ?: metaAny["picture"]?.jsonPrimitive?.contentOrNull
-                        ?: metaAny["photo_url"]?.jsonPrimitive?.contentOrNull
-                        ?: metaAny["photoURL"]?.jsonPrimitive?.contentOrNull
-                        ?: metaAny["image"]?.jsonPrimitive?.contentOrNull
-                        ?: metaAny["avatar"]?.jsonPrimitive?.contentOrNull
-                }
-                else -> null
-            }
-
-            if (row == null) {
-                row = AppUserRow(id = uid, name = metaName, avatar_url = metaAvatar)
-            } else {
-                if (row.name.isNullOrBlank() && !metaName.isNullOrBlank()) {
-                    row = row.copy(name = metaName)
-                }
-                if (row.avatar_url.isNullOrBlank() && !metaAvatar.isNullOrBlank()) {
-                    row = row.copy(avatar_url = metaAvatar)
-                }
-            }
-            row
-        } catch (_: Exception) { null }
+        // 3. Fallback to metadata-only row
+        return@withContext AppUserRow(
+            id = uid,
+            name = metaName,
+            email = currentUser.email,
+            avatar_url = metaAvatar
+        )
     }
 
     // Deprecated wrapper for backward compatibility if used elsewhere

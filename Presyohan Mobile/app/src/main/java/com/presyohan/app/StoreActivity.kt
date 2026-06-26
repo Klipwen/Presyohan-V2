@@ -68,8 +68,7 @@ class StoreActivity : AppCompatActivity() {
     private var currentSearchQuery: String = ""
     private var currentRoleFilter: String = "All"
     private var activeTabId: Int = R.id.chipAll
-    private val searchHandler = Handler(Looper.getMainLooper())
-    private var searchRunnable: Runnable? = null
+    private var searchJob: kotlinx.coroutines.Job? = null
     private var isFirstLoad = true
     private var storeRolesMap: Map<String, String> = emptyMap()
     private var lastBackPress: Long = 0
@@ -114,6 +113,7 @@ class StoreActivity : AppCompatActivity() {
         val branch: String? = null,
         val type: String? = null,
         val role: String,
+        val is_public: Boolean = false,
         val member_count: Int = 0
     )
 
@@ -151,15 +151,18 @@ class StoreActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_store)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            overrideActivityTransition(
-                android.app.Activity.OVERRIDE_TRANSITION_OPEN,
-                R.anim.slide_in_up,
-                R.anim.stay
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+        val fromHome = intent.getBooleanExtra("from_home", false)
+        if (!fromHome) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    android.app.Activity.OVERRIDE_TRANSITION_OPEN,
+                    R.anim.slide_in_up,
+                    R.anim.stay
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+            }
         }
         loadingOverlay = LoadingOverlayHelper.attach(this)
 
@@ -170,6 +173,12 @@ class StoreActivity : AppCompatActivity() {
         // Open drawer when menu icon is clicked
         findViewById<ImageView>(R.id.menuIcon).setOnClickListener {
             drawerLayout.open()
+        }
+
+        findViewById<View>(R.id.profileIconContainer)?.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            intent.putExtra("from_side", "tindiro")
+            startActivity(intent)
         }
 
         // Bottom Sheet
@@ -250,10 +259,11 @@ class StoreActivity : AppCompatActivity() {
                 currentSearchQuery = query
                 btnSearchClear.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
                 
-                searchRunnable?.let { searchHandler.removeCallbacks(it) }
-                val runnable = Runnable { applyFilterAndSearch() }
-                searchRunnable = runnable
-                searchHandler.postDelayed(runnable, 300)
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    kotlinx.coroutines.delay(180)
+                    applyFilterAndSearch()
+                }
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
@@ -262,6 +272,7 @@ class StoreActivity : AppCompatActivity() {
             searchStoreEditText.text.clear()
             currentSearchQuery = ""
             btnSearchClear.visibility = View.GONE
+            searchJob?.cancel()
             applyFilterAndSearch()
         }
 
@@ -380,33 +391,83 @@ class StoreActivity : AppCompatActivity() {
     }
 
     private fun applyFilterAndSearch() {
-        val filtered = allStores.filter { store ->
-            val matchesRole = when (currentRoleFilter) {
-                "Owner" -> store.role.equals("owner", ignoreCase = true)
-                "Manager" -> store.role.equals("manager", ignoreCase = true)
-                "Sales Staff" -> store.role.equals("employee", ignoreCase = true)
-                else -> true
+        lifecycleScope.launch {
+            val query = currentSearchQuery.trim()
+            val filtered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                val roleFiltered = allStores.filter { store ->
+                    when (currentRoleFilter) {
+                        "Owner" -> store.role.equals("owner", ignoreCase = true)
+                        "Manager" -> store.role.equals("manager", ignoreCase = true)
+                        "Sales Staff" -> store.role.equals("employee", ignoreCase = true)
+                        else -> true
+                    }
+                }
+
+                if (query.isEmpty()) {
+                    roleFiltered.sortedWith(compareBy(
+                        { val role = storeRolesMap[it.id]?.lowercase(); when (role) { "owner" -> 0; "manager" -> 1; else -> 2 } },
+                        { it.name.lowercase() }
+                    ))
+                } else {
+                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    
+                    val matchedStores = roleFiltered.filter { store ->
+                        var isMatch = true
+                        for (token in tokens) {
+                            val matchesName = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.name)
+                            val matchesBranch = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.branch)
+                            val matchesType = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.type)
+                            
+                            if (!matchesName && !matchesBranch && !matchesType) {
+                                isMatch = false
+                                break
+                            }
+                        }
+                        isMatch
+                    }
+
+                    matchedStores.map { store ->
+                        var score = 0.0
+                        val cleanName = store.name.lowercase(java.util.Locale.getDefault())
+                        val cleanBranch = store.branch.lowercase(java.util.Locale.getDefault())
+                        val cleanQuery = query.lowercase(java.util.Locale.getDefault())
+                        
+                        if (cleanName == cleanQuery) score += 1000.0
+                        if (cleanName.startsWith(cleanQuery)) score += 500.0
+                        if (cleanName.contains(cleanQuery)) score += 200.0
+                        
+                        if (cleanBranch == cleanQuery) score += 400.0
+                        if (cleanBranch.startsWith(cleanQuery)) score += 200.0
+                        if (cleanBranch.contains(cleanQuery)) score += 100.0
+                        
+                        for (token in tokens) {
+                            if (com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.name)) score += 100.0
+                            if (com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.branch)) score += 50.0
+                            if (com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.type)) score += 20.0
+                        }
+                        Pair(store, score)
+                    }
+                    .sortedByDescending { it.second }
+                    .map { it.first }
+                }
             }
-            val matchesSearch = store.name.lowercase().contains(currentSearchQuery.lowercase()) ||
-                                store.branch.lowercase().contains(currentSearchQuery.lowercase())
-            matchesRole && matchesSearch
-        }
 
-        adapter.updateStores(filtered, storeRolesMap)
+            adapter.updateStores(filtered, storeRolesMap)
 
-        val layoutEmptyState = findViewById<View>(R.id.layoutEmptyState)
-        if (filtered.isEmpty()) {
-            layoutEmptyState.visibility = View.VISIBLE
-            recyclerView.visibility = View.GONE
-            val emptyStateText = findViewById<TextView>(R.id.emptyStateText)
-            if (allStores.isEmpty()) {
-                emptyStateText?.text = "No store yet"
+            val layoutEmptyState = findViewById<View>(R.id.layoutEmptyState)
+            if (filtered.isEmpty()) {
+                layoutEmptyState.visibility = View.VISIBLE
+                recyclerView.visibility = View.GONE
+                val emptyStateText = findViewById<TextView>(R.id.emptyStateText)
+                if (allStores.isEmpty()) {
+                    emptyStateText?.text = "No store yet"
+                } else {
+                    emptyStateText?.text = "No stores found"
+                }
             } else {
-                emptyStateText?.text = "No stores found"
+                layoutEmptyState.visibility = View.GONE
+                recyclerView.visibility = View.VISIBLE
             }
-        } else {
-            layoutEmptyState.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
         }
     }
 
@@ -606,12 +667,16 @@ class StoreActivity : AppCompatActivity() {
                 txtManagersCount.text = managers.toString()
                 txtEmployeesCount.text = employees.toString()
 
-                @Serializable
-                data class SukiRow(val store_id: String)
-                val sukiRows = SupabaseProvider.client.postgrest["suki_relationships"].select {
-                    filter { eq("store_id", store.id) }
-                }.decodeList<SukiRow>()
-                txtSukiCount.text = sukiRows.size.toString()
+                // Use RPC to bypass RLS and get actual suki count
+                val sukiCount = try {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "get_store_suki_count",
+                        buildJsonObject { put("p_store_id", store.id) }
+                    ).decodeAs<Int>()
+                } catch (e: Exception) {
+                    0
+                }
+                txtSukiCount.text = sukiCount.toString()
 
                 @Serializable
                 data class StoreDetailsLite(
@@ -690,12 +755,13 @@ class StoreActivity : AppCompatActivity() {
         val layoutEmptyState = findViewById<View>(R.id.layoutEmptyState)
         val noStoreLabel = findViewById<TextView>(R.id.noStoreLabel)
 
+        noStoreLabel.visibility = View.GONE
+        layoutEmptyState.visibility = View.GONE
+
         if (showShimmer) {
             shimmerContainer.visibility = View.VISIBLE
             shimmerContainer.startShimmer()
             recyclerView.visibility = View.GONE
-            layoutEmptyState.visibility = View.GONE
-            noStoreLabel.visibility = View.GONE
         }
 
         lifecycleScope.launch {
@@ -734,9 +800,29 @@ class StoreActivity : AppCompatActivity() {
                     }
                 }
 
+                @kotlinx.serialization.Serializable
+                data class StoreVisibilityLite(val id: String, val is_public: Boolean = false)
+                
+                val storeIds = rows.map { it.store_id }
+                val publicVisibilityMap = mutableMapOf<String, Boolean>()
+                try {
+                    if (storeIds.isNotEmpty()) {
+                        val visibilityRows = client.postgrest["stores"]
+                            .select {
+                                filter {
+                                    isIn("id", storeIds)
+                                }
+                            }.decodeList<StoreVisibilityLite>()
+                        visibilityRows.forEach { publicVisibilityMap[it.id] = it.is_public }
+                    }
+                } catch (e: Exception) {
+                    Log.e("StoreActivity", "Failed to query is_public for stores: ${e.message}", e)
+                }
+
                 val fetchedStores = rows.map { r ->
                     val oCount = ownersMap[r.store_id] ?: 1
-                    Store(r.store_id, r.name, r.branch ?: "", r.type ?: "", r.member_count, r.role, oCount)
+                    val isPub = publicVisibilityMap[r.store_id] ?: r.is_public
+                    Store(r.store_id, r.name, r.branch ?: "", r.type ?: "", r.member_count, r.role, oCount, isPub)
                 }
                 storeRolesMap = roles
 

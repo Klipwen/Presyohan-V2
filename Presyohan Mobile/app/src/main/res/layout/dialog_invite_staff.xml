@@ -305,7 +305,7 @@
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnGenerateCodeInactive"
                 android:layout_width="wrap_content"
-                android:layout_height="28dp"
+                android:layout_height="36dp"
                 android:background="@drawable/bg_button_rect_teal"
                 android:text="Generate"
                 android:textColor="@color/white"

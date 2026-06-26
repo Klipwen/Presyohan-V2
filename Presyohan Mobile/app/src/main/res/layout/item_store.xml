@@ -109,21 +109,40 @@
             </FrameLayout>
 
             <!-- Store Name -->
-            <TextView
-                android:id="@+id/textStoreName"
+            <LinearLayout
+                android:id="@+id/nameAndIconLayout"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="8dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="Store Name"
-                android:textColor="@color/presyo_orange"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toStartOf="@id/staffCountBadge"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 app:layout_constraintStart_toEndOf="@id/storeIconFrame"
-                app:layout_constraintTop_toTopOf="@id/storeIconFrame" />
+                app:layout_constraintEnd_toStartOf="@id/staffCountBadge"
+                app:layout_constraintTop_toTopOf="@id/storeIconFrame"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp">
+
+                <TextView
+                    android:id="@+id/textStoreName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Store Name"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_weight="0" />
+
+                <ImageView
+                    android:id="@+id/iconPublicStore"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:layout_marginStart="6dp"
+                    android:src="@drawable/icon_public_indacator"
+                    app:tint="#A0A0A0"
+                    android:visibility="gone"
+                    android:contentDescription="Public Store" />
+            </LinearLayout>
 
             <!-- Store Type -->
             <TextView
@@ -137,8 +156,8 @@
                 android:textColor="@color/presyo_teal"
                 android:textSize="13sp"
                 app:layout_constraintEnd_toStartOf="@id/staffCountBadge"
-                app:layout_constraintStart_toStartOf="@id/textStoreName"
-                app:layout_constraintTop_toBottomOf="@id/textStoreName" />
+                app:layout_constraintStart_toStartOf="@id/nameAndIconLayout"
+                app:layout_constraintTop_toBottomOf="@id/nameAndIconLayout" />
 
             <!-- Location Branch Row -->
             <LinearLayout
@@ -149,7 +168,7 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="@id/textStoreName"
+                app:layout_constraintStart_toStartOf="@id/nameAndIconLayout"
                 app:layout_constraintTop_toBottomOf="@id/textStoreType">
 
                 <ImageView

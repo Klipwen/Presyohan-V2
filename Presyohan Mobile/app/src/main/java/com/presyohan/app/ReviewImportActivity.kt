@@ -22,6 +22,7 @@ import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.widget.AppCompatButton
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import android.util.TypedValue
@@ -44,7 +45,7 @@ class ReviewImportActivity : AppCompatActivity() {
     private lateinit var tvNewItemsSummary: TextView
     private lateinit var tvUpdateItemsSummary: TextView
     private lateinit var tvGroupSummaryText: TextView
-    private lateinit var btnConfirmImport: MaterialButton
+    private lateinit var btnConfirmImport: AppCompatButton
     private lateinit var btnBack: ImageView
     private lateinit var loadingOverlay: View
 
@@ -87,13 +88,13 @@ class ReviewImportActivity : AppCompatActivity() {
     private fun initViews() {
         tvAlertTitle = findViewById(R.id.tvAlertTitle)
         tvAlertSubtitle = findViewById(R.id.tvAlertSubtitle)
-        btnEditItems = findViewById(R.id.btnEditItems)
+        btnEditItems = findViewById<MaterialButton>(R.id.btnEditItems)
         reviewRecyclerView = findViewById(R.id.reviewRecyclerView)
         tvNewCategoriesSummary = findViewById(R.id.tvNewCategoriesSummary)
         tvNewItemsSummary = findViewById(R.id.tvNewItemsSummary)
         tvUpdateItemsSummary = findViewById(R.id.tvUpdateItemsSummary)
         tvGroupSummaryText = findViewById(R.id.tvGroupSummaryText)
-        btnConfirmImport = findViewById(R.id.btnConfirmImport)
+        btnConfirmImport = findViewById<AppCompatButton>(R.id.btnConfirmImport)
         btnBack = findViewById(R.id.btnBack)
         btnFloatingErrors = findViewById(R.id.btnFloatingErrors)
         tvFloatingErrorCount = findViewById(R.id.tvFloatingErrorCount)
@@ -223,7 +224,7 @@ class ReviewImportActivity : AppCompatActivity() {
 
                 // Disable confirm
                 btnConfirmImport.isEnabled = false
-                btnConfirmImport.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFCC80")) // Muted/disabled peach
+                btnConfirmImport.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFCC80"))
             } else {
                 btnFloatingErrors.visibility = View.GONE
 
@@ -416,22 +417,9 @@ class ReviewImportActivity : AppCompatActivity() {
     }
 
     private fun showExportCompleteDialog() {
-        val dialog = Dialog(this)
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_export_complete, null)
-        dialog.setContentView(dialogView)
-        dialog.setCancelable(false)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        dialog.window?.setLayout(
-            (resources.displayMetrics.widthPixels * 0.90).toInt(),
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-
-        dialogView.findViewById<Button>(R.id.btnDone).setOnClickListener {
-            dialog.dismiss()
+        CopyPricesDialogHelper.showCopyCompleteDialog(this) {
             finish()
         }
-        dialog.show()
     }
 
     // --- RECYCLER LIST MODEL ---

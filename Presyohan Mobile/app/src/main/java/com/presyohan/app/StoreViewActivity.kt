@@ -76,6 +76,7 @@ class StoreViewActivity : AppCompatActivity() {
 
     // Adapter
     private lateinit var groupAdapter: CategoryGroupAdapter
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     @Serializable
     data class SukiRelationshipRow(val store_id: String)
@@ -209,7 +210,11 @@ class StoreViewActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentSearchQuery = s?.toString()?.trim() ?: ""
-                filterAndGroupProducts()
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    kotlinx.coroutines.delay(180)
+                    filterAndGroupProducts()
+                }
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -532,35 +537,66 @@ class StoreViewActivity : AppCompatActivity() {
     }
 
     private fun filterAndGroupProducts() {
-        // Apply category filter
-        val catFiltered = if (selectedCategory == "PRICELIST") {
-            rawProducts
-        } else {
-            rawProducts.filter { it.category.equals(selectedCategory, ignoreCase = true) }
-        }
+        val query = currentSearchQuery.trim()
+        val cat = selectedCategory
 
-        // Apply search query filter
-        val searchFiltered = if (currentSearchQuery.isBlank()) {
-            catFiltered
-        } else {
-            val query = currentSearchQuery.lowercase(Locale.getDefault())
-            catFiltered.filter {
-                it.name.lowercase(Locale.getDefault()).contains(query) ||
-                it.description.lowercase(Locale.getDefault()).contains(query)
+        lifecycleScope.launch {
+            val sortedGroups = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                // Apply category filter
+                val catFiltered = if (cat == "PRICELIST") {
+                    rawProducts
+                } else {
+                    rawProducts.filter { it.category.equals(cat, ignoreCase = true) }
+                }
+
+                // Apply search query filter using SearchHelper
+                val searchFiltered = if (query.isBlank()) {
+                    catFiltered.sortedBy { it.name.lowercase(Locale.getDefault()) }
+                } else {
+                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    
+                    val matchedProducts = catFiltered.filter { prod ->
+                        var isMatch = true
+                        for (token in tokens) {
+                            val matchesName = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, prod.name)
+                            val matchesDesc = prod.description?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
+                            val matchesCategory = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, prod.category)
+                            val matchesPrice = com.presyohan.app.helper.SearchHelper.matchPrice(token, prod.price)
+                            
+                            if (!matchesName && !matchesDesc && !matchesCategory && !matchesPrice) {
+                                isMatch = false
+                                break
+                            }
+                        }
+                        isMatch
+                    }
+
+                    matchedProducts.map { prod ->
+                        val score = com.presyohan.app.helper.SearchHelper.calculateProductScore(
+                            query = query,
+                            name = prod.name,
+                            description = prod.description,
+                            categoryName = prod.category
+                        )
+                        Pair(prod, score)
+                    }
+                    .sortedByDescending { it.second }
+                    .map { it.first }
+                }
+
+                // Group by category, sort categories alphabetically, preserve inner order (sorted by score if searched)
+                val groupedMap = searchFiltered.groupBy { it.category.trim() }
+                groupedMap.entries.sortedBy { it.key.lowercase(Locale.getDefault()) }.map { entry ->
+                    com.presyohan.app.HomeActivity.ProductGroup(
+                        categoryName = entry.key,
+                        itemCount = entry.value.size,
+                        products = entry.value
+                    )
+                }
             }
-        }
 
-        // Group by category, sort categories alphabetically, sort items alphabetically within category
-        val groupedMap = searchFiltered.groupBy { it.category.trim() }
-        val sortedGroups = groupedMap.entries.sortedBy { it.key.lowercase() }.map { entry ->
-            com.presyohan.app.HomeActivity.ProductGroup(
-                categoryName = entry.key,
-                itemCount = entry.value.size,
-                products = entry.value.sortedBy { it.name.lowercase() }
-            )
+            groupAdapter.updateGroups(sortedGroups, null)
         }
-
-        groupAdapter.updateGroups(sortedGroups, null)
     }
 
     override fun finish() {

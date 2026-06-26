@@ -186,7 +186,7 @@
                                 android:layout_width="16dp"
                                 android:layout_height="16dp"
                                 android:src="@drawable/icon_delete"
-                                app:tint="@color/red" />
+                                app:tint="@color/edittext_hint" />
 
                             <TextView
                                 android:id="@+id/tvSelectedFile"

@@ -1,0 +1,220 @@
+PRESYOHAN MOBILE - ONBOARDING FLOW ARCHITECTURE AND IMPLEMENTATION PLAN
+
+Prepared for: Presyohan Mobile
+Scope: Onboarding Activity, Wizard Layout, Role-Based Navigation Paths, Local/Remote Record Validation, Post-Onboarding Action Triggers.
+
+================================================================================
+Objective
+================================================================================
+Design and document the implementation of a 3-step onboarding wizard inside the Presyohan Mobile application. The flow is designed to dynamically target first-time, record-free users upon verification or login, dividing them into distinct functional pathways (Store Owner/Staff vs. Customer) based on their business intent. It will pre-load setup behaviors (Create/Join store or Add Suki dialogs) on landing activities to ensure a frictionless transition from account creation to first productive action.
+
+================================================================================
+Deliverables
+================================================================================
+
+--------------------------------------------------------------------------------
+Phase 1 – Current System Analysis
+--------------------------------------------------------------------------------
+- The codebase currently has no onboarding flow.
+- Verified or authenticated users are routed directly from SplashActivity or LoginActivity into either StoreActivity (for store management) or CustomerHomeActivity (for customer searches/subscriptions) based on SessionManager preferences.
+- This creates a feature gap where new users are dropped into empty dashboards with no initial setup guidance, requiring them to manually trigger the "Join/Create Store" bottom sheets.
+
+--------------------------------------------------------------------------------
+Phase 2 – Database Changes
+--------------------------------------------------------------------------------
+No database schema changes are required.
+To verify if onboarding must run, the app will perform two remote checks using Supabase Postgrest client:
+1. Check `store_members` table:
+   Query: `supabaseClient.postgrest["store_members"].select { filter { eq("user_id", currentUserId) } }`
+2. Check `suki_relationships` table:
+   Query: `supabaseClient.postgrest["suki_relationships"].select { filter { eq("user_id", currentUserId) } }`
+
+If both tables return empty lists for the authenticated user ID and the local SharedPreferences key `onboarding_completed` is false, the user is classified as a new user and onboarding is initiated.
+
+--------------------------------------------------------------------------------
+Phase 3 – UI Changes
+--------------------------------------------------------------------------------
+The Onboarding flow will be contained within `OnboardingActivity` utilizing a ViewPager2 or a dynamic layout switcher to swap between the three progressive steps.
+
+Visual Identity:
+- Background: Reuses the standard auth background shell (an orange-to-yellow gradient background with a white curved foreground panel, layered using drawable `bg_qr_screen` and `bg_curve_logo`).
+- Segmented Progress Bar: Three horizontal bars placed at the bottom of the screen. Active steps are filled with vibrant yellow, inactive steps are thin grey lines.
+
+Screen-by-Screen Breakdown:
+
+1. Step 1: Intent/Role Selection ("Why did you choose Presyohan?")
+   - Header: Center-aligned "atong presyohan?" logo.
+   - Title: "Why did you choose Presyohan?" (bold orange text).
+   - Selection Cards (Side-by-side or stacked grid):
+     - Card A (Store Owner/Staff Role):
+       - Label: "Because, I run a store or work as a staff to manage prices anytime, anywhere."
+       - Icon: Teal vector outline of a storefront.
+     - Card B (Customer Role):
+       - Label: "Because, I want to track daily market prices and monitor how much items cost."
+       - Icon: Teal vector outline of a person/avatar.
+   - Interaction: Cards use a thin cyan border when unselected. Selecting a card highlights its borders and background in orange.
+   - Footer:
+     - "Back" Button: Teal circular arrow button on the top-left or bottom left, which triggers the "Exit Setup?" modal.
+     - "NEXT" Button: Large orange button, disabled by default and enabled only after a role is selected.
+
+2. Step 2 (Store Path): Store Intent Setup ("Let's set up your store")
+   - Header: Center-aligned "atong presyohan?" logo.
+   - Title: "Let's set up your store" (bold orange text).
+   - Selection Cards:
+     - Card A1 (Create Store):
+       - Title: "Create a Store"
+       - Body: "Set up a brand-new store profile and start building your pricelist."
+       - Icon: Storefront with a "+" symbol.
+     - Card A2 (Join Store):
+       - Title: "Join a Store"
+       - Body: "Enter an invite code provided by your store owner to access your team's pricelist."
+       - Icon: Storefront with an arrow ("->") symbol.
+   - Footer:
+     - "BACK" Button: Teal pill button. Routes back to Step 1 (clearing card selections).
+     - "NEXT" Button: Orange pill button, enabled only after selecting Create or Join.
+
+3. Step 2 (Customer Path): Suki Preference Setup ("Do you have a suking tindahan?")
+   - Header: Center-aligned "atong presyohan?" logo.
+   - Title: "Do you have a suking tindahan?" (bold orange text).
+   - Selection Cards:
+     - Card B1 (Yes):
+       - Title: "Yes"
+       - Body: "I want to follow my suking tindahan to track their prices anytime."
+       - Icon: Storefront icon.
+     - Card B2 (No):
+       - Title: "No"
+       - Body: "I want to use this app to check standard prices, so I can have bases."
+       - Icon: Person icon.
+   - Footer:
+     - "BACK" Button: Teal pill button. Routes back to Step 1.
+     - "NEXT" Button: Orange pill button, enabled only after selecting Yes or No.
+
+4. Step 3 (Store Success Screen):
+   - Title/Logo: Center-aligned logo.
+   - Content Panel:
+     - CEO Avatar: Circular image of the CEO with a prominent orange border.
+     - Message: "Salamat sa pagpili sa Presyohan! I hope this app makes tracking and managing prices much easier for you. Enjoy using the app! :)"
+     - Signature: Presyohan CEO signature image/text.
+   - Footer:
+     - "BACK" Button: Teal pill button. Routes back to Step 2.
+     - "LAUNCH APP" Button: Orange pill button. Finalizes onboarding state.
+
+5. Step 3 (Customer Success Screen):
+   - Title/Logo: Center-aligned logo.
+   - Content Panel:
+     - CEO Avatar: Circular image of the CEO with a prominent orange border.
+     - Message: "Salamat sa pagpili sa Presyohan! I hope this app helps you stay updated on daily price changes with ease. Enjoy using the app! :)"
+     - Signature: Presyohan CEO signature image/text.
+   - Footer:
+     - "BACK" Button: Teal pill button. Routes back to Step 2.
+     - "LAUNCH APP" Button: Orange pill button. Finalizes onboarding state.
+
+--------------------------------------------------------------------------------
+Phase 4 – State Management
+--------------------------------------------------------------------------------
+1. In-Memory OnboardingState (housed in `OnboardingViewModel`):
+   - `currentStep`: LiveData/StateFlow of Int (values: 1, 2, 3)
+   - `userRole`: LiveData/StateFlow of UserRoleEnum (STORE, CUSTOMER, NONE)
+   - `storeOption`: LiveData/StateFlow of StoreOptionEnum (CREATE, JOIN, NONE)
+   - `sukiOption`: LiveData/StateFlow of SukiOptionEnum (YES, NO, NONE)
+
+2. Persistent States (saved in SharedPreferences name `presyo_prefs`):
+   - `onboarding_completed`: Boolean flag (true once "LAUNCH APP" is tapped).
+   - `onboarding_action_pending`: String key (determines immediate main-screen behaviors):
+     - `"create_store"`: Triggers CreateStoreDialog in StoreActivity.
+     - `"join_store"`: Triggers JoinStoreDialog in StoreActivity.
+     - `"add_suki"`: Triggers AddSukiDialog in CustomerHomeActivity.
+     - `"select_presyohan"`: Routes directly to SelectPresyohanActivity.
+
+--------------------------------------------------------------------------------
+Phase 6 – Navigation Flow
+--------------------------------------------------------------------------------
+```
+[SplashActivity/LoginSuccess]
+       |
+       v (Verify Records in DB + Check completed flag)
+       +---> [Records Found / Completed = True] -------> Route to Last Dashboard/Screen
+       |
+       +---> [No Records Found / Completed = False] ---> Route to OnboardingActivity
+                                                                  |
+                                                                  v
+                                                        [Step 1: Choose Role]
+                                                       /                     \
+                                             (Store Selected)            (Customer Selected)
+                                                     /                         \
+                                                    v                           v
+                                     [Step 2: Create or Join Store]     [Step 2: Do you have a Suki?]
+                                                    \                           /
+                                                     v                         v
+                                             [Step 3: Store Success]   [Step 3: Customer Success]
+                                                       \                       /
+                                                        \                     /
+                                                         v                   v
+                                                      [User clicks LAUNCH APP]
+                                                                 |
+                                    +----------------------------+----------------------------+
+                                    |                            |                            |
+                             (Store Role)                 (Customer + Suki)             (Customer + No Suki)
+                                    |                            |                            |
+                                    v                            v                            v
+                            Route to StoreActivity     Route to CustomerHomeActivity   Route to SelectPresyohanActivity
+                            (Triggers Join/Create       (Triggers Add Suki Dialog)     (Direct Search/Browse)
+                             dialog on launch)
+```
+
+Exit Modals & Cancelling:
+- If a user triggers the back press during onboarding, they are shown the standardized confirmation dialog:
+  - Title: "Exit Setup?"
+  - Message: "Setup is not complete. Your account is saved, and you can finish setup later."
+  - Positive Button: "Continue Setup" (Dismisses the modal, retains selection state)
+  - Negative Button: "Exit App" (Calls `finishAffinity()` to exit the application).
+
+--------------------------------------------------------------------------------
+Phase 7 – Development Tasks
+--------------------------------------------------------------------------------
+Task 1: Define Layout Resources and Drawables
+- Create unselected/selected card drawables (cyan thin border vs thick orange border).
+- Draw CEO avatar frame and signature drawables.
+- Create dynamic SegmentedProgressBar control layout or drawable segments.
+
+Task 2: Build Wizard Layout (activity_onboarding.xml)
+- Implement main coordinator/constraint layout with the curved auth shell background.
+- Embed ViewPager2 (with swiping disabled to force button navigation) or dynamic ViewSwitcher for the 3 steps.
+- Add bottom navigation container with BACK (teal) and NEXT/LAUNCH APP (orange) buttons.
+- Connect bottom indicators representing step progress.
+
+Task 3: Develop OnboardingViewModel and State Machine
+- Implement live state holding page variables, role selections, and validation checks.
+- Add validation logic that enables/disables the NEXT/LAUNCH buttons based on card selections.
+
+Task 4: Implement Onboarding Screens Step Pages (Fragments or Custom Views)
+- Create Step 1: Why did you choose Presyohan? (Updates userRole state).
+- Create Step 2 (Store): Create vs Join Store (Updates storeOption state).
+- Create Step 2 (Customer): Yes vs No Suking Tindahan (Updates sukiOption state).
+- Create Step 3: Success Screen (Injects custom messages based on userRole).
+
+Task 5: Integrate Reusable Dialog Helper for Exit Setup Dialog
+- Intercept onBackPressed inside OnboardingActivity.
+- Show "Exit Setup?" confirmation modal using `ReusableDialogHelper.showCustomDialog`.
+- Implement Exit App (`finishAffinity()`) and Continue Setup actions.
+
+Task 6: Implement Verification Check in Splash Routing
+- Add network queries to `store_members` and `suki_relationships` tables within SplashActivity.
+- Combine checks with local SharedPreferences flag to determine destination.
+
+Task 7: Build Launch Action Dispatchers in Main Dashboards
+- In `StoreActivity.onResume()`: Read `onboarding_action_pending` preference. If equal to `"create_store"` or `"join_store"`, launch corresponding dialog helpers, then immediately clear the preference key.
+- In `CustomerHomeActivity.onResume()`: Read `onboarding_action_pending`. If equal to `"add_suki"`, trigger `showAddSukiDialog()`, then immediately clear the preference key.
+
+--------------------------------------------------------------------------------
+Phase 8 – Risks and Edge Cases
+--------------------------------------------------------------------------------
+1. Edge Case: Network latency on login checks
+   - Risk: Splashing is delayed or errors out because DB query takes too long.
+   - Mitigation: Timeout splash checks to 3 seconds. If timeout or offline, check local SharedPreferences as fallback. If local metadata shows profile exists, skip onboarding.
+2. Edge Case: App killed during onboarding
+   - Risk: App process is killed by OS on Step 2.
+   - Mitigation: On onboarding activity restart, read savedInstanceState or default to Step 1. Since completed flag is false, the user safely restarts onboarding from Step 1.
+3. Edge Case: Account with pre-existing records logging into a clean device
+   - Risk: Local completed flag is false on the clean device, which would launch onboarding.
+   - Mitigation: The Splash check queries the live Supabase tables (`store_members`, `suki_relationships`). If records are found, it skips onboarding and updates the local completed flag to true.

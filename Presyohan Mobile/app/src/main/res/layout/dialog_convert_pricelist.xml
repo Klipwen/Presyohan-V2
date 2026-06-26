@@ -1,161 +1,317 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp"
-    android:background="@drawable/bg_rounded"
+    android:background="@drawable/bg_dialog_custom"
     android:gravity="start">
 
+    <!-- ── Header ── -->
     <TextView
-        android:id="@+id/dialogTitle"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Convert Pricelist"
         android:textColor="@color/presyo_orange"
-        android:textSize="20sp"
+        android:textSize="22sp"
         android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
+        android:gravity="center"
+        android:paddingTop="24dp"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="4dp" />
 
     <TextView
+        android:id="@+id/tvConvertSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Choose output format and settings for selected products:"
+        android:text="Generate a professionally formatted Excel file or shareable note."
+        android:textColor="@color/presyo_teal"
+        android:textSize="13sp"
+        android:gravity="center"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tvConvertSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0 categories and 0 items to convert"
         android:textColor="@color/presyo_darkblue"
-        android:textSize="14sp"
-        android:layout_marginBottom="16dp" />
+        android:textSize="13sp"
+        android:gravity="center"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="16dp" />
 
-    <!-- Export Type RadioGroup -->
-    <RadioGroup
-        android:id="@+id/radioGroupFormat"
+    <!-- ── Scrollable body ── -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="8dp">
+
+            <!-- Option: Convert as Excel -->
+            <LinearLayout
+                android:id="@+id/cardExcelOption"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected_teal"
+                android:paddingHorizontal="16dp"
+                android:layout_marginBottom="12dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/imgExcelRadio"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_radio_unchecked" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="Convert as Excel"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Option: Convert as Notes -->
+            <LinearLayout
+                android:id="@+id/cardNotesOption"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected_teal"
+                android:paddingHorizontal="16dp"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/imgNotesRadio"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_radio_unchecked" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="Convert as Notes"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- ── Dynamic Panel: Excel stats (shown when Excel selected) ── -->
+            <LinearLayout
+                android:id="@+id/panelExcelStats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_rounded_grey"
+                android:padding="14dp"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <!-- Rows to export -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Rows to export"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvStatRows"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginBottom="6dp" />
+
+                <!-- Scope -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Scope"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvStatScope"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 Categories, 0 Items"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginBottom="6dp" />
+
+                <!-- Columns -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Columns: Category, Name, Description, Unit, Price"
+                    android:textColor="@color/edittext_hint"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+
+            <!-- ── Dynamic Panel: Notes preview (shown when Notes selected) ── -->
+            <LinearLayout
+                android:id="@+id/panelNotesPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <!-- Section header row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Preview note"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/btnCopyNotePreview"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/icon_copy"
+                        android:contentDescription="Copy note"
+                        app:tint="@color/presyo_teal"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                </LinearLayout>
+
+                <!-- Note text scrollable box -->
+                <ScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="180dp"
+                    android:background="@drawable/bg_edittext"
+                    android:padding="10dp"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:id="@+id/textNotesPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="12sp"
+                        android:fontFamily="monospace"
+                        android:text="" />
+
+                </ScrollView>
+
+                <!-- Footer: item count • char count -->
+                <TextView
+                    android:id="@+id/tvNoteStats"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 items • 0 characters"
+                    android:textColor="@color/edittext_hint"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="4dp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ── Action Buttons ── -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
-
-        <RadioButton
-            android:id="@+id/radioExcel"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Excel (.xlsx)"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="14sp"
-            android:checked="true" />
-
-        <RadioButton
-            android:id="@+id/radioNotes"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Notes (Plain Text)"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="14sp" />
-    </RadioGroup>
-
-    <!-- Notes Export Customizations Container -->
-    <LinearLayout
-        android:id="@+id/layoutNotesOptions"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginBottom="16dp"
-        android:visibility="gone">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Notes Options:"
-            android:textColor="@color/presyo_darkblue"
-            android:textStyle="bold"
-            android:textSize="13sp"
-            android:layout_marginBottom="6dp" />
-
-        <CheckBox
-            android:id="@+id/chkIncludeTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Include Titles"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="13sp"
-            android:checked="true" />
-
-        <CheckBox
-            android:id="@+id/chkIncludeDescription"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Include Description"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="13sp"
-            android:checked="true" />
-
-        <CheckBox
-            android:id="@+id/chkIncludePrice"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Include Prices"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="13sp"
-            android:checked="true" />
-
-        <CheckBox
-            android:id="@+id/chkIncludeUnit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Include Volumes/Units"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="13sp"
-            android:checked="true" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Custom Note Footer:"
-            android:textColor="@color/presyo_darkblue"
-            android:textSize="12sp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="4dp" />
-
-        <EditText
-            android:id="@+id/inputNoteFooter"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="e.g. Prices subject to change without notice"
-            android:textSize="13sp"
-            android:textColor="@color/presyo_darkblue"
-            android:textColorHint="@color/edittext_hint"
-            android:background="@drawable/bg_edittext"
-            android:padding="8dp"
-            android:singleLine="true" />
-    </LinearLayout>
-
-    <!-- Dialog Actions -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="end">
+        android:paddingHorizontal="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="20dp"
+        android:gravity="center_vertical">
 
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="Cancel"
-            android:textColor="@color/presyo_teal"
-            android:background="@drawable/button_round"
+            android:id="@+id/btnBack"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="BACK"
+            android:textColor="@color/white"
+            android:background="@drawable/bg_button_round_teal_pill"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:layout_marginEnd="8dp" />
+            android:textAllCaps="true"
+            android:layout_marginEnd="10dp" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnConvert"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="Convert"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="CONVERT"
             android:textColor="@color/white"
-            android:backgroundTint="@color/presyo_orange"
-            android:background="@drawable/button_round"
+            android:background="@drawable/bg_button_round_orange_pill"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textAllCaps="true"
+            android:enabled="false"
+            android:alpha="0.5" />
+
     </LinearLayout>
+
 </LinearLayout>

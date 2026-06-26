@@ -73,31 +73,71 @@ class SettingsActivity : AppCompatActivity() {
             Toast.makeText(this, "Memberships management coming soon!", Toast.LENGTH_SHORT).show()
         }
 
-        // Navigate back to Atong Presyohan? (Staff StoreActivity)
-        btnAtongPresyohan.setOnClickListener {
-            val intent = Intent(this, StoreActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-            startActivity(intent)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                overrideActivityTransition(
-                    android.app.Activity.OVERRIDE_TRANSITION_OPEN,
-                    R.anim.slide_in_up,
-                    R.anim.stay
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+        val fromSide = intent.getStringExtra("from_side") ?: "customer"
+        val lblGotoTitle = findViewById<TextView>(R.id.lblGotoTitle)
+        val lblGotoDesc = findViewById<TextView>(R.id.lblGotoDesc)
+        val imgGotoIcon = findViewById<ImageView>(R.id.imgGotoIcon)
+        val frameGotoIcon = findViewById<android.widget.FrameLayout>(R.id.frameGotoIcon)
+        val dp = resources.displayMetrics.density
+
+        if (fromSide == "tindiro") {
+            lblGotoTitle.text = "Presyohan"
+            lblGotoDesc.text = "Public Prices"
+            imgGotoIcon.setImageResource(R.drawable.icon_public_indacator)
+            imgGotoIcon.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.presyo_orange))
+            imgGotoIcon.rotation = 0f
+            // Resize frame to match other setting icons (48dp, 12dp padding)
+            val size48 = (48 * dp).toInt()
+            val pad12 = (12 * dp).toInt()
+            frameGotoIcon.layoutParams = frameGotoIcon.layoutParams.also { it.width = size48; it.height = size48 }
+            frameGotoIcon.setPadding(pad12, pad12, pad12, pad12)
+
+            btnAtongPresyohan.setOnClickListener {
+                val intent = Intent(this, CustomerHomeActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+                startActivity(intent)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(android.app.Activity.OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_up, R.anim.stay)
+                } else {
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+                }
+                finish()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(android.app.Activity.OVERRIDE_TRANSITION_CLOSE, R.anim.stay, R.anim.stay)
+                } else {
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(R.anim.stay, R.anim.stay)
+                }
             }
-            finish()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                overrideActivityTransition(
-                    android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
-                    R.anim.stay,
-                    R.anim.stay
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                overridePendingTransition(R.anim.stay, R.anim.stay)
+        } else {
+            lblGotoTitle.text = "Atong Presyohan?"
+            lblGotoDesc.text = "Add a store and create your own price list"
+            imgGotoIcon.clearColorFilter()
+            imgGotoIcon.rotation = -45f
+            // Restore original Presyohan icon frame size (50dp, 6dp padding)
+            val size50 = (50 * dp).toInt()
+            val pad6 = (6 * dp).toInt()
+            frameGotoIcon.layoutParams = frameGotoIcon.layoutParams.also { it.width = size50; it.height = size50 }
+            frameGotoIcon.setPadding(pad6, pad6, pad6, pad6)
+
+            btnAtongPresyohan.setOnClickListener {
+                val intent = Intent(this, StoreActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+                startActivity(intent)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(android.app.Activity.OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_up, R.anim.stay)
+                } else {
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+                }
+                finish()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(android.app.Activity.OVERRIDE_TRANSITION_CLOSE, R.anim.stay, R.anim.stay)
+                } else {
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(R.anim.stay, R.anim.stay)
+                }
             }
         }
 
