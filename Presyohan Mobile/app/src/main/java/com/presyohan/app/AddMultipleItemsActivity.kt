@@ -800,9 +800,13 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                     isDirty = true
                 )
 
-                val dbProds = ImportValidationUseCase().fetchExistingProducts(session.storeId)
+                val dbProds = withContext(Dispatchers.IO) {
+                    ImportValidationUseCase().fetchExistingProducts(session.storeId)
+                }
                 val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
-                val validatedSession = ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
+                val validatedSession = withContext(Dispatchers.IO) {
+                    ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
+                }
                 viewModel.updateSession(validatedSession)
 
                 withContext(Dispatchers.Main) {
@@ -826,7 +830,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
     private fun performPasteImport(text: String) {
         val session = viewModel.draftSession.value ?: return
-        
+
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
@@ -835,53 +839,50 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 }
                 val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
 
+                // "Paste raw text" is for Presyohan-generated pricelist text — use the
+                // offline Presyohan parser directly (no AI / network required).
+                val parseResult = withContext(Dispatchers.IO) {
+                    AddMultipleItemsParser.parseTextToResult(text, existingProducts)
+                }
+
+                val mappedCategories = parseResult.categories.map { cat ->
+                    val normName = cat.name.trim().uppercase()
+                    val catId = categoryIdByName[normName] ?: cat.categoryId
+                    cat.copy(
+                        categoryId = catId,
+                        items = cat.items.map { item ->
+                            item.copy(categoryId = catId)
+                        }.toMutableList()
+                    )
+                }.toMutableList()
+
+                val updatedSession = session.copy(
+                    categories = mappedCategories,
+                    isDirty = true
+                )
+                val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
+                val validatedSession = withContext(Dispatchers.IO) {
+                    ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
+                }
+                viewModel.updateSession(validatedSession)
+
                 withContext(Dispatchers.Main) {
                     LoadingOverlayHelper.hide(loadingOverlay)
-
-                    AiParsingDialogHelper(
-                        activity = this@AddMultipleItemsActivity,
-                        coroutineScope = lifecycleScope,
-                        rawText = text,
-                        categoryIdByName = categoryIdByName,
-                        existingProductNames = existingProducts,
-                        onSuccess = { parseResult ->
-                            LoadingOverlayHelper.show(loadingOverlay)
-                            lifecycleScope.launch {
-                                try {
-                                    val updatedSession = session.copy(
-                                        categories = parseResult.categories.toMutableList(),
-                                        isDirty = true
-                                    )
-
-                                    val dbCats = categoryIdByName.map { DbCategory(it.value, it.key) }
-                                    val validatedSession = withContext(Dispatchers.IO) {
-                                        ImportValidationUseCase().validate(updatedSession, dbProds, dbCats)
-                                    }
-                                    viewModel.updateSession(validatedSession)
-
-                                    withContext(Dispatchers.Main) {
-                                        LoadingOverlayHelper.hide(loadingOverlay)
-                                        val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
-                                            putExtra("draftSessionId", validatedSession.sessionId)
-                                            putExtra("storeId", storeId)
-                                            putExtra("storeName", storeName)
-                                        }
-                                        startActivity(intent)
-                                    }
-                                } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) {
-                                        LoadingOverlayHelper.hide(loadingOverlay)
-                                        Toast.makeText(this@AddMultipleItemsActivity, "Failed to save paste parse session: ${e.message}", Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            }
-                        }
-                    ).show()
+                    val intent = Intent(this@AddMultipleItemsActivity, ReviewImportActivity::class.java).apply {
+                        putExtra("draftSessionId", validatedSession.sessionId)
+                        putExtra("storeId", storeId)
+                        putExtra("storeName", storeName)
+                    }
+                    startActivity(intent)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     LoadingOverlayHelper.hide(loadingOverlay)
-                    Toast.makeText(this@AddMultipleItemsActivity, "Failed to fetch database products: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this@AddMultipleItemsActivity,
+                        "Failed to parse pricelist text: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }

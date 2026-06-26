@@ -63,6 +63,7 @@ class ManageCategoryActivity : AppCompatActivity() {
     private lateinit var bottomSearchEditText: EditText
     private lateinit var btnSearchClear: ImageView
     private var searchQuery: String = ""
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     // Data lists
     private var allCategories = listOf<String>()
@@ -107,6 +108,7 @@ class ManageCategoryActivity : AppCompatActivity() {
         swipeRefreshLayout.setOnRefreshListener {
             fetchCategories(showShimmer = false)
         }
+        swipeRefreshLayout.isNestedScrollingEnabled = false
 
         fabSearch = findViewById(R.id.fabSearch)
         bottomSheet = findViewById(R.id.bottomSheet)
@@ -139,6 +141,20 @@ class ManageCategoryActivity : AppCompatActivity() {
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
 
+        fun updateRecyclerPadding(bottomHeight: Int) {
+            val safetyPadding = (16 * resources.displayMetrics.density).toInt()
+            val targetPadding = bottomHeight + safetyPadding
+            if (recyclerView.paddingBottom != targetPadding) {
+                recyclerView.setPadding(
+                    recyclerView.paddingLeft,
+                    recyclerView.paddingTop,
+                    recyclerView.paddingRight,
+                    targetPadding
+                )
+            }
+        }
+        updateRecyclerPadding(0)
+
         bottomSheetBehavior.isHideable = true
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
         bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
@@ -146,34 +162,24 @@ class ManageCategoryActivity : AppCompatActivity() {
                 when (newState) {
                     BottomSheetBehavior.STATE_EXPANDED -> {
                         fabSearch.visibility = View.GONE
+                        updateRecyclerPadding(bottomSheet.height)
                     }
                     BottomSheetBehavior.STATE_COLLAPSED -> {
                         fabSearch.visibility = View.GONE
                         hideKeyboard(bottomSearchEditText)
+                        updateRecyclerPadding(bottomSheetBehavior.peekHeight)
                     }
                     BottomSheetBehavior.STATE_HIDDEN -> {
                         fabSearch.visibility = View.VISIBLE
                         hideKeyboard(bottomSearchEditText)
+                        updateRecyclerPadding(0)
                     }
                     else -> {}
                 }
             }
 
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                val collapsedHeight = bottomSheetBehavior.peekHeight
-                val expandedHeight = bottomSheet.height
-                val currentHeight = if (slideOffset >= 0) {
-                    collapsedHeight + (expandedHeight - collapsedHeight) * slideOffset
-                } else {
-                    collapsedHeight * (1 + slideOffset)
-                }
-                val safetyPadding = (16 * resources.displayMetrics.density).toInt()
-                recyclerView.setPadding(
-                    recyclerView.paddingLeft,
-                    recyclerView.paddingTop,
-                    recyclerView.paddingRight,
-                    (currentHeight + safetyPadding).toInt()
-                )
+                // Empty to prevent recursive layout requests during drag/slide gestures
             }
         })
 
@@ -208,7 +214,11 @@ class ManageCategoryActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 searchQuery = s?.toString() ?: ""
                 btnSearchClear.visibility = if (searchQuery.isNotEmpty()) View.VISIBLE else View.GONE
-                filterCategories()
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    kotlinx.coroutines.delay(180)
+                    filterCategories()
+                }
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -313,20 +323,58 @@ class ManageCategoryActivity : AppCompatActivity() {
     }
 
     private fun filterCategories() {
-        val filtered = if (searchQuery.isBlank()) {
-            allCategories
-        } else {
-            allCategories.filter { it.contains(searchQuery, ignoreCase = true) }
+        val query = searchQuery.trim()
+
+        lifecycleScope.launch {
+            val filtered = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                if (query.isEmpty()) {
+                    allCategories.sortedWith(String.CASE_INSENSITIVE_ORDER)
+                } else {
+                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    
+                    val matchedCats = allCategories.filter { cat ->
+                        var isMatch = true
+                        for (token in tokens) {
+                            if (!com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, cat)) {
+                                isMatch = false
+                                break
+                            }
+                        }
+                        isMatch
+                    }
+
+                    matchedCats.map { cat ->
+                        var score = 0.0
+                        val cleanCat = cat.lowercase(Locale.getDefault())
+                        val cleanQuery = query.lowercase(Locale.getDefault())
+                        
+                        if (cleanCat == cleanQuery) score += 1000.0
+                        if (cleanCat.startsWith(cleanQuery)) score += 500.0
+                        if (cleanCat.contains(cleanQuery)) score += 200.0
+                        
+                        for (token in tokens) {
+                            if (com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, cat)) score += 100.0
+                        }
+                        Pair(cat, score)
+                    }
+                    .sortedByDescending { it.second }
+                    .map { it.first }
+                }
+            }
+
+            adapter.updateCategories(filtered, allCategoryCounts, publicCategories)
         }
-        adapter.updateCategories(filtered, allCategoryCounts, publicCategories)
     }
 
     private fun copyCategory(category: String) {
-        val intent = Intent(this, CopyPricesActivity::class.java)
-        intent.putExtra("storeId", storeId)
-        intent.putExtra("storeName", storeName)
-        intent.putExtra("preselectedCategory", category)
-        startActivity(intent)
+        val count = allCategoryCounts[category] ?: 0
+        CopyPricesDialogHelper.show(
+            activity = this,
+            storeId = storeId ?: return,
+            storeName = storeName ?: "",
+            preselectedCategory = category,
+            descriptionText = "Enter the 6-digit paste-code generated by the destination store to securely transfer all $count prices in \"$category\"."
+        )
     }
 
     private fun convertCategory(category: String) {
@@ -542,6 +590,11 @@ class ManageCategoryActivity : AppCompatActivity() {
 
     // ==================== CONVERT/EXPORT LOGIC (MAPPED TO CATEGORY) ====================
     private fun showConvertPricelistDialog(items: List<ManageItemData>) {
+        if (items.isEmpty()) {
+            Toast.makeText(this, "No items in this category.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val dialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_convert_pricelist, null)
         dialog.setContentView(view)
@@ -549,45 +602,94 @@ class ManageCategoryActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         dialog.window?.setLayout(
-            (resources.displayMetrics.widthPixels * 0.90).toInt(),
+            (resources.displayMetrics.widthPixels * 0.92).toInt(),
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        val radioGroupFormat = view.findViewById<RadioGroup>(R.id.radioGroupFormat)
-        val layoutNotesOptions = view.findViewById<View>(R.id.layoutNotesOptions)
-        val btnCancel = view.findViewById<Button>(R.id.btnCancel)
-        val btnConvert = view.findViewById<Button>(R.id.btnConvert)
+        val tvSummary      = view.findViewById<TextView>(R.id.tvConvertSummary)
+        val cardExcel      = view.findViewById<View>(R.id.cardExcelOption)
+        val cardNotes      = view.findViewById<View>(R.id.cardNotesOption)
+        val imgExcelRadio  = view.findViewById<ImageView>(R.id.imgExcelRadio)
+        val imgNotesRadio  = view.findViewById<ImageView>(R.id.imgNotesRadio)
+        val panelExcel     = view.findViewById<View>(R.id.panelExcelStats)
+        val panelNotes     = view.findViewById<View>(R.id.panelNotesPreview)
+        val tvStatRows     = view.findViewById<TextView>(R.id.tvStatRows)
+        val tvStatScope    = view.findViewById<TextView>(R.id.tvStatScope)
+        val textPreview    = view.findViewById<TextView>(R.id.textNotesPreview)
+        val tvNoteStats    = view.findViewById<TextView>(R.id.tvNoteStats)
+        val btnCopyPreview = view.findViewById<ImageView>(R.id.btnCopyNotePreview)
+        val btnBack        = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnBack)
+        val btnConvert     = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnConvert)
 
-        radioGroupFormat.setOnCheckedChangeListener { _, checkedId ->
-            if (checkedId == R.id.radioNotes) {
-                layoutNotesOptions.visibility = View.VISIBLE
-            } else {
-                layoutNotesOptions.visibility = View.GONE
+        val catCount = 1
+        val itemCount = items.size
+        tvSummary.text = "$catCount ${if (catCount == 1) "category" else "categories"} and " +
+                "$itemCount ${if (itemCount == 1) "item" else "items"} to convert"
+
+        var selectedMode = 0
+        var generatedNoteText = ""
+
+        fun applySelection(mode: Int) {
+            selectedMode = mode
+
+            imgExcelRadio.setImageResource(if (mode == 1) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            imgNotesRadio.setImageResource(if (mode == 2) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+
+            cardExcel.setBackgroundResource(if (mode == 1) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            cardNotes.setBackgroundResource(if (mode == 2) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+
+            panelExcel.visibility = if (mode == 1) View.VISIBLE else View.GONE
+            panelNotes.visibility = if (mode == 2) View.VISIBLE else View.GONE
+
+            if (mode == 1) {
+                tvStatRows.text  = itemCount.toString()
+                tvStatScope.text = "${catCount} ${if (catCount == 1) "Category" else "Categories"}, $itemCount Items"
+                btnConvert.text  = "CONVERT"
+            } else if (mode == 2) {
+                generatedNoteText = buildPlainTextNotes(
+                    items,
+                    includeTitle = true,
+                    includeDesc  = true,
+                    includePrice = true,
+                    includeUnit  = true,
+                    footerText   = ""
+                )
+                textPreview.text  = generatedNoteText
+                tvNoteStats.text  = "$itemCount ${if (itemCount == 1) "item" else "items"} • ${generatedNoteText.length} characters"
+                btnConvert.text   = "SHARE NOTE"
+            }
+
+            btnConvert.isEnabled = true
+            btnConvert.alpha     = 1.0f
+        }
+
+        cardExcel.setOnClickListener { applySelection(1) }
+        cardNotes.setOnClickListener { applySelection(2) }
+
+        btnCopyPreview.setOnClickListener {
+            if (generatedNoteText.isNotBlank()) {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Pricelist Note", generatedNoteText))
+                Toast.makeText(this, "Copied to clipboard.", Toast.LENGTH_SHORT).show()
             }
         }
 
-        btnCancel.setOnClickListener { dialog.dismiss() }
+        btnBack.setOnClickListener { dialog.dismiss() }
 
         btnConvert.setOnClickListener {
-            if (items.isEmpty()) {
-                Toast.makeText(this, "No items in this category.", Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
-                return@setOnClickListener
-            }
-
-            if (radioGroupFormat.checkedRadioButtonId == R.id.radioExcel) {
-                dialog.dismiss()
-                exportToExcel(items)
-            } else {
-                val includeTitle = view.findViewById<CheckBox>(R.id.chkIncludeTitle).isChecked
-                val includeDesc = view.findViewById<CheckBox>(R.id.chkIncludeDescription).isChecked
-                val includePrice = view.findViewById<CheckBox>(R.id.chkIncludePrice).isChecked
-                val includeUnit = view.findViewById<CheckBox>(R.id.chkIncludeUnit).isChecked
-                val footerText = view.findViewById<EditText>(R.id.inputNoteFooter).text.toString()
-
-                val notesText = buildPlainTextNotes(items, includeTitle, includeDesc, includePrice, includeUnit, footerText)
-                dialog.dismiss()
-                showNotesPreviewDialog(notesText)
+            when (selectedMode) {
+                1 -> {
+                    dialog.dismiss()
+                    exportToExcel(items)
+                }
+                2 -> {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "Pricelist Note")
+                        putExtra(Intent.EXTRA_TEXT, generatedNoteText)
+                    }
+                    startActivity(Intent.createChooser(shareIntent, "Share Pricelist via"))
+                }
             }
         }
 

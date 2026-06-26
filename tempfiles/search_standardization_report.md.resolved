@@ -1,0 +1,75 @@
+# Search System Standardization Report
+
+To deliver a smart, typo-tolerant, and lag-free search experience across the entire Presyohan Mobile application, we have standardized the search implementation across all search-enabled screens. 
+
+---
+
+## 🛠️ Summary of Refactored Screens
+
+The following tables summarize the changes applied to each target Activity:
+
+### 1. `StoreViewActivity.kt`
+* **Debounce Delay**: `180ms` (using `lifecycleScope.launch` with coroutine cancellation).
+* **Execution Thread**: `Dispatchers.Default` (background thread) for fuzzy matching and score calculations.
+* **Match & Scoring Logic**: Split query into tokens; matches name, description, category, and price; sorts results by score descending.
+
+### 1b. `StoreActivity.kt`
+* **Debounce Delay**: `180ms` (migrated away from `Handler` / `Runnable`).
+* **Execution Thread**: `Dispatchers.Default`.
+* **Match & Scoring Logic**: Matches store name, branch, and type; sorts matching stores by score, grouping them by their user role (Owner, Manager, Staff).
+
+### 2. `SelectPresyohanActivity.kt`
+* **Debounce Delay**: `180ms`.
+* **Execution Thread**: `Dispatchers.Default`.
+* **Match & Scoring Logic**: Matches store name, branch, and type; relevance scores; preserves existing store groupings at the bottom while sorting search results by score.
+
+### 3. `ManageCategoryActivity.kt`
+* **Debounce Delay**: `180ms`.
+* **Execution Thread**: `Dispatchers.Default`.
+* **Match & Scoring Logic**: Matches category names using tokenized fuzzy matching; scores categories based on exact, prefix, or token containment; sorts by score.
+
+### 4. `ManageItemsActivity.kt`
+* **Debounce Delay**: `180ms`.
+* **Execution Thread**: `Dispatchers.Default`.
+* **Match & Scoring Logic**: Matches product name, description, category, unit, and price; ranks matched items by relevance score; updates summary counts and adapter on the UI thread.
+
+### 5. `ManageMembersActivity.kt`
+* **Debounce Delay**: `180ms`.
+* **Execution Thread**: `Dispatchers.Default` via `MembersAdapter.filter(query, scope)`.
+* **Match & Scoring Logic**: Matches member name, role, and user code; sorts members by match score before grouping them back into role sections.
+
+### 6. `HomeActivity.kt`
+* **Debounce Delay**: `180ms` (eliminating direct, instant RPC requests on every character typed).
+* **Execution Thread**: `Dispatchers.Default`.
+* **Match & Scoring Logic**: Fetches base products from the database and filters, fuzzy-matches, scores, and ranks them locally in the background.
+
+---
+
+## 💡 Architecture & Key Patterns
+
+### 1. Coroutine-Based Debouncing (180ms Delay)
+Each search field `TextWatcher` cancels the previous job and schedules a new one:
+```kotlin
+searchJob?.cancel()
+searchJob = lifecycleScope.launch {
+    delay(180)
+    performSearch()
+}
+```
+
+### 2. Offloading to `Dispatchers.Default`
+To completely eliminate UI micro-stutters during heavy string comparisons (e.g., Levenshtein calculations), all matching and sorting operations are offloaded to background worker threads:
+```kotlin
+val filteredResults = withContext(Dispatchers.Default) {
+    // Perform fuzzy token checks and calculate match score
+    items.filter { fuzzyMatch(...) }.sortedByDescending { calculateScore(...) }
+}
+// Update adapter on Dispatchers.Main
+adapter.update(filteredResults)
+```
+
+### 3. Centralized `SearchHelper` Integration
+We migrated all ad-hoc string containment checks to leverage our robust, tokenized `SearchHelper` utility methods:
+* `SearchHelper.isFuzzyMatch(token, text)` for typo-tolerant matching.
+* `SearchHelper.matchPrice(token, price)` for price range and exact price checking.
+* `SearchHelper.calculateProductScore(...)` for relevancy-based ranking.

@@ -49,6 +49,7 @@ object AddEditItemDialogHelper {
         val view = LayoutInflater.from(activity).inflate(R.layout.dialog_add_edit_item, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(false)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         // Set Dialog Width to 90% of Screen
@@ -291,6 +292,7 @@ object AddEditItemDialogHelper {
             .setCancelable(true)
             .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.setCanceledOnTouchOutside(false)
 
         val input = view.findViewById<android.widget.EditText>(R.id.inputCategory)
         val btnAdd = view.findViewById<Button>(R.id.btnAdd)

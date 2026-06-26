@@ -18,7 +18,8 @@ data class Store(
     val type: String,
     val memberCount: Int = 0,
     val role: String = "",
-    val ownersCount: Int = 1
+    val ownersCount: Int = 1,
+    val isPublic: Boolean = false
 )
 
 class StoreAdapter(
@@ -44,6 +45,7 @@ class StoreAdapter(
         val memberCount: TextView = itemView.findViewById(R.id.textMemberCount)
         val roleIndicator: TextView = itemView.findViewById(R.id.textStoreRole)
         val storeIconFrame: View = itemView.findViewById(R.id.storeIconFrame)
+        val iconPublicStore: ImageView = itemView.findViewById(R.id.iconPublicStore)
 
         val btnAction1: View = itemView.findViewById(R.id.btnAction1)
         val btnAction2: View = itemView.findViewById(R.id.btnAction2)
@@ -61,6 +63,7 @@ class StoreAdapter(
         holder.name.text = store.name
         holder.branch.text = store.branch
         holder.memberCount.text = store.memberCount.toString()
+        holder.iconPublicStore.visibility = if (store.isPublic) View.VISIBLE else View.GONE
 
         val isPresyohan = store.type.lowercase(java.util.Locale.US) == "presyohan"
         if (isPresyohan) {
@@ -84,6 +87,7 @@ class StoreAdapter(
             else -> "Sales Staff"
         }
         holder.roleIndicator.text = "Role: $roleName"
+        holder.roleIndicator.visibility = View.VISIBLE
 
         // Handle swiped translation
         val isSwiped = position == swipedPosition

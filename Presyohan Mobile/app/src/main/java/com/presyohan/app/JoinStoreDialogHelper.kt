@@ -57,6 +57,7 @@ object JoinStoreDialogHelper {
         val view = LayoutInflater.from(activity).inflate(R.layout.dialog_join_store, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(false)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         // Set Dialog Width to 90% of Screen

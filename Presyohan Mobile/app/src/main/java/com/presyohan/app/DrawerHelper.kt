@@ -67,11 +67,13 @@ object DrawerHelper {
                     }
                     val url = profile.avatar_url
                     if (!url.isNullOrBlank()) {
+                        img.clearColorFilter()
                         img.load(url) {
                             crossfade(true)
                             transformations(CircleCropTransformation())
                             error(R.drawable.avatar_default)
                         }
+                        toolbarAvatar?.clearColorFilter()
                         toolbarAvatar?.load(url) {
                             crossfade(true)
                             transformations(CircleCropTransformation())

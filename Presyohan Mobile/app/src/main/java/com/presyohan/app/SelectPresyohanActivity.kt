@@ -45,6 +45,7 @@ class SelectPresyohanActivity : AppCompatActivity() {
     private val selectedStoreIds = mutableSetOf<String>()
     private val existingUserStoreIds = mutableSetOf<String>()
     private var currentSearchQuery = ""
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     // Adapter
     private lateinit var storeAdapter: PresyohanSelectionAdapter
@@ -144,7 +145,11 @@ class SelectPresyohanActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentSearchQuery = s?.toString()?.trim() ?: ""
-                filterAndRenderData()
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    kotlinx.coroutines.delay(180)
+                    filterAndRenderData()
+                }
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -225,35 +230,75 @@ class SelectPresyohanActivity : AppCompatActivity() {
     }
 
     private fun filterAndRenderData() {
-        val query = currentSearchQuery.lowercase(Locale.getDefault())
+        val query = currentSearchQuery.trim()
 
-        val filteredList = if (query.isEmpty()) {
-            allPresyohanStores
-        } else {
-            allPresyohanStores.filter {
-                it.name.lowercase(Locale.getDefault()).contains(query) ||
-                (it.branch?.lowercase(Locale.getDefault())?.contains(query) == true) ||
-                (it.type?.lowercase(Locale.getDefault())?.contains(query) == true)
+        lifecycleScope.launch {
+            val finalSortedList = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                val filteredList = if (query.isEmpty()) {
+                    allPresyohanStores
+                } else {
+                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    
+                    val matchedStores = allPresyohanStores.filter { store ->
+                        var isMatch = true
+                        for (token in tokens) {
+                            val matchesName = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.name)
+                            val matchesBranch = store.branch?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
+                            val matchesType = store.type?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
+                            
+                            if (!matchesName && !matchesBranch && !matchesType) {
+                                isMatch = false
+                                break
+                            }
+                        }
+                        isMatch
+                    }
+
+                    matchedStores.map { store ->
+                        var score = 0.0
+                        val cleanName = store.name.lowercase(Locale.getDefault())
+                        val cleanQuery = query.lowercase(Locale.getDefault())
+                        
+                        if (cleanName == cleanQuery) score += 1000.0
+                        if (cleanName.startsWith(cleanQuery)) score += 500.0
+                        if (cleanName.contains(cleanQuery)) score += 200.0
+                        
+                        for (token in tokens) {
+                            if (com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.name)) score += 100.0
+                            if (store.branch != null && com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.branch)) score += 50.0
+                            if (store.type != null && com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, store.type)) score += 30.0
+                        }
+                        Pair(store, score)
+                    }
+                    .sortedByDescending { it.second }
+                    .map { it.first }
+                }
+
+                if (query.isEmpty()) {
+                    filteredList.sortedWith(
+                        compareBy<StoreDetailRow> { it.id in existingUserStoreIds }
+                            .thenBy { it.name.lowercase(Locale.getDefault()) }
+                    )
+                } else {
+                    // stable sort keeps the score ranking within groups
+                    filteredList.sortedWith(
+                        compareBy { it.id in existingUserStoreIds }
+                    )
+                }
             }
-        }
 
-        // Sort: not-yet-added standard stores first, already-added/existing stores at the bottom.
-        val sortedList = filteredList.sortedWith(
-            compareBy<StoreDetailRow> { it.id in existingUserStoreIds }
-                .thenBy { it.name.lowercase(Locale.getDefault()) }
-        )
+            storeAdapter.updateList(finalSortedList)
 
-        storeAdapter.updateList(sortedList)
-
-        if (sortedList.isEmpty()) {
-            layoutEmptyState.visibility = View.VISIBLE
-            tvEmptyMessage.text = if (query.isEmpty()) {
-                "No standard stores available."
+            if (finalSortedList.isEmpty()) {
+                layoutEmptyState.visibility = View.VISIBLE
+                tvEmptyMessage.text = if (query.isEmpty()) {
+                    "No standard stores available."
+                } else {
+                    "No stores found matching \"$currentSearchQuery\""
+                }
             } else {
-                "No stores found matching \"$currentSearchQuery\""
+                layoutEmptyState.visibility = View.GONE
             }
-        } else {
-            layoutEmptyState.visibility = View.GONE
         }
     }
 

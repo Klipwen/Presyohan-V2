@@ -70,6 +70,7 @@ class HomeActivity : AppCompatActivity() {
 
     private var selectedCategory: String? = null
     private var currentQuery: String = ""
+    private var searchJob: kotlinx.coroutines.Job? = null
     private var reloadProductsFn: (() -> Unit)? = null
     private lateinit var loadingOverlay: android.view.View
     private var activeOverlayProductId: String? = null
@@ -85,6 +86,7 @@ class HomeActivity : AppCompatActivity() {
     // Invite Code Countdown
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
     private var hasAutoOpenedAddDialog = false
+    private var hasLoadedProductsOnce = false
 
     private val spinnerCategories = mutableListOf("PRICELIST")
     private lateinit var spinnerAdapter: android.widget.ArrayAdapter<String>
@@ -209,6 +211,10 @@ class HomeActivity : AppCompatActivity() {
 
     private var lastBackPress: Long = 0
 
+    // Bottom sheet
+    private var homeBottomSheetBehavior: com.google.android.material.bottomsheet.BottomSheetBehavior<View>? = null
+    private var sheetRevealJob: kotlinx.coroutines.Job? = null
+
 
     // UI Variables for Scope
     private lateinit var searchBarContainer: View
@@ -259,59 +265,47 @@ class HomeActivity : AppCompatActivity() {
         menuIcon.setOnClickListener { drawerLayout.open() }
         DrawerHelper.setupDrawer(this, drawerLayout)
 
+        findViewById<View>(R.id.profileIconContainer)?.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            intent.putExtra("from_side", "tindiro")
+            startActivity(intent)
+        }
+
         btnBack.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            intent.putExtra("from_home", true)
             startActivity(intent)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 overrideActivityTransition(
                     android.app.Activity.OVERRIDE_TRANSITION_OPEN,
-                    R.anim.slide_in_up,
-                    R.anim.stay
+                    R.anim.slide_in_left,
+                    R.anim.slide_out_right
                 )
             } else {
                 @Suppress("DEPRECATION")
-                overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+                overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             }
             finish()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                overrideActivityTransition(
-                    android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
-                    R.anim.stay,
-                    R.anim.slide_out_down
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                overridePendingTransition(R.anim.stay, R.anim.slide_out_down)
-            }
         }
 
         storeText.text = currentStoreName ?: "Store"
         storeText.setOnClickListener {
             val intent = Intent(this, StoreActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            intent.putExtra("from_home", true)
             startActivity(intent)
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 overrideActivityTransition(
                     android.app.Activity.OVERRIDE_TRANSITION_OPEN,
-                    R.anim.slide_in_up,
-                    R.anim.stay
+                    R.anim.slide_in_left,
+                    R.anim.slide_out_right
                 )
             } else {
                 @Suppress("DEPRECATION")
-                overridePendingTransition(R.anim.slide_in_up, R.anim.stay)
+                overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             }
             finish()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                overrideActivityTransition(
-                    android.app.Activity.OVERRIDE_TRANSITION_CLOSE,
-                    R.anim.stay,
-                    R.anim.slide_out_down
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                overridePendingTransition(R.anim.stay, R.anim.slide_out_down)
-            }
         }
 
         // --- Product List & Role Logic ---
@@ -380,8 +374,13 @@ class HomeActivity : AppCompatActivity() {
                     // --- UI UPDATE BASED ON ROLE ---
                     updateUiForRole(role)
 
+                    // Reveal the bottom sheet to hint user about available actions
+                    if (role == "owner" || role == "manager") {
+                        revealBottomSheetOnce()
+                    }
+
                     // If products are already loaded and empty, trigger dialog
-                    if (productGroups.isEmpty() && currentQuery.isBlank() && (selectedCategory == null || selectedCategory == "PRICELIST")) {
+                    if (hasLoadedProductsOnce && productGroups.isEmpty() && currentQuery.isBlank() && (selectedCategory == null || selectedCategory == "PRICELIST")) {
                         if (role == "owner" || role == "manager") {
                             triggerAddProductDialog()
                         }
@@ -427,37 +426,74 @@ class HomeActivity : AppCompatActivity() {
 
             lifecycleScope.launch {
                 try {
-                    val query = currentQuery.takeIf { it.isNotBlank() }
                     val category = selectedCategory.takeIf { it != "PRICELIST" }
+                    val query = currentQuery.trim()
 
                     val rows = supabase.postgrest.rpc(
                         "get_store_products",
                         buildJsonObject {
                             put("p_store_id", sId)
                             if (category != null) put("p_category_filter", category)
-                            if (query != null) put("p_search_query", query)
                         }
                     ).decodeList<UserProductRow>()
 
-                    val rawProducts = rows.map { row ->
-                        com.presyohan.app.adapter.Product(
-                            row.product_id, row.name, row.description ?: "",
-                            row.price, row.units ?: "", row.category ?: "",
-                            is_public = row.is_public
-                        )
-                    }
+                    val sortedGroups = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        val rawProducts = rows.map { row ->
+                            com.presyohan.app.adapter.Product(
+                                row.product_id, row.name, row.description ?: "",
+                                row.price, row.units ?: "", row.category ?: "",
+                                is_public = row.is_public
+                            )
+                        }
 
-                    // Group by category, sort categories alphabetically, sort items alphabetically
-                    val groupedMap = rawProducts.groupBy { it.category.trim() }
-                    val sortedGroups = groupedMap.entries.sortedBy { it.key.lowercase() }.map { entry ->
-                        ProductGroup(
-                            categoryName = entry.key,
-                            itemCount = entry.value.size,
-                            products = entry.value.sortedBy { it.name.lowercase() }
-                        )
+                        // Apply client-side smart fuzzy matching
+                        val filteredProducts = if (query.isEmpty()) {
+                            rawProducts.sortedBy { it.name.lowercase(Locale.getDefault()) }
+                        } else {
+                            val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                            
+                            val matched = rawProducts.filter { prod ->
+                                var isMatch = true
+                                for (token in tokens) {
+                                    val matchesName = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, prod.name)
+                                    val matchesDesc = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, prod.description)
+                                    val matchesCategory = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, prod.category)
+                                    val matchesPrice = com.presyohan.app.helper.SearchHelper.matchPrice(token, prod.price)
+                                    
+                                    if (!matchesName && !matchesDesc && !matchesCategory && !matchesPrice) {
+                                        isMatch = false
+                                        break
+                                    }
+                                }
+                                isMatch
+                            }
+
+                            matched.map { prod ->
+                                val score = com.presyohan.app.helper.SearchHelper.calculateProductScore(
+                                    query = query,
+                                    name = prod.name,
+                                    description = prod.description,
+                                    categoryName = prod.category
+                                )
+                                Pair(prod, score)
+                            }
+                            .sortedByDescending { it.second }
+                            .map { it.first }
+                        }
+
+                        // Group by category, sort categories alphabetically, preserve internal score sorting
+                        val groupedMap = filteredProducts.groupBy { it.category.trim() }
+                        groupedMap.entries.sortedBy { it.key.lowercase(Locale.getDefault()) }.map { entry ->
+                            ProductGroup(
+                                categoryName = entry.key,
+                                itemCount = entry.value.size,
+                                products = entry.value
+                            )
+                        }
                     }
 
                     productGroups = sortedGroups
+                    hasLoadedProductsOnce = true
                     adapter.updateGroups(productGroups, activeOverlayProductId)
 
                     // Update UI Visibility
@@ -495,6 +531,7 @@ class HomeActivity : AppCompatActivity() {
             loadProductsFromSupabase(false)
             refreshSpinnerCategories(currentStoreId)
         }
+        swipeRefreshLayout.isNestedScrollingEnabled = false
 
         // Initial Load
         if (currentStoreId != null) {
@@ -508,15 +545,36 @@ class HomeActivity : AppCompatActivity() {
         // --- Bottom Sheet & Search Behavior Implementation ---
         val bottomSheetBehavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(searchBarContainer)
         bottomSheetBehavior.isHideable = true
+        bottomSheetBehavior.isFitToContents = true // Lets it sit naturally at the bottom
         bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
+        homeBottomSheetBehavior = bottomSheetBehavior
+
+        fun updateRecyclerPadding(bottomHeight: Int) {
+            val safetyPadding = (16 * resources.displayMetrics.density).toInt()
+            val targetPadding = bottomHeight + safetyPadding
+            if (productRecyclerView.paddingBottom != targetPadding) {
+                productRecyclerView.setPadding(
+                    productRecyclerView.paddingLeft,
+                    productRecyclerView.paddingTop,
+                    productRecyclerView.paddingRight,
+                    targetPadding
+                )
+            }
+        }
+        updateRecyclerPadding(0)
+
         val btnSearchClear = findViewById<ImageView>(R.id.btnSearchClear)
 
         searchEditText.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                currentQuery = s.toString().trim().lowercase()
+                currentQuery = s.toString().trim()
                 btnSearchClear.visibility = if (currentQuery.isNotEmpty()) View.VISIBLE else View.GONE
-                loadProductsFromSupabase(false)
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    kotlinx.coroutines.delay(180)
+                    loadProductsFromSupabase(false)
+                }
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
@@ -524,7 +582,18 @@ class HomeActivity : AppCompatActivity() {
         btnSearchClear.setOnClickListener {
             searchEditText.text.clear()
             currentQuery = ""
+            searchJob?.cancel()
             loadProductsFromSupabase(false)
+        }
+
+        // When search field is focused (keyboard opens) → half-expand sheet so it doesn't
+        // cover items behind the keyboard.
+        searchEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                sheetRevealJob?.cancel()
+                // Snaps to the bottom showing just the search bar, no floating
+                bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
+            }
         }
 
         // Search Button Click (Toggle Bottom Sheet State)
@@ -546,36 +615,34 @@ class HomeActivity : AppCompatActivity() {
         bottomSheetBehavior.addBottomSheetCallback(object : com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
                 when (newState) {
+                    com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_DRAGGING -> {
+                        // User manually dragging — cancel the auto-reveal timer
+                        sheetRevealJob?.cancel()
+                    }
                     com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED -> {
                         searchItemButton?.visibility = View.GONE
+                        updateRecyclerPadding(bottomSheet.height)
+                    }
+                    com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HALF_EXPANDED -> {
+                        // Keyboard is open — sheet is half-visible, items still accessible
+                        searchItemButton?.visibility = View.GONE
+                        updateRecyclerPadding(0)
                     }
                     com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED -> {
                         searchItemButton?.visibility = View.GONE
-                        hideKeyboard(searchEditText)
+                        updateRecyclerPadding(bottomSheetBehavior.peekHeight)
                     }
                     com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN -> {
                         searchItemButton?.visibility = View.VISIBLE
                         hideKeyboard(searchEditText)
+                        updateRecyclerPadding(0)
                     }
                     else -> {}
                 }
             }
 
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                val collapsedHeight = bottomSheetBehavior.peekHeight
-                val expandedHeight = bottomSheet.height
-                val currentHeight = if (slideOffset >= 0) {
-                    collapsedHeight + (expandedHeight - collapsedHeight) * slideOffset
-                } else {
-                    collapsedHeight * (1 + slideOffset)
-                }
-                val safetyPadding = (16 * resources.displayMetrics.density).toInt()
-                productRecyclerView.setPadding(
-                    productRecyclerView.paddingLeft,
-                    productRecyclerView.paddingTop,
-                    productRecyclerView.paddingRight,
-                    (currentHeight + safetyPadding).toInt()
-                )
+                // Empty to prevent recursive layout requests during drag/slide gestures
             }
         })
 
@@ -647,6 +714,19 @@ class HomeActivity : AppCompatActivity() {
     // --- Helper Methods ---
 
     /**
+     * Expands the home bottom sheet fully for 1.5s on every navigation (owner/manager only).
+     * After the delay it auto-hides. Any manual drag will cancel the auto-hide.
+     */
+    private fun revealBottomSheetOnce() {
+        val bsb = homeBottomSheetBehavior ?: return
+        sheetRevealJob?.cancel()
+        searchBarContainer.post {
+            // Expand it fully and keep it there. No more auto-hide timer.
+            bsb.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+        }
+    }
+
+    /**
      * Displays the Store Menu Modal (Dialog)
      */
     private fun showStoreMenu() {
@@ -684,159 +764,190 @@ class HomeActivity : AppCompatActivity() {
         val txtManagersCount = view.findViewById<TextView>(R.id.dialogManagersCount)
         val txtEmployeesCount = view.findViewById<TextView>(R.id.dialogEmployeesCount)
 
-        view.findViewById<View>(R.id.btnBack)?.setOnClickListener {
-            dialog.dismiss()
-        }
-
         if (isOwner) {
             // OWNER SPECIFIC BINDINGS
-            val layoutSettings = view.findViewById<View>(R.id.layoutSettings)
-            val layoutInvite = view.findViewById<View>(R.id.layoutInvite)
-
-            layoutSettings?.setOnClickListener {
+            view.findViewById<View>(R.id.layoutConvert)?.setOnClickListener {
                 dialog.dismiss()
-                val intent = Intent(this, ManageStoreActivity::class.java)
-                intent.putExtra("storeId", sId)
-                intent.putExtra("storeName", sName)
+                val intent = Intent(this@HomeActivity, CopyPricesActivity::class.java).apply {
+                    putExtra("storeId", sId)
+                    putExtra("storeName", sName)
+                }
                 startActivity(intent)
             }
 
-            layoutInvite?.setOnClickListener {
+            view.findViewById<View>(R.id.layoutInvite)?.setOnClickListener {
                 dialog.dismiss()
                 showInviteStaffWithCode(sId)
             }
 
+            view.findViewById<View>(R.id.layoutQRCode)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@HomeActivity, StoreQrActivity::class.java).apply {
+                    putExtra("storeId", sId)
+                    putExtra("storeName", sName)
+                    putExtra("displayId", view.findViewById<TextView>(R.id.dialogStoreId)?.text?.toString() ?: sId)
+                    putExtra("storeLocation", currentBranchName ?: "Main Branch")
+                }
+                val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                    this@HomeActivity,
+                    R.anim.slide_in_up,
+                    R.anim.stay
+                )
+                startActivity(intent, options.toBundle())
+            }
+
+            view.findViewById<View>(R.id.layoutSettings)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@HomeActivity, ManageStoreActivity::class.java).apply {
+                    putExtra("storeId", sId)
+                    putExtra("storeName", sName)
+                }
+                startActivity(intent)
+            }
+
+            view.findViewById<View>(R.id.btnDone)?.setOnClickListener {
+                dialog.dismiss()
+            }
         } else {
             // STAFF/MANAGER SPECIFIC BINDINGS
-            val txtRoleDesignation = view.findViewById<TextView>(R.id.textRoleDesignation)
-            val txtStoreId = view.findViewById<TextView>(R.id.dialogStoreId)
-            val txtCreatedAt = view.findViewById<TextView>(R.id.dialogCreatedAt)
-            val txtVisibilityStatus = view.findViewById<TextView>(R.id.dialogVisibilityStatus)
-            val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
-            val btnLeaveStore = view.findViewById<View>(R.id.btnLeaveStore)
-            val txtSukiCount = view.findViewById<TextView>(R.id.dialogSukiCount)
-
-            val shimmerLayout = view.findViewById<com.facebook.shimmer.ShimmerFrameLayout>(R.id.dialogShimmerLayout)
-            val statsLayout = view.findViewById<android.view.View>(R.id.dialogStatsLayout)
-
-            val displayRole = when (userRole?.lowercase(Locale.ROOT)) {
-                "employee", "staff" -> "Sales staff"
-                "manager" -> "Manager"
-                else -> "Staff"
-            }
-            val prefix = "You are the "
-            val suffix = " of this store."
-            val fullText = "$prefix$displayRole$suffix"
-            val spannable = android.text.SpannableString(fullText)
-            val start = prefix.length
-            val end = start + displayRole.length
-            spannable.setSpan(
-                android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                start,
-                end,
-                android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            txtRoleDesignation?.text = spannable
-
-            txtStoreId?.text = "SID25-009"
-
-            shimmerLayout?.startShimmer()
-            shimmerLayout?.visibility = android.view.View.VISIBLE
-            statsLayout?.visibility = android.view.View.GONE
-
-            lifecycleScope.launch {
-                try {
-                    // 1. Fetch categories count
-                    val categories = supabase.postgrest.rpc(
-                        "get_user_categories",
-                        buildJsonObject { put("p_store_id", sId) }
-                    ).decodeList<UserCategoryRow>()
-                    val categoriesCount = categories.size
-
-                    // 2. Fetch products count
-                    val products = supabase.postgrest.rpc(
-                        "get_store_products",
-                        buildJsonObject { put("p_store_id", sId) }
-                    ).decodeList<UserProductRow>()
-                    val productsCount = products.size
-
-                    // 3. Fetch members count & details
-                    val members = supabase.postgrest.rpc(
-                        "get_store_members",
-                        buildJsonObject { put("p_store_id", sId) }
-                    ).decodeList<StoreMemberUser>()
-
-                    val ownersCount = members.count { it.role.equals("owner", ignoreCase = true) }
-                    val managersCount = members.count { it.role.equals("manager", ignoreCase = true) }
-                    val employeesCount = members.count { it.role.equals("employee", ignoreCase = true) }
-                    val totalMembers = members.size
-
-                    txtCategoriesCount?.text = categoriesCount.toString()
-                    txtItemsCount?.text = productsCount.toString()
-                    txtMembersCount?.text = totalMembers.toString()
-                    txtOwnersCount?.text = ownersCount.toString()
-                    txtManagersCount?.text = managersCount.toString()
-                    txtEmployeesCount?.text = employeesCount.toString()
-
-                    @Serializable
-                    data class SukiRow(val store_id: String)
-                    val sukiRows = supabase.postgrest["suki_relationships"].select {
-                        filter { eq("store_id", sId) }
-                    }.decodeList<SukiRow>()
-                    txtSukiCount?.text = sukiRows.size.toString()
-
-                    // 4. Fetch store details for staff
-                    @Serializable
-                    data class StoreDetailsRow(val id: String, val display_id: String? = null, val created_at: String? = null, val is_public: Boolean = false, val invite_code: String? = null, val invite_code_created_at: String? = null)
-                    val rows = supabase.postgrest["stores"].select {
-                        filter { eq("id", sId) }
-                        limit(1)
-                    }.decodeList<StoreDetailsRow>()
-                    
-                    val storeRow = rows.firstOrNull()
-                    if (storeRow != null) {
-                        txtStoreId?.text = storeRow.display_id ?: storeRow.id
-                        // format created_at date
-                        val rawDate = storeRow.created_at?.split("T")?.firstOrNull() ?: ""
-                        val dateText = try {
-                            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                            val parsedDate = inputFormat.parse(rawDate)
-                            if (parsedDate != null) {
-                                val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
-                                outputFormat.format(parsedDate)
-                            } else {
-                                rawDate
-                            }
-                        } catch (_: Exception) {
-                            rawDate
-                        }
-                        txtCreatedAt?.text = dateText
-                        txtVisibilityStatus?.text = if (storeRow.is_public) "Public" else "Private"
-
-                        // Check invite code expiration
-                        val inviteCode = storeRow.invite_code
-                        val createdIso = storeRow.invite_code_created_at
-                        val createdMillis = parseInviteCreatedMillis(createdIso)
-                        val isExpired = createdMillis == null || (System.currentTimeMillis() - createdMillis > 86400000L)
-                        
-                        txtJoinCode?.text = if (isExpired || inviteCode.isNullOrBlank()) {
-                            "Expired"
-                        } else {
-                            inviteCode
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("HomeActivity", "Details loading failed", e)
-                } finally {
-                    shimmerLayout?.stopShimmer()
-                    shimmerLayout?.visibility = android.view.View.GONE
-                    statsLayout?.visibility = android.view.View.VISIBLE
-                }
+            view.findViewById<View>(R.id.btnBack)?.setOnClickListener {
+                dialog.dismiss()
             }
 
-            btnLeaveStore?.setOnClickListener {
+            view.findViewById<View>(R.id.btnLeaveStore)?.setOnClickListener {
                 val isUserOwner = userRole == "owner"
                 showLeaveDeleteConfirmation(sId, sName, isDelete = false, isOwner = isUserOwner, menuDialog = dialog)
+            }
+        }
+
+        // Common stats loading and layout setup
+        val txtRoleDesignation = view.findViewById<TextView>(R.id.textRoleDesignation)
+        val txtStoreId = view.findViewById<TextView>(R.id.dialogStoreId)
+        val txtCreatedAt = view.findViewById<TextView>(R.id.dialogCreatedAt)
+        val txtVisibilityStatus = view.findViewById<TextView>(R.id.dialogVisibilityStatus)
+        val txtJoinCode = view.findViewById<TextView>(R.id.dialogJoinCode)
+        val txtSukiCount = view.findViewById<TextView>(R.id.dialogSukiCount)
+
+        val shimmerLayout = view.findViewById<com.facebook.shimmer.ShimmerFrameLayout>(R.id.dialogShimmerLayout)
+        val statsLayout = view.findViewById<android.view.View>(R.id.dialogStatsLayout)
+
+        val displayRole = when (userRole?.lowercase(Locale.ROOT)) {
+            "owner" -> "Owner"
+            "employee", "staff" -> "Sales staff"
+            "manager" -> "Manager"
+            else -> "Staff"
+        }
+        val prefix = "You are the "
+        val suffix = " of this store."
+        val fullText = "$prefix$displayRole$suffix"
+        val spannable = android.text.SpannableString(fullText)
+        val start = prefix.length
+        val end = start + displayRole.length
+        spannable.setSpan(
+            android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+            start,
+            end,
+            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        txtRoleDesignation?.text = spannable
+
+        txtStoreId?.text = "SID25-009"
+
+        shimmerLayout?.startShimmer()
+        shimmerLayout?.visibility = android.view.View.VISIBLE
+        statsLayout?.visibility = android.view.View.GONE
+
+        lifecycleScope.launch {
+            try {
+                // 1. Fetch categories count
+                val categories = supabase.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserCategoryRow>()
+                val categoriesCount = categories.size
+
+                // 2. Fetch products count
+                val products = supabase.postgrest.rpc(
+                    "get_store_products",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserProductRow>()
+                val productsCount = products.size
+
+                // 3. Fetch members count & details
+                val members = supabase.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<StoreMemberUser>()
+
+                val ownersCount = members.count { it.role.equals("owner", ignoreCase = true) }
+                val managersCount = members.count { it.role.equals("manager", ignoreCase = true) }
+                val employeesCount = members.count { it.role.equals("employee", ignoreCase = true) }
+                val totalMembers = members.size
+
+                txtCategoriesCount?.text = categoriesCount.toString()
+                txtItemsCount?.text = productsCount.toString()
+                txtMembersCount?.text = totalMembers.toString()
+                txtOwnersCount?.text = ownersCount.toString()
+                txtManagersCount?.text = managersCount.toString()
+                txtEmployeesCount?.text = employeesCount.toString()
+
+                // Use RPC to bypass RLS and get actual suki count
+                val sukiCount = try {
+                    supabase.postgrest.rpc(
+                        "get_store_suki_count",
+                        buildJsonObject { put("p_store_id", sId) }
+                    ).decodeAs<Int>()
+                } catch (e: Exception) {
+                    0
+                }
+                txtSukiCount?.text = sukiCount.toString()
+
+                // 4. Fetch store details for staff/owner
+                @Serializable
+                data class StoreDetailsRow(val id: String, val display_id: String? = null, val created_at: String? = null, val is_public: Boolean = false, val invite_code: String? = null, val invite_code_created_at: String? = null)
+                val rows = supabase.postgrest["stores"].select {
+                    filter { eq("id", sId) }
+                    limit(1)
+                }.decodeList<StoreDetailsRow>()
+                
+                val storeRow = rows.firstOrNull()
+                if (storeRow != null) {
+                    txtStoreId?.text = storeRow.display_id ?: storeRow.id
+                    // format created_at date
+                    val rawDate = storeRow.created_at?.split("T")?.firstOrNull() ?: ""
+                    val dateText = try {
+                        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                        val parsedDate = inputFormat.parse(rawDate)
+                        if (parsedDate != null) {
+                            val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
+                            outputFormat.format(parsedDate)
+                        } else {
+                            rawDate
+                        }
+                    } catch (_: Exception) {
+                        rawDate
+                    }
+                    txtCreatedAt?.text = dateText
+                    txtVisibilityStatus?.text = if (storeRow.is_public) "Public" else "Private"
+
+                    // Check invite code expiration
+                    val inviteCode = storeRow.invite_code
+                    val createdIso = storeRow.invite_code_created_at
+                    val createdMillis = parseInviteCreatedMillis(createdIso)
+                    val isExpired = createdMillis == null || (System.currentTimeMillis() - createdMillis > 86400000L)
+                    
+                    txtJoinCode?.text = if (isExpired || inviteCode.isNullOrBlank()) {
+                        "Expired"
+                    } else {
+                        inviteCode
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("HomeActivity", "Details loading failed", e)
+            } finally {
+                shimmerLayout?.stopShimmer()
+                shimmerLayout?.visibility = android.view.View.GONE
+                statsLayout?.visibility = android.view.View.VISIBLE
             }
         }
 
@@ -1639,21 +1750,6 @@ class HomeActivity : AppCompatActivity() {
                 val simpleName = SupabaseAuthService.getDisplayName()
                 if (simpleName != null) uT.text = simpleName
             }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        val sId = intent.getStringExtra("storeId")
-        val sName = intent.getStringExtra("storeName")
-        SessionManager.markStoreHome(this, sId, sName)
-        reloadProductsFn?.invoke()
-        refreshSpinnerCategories(sId ?: currentStoreId)
-        loadNotifBadge()
-        lifecycleScope.launch {
-            try {
-                SupabaseAuthService.updateUserHeartbeat()
-            } catch (_: Exception) {}
         }
     }
 

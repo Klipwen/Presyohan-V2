@@ -1,45 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="@drawable/bg_rounded"
-    android:gravity="center">
+    android:background="@drawable/bg_dialog_custom"
+    android:gravity="center_horizontal">
 
+    <!-- Presyohan Logo top-left -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/icon_presyohan_launcher"
+            android:contentDescription="Presyohan Logo" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="atong"
+                android:textColor="#FFEB3B"
+                android:layout_marginBottom="-10dp"
+                android:textStyle="bold"
+                android:textSize="8sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="presyo"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="han?"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Large grey checkmark -->
     <ImageView
         android:id="@+id/imageCheckmark"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:src="@android:drawable/checkbox_on_background"
-        android:tint="#2E7D32"
-        android:layout_marginBottom="16dp" />
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:src="@drawable/ic_checkmark"
+        app:tint="#AAAAAA"
+        android:layout_marginBottom="12dp"
+        android:contentDescription="Checkmark" />
 
+    <!-- "Export Complete!" text -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Export Complete!"
-        android:textColor="#219EBC"
+        android:textColor="@color/edittext_hint"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Prices have been successfully copied to the destination store."
-        android:textColor="#757575"
-        android:textSize="14sp"
-        android:gravity="center"
         android:layout_marginBottom="24dp" />
 
+    <!-- Done button: teal, full-width, pill-shaped -->
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnDone"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:text="Done"
-        android:textColor="@android:color/white"
-        android:backgroundTint="#FB8500"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/presyo_teal"
         android:background="@drawable/button_round"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:textSize="15sp" />
+
 </LinearLayout>

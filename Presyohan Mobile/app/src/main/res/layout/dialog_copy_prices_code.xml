@@ -1,84 +1,234 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="@drawable/bg_rounded"
+    android:background="@drawable/bg_dialog_custom"
     android:gravity="center_horizontal">
 
+    <!-- Title -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Copy Prices"
+        android:text="Copy Prices to Another Store"
         android:textColor="@color/presyo_orange"
-        android:textSize="20sp"
+        android:textSize="18sp"
         android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enter the 6-digit paste-code from the destination store:"
-        android:textColor="@color/presyo_darkblue"
-        android:textSize="14sp"
         android:gravity="center"
         android:layout_marginBottom="16dp" />
 
-    <EditText
-        android:id="@+id/inputPasteCode"
-        android:layout_width="160dp"
-        android:layout_height="48dp"
-        android:hint="Paste-code"
-        android:inputType="number"
-        android:maxLength="6"
-        android:textSize="18sp"
-        android:letterSpacing="0.1"
-        android:gravity="center"
-        android:background="@drawable/bg_edittext"
-        android:layout_marginBottom="12dp"
-        android:singleLine="true" />
-
-    <!-- Validation Text -->
-    <TextView
-        android:id="@+id/textValidationStatus"
+    <!-- Destination Store Card -->
+    <LinearLayout
+        android:id="@+id/frameDestinationStore"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Destination: Store Name (verified)"
-        android:textColor="@color/presyo_teal"
+        android:layout_marginBottom="4dp"
+        android:background="@drawable/bg_rounded_grey"
+        android:padding="12dp"
+        android:orientation="vertical">
+
+        <!-- Placeholder state: store icon centered, original color -->
+        <LinearLayout
+            android:id="@+id/layoutStorePlaceholder"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="visible">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/icon_store" />
+        </LinearLayout>
+
+        <!-- Verified state: horizontal store card, no outline on icon -->
+        <LinearLayout
+            android:id="@+id/layoutStoreVerified"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <!-- Store Icon: no outline box, just the icon itself -->
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/icon_store"
+                android:layout_marginEnd="10dp" />
+
+            <!-- Store Info -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/textPasteTo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Paste prices to:"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textDestStoreName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Store Name"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="2dp" />
+
+                <TextView
+                    android:id="@+id/textDestStoreType"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="General Merchandise"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="12sp"
+                    android:layout_marginTop="1dp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="2dp">
+
+                    <ImageView
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:src="@drawable/ic_location"
+                        app:tint="@color/edittext_hint" />
+
+                    <TextView
+                        android:id="@+id/textDestStoreBranch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=""
+                        android:textColor="@color/edittext_hint"
+                        android:textSize="11sp"
+                        android:layout_marginStart="3dp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Error state: code does not exist -->
+        <TextView
+            android:id="@+id/textCodeError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Code does not exist"
+            android:textColor="@color/presyo_orange"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:textStyle="bold"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- Description -->
+    <TextView
+        android:id="@+id/textCopyDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enter the 6-digit paste-code generated by the destination store to securely transfer your selected prices."
+        android:textColor="@color/edittext_hint"
         android:textSize="12sp"
         android:gravity="center"
-        android:visibility="gone"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="12dp" />
 
-    <!-- Dialog Actions -->
+    <!-- Code Input Row: field + Enter button side by side -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/layoutPasteCode"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:hint="Enter destination paste-code"
+            app:hintTextColor="@color/presyo_orange"
+            app:boxStrokeColor="@color/presyo_orange"
+            app:boxCornerRadiusTopStart="50dp"
+            app:boxCornerRadiusTopEnd="50dp"
+            app:boxCornerRadiusBottomStart="50dp"
+            app:boxCornerRadiusBottomEnd="50dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputPasteCode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:maxLength="6"
+                android:textSize="12sp"
+                android:paddingStart="20dp"
+                android:paddingEnd="16dp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Enter Button: rectangle shape, beside the input -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnEnterCode"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_button_rect_teal"
+            android:backgroundTint="@color/presyo_orange"
+            android:text="Enter"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:paddingHorizontal="20dp"
+            android:enabled="false" />
+
+    </LinearLayout>
+
+    <!-- Action Buttons: BACK always visible, NEXT only visible after valid code -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
 
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="Cancel"
-            android:textColor="@color/presyo_teal"
+            android:id="@+id/btnBack"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
             android:background="@drawable/button_round"
-            android:textSize="14sp"
+            android:backgroundTint="@color/presyo_teal"
+            android:text="BACK"
+            android:textColor="@color/white"
             android:textStyle="bold"
-            android:layout_marginEnd="8dp" />
+            android:textSize="14sp" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnNext"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="Next"
-            android:textColor="@color/white"
-            android:backgroundTint="@color/presyo_orange"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
             android:background="@drawable/button_round"
-            android:textSize="14sp"
+            android:backgroundTint="@color/presyo_orange"
+            android:text="NEXT"
+            android:textColor="@color/white"
             android:textStyle="bold"
-            android:enabled="false" />
+            android:textSize="14sp"
+            android:visibility="gone" />
     </LinearLayout>
+
 </LinearLayout>
