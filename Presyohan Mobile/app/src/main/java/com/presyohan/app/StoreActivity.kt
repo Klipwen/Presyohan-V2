@@ -337,6 +337,22 @@ class StoreActivity : AppCompatActivity() {
                 SupabaseAuthService.updateUserHeartbeat()
             } catch (_: Exception) {}
         }
+
+        // Handle pending onboarding actions
+        val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+        val pendingAction = prefs.getString("onboarding_action_pending", null)
+        if (pendingAction != null) {
+            prefs.edit().remove("onboarding_action_pending").apply()
+            if (pendingAction == "create_store") {
+                CreateStoreDialogHelper.showCreateStoreDialog(this) {
+                    fetchStores(showShimmer = true)
+                }
+            } else if (pendingAction == "join_store") {
+                JoinStoreDialogHelper.showJoinStoreDialog(this) {
+                    fetchStores(showShimmer = true)
+                }
+            }
+        }
     }
 
 
@@ -647,11 +663,24 @@ class StoreActivity : AppCompatActivity() {
                 ).decodeList<HomeActivity.UserCategoryRow>()
                 txtCategoriesCount.text = categories.size.toString()
 
-                val products = SupabaseProvider.client.postgrest.rpc(
-                    "get_store_products",
-                    buildJsonObject { put("p_store_id", store.id) }
-                ).decodeList<HomeActivity.UserProductRow>()
-                txtItemsCount.text = products.size.toString()
+                try {
+                    @Serializable
+                    data class StoreProductCountRow(val store_id: String, val total_count: Int, val public_count: Int)
+                    
+                    val counts = SupabaseProvider.client.postgrest.rpc(
+                        "get_store_product_counts",
+                        buildJsonObject {
+                            put("p_store_ids", kotlinx.serialization.json.buildJsonArray {
+                                add(kotlinx.serialization.json.JsonPrimitive(store.id))
+                            })
+                        }
+                    ).decodeList<StoreProductCountRow>()
+                    
+                    val countRow = counts.firstOrNull()
+                    txtItemsCount.text = (countRow?.total_count ?: 0).toString()
+                } catch (e: Exception) {
+                    txtItemsCount.text = "0"
+                }
 
                 val members = SupabaseProvider.client.postgrest.rpc(
                     "get_store_members",

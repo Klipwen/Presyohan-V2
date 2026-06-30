@@ -1,0 +1,649 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_qr_screen">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <View
+            android:id="@+id/topCurve"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_curve_logo" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/buttonBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_nav_icon_active"
+            android:src="@drawable/icon_back"
+            app:tint="@color/presyo_orange"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Back"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <ImageView
+            android:id="@+id/logo_presyohan"
+            android:layout_width="280dp"
+            android:layout_height="220dp"
+            android:layout_marginTop="60dp"
+            android:src="@drawable/splash_logo"
+            android:scaleType="fitCenter"
+            android:contentDescription="Presyohan Logo"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:fillViewport="true"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            app:layout_constraintTop_toBottomOf="@id/logo_presyohan"
+            app:layout_constraintBottom_toTopOf="@id/bottomNavigationContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <FrameLayout
+                android:id="@+id/contentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="10dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <LinearLayout
+                    android:id="@+id/step1Container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:visibility="visible">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Why did you choose Presyohan?"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:layout_marginBottom="24dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="2"
+                        android:layout_marginBottom="24dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <LinearLayout
+                            android:id="@+id/cardRoleStore"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_unselected_teal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingTop="30dp"
+                            android:paddingBottom="30dp"
+                            android:gravity="center_horizontal"
+                            android:layout_marginEnd="6dp"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <ImageView
+                                android:id="@+id/imgRoleStore"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:src="@drawable/icon_store"
+                                android:layout_marginBottom="10dp"
+                                app:tint="@color/presyo_teal" />
+
+                            <TextView
+                                android:id="@+id/txtRoleStoreDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Because, I run a store or work as a staff to manage prices anytime, anywhere."
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:gravity="center" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/cardRoleCustomer"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_unselected_teal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingTop="30dp"
+                            android:paddingBottom="30dp"
+                            android:gravity="center_horizontal"
+                            android:layout_marginStart="6dp"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <ImageView
+                                android:id="@+id/imgRoleCustomer"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:src="@drawable/icon_profile"
+                                android:layout_marginBottom="10dp"
+                                app:tint="@color/presyo_teal" />
+
+                            <TextView
+                                android:id="@+id/txtRoleCustomerDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Because, I want to track daily market prices and monitor how much items cost."
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:gravity="center" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/step2StoreContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Let's set up your store"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:layout_marginBottom="24dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="2"
+                        android:layout_marginBottom="24dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <LinearLayout
+                            android:id="@+id/cardStoreCreate"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_unselected_teal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingTop="30dp"
+                            android:paddingBottom="30dp"
+                            android:gravity="center_horizontal"
+                            android:layout_marginEnd="6dp"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <TextView
+                                android:id="@+id/txtTitleStoreCreate"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Create a Store"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:gravity="center"
+                                android:layout_marginBottom="8dp" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="10dp">
+
+                                <ImageView
+                                    android:id="@+id/iconPlusStoreCreate"
+                                    android:layout_width="22dp"
+                                    android:layout_height="22dp"
+                                    android:src="@drawable/icon_plus"
+                                    app:tint="@color/presyo_teal" />
+
+                                <ImageView
+                                    android:id="@+id/imgIconStoreCreate"
+                                    android:layout_width="32dp"
+                                    android:layout_height="32dp"
+                                    android:src="@drawable/icon_store"
+                                    app:tint="@color/presyo_teal" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/txtDescStoreCreate"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Set up a brand-new store profile and start building your pricelist."
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:gravity="center" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/cardStoreJoin"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_unselected_teal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingTop="30dp"
+                            android:paddingBottom="30dp"
+                            android:gravity="center_horizontal"
+                            android:layout_marginStart="6dp"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <TextView
+                                android:id="@+id/txtTitleStoreJoin"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Join a Store"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:gravity="center"
+                                android:layout_marginBottom="8dp" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginBottom="10dp">
+
+                                <ImageView
+                                    android:id="@+id/iconArrowStoreJoin"
+                                    android:layout_width="22dp"
+                                    android:layout_height="22dp"
+                                    android:src="@drawable/icon_arrow"
+                                    app:tint="@color/presyo_teal" />
+
+                                <ImageView
+                                    android:id="@+id/imgIconStoreJoin"
+                                    android:layout_width="32dp"
+                                    android:layout_height="32dp"
+                                    android:src="@drawable/icon_store"
+                                    app:tint="@color/presyo_teal" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/txtDescStoreJoin"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Enter an invite code provided by your store owner to access your team's pricelist."
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:gravity="center" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/step2CustomerContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Do you have a any suking tindahan?"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:layout_marginBottom="24dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="2"
+                        android:layout_marginBottom="24dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <LinearLayout
+                            android:id="@+id/cardSukiYes"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_unselected_teal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingTop="30dp"
+                            android:paddingBottom="30dp"
+                            android:gravity="center_horizontal"
+                            android:layout_marginEnd="6dp"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <TextView
+                                android:id="@+id/txtTitleSukiYes"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Yes"
+                                android:textColor="@color/presyo_orange"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:gravity="center"
+                                android:layout_marginBottom="10dp" />
+
+                            <ImageView
+                                android:id="@+id/imgSukiYes"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:src="@drawable/icon_store"
+                                android:layout_marginBottom="10dp"
+                                app:tint="@color/presyo_teal" />
+
+                            <TextView
+                                android:id="@+id/txtDescSukiYes"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="I want to follow my suking tindahan to track their prices anytime."
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:gravity="center" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/cardSukiNo"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_unselected_teal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingTop="30dp"
+                            android:paddingBottom="30dp"
+                            android:gravity="center_horizontal"
+                            android:layout_marginStart="6dp"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <TextView
+                                android:id="@+id/txtTitleSukiNo"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="No"
+                                android:textColor="@color/presyo_orange"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:gravity="center"
+                                android:layout_marginBottom="10dp" />
+
+                            <ImageView
+                                android:id="@+id/imgSukiNo"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:src="@drawable/icon_profile"
+                                android:layout_marginBottom="10dp"
+                                app:tint="@color/presyo_teal" />
+
+                            <TextView
+                                android:id="@+id/txtDescSukiNo"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="I just want to check standard prices so I have a reliable basis."
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:gravity="center" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/step3SuccessContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="2dp"
+                        android:background="@drawable/bg_dash_line"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="28dp"
+                        android:layerType="software" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginHorizontal="20dp"
+                        android:layout_marginBottom="24dp">
+
+                        <ImageView
+                            android:id="@+id/ceoAvatar"
+                            android:layout_width="96dp"
+                            android:layout_height="96dp"
+                            android:layout_marginEnd="16dp"
+                            android:src="@drawable/profile_ceo"
+                            android:scaleType="fitCenter"
+                            android:contentDescription="CEO Avatar" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Salamat sa pagpili\nsa Presyohan!"
+                            android:textColor="@color/presyo_orange"
+                            android:textSize="24sp"
+                            android:textStyle="bold|italic"
+                            android:lineSpacingExtra="4dp" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/successMessage"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="I hope this app makes tracking and managing prices much easier for you.\n\nEnjoy using the app! :)"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:layout_marginBottom="16dp"
+                        android:paddingHorizontal="24dp"
+                        android:lineSpacingExtra="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="end"
+                        android:layout_marginEnd="4dp"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:gravity="center_horizontal">
+
+                            <ImageView
+                                android:layout_width="100dp"
+                                android:layout_height="66dp"
+                                android:src="@drawable/sign_ceo"
+                                android:scaleType="fitCenter"
+                                android:contentDescription="CEO Signature" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Presyohan CEO"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:layout_marginTop="-20dp" />
+
+                        </LinearLayout>
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </FrameLayout>
+        </ScrollView>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/bottomNavigationContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="64dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:id="@+id/loadingDotsContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:visibility="gone"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:layout_marginBottom="8dp"
+                app:layout_constraintBottom_toTopOf="@id/buttonsLayout"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <View
+                    android:id="@+id/dot1"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/bg_dot_loading" />
+
+                <View
+                    android:id="@+id/dot2"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/bg_dot_loading" />
+
+                <View
+                    android:id="@+id/dot3"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_margin="4dp"
+                    android:background="@drawable/bg_dot_loading" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/buttonsLayout"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp"
+                app:layout_constraintBottom_toTopOf="@id/progressIndicatorContainer"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnBack"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/button_round"
+                    android:backgroundTint="@color/presyo_teal"
+                    android:text="BACK"
+                    android:textColor="@color/white"
+                    android:textStyle="bold"
+                    android:textSize="15sp"
+                    android:visibility="invisible" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnNext"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/button_round"
+                    android:backgroundTint="@color/presyo_orange"
+                    android:text="NEXT"
+                    android:textColor="@color/white"
+                    android:textStyle="bold"
+                    android:textSize="15sp"
+                    android:enabled="false" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/progressIndicatorContainer"
+                android:layout_width="0dp"
+                android:layout_height="10dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingHorizontal="10dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <View
+                    android:id="@+id/indicatorStep1"
+                    android:layout_width="0dp"
+                    android:layout_height="8dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/bg_indicator_active" />
+
+                <View
+                    android:id="@+id/indicatorStep2"
+                    android:layout_width="0dp"
+                    android:layout_height="8dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/bg_indicator_inactive" />
+
+                <View
+                    android:id="@+id/indicatorStep3"
+                    android:layout_width="0dp"
+                    android:layout_height="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_indicator_inactive" />
+
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>

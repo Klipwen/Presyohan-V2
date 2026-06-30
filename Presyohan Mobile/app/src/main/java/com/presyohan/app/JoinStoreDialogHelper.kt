@@ -98,41 +98,93 @@ object JoinStoreDialogHelper {
             imm.showSoftInput(hiddenCodeInput, InputMethodManager.SHOW_IMPLICIT)
         }
 
-        // Focus keyboard when clicking box container or individual box
-        layoutCodeBoxes.setOnClickListener { focusInput() }
-        boxes.forEach { box -> box.setOnClickListener { focusInput() } }
-
-        var validationJob: Job? = null
-        var foundStore: StoreByInviteCodeRow? = null
-
         // Function to update boxes visual state
-        fun updateBoxesUI(code: String) {
+        fun updateBoxesUI() {
+            val code = hiddenCodeInput.text.toString().uppercase()
+            val sel = hiddenCodeInput.selectionStart
             val len = code.length
             for (i in 0 until 6) {
                 val box = boxes[i]
                 if (i < len) {
                     box.text = code[i].toString()
                     box.setTextColor(ContextCompat.getColor(activity, R.color.presyo_darkblue))
-                    box.setBackgroundResource(R.drawable.bg_code_box_done)
-                } else if (i == len) {
-                    box.text = ""
-                    box.setBackgroundResource(R.drawable.bg_code_box_active)
                 } else {
                     box.text = ""
-                    box.setBackgroundResource(R.drawable.bg_code_box_empty)
+                }
+
+                if (i == sel) {
+                    box.setBackgroundResource(R.drawable.bg_code_box_active) // Orange bold
+                } else if (i < len) {
+                    box.setBackgroundResource(R.drawable.bg_code_box_done) // Orange not bold
+                } else {
+                    box.setBackgroundResource(R.drawable.bg_code_box_empty) // Grey outline
                 }
             }
         }
 
+        // Focus keyboard when clicking box container or individual box
+        layoutCodeBoxes.setOnClickListener { focusInput() }
+        boxes.forEachIndexed { index, box ->
+            box.setOnClickListener {
+                val code = hiddenCodeInput.text.toString()
+                if (index <= code.length) {
+                    hiddenCodeInput.setSelection(index)
+                } else {
+                    hiddenCodeInput.setSelection(code.length)
+                }
+                updateBoxesUI()
+                val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(hiddenCodeInput, InputMethodManager.SHOW_IMPLICIT)
+            }
+        }
+
+        var validationJob: Job? = null
+        var foundStore: StoreByInviteCodeRow? = null
+
         // Initialize UI state
-        updateBoxesUI("")
+        updateBoxesUI()
 
         hiddenCodeInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            private var previousText = ""
+            private var previousSelection = 0
+            private var isUpdating = false
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                if (isUpdating) return
+                previousText = s?.toString() ?: ""
+                previousSelection = hiddenCodeInput.selectionStart
+            }
+
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
             override fun afterTextChanged(s: Editable?) {
-                val code = s.toString().trim().uppercase()
-                updateBoxesUI(code)
+                if (isUpdating) return
+                val currentText = s?.toString() ?: ""
+
+                // If a character was inserted/overwritten
+                if (currentText.length > previousText.length && previousSelection < previousText.length) {
+                    val typedChar = currentText[previousSelection].toString().uppercase()
+                    val newText = previousText.substring(0, previousSelection) + 
+                                  typedChar + 
+                                  previousText.substring(previousSelection + 1)
+                    
+                    isUpdating = true
+                    hiddenCodeInput.setText(newText)
+                    val nextSel = (previousSelection + 1).coerceAtMost(6)
+                    hiddenCodeInput.setSelection(nextSel)
+                    isUpdating = false
+                }
+
+                // Ensure length does not exceed 6
+                if (hiddenCodeInput.text.length > 6) {
+                    isUpdating = true
+                    hiddenCodeInput.setText(hiddenCodeInput.text.substring(0, 6).uppercase())
+                    hiddenCodeInput.setSelection(6)
+                    isUpdating = false
+                }
+
+                val code = hiddenCodeInput.text.toString().trim().uppercase()
+                updateBoxesUI()
 
                 // Cancel any pending validation job
                 validationJob?.cancel()

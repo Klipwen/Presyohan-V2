@@ -4,202 +4,227 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFB703">
+    android:background="@drawable/bg_qr_screen">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- White Bottom Background -->
-        <View
-            android:id="@+id/backgroundOrange"
-            android:layout_width="match_parent"
-            android:layout_height="900dp"
-            android:layout_marginTop="720dp"
-            android:background="@color/white"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintVertical_bias="0.506" />
-
-        <!-- Top Curve -->
+        <!-- Foreground White Container panel filling screen but showing top-right / bottom-left curves -->
         <View
             android:id="@+id/topCurve"
             android:layout_width="match_parent"
-            android:layout_height="400dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="140dp"
-            android:background="@drawable/bg_curve_logo"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_curve_logo" />
+
+        <!-- Logo (Larger size matching design) -->
+        <ImageView
+            android:id="@+id/logo_presyohan"
+            android:layout_width="280dp"
+            android:layout_height="220dp"
+            android:layout_marginTop="60dp"
+            android:src="@drawable/splash_logo"
+            android:scaleType="fitCenter"
+            android:contentDescription="Presyohan Logo"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintVertical_bias="0.502" />
-
-        <!-- Icon -->
-        <ImageView
-            android:id="@+id/iconPresyohan"
-            android:layout_width="200dp"
-            android:layout_height="150dp"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="60dp"
-            android:rotation="-45"
-            android:src="@drawable/icon_presyohan"
-            android:contentDescription="Logo"
-            app:layout_constraintTop_toTopOf="@+id/topCurve"
-            app:layout_constraintBottom_toBottomOf="@+id/topCurve"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="@+id/topCurve"
-            app:layout_constraintHorizontal_bias="0.505"
-            app:layout_constraintVertical_bias="0.0" />
+            app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Logo Text -->
-        <ImageView
-            android:id="@+id/txtPresyohan"
-            android:layout_width="200dp"
-            android:layout_height="150dp"
-            android:src="@drawable/text_presyohan"
-            android:contentDescription="Presyohan Text"
-            app:layout_constraintTop_toBottomOf="@+id/iconPresyohan"
-            app:layout_constraintBottom_toTopOf="@+id/backgroundOrange"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="@+id/topCurve"
-            app:layout_constraintHorizontal_bias="0.507" />
-
-        <!-- Input Fields -->
+        <!-- Content/Input fields area -->
         <LinearLayout
+            android:id="@+id/loginContentContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
             android:layout_marginEnd="20dp"
             android:orientation="vertical"
-            app:layout_constraintTop_toBottomOf="@+id/txtPresyohan"
+            app:layout_constraintTop_toBottomOf="@+id/logo_presyohan"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintVertical_bias="0.3">
 
+            <TextView
+                android:id="@+id/txtLogIn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="Login"
+                android:textColor="@color/presyo_orange"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
 
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <!-- Email Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/layoutEmail"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp"
-                android:paddingTop="20dp">
+                android:layout_marginBottom="12dp"
+                app:boxStrokeColor="@color/presyo_orange"
+                app:hintTextColor="@color/presyo_orange"
+                android:textColorHint="@color/presyo_orange"
+                app:boxCornerRadiusTopStart="20dp"
+                app:boxCornerRadiusTopEnd="20dp"
+                app:boxCornerRadiusBottomStart="20dp"
+                app:boxCornerRadiusBottomEnd="20dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/inputEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textEmailAddress"
+                    android:textColor="@color/presyo_darkblue"
+                    android:hint="Email"
+                    android:textSize="15sp"
+                    android:paddingVertical="12dp"
+                    android:paddingHorizontal="16dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Password Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/layoutPassword"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:boxStrokeColor="@color/presyo_teal"
+                app:hintTextColor="@color/presyo_teal"
+                android:textColorHint="@color/presyo_teal"
+                app:boxCornerRadiusTopStart="20dp"
+                app:boxCornerRadiusTopEnd="20dp"
+                app:boxCornerRadiusBottomStart="20dp"
+                app:boxCornerRadiusBottomEnd="20dp"
+                app:passwordToggleEnabled="true"
+                app:passwordToggleTint="@color/edittext_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/inputPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:textColor="@color/presyo_darkblue"
+                    android:hint="Password"
+                    android:textSize="15sp"
+                    android:paddingVertical="12dp"
+                    android:paddingHorizontal="16dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Forgot Password Link -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="45dp">
 
                 <TextView
-                    android:id="@+id/txtLogIn"
+                    android:id="@+id/linkForgotPassword"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Login"
-                    android:textColor="@color/presyo_orange"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    tools:ignore="MissingConstraints" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                    android:layout_alignParentEnd="true"
+                    android:text="Forgot Password"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="12sp"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </RelativeLayout>
 
-            <EditText
-                android:id="@+id/inputEmail"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:background="@drawable/bg_edittext"
-                android:inputType="textEmailAddress"
-                android:textColor="@color/presyo_darkblue"
-                android:padding="10dp"
-                android:layout_marginBottom="14dp"
-                android:hint="Email" />
-
-            <EditText
-                android:id="@+id/inputPassword"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:background="@drawable/bg_edittext"
-                android:inputType="textPassword"
-                android:textColor="@color/presyo_darkblue"
-                android:padding="10dp"
-                android:hint="Password" />
-
+            <!-- Signup / Register Link (Positioned directly above LOGIN button) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_marginBottom="4dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Don't have an account?"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/linkSignUp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" Sign Up"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <!-- LOGIN Button (In correct order below sign-up link) -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/buttonLogin"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/button_round"
+                android:backgroundTint="@color/presyo_orange"
+                android:text="LOGIN"
+                android:textColor="@android:color/white"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Divider -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
                 <View
                     android:layout_width="0dp"
                     android:layout_height="1dp"
-                    android:background="#DDDDDD"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:background="#DDDDDD" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="  or sign in with  "
                     android:textColor="#777777"
                     android:textSize="14sp" />
+
                 <View
                     android:layout_width="0dp"
                     android:layout_height="1dp"
-                    android:background="#DDDDDD"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:background="#DDDDDD" />
             </LinearLayout>
 
+            <!-- Google Sign-in -->
             <LinearLayout
-                android:id="@+id/socialRow"
+                android:id="@+id/googleSignInButton"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_height="50dp"
+                android:background="@drawable/bg_card_unselected"
                 android:orientation="horizontal"
-                android:gravity="center">
+                android:gravity="center"
+                android:layout_marginTop="12dp"
+                android:clickable="true"
+                android:focusable="true">
+
                 <ImageView
-                    android:id="@+id/googleIconButton"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:src="@drawable/icon_google"
-                    android:contentDescription="Google Sign-In"
-                    android:layout_marginEnd="16dp" />
-                <ImageView
-                    android:id="@+id/facebookIconButton"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@drawable/icon_facebook"
-                    android:contentDescription="Facebook Sign-In" />
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="Google Logo" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sign in with Google"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="16sp"
+                    android:textStyle="normal" />
             </LinearLayout>
+
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:layout_marginBottom="12dp"
-            app:layout_constraintBottom_toTopOf="@+id/buttonLogin">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Don't have an account?"
-                android:textColor="@color/presyo_darkblue"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/linkSignUp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" Sign Up"
-                android:textColor="@color/presyo_teal"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/buttonLogin"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/button_round"
-            android:backgroundTint="@color/presyo_orange"
-            android:text="Login"
-            android:textColor="@android:color/white"
-            android:textStyle="bold"
-            android:layout_marginEnd="16dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginBottom="26dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            tools:layout_editor_absoluteX="20dp" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </RelativeLayout>

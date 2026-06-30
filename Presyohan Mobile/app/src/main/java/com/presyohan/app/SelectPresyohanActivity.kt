@@ -72,6 +72,13 @@ class SelectPresyohanActivity : AppCompatActivity() {
     )
 
     @Serializable
+    data class StoreProductCountRow(
+        val store_id: String,
+        val total_count: Int,
+        val public_count: Int
+    )
+
+    @Serializable
     data class ProductDetailRow(
         val id: String,
         val store_id: String
@@ -123,7 +130,7 @@ class SelectPresyohanActivity : AppCompatActivity() {
 
         // Setup Back Button
         btnBack.setOnClickListener {
-            finish()
+            goBackToCustomerHome()
         }
 
         // Setup Info Button
@@ -202,18 +209,19 @@ class SelectPresyohanActivity : AppCompatActivity() {
                 // Keep all standard stores (we'll style them as faded at the bottom instead)
                 allPresyohanStores = standardStores
 
-                // 3. Fetch products of these available standard stores to get count
+                // 3. Fetch product counts of these available standard stores
                 val availableStoreIds = allPresyohanStores.map { it.id }
                 if (availableStoreIds.isNotEmpty()) {
-                    val products = SupabaseProvider.client.postgrest["products"]
-                        .select {
-                            filter {
-                                isIn("store_id", availableStoreIds)
-                            }
+                    val counts = SupabaseProvider.client.postgrest.rpc(
+                        "get_store_product_counts",
+                        kotlinx.serialization.json.buildJsonObject {
+                            put("p_store_ids", kotlinx.serialization.json.buildJsonArray {
+                                availableStoreIds.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                            })
                         }
-                        .decodeList<ProductDetailRow>()
+                    ).decodeList<StoreProductCountRow>()
                     
-                    productCounts = products.groupBy { it.store_id }.mapValues { it.value.size }
+                    productCounts = counts.associate { it.store_id to it.public_count }
                 } else {
                     productCounts = emptyMap()
                 }
@@ -335,6 +343,15 @@ class SelectPresyohanActivity : AppCompatActivity() {
                 SupabaseProvider.client.postgrest["suki_relationships"].insert(inserts)
 
                 Toast.makeText(this@SelectPresyohanActivity, "Successfully added to your stores!", Toast.LENGTH_SHORT).show()
+                
+                // Redirect to the customer home screen store tab
+                val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+                prefs.edit().putBoolean("redirect_to_stores_tab", true).apply()
+
+                val intent = Intent(this@SelectPresyohanActivity, CustomerHomeActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                startActivity(intent)
+                overridePendingTransition(0, 0)
                 finish()
 
             } catch (e: Exception) {
@@ -438,6 +455,18 @@ class SelectPresyohanActivity : AppCompatActivity() {
             items = newItems
             notifyDataSetChanged()
         }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        goBackToCustomerHome()
+    }
+
+    private fun goBackToCustomerHome() {
+        val intent = Intent(this, CustomerHomeActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        startActivity(intent)
+        finish()
     }
 
     override fun finish() {

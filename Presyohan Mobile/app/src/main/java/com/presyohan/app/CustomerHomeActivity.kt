@@ -75,6 +75,7 @@ class CustomerHomeActivity : AppCompatActivity() {
     private var allCategories: List<CategoryDetailRow> = emptyList()
     private var allProducts: List<ProductDetailRow> = emptyList()
     private var baseProducts: List<DisplayProduct> = emptyList()
+    private var storeProductCounts: Map<String, Int> = emptyMap()
     private var searchJob: kotlinx.coroutines.Job? = null
 
     // Screen States
@@ -93,6 +94,13 @@ class CustomerHomeActivity : AppCompatActivity() {
 
     @Serializable
     data class StoreMemberCheckRow(val user_id: String)
+
+    @Serializable
+    data class StoreProductCountRow(
+        val store_id: String,
+        val total_count: Int,
+        val public_count: Int
+    )
 
     @Serializable
     data class StoreDetailRow(
@@ -345,11 +353,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentSearchQuery = s?.toString()?.trim() ?: ""
-                searchJob?.cancel()
-                searchJob = lifecycleScope.launch {
-                    kotlinx.coroutines.delay(180)
-                    filterAndRenderData()
-                }
+                filterAndRenderData(delayMillis = 180L)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -371,12 +375,30 @@ class CustomerHomeActivity : AppCompatActivity() {
         // Reload in case the user joined a new store
         loadCustomerData(showShimmer = true)
         loadUserProfile()
+
+        // Handle pending onboarding actions
+        val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+        val pendingAction = prefs.getString("onboarding_action_pending", null)
+        if (pendingAction != null) {
+            prefs.edit().remove("onboarding_action_pending").apply()
+            if (pendingAction == "add_suki") {
+                showAddSukiDialog()
+            }
+        }
+
+        // Handle standard standard presyohan redirection to stores tab
+        val redirectToStores = prefs.getBoolean("redirect_to_stores_tab", false)
+        if (redirectToStores) {
+            prefs.edit().remove("redirect_to_stores_tab").apply()
+            selectTab(false) // Switch to Stores tab!
+        }
     }
 
     override fun onBackPressed() {
         val now = System.currentTimeMillis()
         if (now - lastBackPress < 2000) {
-            finishAffinity()
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
         } else {
             lastBackPress = now
             Toast.makeText(this, "Press again to exit", Toast.LENGTH_SHORT).show()
@@ -453,7 +475,7 @@ class CustomerHomeActivity : AppCompatActivity() {
 
             searchEditText.hint = "Search Store..."
         }
-        filterAndRenderData()
+        filterAndRenderData(delayMillis = 0)
     }
 
     private fun showBottomSheet() {
@@ -773,6 +795,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                 allStores = SupabaseProvider.client.postgrest["stores"]
                     .select {
                         filter { isIn("id", storeIds) }
+                        limit(1000)
                     }
                     .decodeList<StoreDetailRow>()
 
@@ -780,22 +803,41 @@ class CustomerHomeActivity : AppCompatActivity() {
                 allCategories = SupabaseProvider.client.postgrest["categories"]
                     .select {
                         filter { isIn("store_id", storeIds) }
+                        limit(5000)
                     }
                     .decodeList<CategoryDetailRow>()
 
-                // 4. Fetch public products
+                // 4. Fetch public products (raise limit to 50000 to be safe)
                 allProducts = SupabaseProvider.client.postgrest["products"]
                     .select {
                         filter {
                             isIn("store_id", storeIds)
                             eq("is_public", true)
                         }
+                        limit(50000)
                     }
                     .decodeList<ProductDetailRow>()
 
+                // 5. Fetch accurate product counts from database
+                try {
+                    val counts = SupabaseProvider.client.postgrest.rpc(
+                        "get_store_product_counts",
+                        kotlinx.serialization.json.buildJsonObject {
+                            put("p_store_ids", kotlinx.serialization.json.buildJsonArray {
+                                storeIds.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                            })
+                        }
+                    ).decodeList<StoreProductCountRow>()
+                    storeProductCounts = counts.associate { it.store_id to it.public_count }
+                } catch (e: Exception) {
+                    android.util.Log.e("CustomerHomeActivity", "Failed to fetch product counts", e)
+                    // Fallback to in-memory counting if RPC fails
+                    storeProductCounts = allProducts.groupBy { it.store_id }.mapValues { it.value.size }
+                }
+
                 // Precompute baseProducts once data is successfully loaded to avoid lag during search queries
-                // Only include products from PUBLIC stores — private stores hide their prices on customer view
-                val publicStoreIds = allStores.filter { it.is_public }.map { it.id }.toSet()
+                // Include products from all linked (Suki) stores — user is authorized to see public prices of their suki stores
+                val publicStoreIds = allStores.map { it.id }.toSet()
                 val storeMap = allStores.associateBy { it.id }
                 val categoryMap = allCategories.associateBy { it.id }
                 baseProducts = allProducts
@@ -828,6 +870,15 @@ class CustomerHomeActivity : AppCompatActivity() {
                     shimmerStoresContainer.stopShimmer()
                     shimmerStoresContainer.visibility = View.GONE
                     swipeRefreshLayout.visibility = View.VISIBLE
+
+                    // Ensure the correct RecyclerView is visible after shimmer
+                    if (isPricesTabActive) {
+                        rvCustomerPrices.visibility = View.VISIBLE
+                        rvCustomerStores.visibility = View.GONE
+                    } else {
+                        rvCustomerPrices.visibility = View.GONE
+                        rvCustomerStores.visibility = View.VISIBLE
+                    }
                 }
 
                 if (allStores.isEmpty() && !hasAutoOpenedBottomSheet) {
@@ -886,29 +937,39 @@ class CustomerHomeActivity : AppCompatActivity() {
         return q.length >= 6 || (q.length.toDouble() / c.length.toDouble()) >= 0.6
     }
 
-    private fun filterAndRenderData() {
-        val rawQuery = currentSearchQuery.trim()
-        val queryLower = rawQuery.lowercase(Locale.getDefault())
+    private fun filterAndRenderData(delayMillis: Long = 0) {
+        val query = currentSearchQuery.trim()
+        val isPrices = isPricesTabActive
+        
+        // Take snapshots of data for thread-safe background processing
+        val snapshotStores = allStores
+        val snapshotCategories = allCategories
+        val snapshotProducts = allProducts
+        val snapshotBaseProducts = baseProducts
 
-        val storeMap = allStores.associateBy { it.id }
-        val categoryMap = allCategories.associateBy { it.id }
+        searchJob?.cancel()
+        searchJob = lifecycleScope.launch {
+            if (delayMillis > 0) {
+                kotlinx.coroutines.delay(delayMillis)
+            }
 
-        val tokens = rawQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            if (isPrices) {
+                // Render Prices/Products Tab
+                val searchItems = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val queryLower = query.lowercase(Locale.getDefault())
+                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    val storeMap = snapshotStores.associateBy { it.id }
+                    
+                    val isCategoryQuery = queryLower == "category" ||
+                            (queryLower.length >= 6 && levenshteinDistance(queryLower, "category") <= 2)
 
-        // Start search matching asynchronously on a background thread to prevent UI lag
-        lifecycleScope.launch {
-            if (isPricesTabActive) {
-                val isCategoryQuery = queryLower == "category" ||
-                        (queryLower.length >= 6 && levenshteinDistance(queryLower, "category") <= 2)
+                    val isStoreQuery = queryLower == "store" ||
+                            (queryLower.length >= 4 && levenshteinDistance(queryLower, "store") <= 1)
 
-                val isStoreQuery = queryLower == "store" ||
-                        (queryLower.length >= 4 && levenshteinDistance(queryLower, "store") <= 1)
-
-                if (isCategoryQuery) {
-                    val displayCategories = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                        allCategories.map { cat ->
+                    if (isCategoryQuery) {
+                        snapshotCategories.map { cat ->
                             val store = storeMap[cat.store_id]
-                            val itemCount = allProducts.count { it.category_id == cat.id }
+                            val itemCount = snapshotProducts.count { it.category_id == cat.id }
                             DisplayCategory(
                                 categoryId = cat.id,
                                 categoryName = cat.name,
@@ -917,26 +978,16 @@ class CustomerHomeActivity : AppCompatActivity() {
                                 storeLocation = store?.branch ?: "Main Branch",
                                 itemCount = itemCount
                             )
-                        }.filter { it.itemCount > 0 }
-                    }
-
-                    val searchItems = displayCategories.map { SearchItem.Category(it) }
-                    searchAdapter.updateList(searchItems)
-                    toggleEmptyState(displayCategories.isEmpty(), "No categories found.")
-                } else {
-                    // Check if query matches any category name using our rule (6 letters or 60% match)
-                    val matchingCategories = if (queryLower.isNotEmpty()) {
-                        allCategories.filter { cat ->
-                            matchesCategoryName(queryLower, cat.name)
-                        }
+                        }.filter { it.itemCount > 0 }.map { SearchItem.Category(it) }
                     } else {
-                        emptyList()
-                    }
+                        // Regular search (mix of categories and products)
+                        val matchingCategories = if (queryLower.isNotEmpty()) {
+                            snapshotCategories.filter { cat -> matchesCategoryName(queryLower, cat.name) }
+                        } else emptyList()
 
-                    val displayCategories = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                        matchingCategories.map { cat ->
+                        val displayCategories = matchingCategories.map { cat ->
                             val store = storeMap[cat.store_id]
-                            val itemCount = allProducts.count { it.category_id == cat.id }
+                            val itemCount = snapshotProducts.count { it.category_id == cat.id }
                             DisplayCategory(
                                 categoryId = cat.id,
                                 categoryName = cat.name,
@@ -946,45 +997,40 @@ class CustomerHomeActivity : AppCompatActivity() {
                                 itemCount = itemCount
                             )
                         }.filter { it.itemCount > 0 }
-                    }
 
-                    val matchedStore = allStores.firstOrNull { store ->
-                        store.name.equals(rawQuery, ignoreCase = true) ||
-                                (rawQuery.length >= 4 && levenshteinDistance(queryLower, store.name.lowercase(Locale.getDefault())) <= 2)
-                    }
-
-                    val filteredProducts = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                        if (tokens.isEmpty() || isStoreQuery) {
-                            baseProducts
-                        } else if (matchedStore != null) {
-                            baseProducts.filter { it.storeName.equals(matchedStore.name, ignoreCase = true) }
-                                .sortedByDescending { calculateMatchScore(currentSearchQuery, it) }
-                        } else {
-                            baseProducts.filter { matchesProduct(tokens, it) }
-                                .sortedByDescending { calculateMatchScore(currentSearchQuery, it) }
+                        val matchedStore = snapshotStores.firstOrNull { store ->
+                            store.name.equals(query, ignoreCase = true) ||
+                                    (query.length >= 4 && levenshteinDistance(queryLower, store.name.lowercase(Locale.getDefault())) <= 2)
                         }
-                    }
 
-                    val searchItems = displayCategories.map { SearchItem.Category(it) } + filteredProducts.map { SearchItem.Product(it) }
-                    searchAdapter.updateList(searchItems)
-                    toggleEmptyState(
-                        searchItems.isEmpty(),
-                        "No products found matching \"$currentSearchQuery\""
-                    )
+                        val filteredProducts = if (tokens.isEmpty() || isStoreQuery) {
+                            snapshotBaseProducts
+                        } else if (matchedStore != null) {
+                            snapshotBaseProducts.filter { it.storeName.equals(matchedStore.name, ignoreCase = true) }
+                                .sortedByDescending { calculateMatchScore(query, it) }
+                        } else {
+                            snapshotBaseProducts.filter { matchesProduct(tokens, it) }
+                                .sortedByDescending { calculateMatchScore(query, it) }
+                        }
+
+                        displayCategories.map { SearchItem.Category(it) } + filteredProducts.map { SearchItem.Product(it) }
+                    }
                 }
+
+                searchAdapter.updateList(searchItems)
+                toggleEmptyState(
+                    searchItems.isEmpty(),
+                    if (query.isEmpty()) "No products found." else "No products found matching \"$query\""
+                )
             } else {
                 // Render Stores Tab
-                val displayStores = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                    allStores.map { store ->
-                        val productCount = allProducts.count { it.store_id == store.id }
+                val filteredStores = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    
+                    val displayStores = snapshotStores.map { store ->
+                        val productCount = storeProductCounts[store.id] ?: 0
                         val isPresyohan = store.is_standard_store
-                        val typeTag = if (isPresyohan) {
-                            "Presyohan"
-                        } else if (store.is_public) {
-                            "Public"
-                        } else {
-                            "Private"
-                        }
+                        val typeTag = if (isPresyohan) "Presyohan" else if (store.is_public) "Public" else "Private"
 
                         DisplayStore(
                             id = store.id,
@@ -997,25 +1043,14 @@ class CustomerHomeActivity : AppCompatActivity() {
                             displayId = store.display_id
                         )
                     }
-                }
 
-                val filteredStores = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     if (tokens.isEmpty()) {
                         displayStores
                     } else {
-                        // Precompile smart search indexes for each store
-                        val storeSearchIndexes = allStores.associate { store ->
-                            val catNames = allCategories.filter { it.store_id == store.id }.map { it.name }
-                            val storeProducts = baseProducts.filter { it.storeId == store.id }
-                            
-                            val contents = mutableListOf<String>()
-                            contents.   addAll(catNames)
-                            for (p in storeProducts) {
-                                contents.add(p.name)
-                                p.description?.let { contents.add(it) }
-                                p.unit?.let { contents.add(it) }
-                            }
-                            
+                        val storeSearchIndexes = snapshotStores.associate { store ->
+                            val catNames = snapshotCategories.filter { it.store_id == store.id }.map { it.name }
+                            val storeProducts = snapshotBaseProducts.filter { it.storeId == store.id }
+                            val contents = catNames + storeProducts.flatMap { listOfNotNull(it.name, it.description, it.unit) }
                             val prices = storeProducts.map { it.price }
                             
                             store.id to StoreSearchIndex(
@@ -1028,27 +1063,22 @@ class CustomerHomeActivity : AppCompatActivity() {
                         displayStores.filter { store ->
                             val index = storeSearchIndexes[store.id] ?: return@filter false
                             tokens.all { token ->
-                                // 1. Check if token matches store details (fuzzy/typo-tolerant)
-                                val matchesStore = index.storeDetails.any { isFuzzyMatch(token, it) }
-                                
-                                // 2. Check if token matches category name, product name, description, unit
-                                val matchesContent = index.contentStrings.any { isFuzzyMatch(token, it) }
-                                
-                                // 3. Check if token matches product price
-                                val matchesPrice = index.productPrices.any { matchPrice(token, it) }
-                                
-                                matchesStore || matchesContent || matchesPrice
+                                index.storeDetails.any { isFuzzyMatch(token, it) } ||
+                                index.contentStrings.any { isFuzzyMatch(token, it) } ||
+                                index.productPrices.any { matchPrice(token, it) }
                             }
                         }
                     }
-                }
-
-                val sortedStores = filteredStores.sortedWith(
+                }.sortedWith(
                     compareBy<DisplayStore> { it.typeTag == "Private" }
                         .thenBy { it.name.lowercase(Locale.getDefault()) }
                 )
-                storeAdapter.updateList(sortedStores)
-                toggleEmptyState(sortedStores.isEmpty(), "No stores found matching \"$currentSearchQuery\"")
+
+                storeAdapter.updateList(filteredStores)
+                toggleEmptyState(
+                    filteredStores.isEmpty(),
+                    if (query.isEmpty()) "No stores found." else "No stores found matching \"$query\""
+                )
             }
         }
     }
@@ -1196,7 +1226,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         // Set local info
         txtStoreId.text = store.displayId ?: store.id
         txtCategoriesCount.text = allCategories.count { it.store_id == store.id }.toString()
-        txtItemsCount.text = allProducts.count { it.store_id == store.id }.toString()
+        txtItemsCount.text = store.itemCount.toString()
 
         val shimmerLayout = view.findViewById<com.facebook.shimmer.ShimmerFrameLayout>(R.id.dialogShimmerLayout)
         val statsTable = view.findViewById<android.widget.TableLayout>(R.id.dialogStatsTable)

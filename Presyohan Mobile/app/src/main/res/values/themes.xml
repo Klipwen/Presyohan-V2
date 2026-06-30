@@ -9,6 +9,12 @@
         <item name="colorPrimaryDark">@color/white</item>
     </style>
 
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/presyo_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.Presyohan</item>
+    </style>
+
     <style name="ShapeAppearanceOverlay.CustomCard" parent="">
         <item name="cornerSizeTopRight">64dp</item>
         <item name="cornerSizeBottomLeft">64dp</item>

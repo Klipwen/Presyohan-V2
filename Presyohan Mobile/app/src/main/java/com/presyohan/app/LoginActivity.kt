@@ -19,9 +19,13 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.Serializable
 import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.postgrest.postgrest
 
 class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
     private lateinit var googleSignInClient: GoogleSignInClient
@@ -44,7 +48,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                 lifecycleScope.launch {
                     try {
                         SupabaseAuthService.signInWithGoogleIdToken(idToken)
-                        navigateToLastActivity()
+                        handleSuccessfulLogin()
                     } catch (e: Exception) {
                         Toast.makeText(this@LoginActivity, "Unable to sign in with Google.", Toast.LENGTH_SHORT).show()
                     }
@@ -90,7 +94,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
                 lifecycleScope.launch {
                     try {
                         SupabaseAuthService.signInWithGoogleIdToken(idToken)
-                        navigateToLastActivity()
+                        handleSuccessfulLogin()
                     } catch (e: Exception) {
                         Toast.makeText(this@LoginActivity, "Unable to sign in with Google.", Toast.LENGTH_SHORT).show()
                     }
@@ -110,6 +114,22 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
+        
+        // Make activity full screen (hide status bar)
+        try {
+            @Suppress("DEPRECATION")
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                window.insetsController?.hide(android.view.WindowInsets.Type.statusBars())
+            } else {
+                window.setFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                    android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         loadingOverlay = LoadingOverlayHelper.attach(this)
         // Configure native Google Sign-In (opens Google account picker)
         val webClientId = getString(R.string.default_web_client_id)
@@ -125,12 +145,25 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
         val loginBtn = findViewById<Button>(R.id.buttonLogin)
         val linkSignUp = findViewById<TextView>(R.id.linkSignUp)
 
+        val layoutEmail = findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.layoutEmail)
+        val layoutPassword = findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.layoutPassword)
+
+        // Setup custom field states
+        FieldStateHelper.setupFieldState(layoutEmail, emailEditText, android.graphics.Color.parseColor("#FB8500"))
+        FieldStateHelper.setupFieldState(layoutPassword, passwordEditText, android.graphics.Color.parseColor("#219EBC"))
+
         loginBtn.setOnClickListener {
             val email = emailEditText.text.toString().trim()
             val password = passwordEditText.text.toString().trim()
 
-            if (email.isEmpty() || password.isEmpty()) {
-                Toast.makeText(this, "Enter your email and password.", Toast.LENGTH_SHORT).show()
+            if (email.isEmpty()) {
+                FieldStateHelper.setErrorState(layoutEmail, emailEditText, android.graphics.Color.parseColor("#FB8500"))
+                Toast.makeText(this, "Please enter your email.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (password.isEmpty()) {
+                FieldStateHelper.setErrorState(layoutPassword, passwordEditText, android.graphics.Color.parseColor("#219EBC"))
+                Toast.makeText(this, "Please enter your password.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -138,9 +171,11 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             lifecycleScope.launch {
                 try {
                     SupabaseAuthService.signInEmail(email, password)
-                    navigateToLastActivity()
+                    handleSuccessfulLogin()
                 } catch (e: Exception) {
-                    Toast.makeText(this@LoginActivity, "Unable to sign in.", Toast.LENGTH_SHORT).show()
+                    FieldStateHelper.setErrorState(layoutEmail, emailEditText, android.graphics.Color.parseColor("#FB8500"))
+                    FieldStateHelper.setErrorState(layoutPassword, passwordEditText, android.graphics.Color.parseColor("#219EBC"))
+                    Toast.makeText(this@LoginActivity, "Incorrect email or password.", Toast.LENGTH_SHORT).show()
                 }
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
@@ -148,10 +183,11 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
 
         linkSignUp.setOnClickListener {
             startActivity(Intent(this, SignupActivity::class.java))
+            overridePendingTransition(0, 0)
         }
 
-        val googleIconButton = findViewById<ImageView>(R.id.googleIconButton)
-        googleIconButton.setOnClickListener {
+        val googleSignInButton = findViewById<android.view.View>(R.id.googleSignInButton)
+        googleSignInButton.setOnClickListener {
             hasRetriedInteractiveSignIn = false
             if (!ensurePlayServices()) return@setOnClickListener
             // Force showing the Google account picker by clearing any cached account
@@ -161,9 +197,10 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             }
         }
 
-        val facebookIconButton = findViewById<ImageView>(R.id.facebookIconButton)
-        facebookIconButton.setOnClickListener {
-            Toast.makeText(this, "Facebook sign-in not implemented.", Toast.LENGTH_SHORT).show()
+        val linkForgotPassword = findViewById<TextView>(R.id.linkForgotPassword)
+        linkForgotPassword.setOnClickListener {
+            startActivity(Intent(this, ForgotPasswordActivity::class.java))
+            overridePendingTransition(0, 0)
         }
 
         // Handle a possible OAuth deep link when activity is launched via browser callback
@@ -171,9 +208,20 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             SupabaseProvider.client.handleDeeplinks(incoming)
             val session = SupabaseProvider.client.auth.currentSessionOrNull()
             if (session != null) {
-                navigateToLastActivity()
+                handleSuccessfulLogin()
             }
         }
+
+        // Smoothly animate in the input fields and buttons
+        val contentContainer = findViewById<android.view.View>(R.id.loginContentContainer)
+        contentContainer.alpha = 0f
+        contentContainer.translationY = 80f
+        contentContainer.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(500)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -181,7 +229,7 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
         SupabaseProvider.client.handleDeeplinks(intent)
         val session = SupabaseProvider.client.auth.currentSessionOrNull()
         if (session != null) {
-            navigateToLastActivity()
+            handleSuccessfulLogin()
         }
     }
 
@@ -194,6 +242,23 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
         } else {
             api.getErrorDialog(this, status, 9000)?.show()
             false
+        }
+    }
+
+    private fun handleSuccessfulLogin() {
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
+        if (userId != null) {
+            val onboardingCompleted = SupabaseAuthService.isOnboardingCompleted()
+            if (!onboardingCompleted) {
+                val intent = Intent(this@LoginActivity, OnboardingActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                finish()
+            } else {
+                navigateToLastActivity()
+            }
+        } else {
+            navigateToLastActivity()
         }
     }
 
