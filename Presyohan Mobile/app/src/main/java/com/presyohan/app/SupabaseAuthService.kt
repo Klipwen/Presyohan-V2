@@ -15,6 +15,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.booleanOrNull
 
 object SupabaseAuthService {
     private val client get() = SupabaseProvider.client
@@ -202,6 +203,23 @@ object SupabaseAuthService {
         } catch (e: Exception) {
             false
         }
+    }
+
+    fun isOnboardingCompleted(): Boolean {
+        val user = client.auth.currentUserOrNull() ?: return false
+        val meta = user.userMetadata ?: return false
+        val elem = meta["onboarding_completed"]?.jsonPrimitive
+        return elem?.booleanOrNull ?: (elem?.contentOrNull?.toBoolean() ?: false)
+    }
+
+    suspend fun setOnboardingCompleted() = withContext(Dispatchers.IO) {
+        try {
+            client.auth.updateUser {
+                data = buildJsonObject {
+                    put("onboarding_completed", true)
+                }
+            }
+        } catch (_: Exception) {}
     }
 }
 

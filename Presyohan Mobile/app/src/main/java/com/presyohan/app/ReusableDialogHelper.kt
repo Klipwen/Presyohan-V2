@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatButton
 
 object ReusableDialogHelper {
@@ -86,6 +87,47 @@ object ReusableDialogHelper {
 
         return dialog
     }
+
+    fun showSuccessDialog(
+        context: Context,
+        isPasswordReset: Boolean,
+        buttonText: String,
+        action: () -> Unit
+    ): Dialog {
+        val dialog = Dialog(context)
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_success_template, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(false)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val ivIcon = view.findViewById<ImageView>(R.id.successIcon)
+        val tvTitle = view.findViewById<TextView>(R.id.successTitle)
+        val btnAction = view.findViewById<AppCompatButton>(R.id.btnAction)
+
+        if (isPasswordReset) {
+            ivIcon.setImageResource(R.drawable.icon_checkmark)
+            tvTitle.text = "Password Successfully\nUpdated"
+        } else {
+            ivIcon.setImageResource(R.drawable.icon_account_created)
+            tvTitle.text = "Account Created\nSuccessfully"
+        }
+
+        btnAction.text = buttonText
+        btnAction.setOnClickListener {
+            action.invoke()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+
+        // Set width programmatically to 90% of screen width to prevent shrinking
+        dialog.window?.setLayout(
+            (context.resources.displayMetrics.widthPixels * 0.9).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
+        return dialog
+    }
 }
 
 /**
@@ -109,5 +151,18 @@ fun Context.showReusableDialog(
         negativeButtonText = negativeButtonText,
         negativeAction = negativeAction,
         isCancelable = isCancelable
+    )
+}
+
+fun Context.showSuccessDialog(
+    isPasswordReset: Boolean,
+    buttonText: String,
+    action: () -> Unit
+): Dialog {
+    return ReusableDialogHelper.showSuccessDialog(
+        context = this,
+        isPasswordReset = isPasswordReset,
+        buttonText = buttonText,
+        action = action
     )
 }

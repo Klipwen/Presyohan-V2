@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabaseClient';
+import StoreProductManager from './StoreProductManager';
 
 export default function StoreDirectory() {
   const [stores, setStores] = useState([]);
@@ -8,6 +9,7 @@ export default function StoreDirectory() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState(null);
   const [openOwnerDropdownId, setOpenOwnerDropdownId] = useState(null);
+  const [managingStore, setManagingStore] = useState(null);
 
   // Close the owner dropdown when clicking anywhere else
   useEffect(() => {
@@ -36,7 +38,6 @@ export default function StoreDirectory() {
           paste_code_expires_at,
           type,
           is_standard_store,
-          is_default_standard,
           created_at,
           is_public,
           store_members (
@@ -86,7 +87,6 @@ export default function StoreDirectory() {
           pasteCodeExpiresAt: store.paste_code_expires_at,
           type: store.type || 'grocery',
           isStandard: store.is_standard_store || false,
-          isDefaultStandard: store.is_default_standard || false,
           isPublic: store.is_public || false,
           createdAt: store.created_at,
           members,
@@ -203,6 +203,18 @@ export default function StoreDirectory() {
     );
   }
 
+  if (managingStore) {
+    return (
+      <StoreProductManager 
+        store={managingStore} 
+        onBack={() => {
+          setManagingStore(null);
+          loadStores();
+        }} 
+      />
+    );
+  }
+
   return (
     <div>
       <div className="admin-table-controls">
@@ -306,7 +318,7 @@ export default function StoreDirectory() {
 
                       {store.isStandard ? (
                         <span className="admin-badge admin" style={{ fontSize: '0.68rem', width: 'fit-content' }}>
-                          Standard {store.isDefaultStandard && '• Default'}
+                          Standard
                         </span>
                       ) : (
                         <span className="admin-badge member" style={{ fontSize: '0.68rem', width: 'fit-content' }}>
@@ -319,7 +331,7 @@ export default function StoreDirectory() {
                   {/* Owner Name */}
                   <td>
                     {!ownerDisplay ? (
-                      <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>No owners registered</span>
+                      <span style={{ color: '#ff8c00', fontSize: '0.85rem', fontWeight: 600 }}>Presyohan</span>
                     ) : (
                       <div style={{ position: 'relative' }}>
                         <span style={{ fontWeight: 500, fontSize: '0.85rem', color: '#0f172a' }}>
@@ -426,6 +438,13 @@ export default function StoreDirectory() {
                   {/* Actions */}
                   <td>
                     <div className="admin-actions-cell">
+                      <button
+                        className="admin-btn-action"
+                        style={{ color: '#ff8c00', borderColor: 'rgba(255, 140, 0, 0.2)' }}
+                        onClick={() => setManagingStore(store)}
+                      >
+                        Manage Products
+                      </button>
                       <button
                         className="admin-btn-action suspend"
                         disabled={actionLoading === store.id}

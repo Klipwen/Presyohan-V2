@@ -1015,19 +1015,17 @@ class HomeActivity : AppCompatActivity() {
 
     private fun parseInviteCreatedMillis(createdIso: String?): Long? {
         if (createdIso.isNullOrBlank()) return null
-        val clean = createdIso.trim().replace(" ", "T")
-        val hasTimezone = clean.contains("+") || (clean.lastIndexOf("-") > clean.indexOf("T")) || clean.endsWith("Z")
-        val parsedStr = if (hasTimezone) clean else clean + "Z"
+        val clean = createdIso.trim().replace("T", " ").replace("Z", "")
         return try {
-            java.time.Instant.parse(parsedStr).toEpochMilli()
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            sdf.parse(clean)?.time
         } catch (_: Exception) {
             try {
-                java.time.OffsetDateTime.parse(parsedStr).toInstant().toEpochMilli()
-            } catch (_: Exception) {
-                try {
-                    java.time.LocalDateTime.parse(clean).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-                } catch (_: Exception) { null }
-            }
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                sdf.parse(clean)?.time
+            } catch (_: Exception) { null }
         }
     }
 
@@ -1774,7 +1772,8 @@ class HomeActivity : AppCompatActivity() {
 
         val now = System.currentTimeMillis()
         if (now - lastBackPress < 2000) {
-            finishAffinity()
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
         } else {
             lastBackPress = now
             Toast.makeText(this, "Press again to exit", Toast.LENGTH_SHORT).show()

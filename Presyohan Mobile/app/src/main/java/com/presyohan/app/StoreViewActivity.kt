@@ -2,6 +2,7 @@ package com.presyohan.app
 
 import android.app.AlertDialog
 import android.app.Dialog
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
@@ -301,6 +302,7 @@ class StoreViewActivity : AppCompatActivity() {
                     allCategories = SupabaseProvider.client.postgrest["categories"]
                         .select {
                             filter { eq("store_id", storeId) }
+                            limit(1000)
                         }
                         .decodeList<CategoryDetailRow>()
 
@@ -311,6 +313,7 @@ class StoreViewActivity : AppCompatActivity() {
                                 eq("store_id", storeId)
                                 eq("is_public", true)
                             }
+                            limit(50000)
                         }
                         .decodeList<ProductDetailRow>()
 
@@ -398,6 +401,16 @@ class StoreViewActivity : AppCompatActivity() {
                 Toast.makeText(this@StoreViewActivity, "Successfully added to your Suki stores!", Toast.LENGTH_SHORT).show()
                 isSubscribed = true
                 updateSubscriptionUI()
+
+                // Redirect to the customer home screen store tab
+                val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+                prefs.edit().putBoolean("redirect_to_stores_tab", true).apply()
+
+                val intent = Intent(this@StoreViewActivity, CustomerHomeActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                startActivity(intent)
+                overridePendingTransition(0, 0)
+                finish()
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(this@StoreViewActivity, "Subscription failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()

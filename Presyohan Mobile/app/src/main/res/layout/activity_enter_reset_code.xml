@@ -62,10 +62,9 @@
             app:layout_constraintVertical_bias="0.3">
 
             <TextView
-                android:id="@+id/verifyTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Verify your Email"
+                android:text="Enter Verification Code"
                 android:textColor="@color/presyo_orange"
                 android:textSize="22sp"
                 android:textStyle="bold"
@@ -73,7 +72,6 @@
 
             <!-- 6 boxes layout container -->
             <FrameLayout
-                android:id="@+id/layoutCodeBoxesFrame"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp">
@@ -172,7 +170,6 @@
                     android:textCursorDrawable="@null"
                     android:privateImeOptions="nm" />
             </FrameLayout>
-
             <!-- Description Message -->
             <TextView
                 android:id="@+id/verifyMessage"
