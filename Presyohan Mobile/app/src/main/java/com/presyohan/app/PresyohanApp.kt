@@ -23,6 +23,9 @@ object SupabaseProvider {
                 flowType = FlowType.PKCE
                 scheme = "presyohan"
                 host = "auth-callback"
+                alwaysAutoRefresh = true
+                autoSaveToStorage = true
+                autoLoadFromStorage = true
             }
             install(Postgrest)
             install(Storage)

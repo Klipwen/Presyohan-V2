@@ -3,11 +3,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp"
+    android:padding="24dp"
     android:background="@drawable/bg_dialog_custom"
     android:gravity="center_horizontal">
 
-    <!-- Presyohan Logo top-left -->
+    <!-- Header Logo and Brand Name -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -56,42 +56,61 @@
                     android:textColor="@color/presyo_teal"
                     android:textSize="22sp"
                     android:textStyle="bold" />
-                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+    </LinearLayout>
 
-    <!-- Center Icon -->
-    <ImageView
-        android:id="@+id/successIcon"
-        android:layout_width="72dp"
-        android:layout_height="72dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="12dp"
-        android:scaleType="fitCenter"
-        android:contentDescription="Success Status Icon" />
-
-    <!-- Title -->
-    <TextView
-        android:id="@+id/successTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:textColor="#757575"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="20dp"
-        android:lineSpacingMultiplier="1.1" />
-
-    <!-- Action Button (Full Width of Content) -->
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btnAction"
+    <!-- Content Card Area -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="46dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_broadcast_content"
+        android:padding="20dp"
+        android:gravity="center_horizontal"
+        android:layout_marginBottom="20dp">
+
+        <!-- Title / Header -->
+        <TextView
+            android:id="@+id/tvBroadcastTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Header"
+            android:textColor="#6B7280"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Body content -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="180dp">
+
+            <TextView
+                android:id="@+id/tvBroadcastBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Body texts"
+                android:textColor="#8A8A8A"
+                android:textSize="15sp"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp" />
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- Action button -->
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btnBroadcastAction"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
         android:background="@drawable/button_round"
-        android:backgroundTint="#219EBC"
+        android:backgroundTint="@color/presyo_teal"
+        android:text="Close"
         android:textColor="#FFFFFF"
+        android:textSize="16sp"
         android:textStyle="bold"
-        android:textSize="15sp"
         android:textAllCaps="false" />
 
 </LinearLayout>

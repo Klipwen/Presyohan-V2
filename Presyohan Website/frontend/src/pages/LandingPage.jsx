@@ -13,8 +13,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [apkUrl, setApkUrl] = useState(import.meta.env.VITE_DOWNLOAD_APK_URL || '');
-
-  
+  const [versionName, setVersionName] = useState('2.0');
 
   useEffect(() => {
     if (location.hash) {
@@ -27,10 +26,29 @@ export default function LandingPage() {
   }, [location]);
 
   useEffect(() => {
-    if (!apkUrl) {
-      const { data } = supabase.storage.from('presyohan.apk').getPublicUrl('presyohan.apk');
-      if (data?.publicUrl) setApkUrl(data.publicUrl);
-    }
+    const fetchLatestRelease = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_releases')
+          .select('download_url, version_name')
+          .order('version_code', { ascending: false })
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          setApkUrl(data[0].download_url);
+          setVersionName(data[0].version_name);
+        } else {
+          if (!apkUrl) {
+            const { data: fallbackData } = supabase.storage.from('presyohan.apk').getPublicUrl('presyohan.apk');
+            if (fallbackData?.publicUrl) setApkUrl(fallbackData.publicUrl);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching latest release:', err);
+      }
+    };
+
+    fetchLatestRelease();
   }, [apkUrl]);
 
   const comparisonRows = [
@@ -168,7 +186,7 @@ export default function LandingPage() {
       <HeroSection onGetStarted={() => navigate('/login')} />
       <AboutSection comparisonRows={comparisonRows} roles={roles} />
       <FeaturesSection feature1Cards={feature1Cards} feature2Cards={feature2Cards} feature3Cards={feature3Cards} />
-      <DownloadSection apkUrl={apkUrl} />
+      <DownloadSection apkUrl={apkUrl} versionName={versionName} />
       <Footer />
     </div>
   );

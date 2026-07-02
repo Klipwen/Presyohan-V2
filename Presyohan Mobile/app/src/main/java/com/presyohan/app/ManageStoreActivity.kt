@@ -567,26 +567,52 @@ class ManageStoreActivity : AppCompatActivity() {
 
     private fun setupPublicCheckbox() {
         cbMakeStorePublic.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                try {
-                    SupabaseProvider.client.postgrest["stores"].update(
-                        mapOf("is_public" to isChecked)
-                    ) {
-                        filter { eq("id", storeId!!) }
-                    }
-                    tvStatStatus.text = if (isChecked) "Public" else "Private"
-                    Toast.makeText(
-                        this@ManageStoreActivity,
-                        if (isChecked) "Store is now Public." else "Store is now Private.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } catch (e: Exception) {
-                    cbMakeStorePublic.setOnCheckedChangeListener(null)
-                    cbMakeStorePublic.isChecked = !isChecked
-                    setupPublicCheckbox()
-                    Toast.makeText(this@ManageStoreActivity, "Failed to update store visibility.", Toast.LENGTH_SHORT).show()
-                }
+            // Temporarily detach listener to prevent programmatic triggers
+            cbMakeStorePublic.setOnCheckedChangeListener(null)
+            cbMakeStorePublic.isChecked = !isChecked
+
+            val title = if (isChecked) "Publish Store" else "Unpublish Store"
+            val message = if (isChecked) {
+                "Are you sure you want to publish this store?\n\nMaking your store public allows sukis to view your products and prices."
+            } else {
+                "Are you sure you want to unpublish this store?\n\nMaking your store private will hide all products and prices from your suki."
             }
+            val actionText = if (isChecked) "Publish" else "Unpublish"
+
+            showReusableDialog(
+                title = title,
+                message = message,
+                positiveButtonText = actionText,
+                positiveAction = {
+                    cbMakeStorePublic.isChecked = isChecked
+                    setupPublicCheckbox()
+
+                    lifecycleScope.launch {
+                        try {
+                            SupabaseProvider.client.postgrest["stores"].update(
+                                mapOf("is_public" to isChecked)
+                            ) {
+                                filter { eq("id", storeId!!) }
+                            }
+                            tvStatStatus.text = if (isChecked) "Public" else "Private"
+                            Toast.makeText(
+                                this@ManageStoreActivity,
+                                if (isChecked) "Store is now Public." else "Store is now Private.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } catch (e: Exception) {
+                            cbMakeStorePublic.setOnCheckedChangeListener(null)
+                            cbMakeStorePublic.isChecked = !isChecked
+                            setupPublicCheckbox()
+                            Toast.makeText(this@ManageStoreActivity, "Failed to update store visibility.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                negativeButtonText = "Cancel",
+                negativeAction = {
+                    setupPublicCheckbox()
+                }
+            )
         }
     }
 

@@ -81,6 +81,15 @@ class StoreActivity : AppCompatActivity() {
     // To track the countdown job inside the dialog
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
     private var hasAutoOpenedBottomSheet = false
+    private var connectionLostDialog: android.app.Dialog? = null
+
+    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
+        if (connectionLostDialog?.isShowing == true) return
+        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
+            connectionLostDialog = null
+            reloadAction()
+        }
+    }
 
     // Export permission handler
     private var lastExportFilenamePending: String? = null
@@ -337,6 +346,7 @@ class StoreActivity : AppCompatActivity() {
                 SupabaseAuthService.updateUserHeartbeat()
             } catch (_: Exception) {}
         }
+        ReusableDialogHelper.checkAndShowBroadcast(this, lifecycleScope)
 
         // Handle pending onboarding actions
         val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
@@ -729,7 +739,7 @@ class StoreActivity : AppCompatActivity() {
                         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                         val parsedDate = inputFormat.parse(rawDate)
                         if (parsedDate != null) {
-                            val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
+                            val outputFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
                             outputFormat.format(parsedDate)
                         } else {
                             rawDate
@@ -872,6 +882,11 @@ class StoreActivity : AppCompatActivity() {
                 noStoreLabel.text = "Failed to load stores.\nPlease check your connection."
                 layoutEmptyState.visibility = View.GONE
                 recyclerView.visibility = View.GONE
+                if (ReusableDialogHelper.isNetworkError(e)) {
+                    showConnectionLostDialog {
+                        fetchStores(showShimmer = true)
+                    }
+                }
             } finally {
                 swipeRefreshLayout.isRefreshing = false
                 if (showShimmer) {

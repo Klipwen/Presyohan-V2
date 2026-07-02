@@ -27,12 +27,25 @@ android {
         ?: System.getenv("GEMINI_API_KEY") 
         ?: ""
 
+    // Load version code and version name from version.properties
+    val versionPropsFile = project.file("version.properties")
+    val versionProps = Properties()
+    if (versionPropsFile.exists()) {
+        versionPropsFile.inputStream().use { versionProps.load(it) }
+    } else {
+        versionProps["VERSION_CODE"] = "3"
+        versionProps["VERSION_NAME"] = "3.0.0"
+    }
+
+    val currentVersionCode = versionProps.getProperty("VERSION_CODE").toInt()
+    val currentVersionName = versionProps.getProperty("VERSION_NAME")
+
     defaultConfig {
         applicationId = "com.presyohan.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = currentVersionCode
+        versionName = currentVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -149,4 +162,89 @@ dependencies {
     // QR Code generation & scanning
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+}
+
+// Tasks for version incrementation
+tasks.register("incrementPatch") {
+    group = "versioning"
+    description = "Bumps the version code (+1) and patch version (e.g., 3.0.0 -> 3.0.1)."
+    doLast {
+        val propertiesFile = file("version.properties")
+        val properties = Properties()
+        propertiesFile.inputStream().use { properties.load(it) }
+        
+        val code = properties.getProperty("VERSION_CODE").toInt()
+        val name = properties.getProperty("VERSION_NAME")
+        
+        val nextCode = code + 1
+        val parts = name.split(".")
+        if (parts.size >= 3) {
+            val major = parts[0].toInt()
+            val minor = parts[1].toInt()
+            val patch = parts[2].toInt()
+            val nextName = "$major.$minor.${patch + 1}"
+            
+            properties.setProperty("VERSION_CODE", nextCode.toString())
+            properties.setProperty("VERSION_NAME", nextName)
+            propertiesFile.outputStream().use { properties.store(it, "Auto-incremented patch version") }
+            println("Version bumped to: $nextName (Code: $nextCode)")
+        } else {
+            throw IllegalArgumentException("Invalid version name format: $name. Expected major.minor.patch")
+        }
+    }
+}
+
+tasks.register("incrementMinor") {
+    group = "versioning"
+    description = "Bumps the version code (+1) and minor version, resetting patch to 0 (e.g., 3.0.1 -> 3.1.0)."
+    doLast {
+        val propertiesFile = file("version.properties")
+        val properties = Properties()
+        propertiesFile.inputStream().use { properties.load(it) }
+        
+        val code = properties.getProperty("VERSION_CODE").toInt()
+        val name = properties.getProperty("VERSION_NAME")
+        
+        val nextCode = code + 1
+        val parts = name.split(".")
+        if (parts.size >= 2) {
+            val major = parts[0].toInt()
+            val minor = parts[1].toInt()
+            val nextName = "$major.${minor + 1}.0"
+            
+            properties.setProperty("VERSION_CODE", nextCode.toString())
+            properties.setProperty("VERSION_NAME", nextName)
+            propertiesFile.outputStream().use { properties.store(it, "Auto-incremented minor version") }
+            println("Version bumped to: $nextName (Code: $nextCode)")
+        } else {
+            throw IllegalArgumentException("Invalid version name format: $name. Expected major.minor[.patch]")
+        }
+    }
+}
+
+tasks.register("incrementMajor") {
+    group = "versioning"
+    description = "Bumps the version code (+1) and major version, resetting minor and patch to 0 (e.g., 3.0.1 -> 4.0.0)."
+    doLast {
+        val propertiesFile = file("version.properties")
+        val properties = Properties()
+        propertiesFile.inputStream().use { properties.load(it) }
+        
+        val code = properties.getProperty("VERSION_CODE").toInt()
+        val name = properties.getProperty("VERSION_NAME")
+        
+        val nextCode = code + 1
+        val parts = name.split(".")
+        if (parts.isNotEmpty()) {
+            val major = parts[0].toInt()
+            val nextName = "${major + 1}.0.0"
+            
+            properties.setProperty("VERSION_CODE", nextCode.toString())
+            properties.setProperty("VERSION_NAME", nextName)
+            propertiesFile.outputStream().use { properties.store(it, "Auto-incremented major version") }
+            println("Version bumped to: $nextName (Code: $nextCode)")
+        } else {
+            throw IllegalArgumentException("Invalid version name format: $name. Expected major.minor[.patch]")
+        }
+    }
 }

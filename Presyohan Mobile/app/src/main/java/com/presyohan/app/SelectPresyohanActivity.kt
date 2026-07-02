@@ -50,6 +50,16 @@ class SelectPresyohanActivity : AppCompatActivity() {
     // Adapter
     private lateinit var storeAdapter: PresyohanSelectionAdapter
 
+    private var connectionLostDialog: Dialog? = null
+
+    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
+        if (connectionLostDialog?.isShowing == true) return
+        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
+            connectionLostDialog = null
+            reloadAction()
+        }
+    }
+
     @Serializable
     data class SukiRelationshipRow(val store_id: String)
 
@@ -230,7 +240,13 @@ class SelectPresyohanActivity : AppCompatActivity() {
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@SelectPresyohanActivity, "Error loading stores: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                if (ReusableDialogHelper.isNetworkError(e)) {
+                    showConnectionLostDialog {
+                        loadPresyohanStores()
+                    }
+                } else {
+                    Toast.makeText(this@SelectPresyohanActivity, "Error loading stores: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
             } finally {
                 progressBar.visibility = View.GONE
             }

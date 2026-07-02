@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabaseClient';
+import rocketImg from '../../assets/icon_rocket.png';
+import launcherImg from '../../assets/icon_presyohan_launcher.png';
 
 export default function AppReleases() {
   const [releases, setReleases] = useState([]);
@@ -15,6 +17,7 @@ export default function AppReleases() {
   const [dragging, setDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [actionLoading, setActionLoading] = useState(null); // 'upload' or releaseId
+  const [showPreview, setShowPreview] = useState(false);
 
   const loadReleases = async () => {
     try {
@@ -129,6 +132,35 @@ export default function AppReleases() {
         });
 
       if (dbErr) throw dbErr;
+
+      // Clean up oldest versions to keep only 5 including the new one
+      try {
+        const { data: currentReleases, error: listErr } = await supabase
+          .from('app_releases')
+          .select('*')
+          .order('version_code', { ascending: true }); // Ascending: oldest first
+
+        if (!listErr && currentReleases && currentReleases.length > 5) {
+          const deleteCount = currentReleases.length - 5;
+          const oldestToDelete = currentReleases.slice(0, deleteCount);
+
+          for (const oldRelease of oldestToDelete) {
+            // Remove APK from Storage
+            const oldFilename = `releases/presyohan-v${oldRelease.version_code}.apk`;
+            await supabase.storage
+              .from('presyohan.apk')
+              .remove([oldFilename]);
+
+            // Remove database record
+            await supabase
+              .from('app_releases')
+              .delete()
+              .eq('id', oldRelease.id);
+          }
+        }
+      } catch (cleanupErr) {
+        console.error('Failed to clean up oldest releases:', cleanupErr);
+      }
 
       setUploadProgress(100);
       
@@ -373,6 +405,26 @@ export default function AppReleases() {
           )}
 
           <button
+            type="button"
+            onClick={() => setShowPreview(true)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: 'transparent',
+              border: '2px solid #ff8c00',
+              color: '#ff8c00',
+              borderRadius: '8px',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginBottom: '12px',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            Show App Preview
+          </button>
+
+          <button
             type="submit"
             className="admin-btn-primary"
             style={{ width: '100%' }}
@@ -382,6 +434,225 @@ export default function AppReleases() {
           </button>
         </form>
       </div>
+
+      {/* Live Phone Mockup Preview Modal */}
+      {showPreview && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            position: 'relative',
+            width: '380px',
+            height: '760px',
+            backgroundColor: '#000',
+            borderRadius: '40px',
+            padding: '12px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Phone Screen Container */}
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#fff',
+              borderRadius: '32px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+            }}>
+              {/* Top-Right and Bottom-Left Corner Curve Decorators */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '110px',
+                height: '110px',
+                background: 'linear-gradient(270deg, #FFC502 0%, #FB8500 100%)',
+                zIndex: 0,
+                borderBottomLeftRadius: '110px'
+              }} />
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                width: '110px',
+                height: '110px',
+                background: 'linear-gradient(270deg, #FFC502 0%, #FB8500 100%)',
+                zIndex: 0,
+                borderTopRightRadius: '110px'
+              }} />
+
+              {/* Content Container */}
+              <div style={{
+                position: 'relative',
+                zIndex: 1,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'transparent',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                boxSizing: 'border-box'
+              }}>
+                {/* Header Logo and Label */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '16px',
+                  zIndex: 2
+                }}>
+                  <img 
+                    src={launcherImg} 
+                    alt="Presyohan Logo" 
+                    style={{ width: '32px', height: '32px', objectFit: 'contain' }} 
+                  />
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    marginLeft: '6px',
+                    lineHeight: 1
+                  }}>
+                    <span style={{
+                      fontSize: '8px',
+                      fontWeight: 'bold',
+                      color: '#FFEB3B',
+                      marginBottom: '-4px',
+                      textTransform: 'lowercase'
+                    }}>atong</span>
+                    <div style={{ display: 'flex', fontWeight: 'bold', fontSize: '22px' }}>
+                      <span style={{ color: '#FB8500' }}>presyo</span>
+                      <span style={{ color: '#219EBC' }}>han?</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Centered Content */}
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  paddingTop: '24px'
+                }}>
+                  {/* Rocket Icon */}
+                  <img 
+                    src={rocketImg} 
+                    alt="Rocket" 
+                    style={{ width: '140px', height: '140px', objectFit: 'contain', marginBottom: '16px' }} 
+                  />
+
+                  {/* Title */}
+                  <h2 style={{
+                    fontSize: '28px',
+                    fontWeight: 'bold',
+                    color: '#FB8500',
+                    margin: '0 0 6px 0',
+                    textAlign: 'center'
+                  }}>New Version</h2>
+
+                  {/* Version Name */}
+                  <span style={{
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    color: '#219EBC',
+                    marginBottom: '32px'
+                  }}>
+                    V{versionName || '3.26.213'}
+                  </span>
+
+                  {/* Release Notes */}
+                  <div style={{
+                    alignSelf: 'stretch',
+                    textAlign: 'left',
+                    padding: '0 12px'
+                  }}>
+                    <h4 style={{
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      color: '#219EBC',
+                      margin: '0 0 10px 0'
+                    }}>Whats New?</h4>
+                    
+                    <div style={{
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      fontSize: '12.5px',
+                      color: '#475569',
+                      lineHeight: 1.6
+                    }}>
+                      {(whatsNew || 'List down bug fixes, new features, or updates in this version...')
+                        .split('\n')
+                        .filter(line => line.trim().length > 0)
+                        .map((line, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '6px' }}>
+                            <span style={{ marginRight: '6px', color: '#219EBC' }}>•</span>
+                            <span>{line.replace(/^•\s*/, '')}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Update Now Button */}
+                <button type="button" style={{
+                  width: '100%',
+                  height: '48px',
+                  backgroundColor: '#219EBC',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '24px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(33, 158, 188, 0.3)',
+                  marginBottom: '12px'
+                }}>
+                  Update Now
+                </button>
+              </div>
+            </div>
+
+            {/* Close button outside phone frame */}
+            <button 
+              type="button"
+              onClick={() => setShowPreview(false)}
+              style={{
+                position: 'absolute',
+                top: '-20px',
+                right: '-20px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: '#fff',
+                border: 'none',
+                color: '#334155',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

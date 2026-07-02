@@ -145,10 +145,23 @@
                 android:hint="Search Item..."
                 android:imeOptions="actionSearch"
                 android:inputType="text"
-                android:paddingHorizontal="16dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="40dp"
                 android:textColor="#334155"
                 android:textColorHint="#94A3B8"
                 android:textSize="14sp" />
+
+            <ImageView
+                android:id="@+id/btnClearSearch"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="end|center_vertical"
+                android:padding="12dp"
+                android:src="@drawable/ic_close_gray"
+                android:visibility="gone"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Clear Search" />
         </FrameLayout>
 
         <!-- Category Dropdown Trigger -->
@@ -232,7 +245,48 @@
 
     </LinearLayout>
 
+    <!-- Empty State for Search -->
+    <TextView
+        android:id="@+id/tvEmptySearchState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No products found"
+        android:textColor="#94A3B8"
+        android:textSize="16sp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Searching Loading State -->
+    <LinearLayout
+        android:id="@+id/layoutSearchLoading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="#F8FAFC"
+        android:paddingVertical="8dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/curvedHeaderContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ProgressBar
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:indeterminateTint="@color/presyo_orange"
+            android:indeterminate="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Searching..."
+            android:textColor="#64748B"
+            android:textSize="14sp" />
+    </LinearLayout>
 
     <!-- Loading Shimmer Skeleton Container -->
     <com.facebook.shimmer.ShimmerFrameLayout

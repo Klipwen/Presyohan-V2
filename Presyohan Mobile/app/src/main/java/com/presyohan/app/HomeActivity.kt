@@ -87,6 +87,15 @@ class HomeActivity : AppCompatActivity() {
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
     private var hasAutoOpenedAddDialog = false
     private var hasLoadedProductsOnce = false
+    private var connectionLostDialog: android.app.Dialog? = null
+
+    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
+        if (connectionLostDialog?.isShowing == true) return
+        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
+            connectionLostDialog = null
+            reloadAction()
+        }
+    }
 
     private val spinnerCategories = mutableListOf("PRICELIST")
     private lateinit var spinnerAdapter: android.widget.ArrayAdapter<String>
@@ -517,6 +526,11 @@ class HomeActivity : AppCompatActivity() {
                         layoutEmptyState.visibility = View.VISIBLE
                         productRecyclerView.visibility = View.GONE
                     }
+                    if (ReusableDialogHelper.isNetworkError(e)) {
+                        showConnectionLostDialog {
+                            loadProductsFromSupabase(true)
+                        }
+                    }
                 } finally {
                     swipeRefreshLayout.isRefreshing = false
                     if (showLoading) {
@@ -919,7 +933,7 @@ class HomeActivity : AppCompatActivity() {
                         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                         val parsedDate = inputFormat.parse(rawDate)
                         if (parsedDate != null) {
-                            val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
+                            val outputFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
                             outputFormat.format(parsedDate)
                         } else {
                             rawDate
@@ -1749,6 +1763,18 @@ class HomeActivity : AppCompatActivity() {
                 if (simpleName != null) uT.text = simpleName
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SessionManager.markStoreHome(this, currentStoreId, currentStoreName)
+        reloadProductsFn?.invoke()
+        lifecycleScope.launch {
+            try {
+                SupabaseAuthService.updateUserHeartbeat()
+            } catch (_: Exception) {}
+        }
+        ReusableDialogHelper.checkAndShowBroadcast(this, lifecycleScope)
     }
 
     override fun onBackPressed() {

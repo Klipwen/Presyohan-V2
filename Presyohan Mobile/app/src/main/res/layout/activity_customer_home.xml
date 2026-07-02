@@ -119,19 +119,36 @@
                 android:paddingBottom="12dp"
                 android:orientation="vertical">
 
-                <EditText
-                    android:id="@+id/searchEditText"
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:background="@drawable/bg_customer_search_input"
-                    android:hint="Search Item.."
-                    android:textColor="#333333"
-                    android:textColorHint="#999999"
-                    android:textSize="14sp"
-                    android:paddingStart="20dp"
-                    android:paddingEnd="20dp"
-                    android:singleLine="true"
-                    android:imeOptions="actionSearch" />
+                    android:layout_height="44dp">
+
+                    <EditText
+                        android:id="@+id/searchEditText"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_customer_search_input"
+                        android:hint="Search Item.."
+                        android:textColor="#333333"
+                        android:textColorHint="#999999"
+                        android:textSize="14sp"
+                        android:paddingStart="20dp"
+                        android:paddingEnd="44dp"
+                        android:singleLine="true"
+                        android:imeOptions="actionSearch" />
+
+                    <ImageView
+                        android:id="@+id/btnClearSearch"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_gravity="end|center_vertical"
+                        android:padding="13dp"
+                        android:src="@drawable/ic_close_gray"
+                        android:visibility="gone"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:contentDescription="Clear Search" />
+                </FrameLayout>
 
 
 
@@ -185,6 +202,33 @@
                     android:clipToPadding="false"
                     android:scrollbars="vertical"
                     tools:listitem="@layout/item_customer_product" />
+
+                <!-- Searching Loading State -->
+                <LinearLayout
+                    android:id="@+id/layoutSearchLoading"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:background="#F8FAFC"
+                    android:paddingVertical="8dp"
+                    android:layout_gravity="top"
+                    android:visibility="gone">
+
+                    <ProgressBar
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginEnd="8dp"
+                        android:indeterminateTint="@color/presyo_orange"
+                        android:indeterminate="true" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Searching..."
+                        android:textColor="#64748B"
+                        android:textSize="14sp" />
+                </LinearLayout>
 
                 <!-- Stores Tab View (Hidden by default) -->
                 <androidx.recyclerview.widget.RecyclerView
@@ -381,23 +425,13 @@
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Add Store"
-                android:textColor="@color/presyo_orange"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="16dp" />
-
             <!-- Button 1: Presyohan -->
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btnBottomSheetPresyohan"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:background="@drawable/bg_button_round_teal_pill"
-                android:text="PRESYOHAN"
+                android:text="ADD PRESYOHAN"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"

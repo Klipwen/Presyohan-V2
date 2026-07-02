@@ -124,119 +124,48 @@ class SplashActivity : Activity() {
         isForcedUpdateActive = true
 
         val rootLayout = findViewById<ViewGroup>(android.R.id.content)
-        
-        // Dynamic Premium Dark Layout Container
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#0f172a")) // Dark slate
-            setPadding(80, 80, 80, 80)
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        }
+        val overlayView = layoutInflater.inflate(R.layout.layout_forced_update, rootLayout, false)
 
-        // Title
-        val titleView = TextView(this).apply {
-            text = "Update Required"
-            setTextColor(Color.WHITE)
-            textSize = 24f
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            gravity = Gravity.CENTER
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 0, 0, 40)
-            layoutParams = params
-        }
+        val tvVersionTag = overlayView.findViewById<TextView>(R.id.tvVersionTag)
+        val tvWhatsNewList = overlayView.findViewById<TextView>(R.id.tvWhatsNewList)
+        val btnUpdateNow = overlayView.findViewById<View>(R.id.btnUpdateNow)
 
-        // Description
-        val descView = TextView(this).apply {
-            text = "A new version of Presyohan is available (v${release.version_name}). Please update to continue using the application."
-            setTextColor(Color.parseColor("#94a3b8"))
-            textSize = 15f
-            gravity = Gravity.CENTER
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 0, 0, 48)
-            layoutParams = params
-        }
+        tvVersionTag.text = "V${release.version_name}"
 
-        // Release notes box
-        val releaseNotesLabel = TextView(this).apply {
-            text = "What's New in v${release.version_name}:"
-            setTextColor(Color.parseColor("#ff8c00"))
-            textSize = 14f
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(20, 0, 0, 12)
-            layoutParams = params
-        }
+        // Format bullet points for release notes
+        val bulletPoints = release.whats_new.split("\n")
+            .filter { it.trim().isNotEmpty() }
+            .joinToString("\n") { "• ${it.trim().removePrefix("•").trim()}" }
+        tvWhatsNewList.text = bulletPoints
 
-        val releaseNotesBody = TextView(this).apply {
-            text = release.whats_new
-            setTextColor(Color.parseColor("#cbd5e1"))
-            textSize = 13f
-            setBackgroundColor(Color.parseColor("#1e293b"))
-            setPadding(32, 24, 32, 24)
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 0, 0, 60)
-            layoutParams = params
-        }
-
-        // Action Button
-        val updateButton = Button(this).apply {
-            text = "UPDATE NOW"
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#ff8c00")) // Orange
-            textSize = 15f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 24)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setOnClickListener {
+        btnUpdateNow.setOnClickListener {
+            try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(release.download_url))
                 startActivity(intent)
-            }
+            } catch (_: Exception) {}
         }
 
-        container.addView(titleView)
-        container.addView(descView)
-        container.addView(releaseNotesLabel)
-        container.addView(releaseNotesBody)
-        container.addView(updateButton)
-
-        rootLayout.addView(container)
+        rootLayout.addView(overlayView)
     }
 
     private fun showOptionalUpdateDialog(release: AppReleaseRow, getStartedButton: Button) {
-        AlertDialog.Builder(this)
-            .setTitle("Update Available")
-            .setMessage("A new version of Presyohan is available (v${release.version_name}). Would you like to update now?\n\nWhat's New:\n${release.whats_new}")
-            .setCancelable(false)
-            .setPositiveButton("Update Now") { _, _ ->
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(release.download_url))
-                startActivity(intent)
+        showReusableDialog(
+            title = "New Version Available",
+            message = "A new version of Presyohan is available (v${release.version_name}). Would you like to update now?\n\nWhat's New:\n${release.whats_new}",
+            positiveButtonText = "Update Now",
+            positiveAction = {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(release.download_url))
+                    startActivity(intent)
+                } catch (_: Exception) {}
                 setupGetStartedNavigation(getStartedButton)
-            }
-            .setNegativeButton("Later") { dialog, _ ->
-                dialog.dismiss()
+            },
+            negativeButtonText = "Later",
+            negativeAction = {
                 setupGetStartedNavigation(getStartedButton)
-            }
-            .show()
+            },
+            isCancelable = false
+        )
     }
 
     private fun setupGetStartedNavigation(getStartedButton: Button) {
@@ -246,10 +175,16 @@ class SplashActivity : Activity() {
     }
 
     private fun runSplashNavigation() {
-        if (SupabaseAuthService.isLoggedIn()) {
-            val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-            if (userId != null) {
-                CoroutineScope(Dispatchers.Main).launch {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                SupabaseProvider.client.auth.awaitInitialization()
+            } catch (e: Exception) {
+                android.util.Log.e("SplashActivity", "Error awaiting auth initialization: ${e.message}", e)
+            }
+
+            if (SupabaseAuthService.isLoggedIn()) {
+                val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
+                if (userId != null) {
                     try {
                         SupabaseAuthService.updateUserHeartbeat()
                         val onboardingCompleted = SupabaseAuthService.isOnboardingCompleted()
@@ -266,14 +201,14 @@ class SplashActivity : Activity() {
                     } finally {
                         finish()
                     }
+                } else {
+                    val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+                    routeToLastScreen(prefs)
+                    finish()
                 }
             } else {
-                val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
-                routeToLastScreen(prefs)
-                finish()
+                playTransitionAndNavigate()
             }
-        } else {
-            playTransitionAndNavigate()
         }
     }
 
@@ -350,6 +285,19 @@ class SplashActivity : Activity() {
     }
 
     private fun routeToLastScreen(prefs: android.content.SharedPreferences) {
+        val unscopedLastScreen = prefs.getString(SessionManager.KEY_LAST_SCREEN, null)
+        if (unscopedLastScreen == SessionManager.SCREEN_HOME) {
+            val storeId = prefs.getString(SessionManager.KEY_STORE_ID, null)
+            val storeName = prefs.getString(SessionManager.KEY_STORE_NAME, null)
+            if (storeId != null && storeName != null) {
+                val intent = Intent(this, HomeActivity::class.java)
+                intent.putExtra("storeId", storeId)
+                intent.putExtra("storeName", storeName)
+                startActivity(intent)
+                return
+            }
+        }
+
         val lastScreenKey = SessionManager.getScopedKey(this, SessionManager.KEY_LAST_SCREEN)
         val lastScreen = prefs.getString(lastScreenKey, SessionManager.SCREEN_STORE)
         if (lastScreen == SessionManager.SCREEN_CUSTOMER_HOME) {

@@ -48,33 +48,53 @@
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent" />
 
-                    <TextView
-                        android:id="@+id/logoText"
+                    <LinearLayout
+                        android:id="@+id/logoLayout"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:fontFamily="sans-serif"
-                        android:text="presyo"
-                        android:textColor="@color/presyo_orange"
-                        android:textSize="28sp"
-                        android:textStyle="bold"
+                        android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintStart_toEndOf="@id/menuIcon"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
+                        app:layout_constraintTop_toTopOf="parent">
 
-                    <TextView
-                        android:id="@+id/logoTextBlue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="0dp"
-                        android:fontFamily="sans-serif"
-                        android:text="han?"
-                        android:textColor="@color/presyo_teal"
-                        android:textSize="28sp"
-                        android:textStyle="bold"
-                        app:layout_constraintStart_toEndOf="@id/logoText"
-                        app:layout_constraintTop_toTopOf="@id/logoText"
-                        app:layout_constraintBottom_toBottomOf="@id/logoText" />
+                        <TextView
+                            android:id="@+id/logoTextAtong"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="atong"
+                            android:textColor="#FFEB3B"
+                            android:layout_marginBottom="-12dp"
+                            android:textStyle="bold"
+                            android:textSize="10sp" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/logoText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif"
+                                android:text="presyo"
+                                android:textColor="@color/presyo_orange"
+                                android:textSize="28sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/logoTextBlue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="0dp"
+                                android:fontFamily="sans-serif"
+                                android:text="han?"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="28sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
 
                      <ImageView
                         android:id="@+id/notifIcon"

@@ -25,6 +25,9 @@ import coil.transform.CircleCropTransformation
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import android.app.Dialog
 import android.view.Window
@@ -69,6 +72,15 @@ class CustomerHomeActivity : AppCompatActivity() {
 
 
     private var activeAddSukiDialog: Dialog? = null
+    private var connectionLostDialog: Dialog? = null
+
+    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
+        if (connectionLostDialog?.isShowing == true) return
+        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
+            connectionLostDialog = null
+            reloadAction()
+        }
+    }
 
     // Data lists
     private var allStores: List<StoreDetailRow> = emptyList()
@@ -348,12 +360,29 @@ class CustomerHomeActivity : AppCompatActivity() {
 
 
 
+        val btnClearSearch = findViewById<ImageView>(R.id.btnClearSearch)
+        btnClearSearch.setOnClickListener {
+            searchEditText.setText("")
+        }
+
         // Search text watcher with debounce
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentSearchQuery = s?.toString()?.trim() ?: ""
-                filterAndRenderData(delayMillis = 180L)
+                btnClearSearch.visibility = if (currentSearchQuery.isEmpty()) View.GONE else View.VISIBLE
+                
+                if (currentSearchQuery.isEmpty()) {
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                    rvCustomerPrices.visibility = if (isPricesTabActive) View.VISIBLE else View.GONE
+                    rvCustomerStores.visibility = if (isPricesTabActive) View.GONE else View.VISIBLE
+                    filterAndRenderData(delayMillis = 0L)
+                } else {
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.VISIBLE
+                    rvCustomerPrices.visibility = View.GONE
+                    rvCustomerStores.visibility = View.GONE
+                    filterAndRenderData(delayMillis = 1400L)
+                }
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -392,9 +421,30 @@ class CustomerHomeActivity : AppCompatActivity() {
             prefs.edit().remove("redirect_to_stores_tab").apply()
             selectTab(false) // Switch to Stores tab!
         }
+        ReusableDialogHelper.checkAndShowBroadcast(this, lifecycleScope)
+    }
+
+    private fun scrollToTopWithLimit(recyclerView: RecyclerView) {
+        recyclerView.smoothScrollToPosition(0)
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(1200)
+            recyclerView.scrollToPosition(0)
+        }
     }
 
     override fun onBackPressed() {
+        if (currentSearchQuery.isNotEmpty()) {
+            searchEditText.setText("")
+            return
+        }
+        if (isPricesTabActive) {
+            val layoutManager = rvCustomerPrices.layoutManager as? LinearLayoutManager
+            val firstVisible = layoutManager?.findFirstVisibleItemPosition() ?: 0
+            if (firstVisible > 0) {
+                scrollToTopWithLimit(rvCustomerPrices)
+                return
+            }
+        }
         val now = System.currentTimeMillis()
         if (now - lastBackPress < 2000) {
             @Suppress("DEPRECATION")
@@ -408,7 +458,7 @@ class CustomerHomeActivity : AppCompatActivity() {
     private fun selectTab(isPrices: Boolean) {
         if (isPricesTabActive == isPrices) {
             if (isPrices) {
-                rvCustomerPrices.smoothScrollToPosition(0)
+                scrollToTopWithLimit(rvCustomerPrices)
             } else {
                 rvCustomerStores.smoothScrollToPosition(0)
             }
@@ -799,24 +849,49 @@ class CustomerHomeActivity : AppCompatActivity() {
                     }
                     .decodeList<StoreDetailRow>()
 
-                // 3. Fetch linked categories
-                allCategories = SupabaseProvider.client.postgrest["categories"]
-                    .select {
-                        filter { isIn("store_id", storeIds) }
-                        limit(5000)
-                    }
-                    .decodeList<CategoryDetailRow>()
-
-                // 4. Fetch public products (raise limit to 50000 to be safe)
-                allProducts = SupabaseProvider.client.postgrest["products"]
-                    .select {
-                        filter {
-                            isIn("store_id", storeIds)
-                            eq("is_public", true)
+                val (allCategoriesResult, allProductsResult) = coroutineScope {
+                    val categoryDeferreds = storeIds.map { sId ->
+                        async {
+                            try {
+                                SupabaseProvider.client.postgrest["categories"]
+                                    .select {
+                                        filter { eq("store_id", sId) }
+                                        limit(1000)
+                                    }
+                                    .decodeList<CategoryDetailRow>()
+                            } catch (e: Exception) {
+                                emptyList<CategoryDetailRow>()
+                            }
                         }
-                        limit(50000)
                     }
-                    .decodeList<ProductDetailRow>()
+
+                    val productDeferreds = storeIds.map { sId ->
+                        async {
+                            try {
+                                SupabaseProvider.client.postgrest["products"]
+                                    .select {
+                                        filter {
+                                            eq("store_id", sId)
+                                            eq("is_public", true)
+                                        }
+                                        limit(5000)
+                                    }
+                                    .decodeList<ProductDetailRow>()
+                            } catch (e: Exception) {
+                                android.util.Log.e("CustomerHomeActivity", "Failed to fetch products for store $sId", e)
+                                emptyList<ProductDetailRow>()
+                            }
+                        }
+                    }
+
+                    Pair(
+                        awaitAll(*categoryDeferreds.toTypedArray()).flatten(),
+                        awaitAll(*productDeferreds.toTypedArray()).flatten()
+                    )
+                }
+
+                allCategories = allCategoriesResult
+                allProducts = allProductsResult
 
                 // 5. Fetch accurate product counts from database
                 try {
@@ -837,7 +912,7 @@ class CustomerHomeActivity : AppCompatActivity() {
 
                 // Precompute baseProducts once data is successfully loaded to avoid lag during search queries
                 // Include products from all linked (Suki) stores — user is authorized to see public prices of their suki stores
-                val publicStoreIds = allStores.map { it.id }.toSet()
+                val publicStoreIds = allStores.filter { it.is_public || it.is_standard_store }.map { it.id }.toSet()
                 val storeMap = allStores.associateBy { it.id }
                 val categoryMap = allCategories.associateBy { it.id }
                 baseProducts = allProducts
@@ -861,7 +936,13 @@ class CustomerHomeActivity : AppCompatActivity() {
                 filterAndRenderData()
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@CustomerHomeActivity, "Error loading data: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                if (ReusableDialogHelper.isNetworkError(e)) {
+                    showConnectionLostDialog {
+                        loadCustomerData(showShimmer = true)
+                    }
+                } else {
+                    Toast.makeText(this@CustomerHomeActivity, "Error loading data: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
             } finally {
                 swipeRefreshLayout.isRefreshing = false
                 if (showShimmer) {
@@ -937,6 +1018,12 @@ class CustomerHomeActivity : AppCompatActivity() {
         return q.length >= 6 || (q.length.toDouble() / c.length.toDouble()) >= 0.6
     }
 
+    private fun matchesCategoryTokens(categoryQuery: String, categoryName: String): Boolean {
+        val tokens = categoryQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return false
+        return tokens.all { token -> isFuzzyMatch(token, categoryName) }
+    }
+
     private fun filterAndRenderData(delayMillis: Long = 0) {
         val query = currentSearchQuery.trim()
         val isPrices = isPricesTabActive
@@ -956,79 +1043,148 @@ class CustomerHomeActivity : AppCompatActivity() {
             if (isPrices) {
                 // Render Prices/Products Tab
                 val searchItems = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                    val queryLower = query.lowercase(Locale.getDefault())
-                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
                     val storeMap = snapshotStores.associateBy { it.id }
-                    
-                    val isCategoryQuery = queryLower == "category" ||
-                            (queryLower.length >= 6 && levenshteinDistance(queryLower, "category") <= 2)
 
-                    val isStoreQuery = queryLower == "store" ||
-                            (queryLower.length >= 4 && levenshteinDistance(queryLower, "store") <= 1)
-
-                    if (isCategoryQuery) {
-                        snapshotCategories.map { cat ->
-                            val store = storeMap[cat.store_id]
-                            val itemCount = snapshotProducts.count { it.category_id == cat.id }
-                            DisplayCategory(
-                                categoryId = cat.id,
-                                categoryName = cat.name,
-                                storeId = cat.store_id,
-                                storeName = store?.name ?: "Unknown Store",
-                                storeLocation = store?.branch ?: "Main Branch",
-                                itemCount = itemCount
-                            )
-                        }.filter { it.itemCount > 0 }.map { SearchItem.Category(it) }
-                    } else {
-                        // Regular search (mix of categories and products)
-                        val matchingCategories = if (queryLower.isNotEmpty()) {
-                            snapshotCategories.filter { cat -> matchesCategoryName(queryLower, cat.name) }
-                        } else emptyList()
-
-                        val displayCategories = matchingCategories.map { cat ->
-                            val store = storeMap[cat.store_id]
-                            val itemCount = snapshotProducts.count { it.category_id == cat.id }
-                            DisplayCategory(
-                                categoryId = cat.id,
-                                categoryName = cat.name,
-                                storeId = cat.store_id,
-                                storeName = store?.name ?: "Unknown Store",
-                                storeLocation = store?.branch ?: "Main Branch",
-                                itemCount = itemCount
-                            )
-                        }.filter { it.itemCount > 0 }
-
-                        val matchedStore = snapshotStores.firstOrNull { store ->
-                            store.name.equals(query, ignoreCase = true) ||
-                                    (query.length >= 4 && levenshteinDistance(queryLower, store.name.lowercase(Locale.getDefault())) <= 2)
-                        }
-
-                        val filteredProducts = if (tokens.isEmpty() || isStoreQuery) {
-                            snapshotBaseProducts
-                        } else if (matchedStore != null) {
-                            snapshotBaseProducts.filter { it.storeName.equals(matchedStore.name, ignoreCase = true) }
-                                .sortedByDescending { calculateMatchScore(query, it) }
-                        } else {
-                            snapshotBaseProducts.filter { matchesProduct(tokens, it) }
-                                .sortedByDescending { calculateMatchScore(query, it) }
-                        }
-
-                        displayCategories.map { SearchItem.Category(it) } + filteredProducts.map { SearchItem.Product(it) }
+                    // 1. Extract price range
+                    var maxPrice: Double? = null
+                    val priceRangeRegex = Regex("(?i)price\\s+range:\\s*(\\d+(?:\\.\\d+)?)")
+                    val priceRangeMatch = priceRangeRegex.find(query)
+                    var cleanQuery = query
+                    if (priceRangeMatch != null) {
+                        maxPrice = priceRangeMatch.groupValues[1].toDoubleOrNull()
+                        cleanQuery = query.replace(priceRangeMatch.value, "").trim()
                     }
+
+                    val cleanQueryLower = cleanQuery.lowercase(Locale.getDefault())
+
+                    // 2. Parse category queries
+                    var storeNameQuery: String? = null
+                    var categoryNameQuery: String? = null
+                    var isAllCategoriesQuery = false
+
+                    val storeCategoriesRegex = Regex("(?i)(.+?)\\s+categories:\\s*(.*)")
+                    val storeCategoriesMatch = storeCategoriesRegex.matchEntire(cleanQuery)
+
+                    if (storeCategoriesMatch != null) {
+                        storeNameQuery = storeCategoriesMatch.groupValues[1].trim()
+                        categoryNameQuery = storeCategoriesMatch.groupValues[2].trim()
+                    } else {
+                        val categoryRegex = Regex("(?i)^category:\\s*(.*)")
+                        val categoryRegex2 = Regex("(?i)^category\\s+(.*)")
+                        val categoryMatch = categoryRegex.matchEntire(cleanQuery) ?: categoryRegex2.matchEntire(cleanQuery)
+                        if (categoryMatch != null) {
+                            categoryNameQuery = categoryMatch.groupValues[1].trim()
+                        } else {
+                            isAllCategoriesQuery = cleanQueryLower == "category" ||
+                                    (cleanQueryLower.length >= 6 && levenshteinDistance(cleanQueryLower, "category") <= 2)
+                        }
+                    }
+
+                    val isStoreQuery = cleanQueryLower == "store" ||
+                            (cleanQueryLower.length >= 4 && levenshteinDistance(cleanQueryLower, "store") <= 1)
+
+                    // 3. Filter categories
+                    val matchingCategories = if (isAllCategoriesQuery) {
+                        snapshotCategories
+                    } else if (storeNameQuery != null) {
+                        val matchedStores = snapshotStores.filter { isFuzzyMatch(storeNameQuery, it.name) }
+                        val storeIds = matchedStores.map { it.id }.toSet()
+                        if (categoryNameQuery.isNullOrBlank()) {
+                            snapshotCategories.filter { it.store_id in storeIds }
+                        } else {
+                            snapshotCategories.filter { it.store_id in storeIds && matchesCategoryTokens(categoryNameQuery, it.name) }
+                        }
+                    } else if (categoryNameQuery != null) {
+                        if (categoryNameQuery.isBlank()) {
+                            snapshotCategories
+                        } else {
+                            snapshotCategories.filter { matchesCategoryTokens(categoryNameQuery, it.name) }
+                        }
+                    } else {
+                        if (cleanQuery.isNotEmpty() && !isStoreQuery) {
+                            snapshotCategories.filter { matchesCategoryTokens(cleanQuery, it.name) }
+                        } else {
+                            emptyList()
+                        }
+                    }
+
+                    val displayCategories = matchingCategories.map { cat ->
+                        val store = storeMap[cat.store_id]
+                        val itemCount = snapshotProducts.count { it.category_id == cat.id }
+                        DisplayCategory(
+                            categoryId = cat.id,
+                            categoryName = cat.name,
+                            storeId = cat.store_id,
+                            storeName = store?.name ?: "Unknown Store",
+                            storeLocation = store?.branch ?: "Main Branch",
+                            itemCount = itemCount
+                        )
+                    }.filter { it.itemCount > 0 }
+
+                    // 4. Filter products
+                    val filteredProducts = if (isAllCategoriesQuery) {
+                        emptyList()
+                    } else if (storeNameQuery != null) {
+                        val matchedStores = snapshotStores.filter { isFuzzyMatch(storeNameQuery, it.name) }
+                        val storeIds = matchedStores.map { it.id }.toSet()
+                        if (categoryNameQuery.isNullOrBlank()) {
+                            emptyList()
+                        } else {
+                            snapshotBaseProducts.filter { prod ->
+                                prod.storeId in storeIds && matchesCategoryTokens(categoryNameQuery, prod.categoryName)
+                            }
+                        }
+                    } else if (categoryNameQuery != null) {
+                        if (categoryNameQuery.isBlank()) {
+                            snapshotBaseProducts
+                        } else {
+                            snapshotBaseProducts.filter { prod ->
+                                matchesCategoryTokens(categoryNameQuery, prod.categoryName)
+                            }
+                        }
+                    } else {
+                        val cleanTokens = cleanQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                        if (cleanTokens.isEmpty() || isStoreQuery) {
+                            snapshotBaseProducts
+                        } else {
+                            snapshotBaseProducts.filter { matchesProduct(cleanTokens, it) }
+                        }
+                    }
+
+                    // 5. Apply price range filter and sort
+                    val finalProducts = if (maxPrice != null) {
+                        filteredProducts
+                            .filter { it.price <= maxPrice }
+                            .sortedByDescending { it.price }
+                    } else {
+                        if (cleanQuery.isEmpty()) {
+                            filteredProducts
+                        } else {
+                            filteredProducts.sortedByDescending { calculateMatchScore(cleanQuery, it) }
+                        }
+                    }
+
+                    displayCategories.map { SearchItem.Category(it) } + finalProducts.map { SearchItem.Product(it) }
                 }
 
                 searchAdapter.updateList(searchItems)
-                toggleEmptyState(
-                    searchItems.isEmpty(),
-                    if (query.isEmpty()) "No products found." else "No products found matching \"$query\""
-                )
+                findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                rvCustomerPrices.visibility = View.VISIBLE
+                val emptyMessage = if (snapshotStores.isEmpty() && query.isEmpty()) {
+                    "No products yet."
+                } else if (query.isEmpty()) {
+                    "No products found."
+                } else {
+                    "No products found matching \"$query\""
+                }
+                toggleEmptyState(searchItems.isEmpty(), emptyMessage)
             } else {
                 // Render Stores Tab
                 val filteredStores = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
                     
                     val displayStores = snapshotStores.map { store ->
-                        val productCount = storeProductCounts[store.id] ?: 0
+                        val productCount = if (store.is_public || store.is_standard_store) (storeProductCounts[store.id] ?: 0) else 0
                         val isPresyohan = store.is_standard_store
                         val typeTag = if (isPresyohan) "Presyohan" else if (store.is_public) "Public" else "Private"
 
@@ -1075,10 +1231,16 @@ class CustomerHomeActivity : AppCompatActivity() {
                 )
 
                 storeAdapter.updateList(filteredStores)
-                toggleEmptyState(
-                    filteredStores.isEmpty(),
-                    if (query.isEmpty()) "No stores found." else "No stores found matching \"$query\""
-                )
+                findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                rvCustomerStores.visibility = View.VISIBLE
+                val emptyMessage = if (snapshotStores.isEmpty() && query.isEmpty()) {
+                    "No stores yet."
+                } else if (query.isEmpty()) {
+                    "No stores found."
+                } else {
+                    "No stores found matching \"$query\""
+                }
+                toggleEmptyState(filteredStores.isEmpty(), emptyMessage)
             }
         }
     }
@@ -1237,13 +1399,16 @@ class CustomerHomeActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // Fetch suki relationships count for this store
-                @Serializable
-                data class SukiRow(val store_id: String)
-                val sukiRows = SupabaseProvider.client.postgrest["suki_relationships"].select {
-                    filter { eq("store_id", store.id) }
-                }.decodeList<SukiRow>()
-                txtSukiCount.text = sukiRows.size.toString()
+                // Use RPC to bypass RLS and get actual suki count
+                val sukiCount = try {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "get_store_suki_count",
+                        kotlinx.serialization.json.buildJsonObject { put("p_store_id", kotlinx.serialization.json.JsonPrimitive(store.id)) }
+                    ).decodeAs<Int>()
+                } catch (e: Exception) {
+                    0
+                }
+                txtSukiCount.text = sukiCount.toString()
 
                 // Fetch store metadata (created_at, is_public)
                 @Serializable
@@ -1263,7 +1428,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                         val parsedDate = inputFormat.parse(rawDate)
                         if (parsedDate != null) {
-                            val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
+                            val outputFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
                             outputFormat.format(parsedDate)
                         } else {
                             rawDate
