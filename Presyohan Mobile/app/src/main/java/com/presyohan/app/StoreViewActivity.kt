@@ -79,6 +79,16 @@ class StoreViewActivity : AppCompatActivity() {
     private lateinit var groupAdapter: CategoryGroupAdapter
     private var searchJob: kotlinx.coroutines.Job? = null
 
+    private var connectionLostDialog: Dialog? = null
+
+    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
+        if (connectionLostDialog?.isShowing == true) return
+        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
+            connectionLostDialog = null
+            reloadAction()
+        }
+    }
+
     @Serializable
     data class SukiRelationshipRow(val store_id: String)
 
@@ -172,7 +182,7 @@ class StoreViewActivity : AppCompatActivity() {
 
         // Setup Back Click
         btnBack.setOnClickListener {
-            finish()
+            onBackPressed()
         }
 
         // Setup RecyclerView
@@ -206,15 +216,35 @@ class StoreViewActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        val btnClearSearch = findViewById<ImageView>(R.id.btnClearSearch)
+        btnClearSearch.setOnClickListener {
+            searchEditText.setText("")
+        }
+
         // Setup Search bar
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentSearchQuery = s?.toString()?.trim() ?: ""
-                searchJob?.cancel()
-                searchJob = lifecycleScope.launch {
-                    kotlinx.coroutines.delay(180)
-                    filterAndGroupProducts()
+                btnClearSearch.visibility = if (currentSearchQuery.isEmpty()) View.GONE else View.VISIBLE
+                
+                if (currentSearchQuery.isEmpty()) {
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                    if (!isPrivateAndNotSubscribed) {
+                        rvStoreProducts.visibility = View.VISIBLE
+                    }
+                    searchJob?.cancel()
+                    searchJob = lifecycleScope.launch {
+                        filterAndGroupProducts()
+                    }
+                } else {
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.VISIBLE
+                    rvStoreProducts.visibility = View.GONE
+                    searchJob?.cancel()
+                    searchJob = lifecycleScope.launch {
+                        kotlinx.coroutines.delay(1400)
+                        filterAndGroupProducts()
+                    }
                 }
             }
             override fun afterTextChanged(s: Editable?) {}
@@ -281,7 +311,7 @@ class StoreViewActivity : AppCompatActivity() {
                     tvStoreName.text = it.name
                     tvStoreBranch.text = it.branch ?: "Main Branch"
                 }
-                isPrivateAndNotSubscribed = !isStorePublic && !isSubscribed
+                isPrivateAndNotSubscribed = !isStorePublic && !isPresyohan
 
                 if (isPrivateAndNotSubscribed) {
                     // Hide content and button indicators
@@ -290,6 +320,7 @@ class StoreViewActivity : AppCompatActivity() {
                     btnToggleSubscribe.visibility = View.GONE
                     btnUnsubscribe.visibility = View.GONE
                     layoutPrivateStoreState.visibility = View.VISIBLE
+                    findViewById<TextView>(R.id.tvEmptySearchState).visibility = View.GONE
                 } else {
                     // Show standard controls
                     layoutPricelistTrigger.visibility = View.VISIBLE
@@ -355,7 +386,13 @@ class StoreViewActivity : AppCompatActivity() {
 
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@StoreViewActivity, "Failed to load store content: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                if (ReusableDialogHelper.isNetworkError(e)) {
+                    showConnectionLostDialog {
+                        loadStoreData()
+                    }
+                } else {
+                    Toast.makeText(this@StoreViewActivity, "Failed to load store content: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
             } finally {
                 shimmerContainer.stopShimmer()
                 shimmerContainer.visibility = View.GONE
@@ -493,20 +530,23 @@ class StoreViewActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // Fetch suki relationships count for this store
-                @Serializable
-                data class SukiRow(val store_id: String)
-                val sukiRows = SupabaseProvider.client.postgrest["suki_relationships"].select {
-                    filter { eq("store_id", meta.id) }
-                }.decodeList<SukiRow>()
-                txtSukiCount.text = sukiRows.size.toString()
+                // Use RPC to bypass RLS and get actual suki count
+                val sukiCount = try {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "get_store_suki_count",
+                        kotlinx.serialization.json.buildJsonObject { put("p_store_id", kotlinx.serialization.json.JsonPrimitive(meta.id)) }
+                    ).decodeAs<Int>()
+                } catch (e: Exception) {
+                    0
+                }
+                txtSukiCount.text = sukiCount.toString()
 
                 val rawDate = meta.created_at?.split("T")?.firstOrNull() ?: ""
                 val dateText = try {
                     val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                     val parsedDate = inputFormat.parse(rawDate)
                     if (parsedDate != null) {
-                        val outputFormat = SimpleDateFormat("dd/MM/yy", Locale.US)
+                        val outputFormat = SimpleDateFormat("MM/dd/yyyy", Locale.US)
                         outputFormat.format(parsedDate)
                     } else {
                         rawDate
@@ -555,6 +595,16 @@ class StoreViewActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val sortedGroups = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                // 1. Extract price range
+                var maxPrice: Double? = null
+                val priceRangeRegex = Regex("(?i)price\\s+range:\\s*(\\d+(?:\\.\\d+)?)")
+                val priceRangeMatch = priceRangeRegex.find(query)
+                var cleanQuery = query
+                if (priceRangeMatch != null) {
+                    maxPrice = priceRangeMatch.groupValues[1].toDoubleOrNull()
+                    cleanQuery = query.replace(priceRangeMatch.value, "").trim()
+                }
+
                 // Apply category filter
                 val catFiltered = if (cat == "PRICELIST") {
                     rawProducts
@@ -563,10 +613,10 @@ class StoreViewActivity : AppCompatActivity() {
                 }
 
                 // Apply search query filter using SearchHelper
-                val searchFiltered = if (query.isBlank()) {
-                    catFiltered.sortedBy { it.name.lowercase(Locale.getDefault()) }
+                val searchFiltered = if (cleanQuery.isBlank()) {
+                    catFiltered
                 } else {
-                    val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    val tokens = cleanQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
                     
                     val matchedProducts = catFiltered.filter { prod ->
                         var isMatch = true
@@ -586,7 +636,7 @@ class StoreViewActivity : AppCompatActivity() {
 
                     matchedProducts.map { prod ->
                         val score = com.presyohan.app.helper.SearchHelper.calculateProductScore(
-                            query = query,
+                            query = cleanQuery,
                             name = prod.name,
                             description = prod.description,
                             categoryName = prod.category
@@ -597,8 +647,21 @@ class StoreViewActivity : AppCompatActivity() {
                     .map { it.first }
                 }
 
+                // 2. Apply price range filter and sort
+                val finalProducts = if (maxPrice != null) {
+                    searchFiltered
+                        .filter { it.price <= maxPrice }
+                        .sortedByDescending { it.price }
+                } else {
+                    if (cleanQuery.isBlank()) {
+                        searchFiltered.sortedBy { it.name.lowercase(Locale.getDefault()) }
+                    } else {
+                        searchFiltered
+                    }
+                }
+
                 // Group by category, sort categories alphabetically, preserve inner order (sorted by score if searched)
-                val groupedMap = searchFiltered.groupBy { it.category.trim() }
+                val groupedMap = finalProducts.groupBy { it.category.trim() }
                 groupedMap.entries.sortedBy { it.key.lowercase(Locale.getDefault()) }.map { entry ->
                     com.presyohan.app.HomeActivity.ProductGroup(
                         categoryName = entry.key,
@@ -609,7 +672,44 @@ class StoreViewActivity : AppCompatActivity() {
             }
 
             groupAdapter.updateGroups(sortedGroups, null)
+            findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+
+            // Show/hide empty search state label
+            val tvEmptySearchState = findViewById<TextView>(R.id.tvEmptySearchState)
+            if (isPrivateAndNotSubscribed) {
+                tvEmptySearchState.visibility = View.GONE
+                rvStoreProducts.visibility = View.GONE
+            } else if (sortedGroups.isEmpty()) {
+                tvEmptySearchState.visibility = View.VISIBLE
+                rvStoreProducts.visibility = View.GONE
+            } else {
+                tvEmptySearchState.visibility = View.GONE
+                rvStoreProducts.visibility = View.VISIBLE
+            }
         }
+    }
+
+    private fun scrollToTopWithLimit(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        recyclerView.smoothScrollToPosition(0)
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(1200)
+            recyclerView.scrollToPosition(0)
+        }
+    }
+
+    override fun onBackPressed() {
+        if (currentSearchQuery.isNotEmpty()) {
+            searchEditText.setText("")
+            return
+        }
+        val layoutManager = rvStoreProducts.layoutManager as? LinearLayoutManager
+        val firstVisible = layoutManager?.findFirstVisibleItemPosition() ?: 0
+        if (firstVisible > 0) {
+            scrollToTopWithLimit(rvStoreProducts)
+            return
+        }
+        @Suppress("DEPRECATION")
+        super.onBackPressed()
     }
 
     override fun finish() {

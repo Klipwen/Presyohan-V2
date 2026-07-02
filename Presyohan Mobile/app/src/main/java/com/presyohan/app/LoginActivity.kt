@@ -264,6 +264,20 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
 
     private fun navigateToLastActivity() {
         val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+        val unscopedLastScreen = prefs.getString(SessionManager.KEY_LAST_SCREEN, null)
+        if (unscopedLastScreen == SessionManager.SCREEN_HOME) {
+            val storeId = prefs.getString(SessionManager.KEY_STORE_ID, null)
+            val storeName = prefs.getString(SessionManager.KEY_STORE_NAME, null)
+            if (storeId != null && storeName != null) {
+                val intent = Intent(this, HomeActivity::class.java)
+                intent.putExtra("storeId", storeId)
+                intent.putExtra("storeName", storeName)
+                startActivity(intent)
+                finish()
+                return
+            }
+        }
+
         val lastScreenKey = SessionManager.getScopedKey(this, SessionManager.KEY_LAST_SCREEN)
         val lastScreen = prefs.getString(lastScreenKey, SessionManager.SCREEN_STORE)
         if (lastScreen == SessionManager.SCREEN_CUSTOMER_HOME) {

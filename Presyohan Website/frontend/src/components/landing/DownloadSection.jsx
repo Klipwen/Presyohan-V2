@@ -7,7 +7,7 @@ import storeItemsImg from '../../assets/presyohan app sample/Store Items.png'
 import productsImg from '../../assets/presyohan app sample/Products.png'
 import storeMgmtImg from '../../assets/presyohan app sample/Store Management.png'
 
-export default function DownloadSection({ apkUrl }) {
+export default function DownloadSection({ apkUrl, versionName }) {
   const collageRef = useRef(null)
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function DownloadSection({ apkUrl }) {
               <div className="lp-download-label">Download the app now!</div>
               <a href={apkUrl} className="lp-download-btn" target="_blank" rel="noopener noreferrer">
                 <div>
-                  <div className="lp-store-title">presyohan v2.0</div>
+                  <div className="lp-store-title">presyohan v{versionName || '2.0'}</div>
                 </div>
               </a>
             </div>

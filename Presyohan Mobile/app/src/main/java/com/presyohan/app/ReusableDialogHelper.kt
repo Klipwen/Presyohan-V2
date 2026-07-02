@@ -9,6 +9,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatButton
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.Serializable
+import kotlinx.coroutines.launch
+import io.github.jan.supabase.auth.auth
 
 object ReusableDialogHelper {
 
@@ -128,7 +132,118 @@ object ReusableDialogHelper {
 
         return dialog
     }
+
+    fun isNetworkError(e: Throwable): Boolean {
+        var cause: Throwable? = e
+        while (cause != null) {
+            if (cause is java.io.IOException ||
+                cause is java.net.ConnectException ||
+                cause is java.net.UnknownHostException ||
+                cause is java.net.SocketTimeoutException ||
+                cause is io.ktor.client.plugins.HttpRequestTimeoutException ||
+                cause is io.ktor.client.network.sockets.ConnectTimeoutException
+            ) {
+                return true
+            }
+            cause = cause.cause
+        }
+        return false
+    }
+
+    fun showConnectionLostDialog(
+        context: Context,
+        reloadAction: () -> Unit
+    ): Dialog {
+        return showCustomDialog(
+            context = context,
+            title = "Connection Lost",
+            message = "Please check your internet connection and try again.",
+            positiveButtonText = "Reload",
+            positiveAction = reloadAction,
+            negativeButtonText = "Close App",
+            negativeAction = {
+                (context as? android.app.Activity)?.finishAffinity()
+            },
+            isCancelable = false
+        )
+    }
+
+    fun showBroadcastDialog(
+        context: Context,
+        title: String,
+        body: String,
+        buttonText: String,
+        onClose: () -> Unit
+    ): Dialog {
+        val dialog = Dialog(context)
+        dialog.setContentView(R.layout.dialog_broadcast)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.setCancelable(false)
+
+        val tvTitle = dialog.findViewById<TextView>(R.id.tvBroadcastTitle)
+        val tvBody = dialog.findViewById<TextView>(R.id.tvBroadcastBody)
+        val btnAction = dialog.findViewById<TextView>(R.id.btnBroadcastAction)
+
+        tvTitle.text = title
+        tvBody.text = body
+        btnAction.text = buttonText
+
+        btnAction.setOnClickListener {
+            dialog.dismiss()
+            onClose()
+        }
+
+        dialog.show()
+
+        // Set width programmatically to 90% of screen width to prevent shrinking
+        dialog.window?.setLayout(
+            (context.resources.displayMetrics.widthPixels * 0.9).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
+        return dialog
+    }
+
+    fun checkAndShowBroadcast(activity: android.app.Activity, scope: kotlinx.coroutines.CoroutineScope) {
+        val prefs = activity.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+        scope.launch {
+            try {
+                val activeAnnouncements = SupabaseProvider.client.postgrest.from("announcements")
+                    .select {
+                        filter {
+                            eq("is_active", true)
+                        }
+                    }.decodeList<AnnouncementRow>()
+
+                if (activeAnnouncements.isNotEmpty()) {
+                    val latest = activeAnnouncements.maxByOrNull { it.created_at } ?: activeAnnouncements.first()
+                    
+                    val userId = SupabaseProvider.client.auth.currentSessionOrNull()?.user?.id ?: ""
+                    val key = if (userId.isNotEmpty()) "last_seen_announcement_id_$userId" else "last_seen_announcement_id"
+                    
+                    val lastSeenId = prefs.getString(key, "")
+                    if (latest.id != lastSeenId) {
+                        showBroadcastDialog(activity, latest.title, latest.content, latest.button_label) {
+                            prefs.edit().putString(key, latest.id).apply()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 }
+
+@Serializable
+data class AnnouncementRow(
+    val id: String,
+    val title: String,
+    val content: String,
+    val is_active: Boolean,
+    val button_label: String = "Close",
+    val created_at: String
+)
 
 /**
  * Extension function on Context to easily display the reusable dialog.
@@ -165,4 +280,8 @@ fun Context.showSuccessDialog(
         buttonText = buttonText,
         action = action
     )
+}
+
+fun Context.showConnectionLostDialog(reloadAction: () -> Unit): Dialog {
+    return ReusableDialogHelper.showConnectionLostDialog(this, reloadAction)
 }

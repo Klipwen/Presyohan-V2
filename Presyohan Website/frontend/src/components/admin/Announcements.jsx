@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabaseClient';
+import launcherImg from '../../assets/icon_presyohan_launcher.png';
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
@@ -10,6 +11,8 @@ export default function Announcements() {
   const [content, setContent] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [editingId, setEditingId] = useState(null);
+  const [buttonLabel, setButtonLabel] = useState('Close');
+  const [showPreview, setShowPreview] = useState(false);
   
   const [actionLoading, setActionLoading] = useState(null); // 'submit' or announcementId
 
@@ -65,6 +68,7 @@ export default function Announcements() {
         title: title.trim(),
         content: content.trim(),
         is_active: isActive,
+        button_label: buttonLabel.trim() || 'Close',
         created_by: user?.id || null
       };
 
@@ -86,6 +90,7 @@ export default function Announcements() {
       setTitle('');
       setContent('');
       setIsActive(true);
+      setButtonLabel('Close');
       setEditingId(null);
       await loadAnnouncements();
     } catch (err) {
@@ -101,6 +106,21 @@ export default function Announcements() {
     setTitle(item.title);
     setContent(item.content);
     setIsActive(item.is_active);
+    setButtonLabel(item.button_label || 'Close');
+  };
+
+  const handleCopyAsNew = (item) => {
+    setEditingId(null);
+    setTitle(item.title);
+    setContent(item.content);
+    setIsActive(true);
+    setButtonLabel(item.button_label || 'Close');
+    
+    // Smooth scroll the broadcaster form into view
+    const formElement = document.querySelector('form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleDelete = async (item) => {
@@ -121,6 +141,7 @@ export default function Announcements() {
         setTitle('');
         setContent('');
         setIsActive(true);
+        setButtonLabel('Close');
         setEditingId(null);
       }
     } catch (err) {
@@ -191,6 +212,13 @@ export default function Announcements() {
                         Edit
                       </button>
                       <button 
+                        className="admin-btn-action" 
+                        style={{ border: '1px solid #fb8500', color: '#fb8500' }}
+                        onClick={() => handleCopyAsNew(item)}
+                      >
+                        Broadcast Again
+                      </button>
+                      <button 
                         className="admin-btn-action suspend" 
                         disabled={actionLoading !== null}
                         onClick={() => handleDelete(item)}
@@ -242,6 +270,19 @@ export default function Announcements() {
             />
           </div>
 
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Button Label</label>
+            <input
+              type="text"
+              required
+              className="admin-search-input"
+              style={{ paddingLeft: '16px' }}
+              placeholder="e.g. Close"
+              value={buttonLabel}
+              onChange={(e) => setButtonLabel(e.target.value)}
+            />
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
             <input
               type="checkbox"
@@ -255,6 +296,26 @@ export default function Announcements() {
             </label>
           </div>
 
+          <button
+            type="button"
+            onClick={() => setShowPreview(true)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: 'transparent',
+              border: '2px solid #ff8c00',
+              color: '#ff8c00',
+              borderRadius: '8px',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginBottom: '12px',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            Show Announcement Preview
+          </button>
+
           <div style={{ display: 'flex', gap: '12px' }}>
             {editingId && (
               <button
@@ -266,6 +327,7 @@ export default function Announcements() {
                   setTitle('');
                   setContent('');
                   setIsActive(true);
+                  setButtonLabel('Close');
                 }}
               >
                 Cancel Edit
@@ -282,6 +344,142 @@ export default function Announcements() {
           </div>
         </form>
       </div>
+
+      {/* Live Broadcast Preview Modal */}
+      {showPreview && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            position: 'relative',
+            width: '420px',
+            height: '420px',
+            backgroundColor: '#fff',
+            borderRadius: '24px',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            boxSizing: 'border-box',
+            fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+          }}>
+            {/* Header Logo and Label */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <img 
+                src={launcherImg} 
+                alt="Presyohan Logo" 
+                style={{ width: '32px', height: '32px', objectFit: 'contain' }} 
+              />
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                marginLeft: '6px',
+                lineHeight: 1
+              }}>
+                <span style={{
+                  fontSize: '8px',
+                  fontWeight: 'bold',
+                  color: '#FFEB3B',
+                  marginBottom: '-4px',
+                  textTransform: 'lowercase'
+                }}>atong</span>
+                <div style={{ display: 'flex', fontWeight: 'bold', fontSize: '22px' }}>
+                  <span style={{ color: '#FB8500' }}>presyo</span>
+                  <span style={{ color: '#219EBC' }}>han?</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Light Blue Rounded Container for Header and Body */}
+            <div style={{
+              flex: 1,
+              backgroundColor: '#EDF7FA',
+              borderRadius: '20px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center',
+              marginBottom: '20px',
+              boxSizing: 'border-box',
+              overflowY: 'auto'
+            }}>
+              <h3 style={{
+                fontSize: '22px',
+                fontWeight: 'bold',
+                color: '#6B7280',
+                margin: '0 0 10px 0',
+                wordBreak: 'break-word'
+              }}>{title || 'Header'}</h3>
+              
+              <p style={{
+                fontSize: '15px',
+                color: '#8A8A8A',
+                margin: 0,
+                lineHeight: 1.5,
+                wordBreak: 'break-word'
+              }}>{content || 'Body texts'}</p>
+            </div>
+
+            {/* Teal Action Button */}
+            <button type="button" style={{
+              width: '100%',
+              height: '48px',
+              backgroundColor: '#219EBC',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '24px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 10px rgba(33, 158, 188, 0.3)'
+            }}>
+              {buttonLabel || 'Close'}
+            </button>
+
+            {/* Close button outside preview */}
+            <button 
+              type="button"
+              onClick={() => setShowPreview(false)}
+              style={{
+                position: 'absolute',
+                top: '-20px',
+                right: '-20px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: '#fff',
+                border: 'none',
+                color: '#334155',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -28,6 +28,7 @@ object SessionManager {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(key, SCREEN_STORE)
+            .putString(KEY_LAST_SCREEN, SCREEN_STORE)
             .apply()
     }
 
@@ -36,6 +37,7 @@ object SessionManager {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(key, SCREEN_CUSTOMER_HOME)
+            .putString(KEY_LAST_SCREEN, SCREEN_CUSTOMER_HOME)
             .apply()
     }
 
@@ -47,9 +49,12 @@ object SessionManager {
         val editor = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(keyLastScreen, SCREEN_HOME)
+            .putString(KEY_LAST_SCREEN, SCREEN_HOME)
         if (!storeId.isNullOrBlank() && !storeName.isNullOrBlank()) {
             editor.putString(keyStoreId, storeId)
             editor.putString(keyStoreName, storeName)
+            editor.putString(KEY_STORE_ID, storeId)
+            editor.putString(KEY_STORE_NAME, storeName)
         }
         editor.apply()
     }
