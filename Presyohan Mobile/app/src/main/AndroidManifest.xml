@@ -84,9 +84,7 @@
             android:name=".ManageCategoryActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".CopyPricesActivity"
-            android:exported="false" />
+
         <activity
             android:name=".StoreQrActivity"
             android:exported="false" />
@@ -104,6 +102,15 @@
             android:windowSoftInputMode="adjustPan" />
         <activity
             android:name=".SettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".EditProfileActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AccountSecurityActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MembershipsActivity"
             android:exported="false" />
         <activity
             android:name=".CustomScannerActivity"

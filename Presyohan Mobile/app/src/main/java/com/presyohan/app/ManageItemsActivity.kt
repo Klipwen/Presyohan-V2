@@ -294,8 +294,10 @@ class ManageItemsActivity : AppCompatActivity() {
 
 
         fun updateRecyclerPadding(bottomHeight: Int) {
-            val safetyPadding = (16 * resources.displayMetrics.density).toInt()
-            val targetPadding = bottomHeight + safetyPadding
+            val density = resources.displayMetrics.density
+            val minPadding = (120 * density).toInt() // Minimum padding to clear the FAB button (80dp height + 32dp bottom margin)
+            val safetyPadding = (16 * density).toInt()
+            val targetPadding = maxOf(minPadding, bottomHeight + safetyPadding)
             if (recyclerView.paddingBottom != targetPadding) {
                 recyclerView.setPadding(
                     recyclerView.paddingLeft,

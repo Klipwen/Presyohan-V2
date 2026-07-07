@@ -55,25 +55,26 @@ class SettingsActivity : AppCompatActivity() {
             finish()
         }
 
-        // Load profile data
-        loadUserProfile()
-
         // Edit Profile
         btnEditProfile.setOnClickListener {
-            Toast.makeText(this, "Profile edit is coming soon!", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, EditProfileActivity::class.java)
+            startActivity(intent)
         }
 
         // Account Security
         btnAccountSecurity.setOnClickListener {
-            Toast.makeText(this, "Security settings coming soon!", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, AccountSecurityActivity::class.java)
+            startActivity(intent)
         }
 
         // Memberships
         btnMemberships.setOnClickListener {
-            Toast.makeText(this, "Memberships management coming soon!", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, MembershipsActivity::class.java)
+            startActivity(intent)
         }
 
         val fromSide = intent.getStringExtra("from_side") ?: "customer"
+        val lblGotoLabel = findViewById<TextView>(R.id.lblGotoLabel)
         val lblGotoTitle = findViewById<TextView>(R.id.lblGotoTitle)
         val lblGotoDesc = findViewById<TextView>(R.id.lblGotoDesc)
         val imgGotoIcon = findViewById<ImageView>(R.id.imgGotoIcon)
@@ -81,6 +82,7 @@ class SettingsActivity : AppCompatActivity() {
         val dp = resources.displayMetrics.density
 
         if (fromSide == "tindiro") {
+            lblGotoLabel.text = "Regular User Portal"
             lblGotoTitle.text = "Presyohan"
             lblGotoDesc.text = "Public Prices"
             imgGotoIcon.setImageResource(R.drawable.icon_public_indacator)
@@ -111,15 +113,17 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
         } else {
+            lblGotoLabel.text = "Store Owner/Staff portal"
             lblGotoTitle.text = "Atong Presyohan?"
-            lblGotoDesc.text = "Add a store and create your own price list"
-            imgGotoIcon.clearColorFilter()
-            imgGotoIcon.rotation = -45f
-            // Restore original Presyohan icon frame size (50dp, 6dp padding)
-            val size50 = (50 * dp).toInt()
-            val pad6 = (6 * dp).toInt()
-            frameGotoIcon.layoutParams = frameGotoIcon.layoutParams.also { it.width = size50; it.height = size50 }
-            frameGotoIcon.setPadding(pad6, pad6, pad6, pad6)
+            lblGotoDesc.text = "Create and manage price lists"
+            imgGotoIcon.setImageResource(R.drawable.icon_store)
+            imgGotoIcon.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.presyo_orange))
+            imgGotoIcon.rotation = 0f
+            // Resize frame to match other setting icons (48dp, 12dp padding)
+            val size48 = (48 * dp).toInt()
+            val pad12 = (12 * dp).toInt()
+            frameGotoIcon.layoutParams = frameGotoIcon.layoutParams.also { it.width = size48; it.height = size48 }
+            frameGotoIcon.setPadding(pad12, pad12, pad12, pad12)
 
             btnAtongPresyohan.setOnClickListener {
                 val intent = Intent(this, StoreActivity::class.java)
@@ -191,7 +195,7 @@ class SettingsActivity : AppCompatActivity() {
         settingsUserName.text = SupabaseAuthService.getDisplayNameImmediate()
         settingsUserId.visibility = View.GONE
         settingsUserAvatar.setImageResource(R.drawable.avatar_default)
-        settingsUserAvatar.setColorFilter(ContextCompat.getColor(this, android.R.color.white))
+        settingsUserAvatar.clearColorFilter()
 
         lifecycleScope.launch {
             val profile = SupabaseAuthService.getUserProfile()
@@ -213,5 +217,11 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Load profile data when settings screen resumes (to reflect changes)
+        loadUserProfile()
     }
 }

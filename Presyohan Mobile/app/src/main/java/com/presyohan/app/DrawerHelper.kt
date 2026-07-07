@@ -41,57 +41,31 @@ object DrawerHelper {
 
         val uT = root.findViewById<TextView>(R.id.drawerUserName)
         val emailT = root.findViewById<TextView>(R.id.drawerUserEmail)
+        val codeT = root.findViewById<TextView>(R.id.drawerUserCode)
         val img = root.findViewById<ImageView>(R.id.drawerUserIcon)
-
+ 
         val toolbarAvatar = activity.findViewById<ImageView>(R.id.profileIcon)
-
+ 
         uT.text = "User"
         emailT.text = ""
+        codeT?.visibility = View.GONE
         img.load(R.drawable.avatar_default) {
             transformations(CircleCropTransformation())
         }
         toolbarAvatar?.load(R.drawable.avatar_default) {
             transformations(CircleCropTransformation())
         }
+ 
+        refreshProfile(activity, root)
 
-        activity.lifecycleScope.launch {
-            try {
-                val profile = SupabaseAuthService.getUserProfile()
-                if (profile != null) {
-                    if (!profile.name.isNullOrBlank()) {
-                        uT.text = profile.name.uppercase()
-                    }
-                    val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
-                    if (currentUser != null && !currentUser.email.isNullOrBlank()) {
-                        emailT.text = currentUser.email
-                    }
-                    val url = profile.avatar_url
-                    if (!url.isNullOrBlank()) {
-                        img.clearColorFilter()
-                        img.load(url) {
-                            crossfade(true)
-                            transformations(CircleCropTransformation())
-                            error(R.drawable.avatar_default)
-                        }
-                        toolbarAvatar?.clearColorFilter()
-                        toolbarAvatar?.load(url) {
-                            crossfade(true)
-                            transformations(CircleCropTransformation())
-                            error(R.drawable.avatar_default)
-                        }
-                    }
-                } else {
-                    val simpleName = SupabaseAuthService.getDisplayName()
-                    if (!simpleName.isNullOrBlank()) uT.text = simpleName.uppercase()
-                    val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
-                    if (currentUser != null && !currentUser.email.isNullOrBlank()) {
-                        emailT.text = currentUser.email
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("DrawerHelper", "Error loading drawer header profile", e)
+        drawerLayout.addDrawerListener(object : DrawerLayout.DrawerListener {
+            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
+            override fun onDrawerOpened(drawerView: View) {
+                refreshProfile(activity, root)
             }
-        }
+            override fun onDrawerClosed(drawerView: View) {}
+            override fun onDrawerStateChanged(newState: Int) {}
+        })
 
         root.findViewById<View>(R.id.drawerItemNotifications).setOnClickListener {
             if (activity !is NotificationActivity) {
@@ -144,8 +118,28 @@ object DrawerHelper {
             }
         }
 
+        // Header clicks navigate to Settings / Edit profile
+        root.findViewById<View>(R.id.drawerHeader)?.setOnClickListener {
+            val side = if (activity is CustomerHomeActivity) "customer" else "tindiro"
+            val intent = Intent(activity, SettingsActivity::class.java).apply {
+                putExtra("from_side", side)
+            }
+            activity.startActivity(intent)
+            drawerLayout.closeDrawers()
+        }
+
+        root.findViewById<View>(R.id.drawerUserEdit)?.setOnClickListener {
+            val intent = Intent(activity, EditProfileActivity::class.java)
+            activity.startActivity(intent)
+            drawerLayout.closeDrawers()
+        }
+
         root.findViewById<View>(R.id.drawerItemSettings).setOnClickListener {
-            Toast.makeText(activity, "Settings under construction", Toast.LENGTH_SHORT).show()
+            val side = if (activity is CustomerHomeActivity) "customer" else "tindiro"
+            val intent = Intent(activity, SettingsActivity::class.java).apply {
+                putExtra("from_side", side)
+            }
+            activity.startActivity(intent)
             drawerLayout.closeDrawers()
         }
 
@@ -183,23 +177,38 @@ object DrawerHelper {
                 if (rows.isEmpty()) {
                     val emptyView = inflater.inflate(R.layout.item_drawer_store, container, false)
                     emptyView.findViewById<TextView>(R.id.txtStoreName).text = "No stores joined yet"
+                    emptyView.findViewById<View>(R.id.treeGraphicContainer)?.visibility = View.GONE
+                    emptyView.findViewById<View>(R.id.activeIndicator)?.visibility = View.GONE
                     container.addView(emptyView)
                 } else {
-                    for (row in rows) {
+                    for (i in rows.indices) {
+                        val row = rows[i]
                         val storeView = inflater.inflate(R.layout.item_drawer_store, container, false)
 
                         val txtName = storeView.findViewById<TextView>(R.id.txtStoreName)
                         val txtBranch = storeView.findViewById<TextView>(R.id.txtStoreBranch)
+                        val activeIndicator = storeView.findViewById<View>(R.id.activeIndicator)
+                        val lineVerticalBottom = storeView.findViewById<View>(R.id.lineVerticalBottom)
 
                         txtName.text = row.name
-                        if (!row.branch.isNullOrBlank()) {
-                            txtBranch.text = row.branch
-                            txtBranch.visibility = View.VISIBLE
+                        val subtitle = if (!row.branch.isNullOrBlank()) row.branch else (row.type ?: "Public Prices")
+                        txtBranch.text = subtitle
+                        txtBranch.visibility = View.VISIBLE
+
+                        // If it is the last item, hide the bottom vertical connector line
+                        if (i == rows.size - 1) {
+                            lineVerticalBottom?.visibility = View.INVISIBLE
                         }
 
                         val isActive = row.store_id == activeStoreId
                         if (isActive) {
                             txtName.setTextColor(activity.getColor(R.color.presyo_orange))
+                            txtBranch.setTextColor(activity.getColor(R.color.presyo_orange))
+                            activeIndicator?.visibility = View.VISIBLE
+                        } else {
+                            txtName.setTextColor(android.graphics.Color.parseColor("#999A9A"))
+                            txtBranch.setTextColor(android.graphics.Color.parseColor("#999A9A"))
+                            activeIndicator?.visibility = View.INVISIBLE
                         }
 
                         storeView.setOnClickListener {
@@ -289,6 +298,63 @@ object DrawerHelper {
             edgeSizeField.setInt(leftDragger, newEdgeSize)
         } catch (e: Exception) {
             android.util.Log.e("DrawerHelper", "Could not set drawer edge size: ${e.message}")
+        }
+    }
+
+    private fun refreshProfile(activity: AppCompatActivity, root: View) {
+        val uT = root.findViewById<TextView>(R.id.drawerUserName) ?: return
+        val emailT = root.findViewById<TextView>(R.id.drawerUserEmail) ?: return
+        val codeT = root.findViewById<TextView>(R.id.drawerUserCode)
+        val img = root.findViewById<ImageView>(R.id.drawerUserIcon) ?: return
+        val toolbarAvatar = activity.findViewById<ImageView>(R.id.profileIcon)
+
+        activity.lifecycleScope.launch {
+            try {
+                try {
+                    SupabaseAuthService.refreshSessionIfExpired()
+                } catch (_: Exception) {}
+
+                val profile = SupabaseAuthService.getUserProfile()
+                if (profile != null) {
+                    if (!profile.name.isNullOrBlank()) {
+                        uT.text = profile.name.uppercase()
+                    }
+                    if (!profile.user_code.isNullOrBlank()) {
+                        codeT?.text = "ID: ${profile.user_code.uppercase()}"
+                        codeT?.visibility = View.VISIBLE
+                    } else {
+                        codeT?.visibility = View.GONE
+                    }
+                    val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
+                    if (currentUser != null && !currentUser.email.isNullOrBlank()) {
+                        emailT.text = currentUser.email
+                    }
+                    val url = profile.avatar_url
+                    if (!url.isNullOrBlank()) {
+                        img.clearColorFilter()
+                        img.load(url) {
+                            crossfade(true)
+                            transformations(CircleCropTransformation())
+                            error(R.drawable.avatar_default)
+                        }
+                        toolbarAvatar?.clearColorFilter()
+                        toolbarAvatar?.load(url) {
+                            crossfade(true)
+                            transformations(CircleCropTransformation())
+                            error(R.drawable.avatar_default)
+                        }
+                    }
+                } else {
+                    val simpleName = SupabaseAuthService.getDisplayName()
+                    if (!simpleName.isNullOrBlank()) uT.text = simpleName.uppercase()
+                    val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
+                    if (currentUser != null && !currentUser.email.isNullOrBlank()) {
+                        emailT.text = currentUser.email
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DrawerHelper", "Error refreshing drawer header profile", e)
+            }
         }
     }
 }

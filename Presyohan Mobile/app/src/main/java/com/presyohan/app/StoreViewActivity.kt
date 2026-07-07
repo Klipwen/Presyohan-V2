@@ -79,18 +79,9 @@ class StoreViewActivity : AppCompatActivity() {
     private lateinit var groupAdapter: CategoryGroupAdapter
     private var searchJob: kotlinx.coroutines.Job? = null
 
-    private var connectionLostDialog: Dialog? = null
-
-    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
-        if (connectionLostDialog?.isShowing == true) return
-        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
-            connectionLostDialog = null
-            reloadAction()
-        }
-    }
 
     @Serializable
-    data class SukiRelationshipRow(val store_id: String)
+    data class SukiRelationshipRow(val store_id: String, val status: String = "active")
 
     @Serializable
     data class StoreDbRow(
@@ -291,7 +282,7 @@ class StoreViewActivity : AppCompatActivity() {
                         }
                         .decodeList<SukiRelationshipRow>()
                     
-                    isSubscribed = suki.isNotEmpty()
+                    isSubscribed = suki.any { it.status == "active" }
                     updateSubscriptionUI()
                 }
 
@@ -382,15 +373,15 @@ class StoreViewActivity : AppCompatActivity() {
                     }
 
                     filterAndGroupProducts()
+                    ReusableDialogHelper.resetReloadCount()
                 }
 
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
-                if (ReusableDialogHelper.isNetworkError(e)) {
-                    showConnectionLostDialog {
-                        loadStoreData()
-                    }
-                } else {
+                val handled = ReusableDialogHelper.handleNetworkError(this@StoreViewActivity, e) {
+                    loadStoreData()
+                }
+                if (!handled) {
                     Toast.makeText(this@StoreViewActivity, "Failed to load store content: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             } finally {

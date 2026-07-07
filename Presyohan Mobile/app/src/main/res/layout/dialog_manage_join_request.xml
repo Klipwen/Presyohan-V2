@@ -1,81 +1,170 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:padding="24dp"
-    android:background="@drawable/bg_rounded"
-    android:minWidth="400dp"
-    android:gravity="center_horizontal">
+    android:background="@drawable/bg_dialog_custom"
+    android:gravity="center_horizontal"
+    android:minWidth="340dp">
 
+    <!-- Title: Choose Staff Role -->
     <TextView
         android:id="@+id/dialogTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Join Request"
-        android:textColor="@color/presyo_orange"
+        android:text="Choose Staff Role"
+        android:textSize="22sp"
         android:textStyle="bold"
-        android:textSize="20sp"
-        android:layout_marginBottom="8dp"/>
+        android:textColor="@color/presyo_orange"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp" />
 
-    <TextView
-        android:id="@+id/dialogMessage"
-        android:layout_width="wrap_content"
+    <!-- Staff Details Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="User requested to join your store"
-        android:textColor="@color/presyo_darkblue"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:layout_marginBottom="16dp"/>
+        android:orientation="horizontal"
+        android:background="@drawable/bg_rounded_grey"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
 
-    <RadioGroup
-        android:id="@+id/roleRadioGroup"
+        <ImageView
+            android:id="@+id/staffAvatar"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/avatar_default"
+            android:scaleType="centerCrop"
+            android:layout_marginEnd="12dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/staffName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Caliph Juen"
+                android:textColor="@color/presyo_orange"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/staffDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PI-126-0045"
+                android:textColor="#666666"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Role Options Radio Group Container -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="24dp">
-        <RadioButton
-            android:id="@+id/radioSales"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="View only prices (sales staff)"
-            android:checked="true"
-            android:textColor="@color/presyo_darkblue"/>
-        <RadioButton
-            android:id="@+id/radioManager"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Manage prices (manager)"
-            android:textColor="@color/presyo_darkblue"/>
-    </RadioGroup>
+        android:layout_marginBottom="20dp">
 
+        <!-- Option: Sales Staff -->
+        <LinearLayout
+            android:id="@+id/layoutOptionSalesStaff"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_card_selected_orange"
+            android:padding="14dp"
+            android:layout_marginBottom="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/imgOptionSalesStaff"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_radio_checked_orange"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:id="@+id/tvOptionSalesStaff"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="View only prices (Sales Staff)"
+                android:textColor="@color/presyo_orange"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Option: Manager -->
+        <LinearLayout
+            android:id="@+id/layoutOptionManager"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_card_unselected"
+            android:padding="14dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/imgOptionManager"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_radio_unchecked"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:id="@+id/tvOptionManager"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Manage prices (Manager)"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Dialog Action Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center">
+
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnBack"
             android:layout_width="0dp"
+            android:layout_height="44dp"
             android:layout_weight="1"
-            android:layout_height="48dp"
-            android:text="Back"
+            android:layout_marginEnd="8dp"
             android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_teal"
-            android:textColor="@android:color/white"
+            android:text="BACK"
+            android:textColor="@color/white"
             android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginEnd="8dp"/>
+            android:textSize="14sp" />
+
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnAccept"
             android:layout_width="0dp"
+            android:layout_height="44dp"
             android:layout_weight="1"
-            android:layout_height="48dp"
-            android:text="Accept"
             android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_orange"
-            android:textColor="@android:color/white"
+            android:text="CONFIRM"
+            android:textColor="@color/white"
             android:textStyle="bold"
-            android:textSize="16sp"/>
+            android:textSize="14sp" />
+
     </LinearLayout>
-</LinearLayout> 
+
+</LinearLayout>

@@ -112,8 +112,10 @@ class ManageMembersActivity : AppCompatActivity() {
         val behavior = BottomSheetBehavior.from(bottomSheet)
 
         fun updateRecyclerPadding(bottomHeight: Int) {
-            val safetyPadding = (16 * resources.displayMetrics.density).toInt()
-            val targetPadding = bottomHeight + safetyPadding
+            val density = resources.displayMetrics.density
+            val minPadding = (120 * density).toInt() // Minimum padding to clear the FAB button (80dp height + 32dp bottom margin)
+            val safetyPadding = (16 * density).toInt()
+            val targetPadding = maxOf(minPadding, bottomHeight + safetyPadding)
             if (recyclerView.paddingBottom != targetPadding) {
                 recyclerView.setPadding(
                     recyclerView.paddingLeft,
@@ -658,27 +660,31 @@ class ManageMembersActivity : AppCompatActivity() {
             val roleIdx = rolesDisplay.indexOf(roleText).coerceAtLeast(0)
             val selectedRoleValue = rolesValue.getOrElse(roleIdx) { "employee" }
 
-            btnInvite.text = "Inviting..."
-            btnInvite.isEnabled = false
-
-            lifecycleScope.launch {
-                try {
-                    val params = buildJsonObject {
-                        put("p_store_id", sId)
-                        put("p_email", user.email)
-                        put("p_role", selectedRoleValue)
-                    }
-                    SupabaseProvider.client.postgrest.rpc("send_store_invitation", params)
+            ReusableDialogHelper.checkSukiAndInvite(
+                context = this@ManageMembersActivity,
+                coroutineScope = lifecycleScope,
+                userId = user.id,
+                userName = user.name ?: "Unnamed User",
+                userEmail = user.email ?: "",
+                storeId = sId,
+                selectedRoleValue = selectedRoleValue,
+                onStartInviting = {
+                    btnInvite.text = "Inviting..."
+                    btnInvite.isEnabled = false
+                },
+                onInvitationSent = {
                     Toast.makeText(this@ManageMembersActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
-                } catch (e: Exception) {
-                    val msg = e.message ?: "Failed to invite."
-                    inviteErrorText.text = if (msg.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
-                    inviteErrorText.visibility = View.VISIBLE
+                },
+                onInvitationFailed = { error ->
+                    if (error.isNotEmpty()) {
+                        inviteErrorText.text = if (error.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
+                        inviteErrorText.visibility = View.VISIBLE
+                    }
                     btnInvite.text = "Invite"
                     btnInvite.isEnabled = true
                 }
-            }
+            )
         }
 
         dialog.show()

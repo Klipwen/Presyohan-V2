@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="6dp">
+
+    <!-- Card Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_card_unselected"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Store Name -->
+        <TextView
+            android:id="@+id/tvStoreName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="QSOS"
+            android:textColor="@color/presyo_orange"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- Store Type -->
+        <TextView
+            android:id="@+id/tvStoreType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="General Merchandise"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <!-- Store Branch & Role / Details -->
+        <TextView
+            android:id="@+id/tvStoreBranchRole"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Curva, Medellin, Cebu • owner"
+            android:textColor="@color/edittext_hint"
+            android:textSize="11sp" />
+
+        <!-- Action Buttons Layout -->
+        <LinearLayout
+            android:id="@+id/layoutButtons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp">
+
+            <!-- View Store Button -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnViewStore"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_btn_teal_outline"
+                android:text="View Store"
+                android:textColor="@color/presyo_teal"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <!-- Settings Button -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnSettings"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_btn_orange_outline"
+                android:text="Settings"
+                android:textColor="@color/presyo_orange"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <!-- Action Button (Delete / Leave / Remove) -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnAction"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_btn_orange_solid"
+                android:text="Delete"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

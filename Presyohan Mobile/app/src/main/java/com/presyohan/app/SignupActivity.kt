@@ -96,8 +96,15 @@ class SignupActivity : androidx.appcompat.app.AppCompatActivity() {
                     overridePendingTransition(0, 0)
                     finish()
                 } catch (e: Exception) {
+                    val msg = e.localizedMessage ?: "Unknown error"
                     FieldStateHelper.setErrorState(layoutEmail, emailEditText, android.graphics.Color.parseColor("#FB8500"))
-                    Toast.makeText(this@SignupActivity, "Unable to sign up. Email may already be in use.", Toast.LENGTH_SHORT).show()
+                    if (msg.contains("already registered", ignoreCase = true) || msg.contains("already exists", ignoreCase = true)) {
+                        Toast.makeText(this@SignupActivity, "Unable to sign up. Email may already be in use.", Toast.LENGTH_LONG).show()
+                    } else if (msg.contains("rate limit", ignoreCase = true) || msg.contains("limit exceeded", ignoreCase = true) || msg.contains("send limit", ignoreCase = true)) {
+                        Toast.makeText(this@SignupActivity, "Too many sign-up requests. Please wait a few minutes before trying again.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this@SignupActivity, "Sign-up failed: $msg", Toast.LENGTH_LONG).show()
+                    }
                 }
                 LoadingOverlayHelper.hide(loadingOverlay)
             }

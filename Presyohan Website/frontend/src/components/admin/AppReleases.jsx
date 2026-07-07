@@ -94,7 +94,10 @@ export default function AppReleases() {
       setUploadProgress(10); // Start progress indicator
 
       // 1. Upload APK file to Supabase Storage
-      const filename = `releases/presyohan-v${vCodeInt}.apk`;
+      const cleanVersionName = versionName.trim().toLowerCase().startsWith('v')
+        ? versionName.trim().substring(1)
+        : versionName.trim();
+      const filename = `releases/presyohan-v${cleanVersionName}.apk`;
       
       setUploadProgress(30);
       const { data: uploadData, error: uploadErr } = await supabase.storage
@@ -146,10 +149,14 @@ export default function AppReleases() {
 
           for (const oldRelease of oldestToDelete) {
             // Remove APK from Storage
-            const oldFilename = `releases/presyohan-v${oldRelease.version_code}.apk`;
+            const cleanOldVersionName = oldRelease.version_name.trim().toLowerCase().startsWith('v')
+              ? oldRelease.version_name.trim().substring(1)
+              : oldRelease.version_name.trim();
+            const oldFilenameByName = `releases/presyohan-v${cleanOldVersionName}.apk`;
+            const oldFilenameByCode = `releases/presyohan-v${oldRelease.version_code}.apk`;
             await supabase.storage
               .from('presyohan.apk')
-              .remove([oldFilename]);
+              .remove([oldFilenameByName, oldFilenameByCode]);
 
             // Remove database record
             await supabase
@@ -191,10 +198,14 @@ export default function AppReleases() {
       setActionLoading(release.id);
 
       // 1. Delete file from storage
-      const filename = `releases/presyohan-v${release.version_code}.apk`;
+      const cleanVersionName = release.version_name.trim().toLowerCase().startsWith('v')
+        ? release.version_name.trim().substring(1)
+        : release.version_name.trim();
+      const filenameByName = `releases/presyohan-v${cleanVersionName}.apk`;
+      const filenameByCode = `releases/presyohan-v${release.version_code}.apk`;
       await supabase.storage
         .from('presyohan.apk')
-        .remove([filename]);
+        .remove([filenameByName, filenameByCode]);
 
       // 2. Delete database record
       const { error } = await supabase

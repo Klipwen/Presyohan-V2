@@ -2,6 +2,7 @@ package com.presyohan.app
 
 import android.app.Dialog
 import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,8 +14,85 @@ import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.launch
 import io.github.jan.supabase.auth.auth
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
+@Serializable
+data class SukiRelationshipRow(val store_id: String, val status: String = "active")
 
 object ReusableDialogHelper {
+
+    fun checkSukiAndInvite(
+        context: Context,
+        coroutineScope: kotlinx.coroutines.CoroutineScope,
+        userId: String,
+        userName: String,
+        userEmail: String,
+        storeId: String,
+        selectedRoleValue: String,
+        onStartInviting: () -> Unit,
+        onInvitationSent: () -> Unit,
+        onInvitationFailed: (String) -> Unit
+    ) {
+        coroutineScope.launch {
+            try {
+                // Check if user is suki on this store
+                val isSuki = try {
+                    val sukiList = SupabaseProvider.client.postgrest["suki_relationships"]
+                        .select {
+                            filter {
+                                eq("user_id", userId)
+                                eq("store_id", storeId)
+                                eq("status", "active")
+                            }
+                        }
+                        .decodeList<SukiRelationshipRow>()
+                    sukiList.isNotEmpty()
+                } catch (e: Exception) {
+                    false
+                }
+
+                val proceedInvite = {
+                    onStartInviting()
+                    coroutineScope.launch {
+                        try {
+                            val params = buildJsonObject {
+                                put("p_store_id", storeId)
+                                put("p_email", userEmail)
+                                put("p_role", selectedRoleValue)
+                            }
+                            SupabaseProvider.client.postgrest.rpc("send_store_invitation", params)
+                            onInvitationSent()
+                        } catch (e: Exception) {
+                            onInvitationFailed(e.message ?: "Failed to invite.")
+                        }
+                    }
+                }
+
+                if (isSuki) {
+                    (context as? android.app.Activity)?.runOnUiThread {
+                        showCustomDialog(
+                            context = context,
+                            title = "Confirm Invite",
+                            message = "$userName is currently a Suki of your store. If they accept this staff invite, they will become a team member and will no longer be a Suki. Do you want to proceed?",
+                            positiveButtonText = "Proceed",
+                            positiveAction = {
+                                proceedInvite()
+                            },
+                            negativeButtonText = "Cancel",
+                            negativeAction = {
+                                onInvitationFailed("")
+                            }
+                        )
+                    }
+                } else {
+                    proceedInvite()
+                }
+            } catch (e: Exception) {
+                onInvitationFailed(e.message ?: "Failed to invite.")
+            }
+        }
+    }
 
     fun showCustomDialog(
         context: Context,
@@ -136,17 +214,109 @@ object ReusableDialogHelper {
     fun isNetworkError(e: Throwable): Boolean {
         var cause: Throwable? = e
         while (cause != null) {
+            val msg = cause.message?.lowercase() ?: ""
             if (cause is java.io.IOException ||
                 cause is java.net.ConnectException ||
                 cause is java.net.UnknownHostException ||
                 cause is java.net.SocketTimeoutException ||
                 cause is io.ktor.client.plugins.HttpRequestTimeoutException ||
-                cause is io.ktor.client.network.sockets.ConnectTimeoutException
+                cause is io.ktor.client.network.sockets.ConnectTimeoutException ||
+                cause is io.ktor.client.plugins.ResponseException ||
+                cause::class.java.simpleName.contains("HttpRequestException") ||
+                cause::class.java.simpleName.contains("RestException") ||
+                cause::class.java.simpleName.contains("ConnectException") ||
+                cause::class.java.simpleName.contains("SocketException") ||
+                cause::class.java.simpleName.contains("UnknownHostException") ||
+                cause::class.java.simpleName.contains("TimeoutException") ||
+                cause::class.java.name.contains("io.ktor") ||
+                msg.contains("supabase.co") ||
+                msg.contains("network") ||
+                msg.contains("timeout") ||
+                msg.contains("connect") ||
+                msg.contains("unresolved address") ||
+                msg.contains("http request") ||
+                msg.contains("restexception") ||
+                msg.contains("401") ||
+                msg.contains("unauthorized")
             ) {
                 return true
             }
             cause = cause.cause
         }
+        return false
+    }
+
+    private var reloadCount = 0
+
+    fun resetReloadCount() {
+        reloadCount = 0
+    }
+
+    fun isSessionExpiredError(e: Throwable): Boolean {
+        var cause: Throwable? = e
+        while (cause != null) {
+            val msg = cause.message?.lowercase() ?: ""
+            if (msg.contains("jwt") ||
+                msg.contains("token") ||
+                msg.contains("session") ||
+                msg.contains("401") ||
+                msg.contains("unauthorized") ||
+                cause::class.java.simpleName.contains("AuthException") ||
+                (cause::class.java.name.contains("Supabase") && (msg.contains("session") || msg.contains("auth")))
+            ) {
+                return true
+            }
+            cause = cause.cause
+        }
+        return false
+    }
+
+    fun showRestartDialog(
+        context: Context,
+        title: String,
+        body: String
+    ): Dialog {
+        return showBroadcastDialog(
+            context = context,
+            title = title,
+            body = body,
+            buttonText = "Restart"
+        ) {
+            val intent = Intent(context, SplashActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            context.startActivity(intent)
+            (context as? android.app.Activity)?.finish()
+        }
+    }
+
+    fun handleNetworkError(
+        activity: android.app.Activity,
+        e: Throwable,
+        reloadAction: () -> Unit
+    ): Boolean {
+        if (isSessionExpiredError(e)) {
+            showRestartDialog(
+                context = activity,
+                title = "Session Expired",
+                body = "Your session has expired or the server disconnected. Please restart the app (close the app and open again) to refresh your session."
+            )
+            return true
+        }
+
+        if (isNetworkError(e)) {
+            reloadCount++
+            if (reloadCount >= 5) {
+                showRestartDialog(
+                    context = activity,
+                    title = "Failed to Load Data",
+                    body = "We failed to load the data after multiple attempts. Please restart the app and try again."
+                )
+            } else {
+                showConnectionLostDialog(activity, reloadAction)
+            }
+            return true
+        }
+
         return false
     }
 
@@ -157,9 +327,11 @@ object ReusableDialogHelper {
         return showCustomDialog(
             context = context,
             title = "Connection Lost",
-            message = "Please check your internet connection and try again.",
+            message = "You have been disconnected from the server. Please check your internet connection or reload to reconnect.",
             positiveButtonText = "Reload",
-            positiveAction = reloadAction,
+            positiveAction = {
+                reloadAction()
+            },
             negativeButtonText = "Close App",
             negativeAction = {
                 (context as? android.app.Activity)?.finishAffinity()
