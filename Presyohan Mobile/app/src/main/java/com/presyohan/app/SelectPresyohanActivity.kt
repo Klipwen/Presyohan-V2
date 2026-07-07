@@ -50,15 +50,7 @@ class SelectPresyohanActivity : AppCompatActivity() {
     // Adapter
     private lateinit var storeAdapter: PresyohanSelectionAdapter
 
-    private var connectionLostDialog: Dialog? = null
 
-    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
-        if (connectionLostDialog?.isShowing == true) return
-        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
-            connectionLostDialog = null
-            reloadAction()
-        }
-    }
 
     @Serializable
     data class SukiRelationshipRow(val store_id: String)
@@ -237,14 +229,14 @@ class SelectPresyohanActivity : AppCompatActivity() {
                 }
 
                 filterAndRenderData()
+                ReusableDialogHelper.resetReloadCount()
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                if (ReusableDialogHelper.isNetworkError(e)) {
-                    showConnectionLostDialog {
-                        loadPresyohanStores()
-                    }
-                } else {
+                val handled = ReusableDialogHelper.handleNetworkError(this@SelectPresyohanActivity, e) {
+                    loadPresyohanStores()
+                }
+                if (!handled) {
                     Toast.makeText(this@SelectPresyohanActivity, "Error loading stores: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             } finally {

@@ -13,6 +13,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
@@ -29,7 +30,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
 import android.app.Dialog
+import io.github.jan.supabase.postgrest.query.Columns
 import android.view.Window
 import com.google.zxing.integration.android.IntentIntegrator
 import java.util.Locale
@@ -72,15 +75,7 @@ class CustomerHomeActivity : AppCompatActivity() {
 
 
     private var activeAddSukiDialog: Dialog? = null
-    private var connectionLostDialog: Dialog? = null
 
-    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
-        if (connectionLostDialog?.isShowing == true) return
-        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
-            connectionLostDialog = null
-            reloadAction()
-        }
-    }
 
     // Data lists
     private var allStores: List<StoreDetailRow> = emptyList()
@@ -102,10 +97,13 @@ class CustomerHomeActivity : AppCompatActivity() {
 
     // Serialization Models
     @Serializable
-    data class SukiRelationshipRow(val store_id: String)
+    data class SukiRelationshipRow(val store_id: String, val status: String = "active")
 
     @Serializable
     data class StoreMemberCheckRow(val user_id: String)
+
+    @Serializable
+    data class StoreMemberRoleRow(val user_id: String, val role: String)
 
     @Serializable
     data class StoreProductCountRow(
@@ -122,7 +120,8 @@ class CustomerHomeActivity : AppCompatActivity() {
         val type: String? = null,
         val is_public: Boolean = false,
         val is_standard_store: Boolean = false,
-        val display_id: String? = null
+        val display_id: String? = null,
+        val owner_id: String? = null
     )
 
     @Serializable
@@ -262,12 +261,18 @@ class CustomerHomeActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        // Setup notification icon click to NotificationActivity
+        findViewById<View>(R.id.notifIcon).setOnClickListener {
+            val intent = Intent(this, NotificationActivity::class.java)
+            startActivity(intent)
+        }
+
         // Setup RecyclerViews
         rvCustomerPrices.layoutManager = LinearLayoutManager(this)
         rvCustomerStores.layoutManager = LinearLayoutManager(this)
 
         searchAdapter = CustomerSearchAdapter(
-            emptyList(),
+            items = emptyList(),
             onCategoryClick = { displayCategory ->
                 val intent = Intent(this, StoreViewActivity::class.java).apply {
                     putExtra("STORE_ID", displayCategory.storeId)
@@ -301,6 +306,29 @@ class CustomerHomeActivity : AppCompatActivity() {
                     R.anim.stay
                 )
                 startActivity(intent, options.toBundle())
+            },
+            onStoreClick = { displayStore ->
+                val intent = Intent(this, StoreViewActivity::class.java).apply {
+                    putExtra("STORE_ID", displayStore.id)
+                    putExtra("STORE_NAME", displayStore.name)
+                    putExtra("STORE_BRANCH", displayStore.location)
+                    putExtra("STORE_TYPE", displayStore.subtitle)
+                    putExtra("IS_PRESYOHAN", displayStore.isPresyohan)
+                }
+                val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                    this,
+                    R.anim.slide_in_up,
+                    R.anim.stay
+                )
+                startActivity(intent, options.toBundle())
+            },
+            onMoreClick = { store ->
+                searchEditText.setText("${store.name} Categories: ")
+                searchEditText.setSelection(searchEditText.text.length)
+            },
+            onViewAllClick = {
+                searchEditText.setText("Category: ")
+                searchEditText.setSelection(searchEditText.text.length)
             }
         )
         storeAdapter = CustomerStoreAdapter(
@@ -391,6 +419,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         swipeRefreshLayout.setColorSchemeResources(R.color.presyo_orange)
         swipeRefreshLayout.setOnRefreshListener {
             loadCustomerData(showShimmer = false)
+            loadUserProfile()
         }
 
         // Initial setup
@@ -435,6 +464,10 @@ class CustomerHomeActivity : AppCompatActivity() {
     override fun onBackPressed() {
         if (currentSearchQuery.isNotEmpty()) {
             searchEditText.setText("")
+            return
+        }
+        if (!isPricesTabActive) {
+            selectTab(true)
             return
         }
         if (isPricesTabActive) {
@@ -563,6 +596,68 @@ class CustomerHomeActivity : AppCompatActivity() {
             .start()
     }
 
+    class SukiStoreSearchAdapter(
+        private var stores: List<StoreDetailRow>,
+        private val onSelectionChanged: (List<StoreDetailRow>) -> Unit
+    ) : RecyclerView.Adapter<SukiStoreSearchAdapter.ViewHolder>() {
+        private val selectedStoreIds = mutableSetOf<String>()
+
+        fun getSelectedStores(): List<StoreDetailRow> {
+            return stores.filter { it.id in selectedStoreIds }
+        }
+
+        fun updateData(newStores: List<StoreDetailRow>) {
+            stores = newStores
+            selectedStoreIds.clear()
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_suki_store_result, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun getItemCount(): Int = stores.size
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val store = stores[position]
+            holder.bind(store, store.id in selectedStoreIds)
+            holder.itemView.setOnClickListener {
+                if (store.id in selectedStoreIds) {
+                    selectedStoreIds.remove(store.id)
+                } else {
+                    selectedStoreIds.add(store.id)
+                }
+                notifyItemChanged(holder.adapterPosition)
+                onSelectionChanged(getSelectedStores())
+            }
+        }
+
+        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val tvStoreName = itemView.findViewById<TextView>(R.id.tvStoreName)
+            private val tvStoreType = itemView.findViewById<TextView>(R.id.tvStoreType)
+            private val tvStoreBranch = itemView.findViewById<TextView>(R.id.tvStoreBranch)
+            private val tvPrivateBadge = itemView.findViewById<TextView>(R.id.tvPrivateBadge)
+            private val ivSelectIndicator = itemView.findViewById<ImageView>(R.id.ivSelectIndicator)
+
+            fun bind(store: StoreDetailRow, isSelected: Boolean) {
+                tvStoreName.text = store.name
+                tvStoreType.text = store.type ?: "General Merchandise"
+                tvStoreBranch.text = store.branch ?: "Main Branch"
+                
+                tvPrivateBadge.visibility = if (!store.is_public) View.VISIBLE else View.GONE
+                
+                itemView.setBackgroundResource(R.drawable.bg_card_unselected)
+                ivSelectIndicator.imageTintList = null
+                if (isSelected) {
+                    ivSelectIndicator.setImageResource(R.drawable.ic_radio_checked_orange)
+                } else {
+                    ivSelectIndicator.setImageResource(R.drawable.ic_radio_unchecked)
+                }
+            }
+        }
+    }
+
     private fun showAddSukiDialog() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -579,103 +674,80 @@ class CustomerHomeActivity : AppCompatActivity() {
         val btnDialogBack = dialog.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnDialogBack)
         val btnDialogAdd = dialog.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnDialogAdd)
 
-        val ivStoreDefaultIcon = dialog.findViewById<ImageView>(R.id.ivStoreDefaultIcon)
-        val ivStoreIcon = dialog.findViewById<ImageView>(R.id.ivStoreIcon)
-        val tvPrivateBadge = dialog.findViewById<TextView>(R.id.tvPrivateBadge)
-        val layoutStoreInfo = dialog.findViewById<View>(R.id.layoutStoreInfo)
-        val tvStoreName = dialog.findViewById<TextView>(R.id.tvStoreName)
-        val tvStoreType = dialog.findViewById<TextView>(R.id.tvStoreType)
-        val tvStoreBranch = dialog.findViewById<TextView>(R.id.tvStoreBranch)
+        val rvStoreResults = dialog.findViewById<RecyclerView>(R.id.rvStoreResults)
+        val layoutPlaceholder = dialog.findViewById<View>(R.id.layoutPlaceholder)
+        val tvPlaceholderText = dialog.findViewById<TextView>(R.id.tvPlaceholderText)
 
-        var resolvedStore: StoreDetailRow? = null
+        rvStoreResults.layoutManager = LinearLayoutManager(this)
+        val resultsAdapter = SukiStoreSearchAdapter(emptyList()) { selectedList ->
+            btnDialogAdd.isEnabled = selectedList.isNotEmpty()
+        }
+        rvStoreResults.adapter = resultsAdapter
 
         etStoreId.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val input = s?.toString()?.trim() ?: ""
-                btnDialogEnter.isEnabled = input.length >= 4
-
-                if (resolvedStore != null) {
-                    resolvedStore = null
-                    btnDialogAdd.isEnabled = false
-                    
-                    ivStoreDefaultIcon.visibility = View.VISIBLE
-                    ivStoreIcon.visibility = View.GONE
-                    tvPrivateBadge.visibility = View.GONE
-                    layoutStoreInfo.visibility = View.GONE
-                }
+                btnDialogEnter.isEnabled = input.length >= 2
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
         btnDialogEnter.setOnClickListener {
             val rawId = etStoreId.text.toString().trim()
-            val normalizedId = normalizeStoreId(rawId)
+            val queryPattern = "%${rawId}%"
             
             Toast.makeText(this, "Searching for store...", Toast.LENGTH_SHORT).show()
             
             lifecycleScope.launch {
                 try {
-                    val store = SupabaseProvider.client.postgrest["stores"]
-                        .select {
+                    val stores = SupabaseProvider.client.postgrest["stores"]
+                        .select(Columns.list("id", "name", "branch", "type", "is_public", "is_standard_store", "display_id")) {
                             filter {
-                                eq("display_id", normalizedId)
+                                eq("is_public", true)
+                                or {
+                                    ilike("name", queryPattern)
+                                    eq("display_id", rawId.uppercase())
+                                }
                             }
                         }
                         .decodeList<StoreDetailRow>()
-                        .firstOrNull()
                         
-                    if (store != null) {
-                        val currentUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-                        val isMember = if (currentUserId != null) {
-                            try {
-                                val members = SupabaseProvider.client.postgrest["store_members"]
-                                    .select {
-                                        filter {
-                                            eq("store_id", store.id)
-                                            eq("user_id", currentUserId)
-                                        }
-                                    }
-                                    .decodeList<StoreMemberCheckRow>()
-                                members.isNotEmpty()
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                false
-                            }
-                        } else {
-                            false
-                        }
+                    val filtered = stores.filter { !it.is_standard_store }
+                    val hasStandardStoresExcluded = stores.any { it.is_standard_store }
 
-                        if (isMember) {
-                            Toast.makeText(this@CustomerHomeActivity, "You are a member or owner of this store. Staff members cannot partner with their own stores.", Toast.LENGTH_LONG).show()
-                            
-                            ivStoreDefaultIcon.visibility = View.VISIBLE
-                            ivStoreIcon.visibility = View.GONE
-                            layoutStoreInfo.visibility = View.GONE
-                            tvPrivateBadge.visibility = View.GONE
+                    runOnUiThread {
+                        if (filtered.isEmpty()) {
+                            if (hasStandardStoresExcluded) {
+                                tvPlaceholderText?.text = "Store not found (standard comparator stores cannot be partnered)."
+                            } else {
+                                tvPlaceholderText?.text = "No store found in our system"
+                            }
+                            resultsAdapter.updateData(emptyList())
+                            layoutPlaceholder.visibility = View.VISIBLE
+                            rvStoreResults.visibility = View.GONE
                             btnDialogAdd.isEnabled = false
-                            resolvedStore = null
                         } else {
-                            resolvedStore = store
-                            
-                            ivStoreDefaultIcon.visibility = View.GONE
-                            ivStoreIcon.visibility = View.VISIBLE
-                            layoutStoreInfo.visibility = View.VISIBLE
-                            
-                            tvStoreName.text = store.name
-                            tvStoreType.text = store.type ?: "General Merchandise"
-                            tvStoreBranch.text = store.branch ?: "Main Branch"
-                            
-                            tvPrivateBadge.visibility = if (!store.is_public) View.VISIBLE else View.GONE
-                            
-                            btnDialogAdd.isEnabled = true
+                            resultsAdapter.updateData(filtered)
+                            layoutPlaceholder.visibility = View.GONE
+                            rvStoreResults.visibility = View.VISIBLE
+                            btnDialogAdd.isEnabled = false // Wait for selection
+
+                            val density = resources.displayMetrics.density
+                            val layoutParams = rvStoreResults.layoutParams
+                            if (filtered.size >= 3) {
+                                layoutParams.height = (190 * density).toInt()
+                            } else {
+                                layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                            }
+                            rvStoreResults.layoutParams = layoutParams
                         }
-                    } else {
-                        Toast.makeText(this@CustomerHomeActivity, "Store ID not found.", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    Toast.makeText(this@CustomerHomeActivity, "Search error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    runOnUiThread {
+                        Toast.makeText(this@CustomerHomeActivity, "Search error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -694,29 +766,126 @@ class CustomerHomeActivity : AppCompatActivity() {
         }
 
         btnDialogAdd.setOnClickListener {
-            val store = resolvedStore
+            val selectedStores = resultsAdapter.getSelectedStores()
             val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
-            if (store != null && userId != null) {
+            if (selectedStores.isNotEmpty() && userId != null) {
                 lifecycleScope.launch {
-                    try {
-                        val insertRow = mapOf(
-                            "user_id" to userId,
-                            "store_id" to store.id,
-                            "status" to "active"
-                        )
-                        SupabaseProvider.client.postgrest["suki_relationships"].insert(insertRow)
-                        Toast.makeText(this@CustomerHomeActivity, "Successfully added to your Suki stores!", Toast.LENGTH_SHORT).show()
-                        dialog.dismiss()
-                        loadCustomerData()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        val msg = e.localizedMessage ?: ""
-                        if (msg.contains("suki_user_store_unique")) {
-                            Toast.makeText(this@CustomerHomeActivity, "You are already suki with this store!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this@CustomerHomeActivity, "Failed to partner: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    var successCount = 0
+                    val failMessages = mutableListOf<String>()
+
+                    for (store in selectedStores) {
+                        try {
+                            val isMember = try {
+                                val members = SupabaseProvider.client.postgrest["store_members"]
+                                    .select {
+                                        filter {
+                                            eq("store_id", store.id)
+                                            eq("user_id", userId)
+                                        }
+                                    }
+                                    .decodeList<StoreMemberCheckRow>()
+                                members.isNotEmpty()
+                            } catch (e: Exception) {
+                                false
+                            }
+
+                            if (isMember) {
+                                failMessages.add("${store.name}: Staff members cannot partner with their own stores.")
+                                continue
+                            }
+
+                            val existing = try {
+                                SupabaseProvider.client.postgrest["suki_relationships"]
+                                    .select {
+                                        filter {
+                                            eq("user_id", userId)
+                                            eq("store_id", store.id)
+                                        }
+                                    }
+                                    .decodeList<SukiRelationshipRow>()
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+
+                            if (existing.isNotEmpty()) {
+                                val status = existing.first().status
+                                if (status == "active") {
+                                    failMessages.add("${store.name}: Already a Suki.")
+                                } else if (status == "pending") {
+                                    failMessages.add("${store.name}: Partnership request is already pending.")
+                                }
+                                continue
+                            }
+
+                            val insertRow = mapOf(
+                                "user_id" to userId,
+                                "store_id" to store.id,
+                                "status" to "pending"
+                            )
+                            SupabaseProvider.client.postgrest["suki_relationships"].insert(insertRow)
+
+                            val senderProfile = try { SupabaseAuthService.getUserProfile() } catch (e: Exception) { null }
+                            val senderName = senderProfile?.name ?: "A user"
+
+                            val members = try {
+                                SupabaseProvider.client.postgrest["store_members"]
+                                    .select(Columns.list("user_id", "role")) {
+                                        filter {
+                                            eq("store_id", store.id)
+                                            isIn("role", listOf("owner", "manager"))
+                                        }
+                                    }
+                                    .decodeList<StoreMemberRoleRow>()
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+
+                            val receivers = (members.map { it.user_id } + store.owner_id.orEmpty()).filter { it.isNotBlank() }.distinct()
+
+                            for (receiverId in receivers) {
+                                if (receiverId.isNotBlank()) {
+                                    SupabaseProvider.client.postgrest["notifications"].insert(
+                                        buildJsonObject {
+                                            put("receiver_user_id", receiverId)
+                                            put("sender_user_id", userId)
+                                            put("store_id", store.id)
+                                            put("type", "suki_request_received")
+                                            put("title", "Suki Request")
+                                            put("message", "$senderName requested to connect with your store as a Suki.")
+                                            put("read", false)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Insert notification for current user (Flow A)
+                            SupabaseProvider.client.postgrest["notifications"].insert(
+                                buildJsonObject {
+                                    put("receiver_user_id", userId)
+                                    put("sender_user_id", userId)
+                                    put("store_id", store.id)
+                                    put("type", "suki_request_sent")
+                                    put("title", "Suki Request")
+                                    put("message", "You requested to partner with ${store.name} as your Suking Tindahan. Please wait for the owner to respond.")
+                                    put("read", false)
+                                }
+                            )
+
+                            successCount++
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            failMessages.add("${store.name}: Failed to request: ${e.localizedMessage}")
                         }
                     }
+
+                    if (successCount > 0) {
+                        Toast.makeText(this@CustomerHomeActivity, "Successfully requested Suki partnership for $successCount store(s)!", Toast.LENGTH_SHORT).show()
+                    }
+                    if (failMessages.isNotEmpty()) {
+                        Toast.makeText(this@CustomerHomeActivity, failMessages.joinToString("\n"), Toast.LENGTH_LONG).show()
+                    }
+                    dialog.dismiss()
+                    loadCustomerData()
                 }
             }
         }
@@ -763,19 +932,32 @@ class CustomerHomeActivity : AppCompatActivity() {
         }
     }
 
+
     private fun loadUserProfile() {
         profileIcon.setImageResource(R.drawable.avatar_default)
-        profileIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.white))
+        profileIcon.clearColorFilter()
 
         lifecycleScope.launch {
+            try {
+                SupabaseAuthService.refreshSessionIfExpired()
+            } catch (_: Exception) {}
+
             val profile = SupabaseAuthService.getUserProfile()
-            if (profile != null && !profile.avatar_url.isNullOrBlank()) {
-                profileIcon.clearColorFilter()
-                profileIcon.load(profile.avatar_url) {
-                    crossfade(true)
-                    transformations(CircleCropTransformation())
-                    error(R.drawable.avatar_default)
+            if (profile != null) {
+                if (!profile.avatar_url.isNullOrBlank()) {
+                    profileIcon.clearColorFilter()
+                    profileIcon.load(profile.avatar_url) {
+                        crossfade(true)
+                        transformations(CircleCropTransformation())
+                        error(R.drawable.avatar_default)
+                    }
+                } else {
+                    profileIcon.setImageResource(R.drawable.avatar_default)
+                    profileIcon.clearColorFilter()
                 }
+            } else {
+                profileIcon.setImageResource(R.drawable.avatar_default)
+                profileIcon.clearColorFilter()
             }
         }
     }
@@ -801,6 +983,9 @@ class CustomerHomeActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                try {
+                    SupabaseAuthService.refreshSessionIfExpired()
+                } catch (_: Exception) {}
                 val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
                 if (userId == null) {
                     if (showShimmer) {
@@ -822,7 +1007,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                     }
                     .decodeList<SukiRelationshipRow>()
 
-                val storeIds = sukiLinks.map { it.store_id }
+                val storeIds = sukiLinks.filter { it.status == "active" }.map { it.store_id }
                 if (storeIds.isEmpty()) {
                     allStores = emptyList()
                     allCategories = emptyList()
@@ -934,13 +1119,13 @@ class CustomerHomeActivity : AppCompatActivity() {
                 }
 
                 filterAndRenderData()
+                ReusableDialogHelper.resetReloadCount()
             } catch (e: Exception) {
                 e.printStackTrace()
-                if (ReusableDialogHelper.isNetworkError(e)) {
-                    showConnectionLostDialog {
-                        loadCustomerData(showShimmer = true)
-                    }
-                } else {
+                val handled = ReusableDialogHelper.handleNetworkError(this@CustomerHomeActivity, e) {
+                    loadCustomerData(showShimmer = true)
+                }
+                if (!handled) {
                     Toast.makeText(this@CustomerHomeActivity, "Error loading data: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             } finally {
@@ -1164,7 +1349,22 @@ class CustomerHomeActivity : AppCompatActivity() {
                         }
                     }
 
-                    displayCategories.map { SearchItem.Category(it) } + finalProducts.map { SearchItem.Product(it) }
+                    if (query.isEmpty()) {
+                        val publicStores = snapshotStores.filter { it.is_public || it.is_standard_store }
+                        if (publicStores.isEmpty()) {
+                            emptyList<SearchItem>()
+                        } else {
+                            val defaultHeader = SearchItem.DefaultHeader(
+                                stores = publicStores,
+                                categories = snapshotCategories,
+                                products = snapshotProducts,
+                                storeProductCounts = storeProductCounts
+                            )
+                            listOf(defaultHeader) + finalProducts.map { SearchItem.Product(it) }
+                        }
+                    } else {
+                        displayCategories.map { SearchItem.Category(it) } + finalProducts.map { SearchItem.Product(it) }
+                    }
                 }
 
                 searchAdapter.updateList(searchItems)
@@ -1256,20 +1456,135 @@ class CustomerHomeActivity : AppCompatActivity() {
 
     // --- RECYCLERVIEW ADAPTERS ---
 
+    // --- RECYCLERVIEW ADAPTERS ---
+
     sealed class SearchItem {
+        data class DefaultHeader(
+            val stores: List<StoreDetailRow>,
+            val categories: List<CategoryDetailRow>,
+            val products: List<ProductDetailRow>,
+            val storeProductCounts: Map<String, Int>
+        ) : SearchItem()
         data class Category(val category: DisplayCategory) : SearchItem()
         data class Product(val product: DisplayProduct) : SearchItem()
+    }
+
+    private class StoresCarouselAdapter(
+        private val stores: List<StoreDetailRow>,
+        private val categories: List<CategoryDetailRow>,
+        private val products: List<ProductDetailRow>,
+        private val storeProductCounts: Map<String, Int>,
+        private val isSingleStore: Boolean,
+        private val onCategoryClick: (DisplayCategory) -> Unit,
+        private val onStoreClick: (DisplayStore) -> Unit,
+        private val onMoreClick: (StoreDetailRow) -> Unit
+    ) : RecyclerView.Adapter<StoresCarouselAdapter.StoreCardViewHolder>() {
+
+        class StoreCardViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+            val tvStoreNameBranch: TextView = view.findViewById(R.id.tvStoreNameBranch)
+            val tvViewStore: TextView = view.findViewById(R.id.tvViewStore)
+            val layoutCategoriesContainer: LinearLayout = view.findViewById(R.id.layoutCategoriesContainer)
+            val btnMoreDropdown: View = view.findViewById(R.id.btnMoreDropdown)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StoreCardViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_store_category_card, parent, false)
+            return StoreCardViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: StoreCardViewHolder, position: Int) {
+            val store = stores[position]
+            holder.tvStoreNameBranch.text = "${store.name} - ${store.branch ?: "Main Branch"}"
+            
+            val cardHeight = (360 * holder.view.resources.displayMetrics.density).toInt()
+            val lp = holder.itemView.layoutParams ?: ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                cardHeight
+            )
+            val marginLp = lp as ViewGroup.MarginLayoutParams
+            marginLp.height = cardHeight
+            if (isSingleStore) {
+                marginLp.width = ViewGroup.LayoutParams.MATCH_PARENT
+                marginLp.setMargins(
+                    (12 * holder.view.resources.displayMetrics.density).toInt(),
+                    (4 * holder.view.resources.displayMetrics.density).toInt(),
+                    (12 * holder.view.resources.displayMetrics.density).toInt(),
+                    (4 * holder.view.resources.displayMetrics.density).toInt()
+                )
+            } else {
+                marginLp.width = (290 * holder.view.resources.displayMetrics.density).toInt()
+                marginLp.setMargins(
+                    (4 * holder.view.resources.displayMetrics.density).toInt(),
+                    (4 * holder.view.resources.displayMetrics.density).toInt(),
+                    (4 * holder.view.resources.displayMetrics.density).toInt(),
+                    (4 * holder.view.resources.displayMetrics.density).toInt()
+                )
+            }
+            holder.itemView.layoutParams = marginLp
+
+            holder.tvViewStore.setOnClickListener {
+                val displayStore = DisplayStore(
+                    id = store.id,
+                    name = store.name,
+                    subtitle = store.type ?: "General Store",
+                    location = store.branch ?: "Main Branch",
+                    typeTag = if (store.is_standard_store) "Presyohan" else if (store.is_public) "Public" else "Private",
+                    isPresyohan = store.is_standard_store,
+                    itemCount = storeProductCounts[store.id] ?: 0,
+                    displayId = store.display_id
+                )
+                onStoreClick(displayStore)
+            }
+
+            holder.btnMoreDropdown.setOnClickListener {
+                onMoreClick(store)
+            }
+
+            holder.layoutCategoriesContainer.removeAllViews()
+            val storeCategories = categories.filter { it.store_id == store.id }
+            val displayedCategories = storeCategories.take(5)
+
+            for (category in displayedCategories) {
+                val rowView = LayoutInflater.from(holder.view.context).inflate(R.layout.item_customer_category_row, holder.layoutCategoriesContainer, false)
+                val tvName = rowView.findViewById<TextView>(R.id.tvCategoryName)
+                val tvCount = rowView.findViewById<TextView>(R.id.tvCategoryItemCount)
+
+                tvName.text = category.name.uppercase(Locale.getDefault())
+                val count = products.count { it.category_id == category.id }
+                tvCount.text = "$count Items"
+
+                rowView.setOnClickListener {
+                    val displayCat = DisplayCategory(
+                        categoryId = category.id,
+                        categoryName = category.name,
+                        storeId = store.id,
+                        storeName = store.name,
+                        storeLocation = store.branch ?: "Main Branch",
+                        itemCount = count
+                    )
+                    onCategoryClick(displayCat)
+                }
+
+                holder.layoutCategoriesContainer.addView(rowView)
+            }
+        }
+
+        override fun getItemCount(): Int = stores.size
     }
 
     private class CustomerSearchAdapter(
         private var items: List<SearchItem>,
         private val onCategoryClick: (DisplayCategory) -> Unit,
-        private val onProductCategoryClick: (DisplayProduct) -> Unit
+        private val onProductCategoryClick: (DisplayProduct) -> Unit,
+        private val onStoreClick: (DisplayStore) -> Unit,
+        private val onMoreClick: (StoreDetailRow) -> Unit,
+        private val onViewAllClick: () -> Unit
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         companion object {
             private const val TYPE_CATEGORY = 0
             private const val TYPE_PRODUCT = 1
+            private const val TYPE_DEFAULT_HEADER = 2
         }
 
         class CategoryViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
@@ -1288,25 +1603,64 @@ class CustomerHomeActivity : AppCompatActivity() {
             val tvProductPrice: TextView = view.findViewById(R.id.tvProductPrice)
         }
 
+        class DefaultHeaderViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+            val tvViewAll: TextView = view.findViewById(R.id.tvViewAll)
+            val rvStoresCarousel: RecyclerView = view.findViewById(R.id.rvStoresCarousel)
+            val tvTotalItems: TextView = view.findViewById(R.id.tvTotalItems)
+        }
+
         override fun getItemViewType(position: Int): Int {
             return when (items[position]) {
                 is SearchItem.Category -> TYPE_CATEGORY
                 is SearchItem.Product -> TYPE_PRODUCT
+                is SearchItem.DefaultHeader -> TYPE_DEFAULT_HEADER
             }
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-            return if (viewType == TYPE_CATEGORY) {
-                val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_category, parent, false)
-                CategoryViewHolder(view)
-            } else {
-                val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_product, parent, false)
-                ProductViewHolder(view)
+            return when (viewType) {
+                TYPE_DEFAULT_HEADER -> {
+                    val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_default_header, parent, false)
+                    DefaultHeaderViewHolder(view)
+                }
+                TYPE_CATEGORY -> {
+                    val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_category, parent, false)
+                    CategoryViewHolder(view)
+                }
+                else -> {
+                    val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_product, parent, false)
+                    ProductViewHolder(view)
+                }
             }
         }
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val item = items[position]) {
+                is SearchItem.DefaultHeader -> {
+                    val headerHolder = holder as DefaultHeaderViewHolder
+                    headerHolder.tvViewAll.setOnClickListener {
+                        onViewAllClick()
+                    }
+                    headerHolder.tvTotalItems.text = "Total: ${item.products.size}"
+                    
+                    val context = headerHolder.view.context
+                    val isSingle = item.stores.size == 1
+                    headerHolder.rvStoresCarousel.layoutManager = LinearLayoutManager(
+                        context,
+                        if (isSingle) LinearLayoutManager.VERTICAL else LinearLayoutManager.HORIZONTAL,
+                        false
+                    )
+                    headerHolder.rvStoresCarousel.adapter = StoresCarouselAdapter(
+                        stores = item.stores,
+                        categories = item.categories,
+                        products = item.products,
+                        storeProductCounts = item.storeProductCounts,
+                        isSingleStore = isSingle,
+                        onCategoryClick = onCategoryClick,
+                        onStoreClick = onStoreClick,
+                        onMoreClick = onMoreClick
+                    )
+                }
                 is SearchItem.Category -> {
                     val catHolder = holder as CategoryViewHolder
                     val data = item.category

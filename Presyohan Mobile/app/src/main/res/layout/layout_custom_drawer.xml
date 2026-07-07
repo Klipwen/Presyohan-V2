@@ -66,6 +66,18 @@
                 android:ellipsize="end" />
 
             <TextView
+                android:id="@+id/drawerUserCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ID: --"
+                android:textColor="#FFFFD0"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/drawerUserEmail"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -74,7 +86,18 @@
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"
                 android:maxLines="1"
-                android:ellipsize="end" />
+                android:ellipsize="end"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/drawerUserEdit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Edit profile"
+                android:textColor="#FFFFD0"
+                android:textSize="11sp"
+                android:layout_marginTop="2dp"
+                android:alpha="0.9" />
         </LinearLayout>
 
         <!-- Right Chevron (Profile detail trigger) -->
@@ -175,14 +198,13 @@
 
             </LinearLayout>
 
-            <!-- Sub-container for stores dropdown -->
             <LinearLayout
                 android:id="@+id/drawerStoresListContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone"
-                android:paddingStart="32dp"
+                android:paddingStart="24dp"
                 android:paddingEnd="24dp"
                 android:paddingBottom="8dp" />
 

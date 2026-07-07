@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_rounded_grey"
+    android:paddingVertical="16dp"
+    android:paddingHorizontal="12dp"
+    android:layout_marginVertical="2dp">
+
+    <ImageView
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/icon_category1"
+        android:layout_marginEnd="10dp"
+        android:contentDescription="Category Folder Icon" />
+
+    <TextView
+        android:id="@+id/tvCategoryName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="SCHOOL SUPPLIES"
+        android:textColor="@color/presyo_orange"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvCategoryItemCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="211 Items"
+        android:textColor="@color/presyo_teal"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+</LinearLayout>

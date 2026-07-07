@@ -87,15 +87,7 @@ class HomeActivity : AppCompatActivity() {
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
     private var hasAutoOpenedAddDialog = false
     private var hasLoadedProductsOnce = false
-    private var connectionLostDialog: android.app.Dialog? = null
 
-    private fun showConnectionLostDialog(reloadAction: () -> Unit) {
-        if (connectionLostDialog?.isShowing == true) return
-        connectionLostDialog = ReusableDialogHelper.showConnectionLostDialog(this) {
-            connectionLostDialog = null
-            reloadAction()
-        }
-    }
 
     private val spinnerCategories = mutableListOf("PRICELIST")
     private lateinit var spinnerAdapter: android.widget.ArrayAdapter<String>
@@ -435,6 +427,62 @@ class HomeActivity : AppCompatActivity() {
 
             lifecycleScope.launch {
                 try {
+                    val currentUid = supabase.auth.currentUserOrNull()?.id
+
+                    // 1. Verify store exists
+                    @Serializable
+                    data class SimpleStoreCheck(val id: String)
+                    val storeCheck = try {
+                        supabase.postgrest["stores"]
+                            .select(Columns.list("id")) {
+                                filter { eq("id", sId) }
+                                limit(1)
+                            }
+                            .decodeList<SimpleStoreCheck>()
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if (storeCheck != null && storeCheck.isEmpty()) {
+                        runOnUiThread {
+                            Toast.makeText(this@HomeActivity, "Store no longer exists.", Toast.LENGTH_LONG).show()
+                            val intent = Intent(this@HomeActivity, StoreActivity::class.java)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            intent.putExtra("from_home", true)
+                            startActivity(intent)
+                            finish()
+                        }
+                        return@launch
+                    }
+
+                    // 2. Verify store membership
+                    val memberCheck = try {
+                        if (currentUid != null) {
+                            supabase.postgrest["store_members"]
+                                .select {
+                                    filter {
+                                        eq("store_id", sId)
+                                        eq("user_id", currentUid)
+                                    }
+                                    limit(1)
+                                }.decodeList<StoreMember>()
+                        } else null
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if (memberCheck != null && memberCheck.isEmpty()) {
+                        runOnUiThread {
+                            Toast.makeText(this@HomeActivity, "You are no longer a member of this store.", Toast.LENGTH_LONG).show()
+                            val intent = Intent(this@HomeActivity, StoreActivity::class.java)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            intent.putExtra("from_home", true)
+                            startActivity(intent)
+                            finish()
+                        }
+                        return@launch
+                    }
+
                     val category = selectedCategory.takeIf { it != "PRICELIST" }
                     val query = currentQuery.trim()
 
@@ -519,6 +567,8 @@ class HomeActivity : AppCompatActivity() {
                         productRecyclerView.visibility = View.VISIBLE
                     }
 
+                    ReusableDialogHelper.resetReloadCount()
+
                 } catch (e: Exception) {
                     Log.e("HomeActivity", "Products load failed", e)
                     // Fallback empty state if load failed
@@ -526,10 +576,8 @@ class HomeActivity : AppCompatActivity() {
                         layoutEmptyState.visibility = View.VISIBLE
                         productRecyclerView.visibility = View.GONE
                     }
-                    if (ReusableDialogHelper.isNetworkError(e)) {
-                        showConnectionLostDialog {
-                            loadProductsFromSupabase(true)
-                        }
+                    ReusableDialogHelper.handleNetworkError(this@HomeActivity, e) {
+                        loadProductsFromSupabase(true)
                     }
                 } finally {
                     swipeRefreshLayout.isRefreshing = false
@@ -564,8 +612,10 @@ class HomeActivity : AppCompatActivity() {
         homeBottomSheetBehavior = bottomSheetBehavior
 
         fun updateRecyclerPadding(bottomHeight: Int) {
-            val safetyPadding = (16 * resources.displayMetrics.density).toInt()
-            val targetPadding = bottomHeight + safetyPadding
+            val density = resources.displayMetrics.density
+            val minPadding = (120 * density).toInt() // Minimum padding to clear the FAB button (80dp height + 32dp bottom margin)
+            val safetyPadding = (16 * density).toInt()
+            val targetPadding = maxOf(minPadding, bottomHeight + safetyPadding)
             if (productRecyclerView.paddingBottom != targetPadding) {
                 productRecyclerView.setPadding(
                     productRecyclerView.paddingLeft,
@@ -782,11 +832,7 @@ class HomeActivity : AppCompatActivity() {
             // OWNER SPECIFIC BINDINGS
             view.findViewById<View>(R.id.layoutConvert)?.setOnClickListener {
                 dialog.dismiss()
-                val intent = Intent(this@HomeActivity, CopyPricesActivity::class.java).apply {
-                    putExtra("storeId", sId)
-                    putExtra("storeName", sName)
-                }
-                startActivity(intent)
+                exportPricelistToExcel()
             }
 
             view.findViewById<View>(R.id.layoutInvite)?.setOnClickListener {
@@ -1328,27 +1374,31 @@ class HomeActivity : AppCompatActivity() {
             val roleIdx = rolesDisplay.indexOf(roleText).coerceAtLeast(0)
             val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
 
-            btnInvite.text = "Inviting..."
-            btnInvite.isEnabled = false
-
-            lifecycleScope.launch {
-                try {
-                    val params = buildJsonObject {
-                        put("p_store_id", sId)
-                        put("p_email", user.email)
-                        put("p_role", selectedRole)
-                    }
-                    supabase.postgrest.rpc("send_store_invitation", params)
+            ReusableDialogHelper.checkSukiAndInvite(
+                context = this@HomeActivity,
+                coroutineScope = lifecycleScope,
+                userId = user.id,
+                userName = user.name ?: "Unnamed User",
+                userEmail = user.email ?: "",
+                storeId = sId,
+                selectedRoleValue = selectedRole,
+                onStartInviting = {
+                    btnInvite.text = "Inviting..."
+                    btnInvite.isEnabled = false
+                },
+                onInvitationSent = {
                     Toast.makeText(this@HomeActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
-                } catch (e: Exception) {
-                    val msg = e.message ?: "Failed to invite."
-                    inviteErrorText.text = if (msg.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
-                    inviteErrorText.visibility = View.VISIBLE
+                },
+                onInvitationFailed = { error ->
+                    if (error.isNotEmpty()) {
+                        inviteErrorText.text = if (error.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
+                        inviteErrorText.visibility = View.VISIBLE
+                    }
                     btnInvite.text = "Invite"
                     btnInvite.isEnabled = true
                 }
-            }
+            )
         }
 
         dialog.setOnDismissListener { inviteCodeCountdownJob?.cancel() }
@@ -1846,83 +1896,100 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showExportConfirmationDialog(rows: List<StoreProductExportRow>) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_export_confirmation, null)
-        val rowsCountView = dialogView.findViewById<TextView>(R.id.rowsCount)
-        val rowsLabelView = dialogView.findViewById<TextView>(R.id.rowsLabel)
-        val scopeValueView = dialogView.findViewById<TextView>(R.id.scopeValue)
-        val subtitleView = dialogView.findViewById<TextView>(R.id.exportSubtitle)
-        val exportDetailsCard = dialogView.findViewById<View>(R.id.exportDetailsCard)
-        val exportTypeGroup = dialogView.findViewById<android.widget.RadioGroup>(R.id.exportTypeGroup)
-        val notePreviewContainer = dialogView.findViewById<View>(R.id.notePreviewContainer)
-        val notePreviewText = dialogView.findViewById<TextView>(R.id.notePreviewText)
-        val noteMetaText = dialogView.findViewById<TextView>(R.id.noteMetaText)
-        val btnCopyNote = dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnCopyNote)
-        val btnConfirmExport = dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnConfirmExport)
+        val catCount = rows.map { it.category?.trim()?.takeIf { c -> c.isNotBlank() } ?: "General" }.distinct().size
+        val itemCount = rows.size
 
-        rowsCountView.text = rows.size.toString()
-        rowsLabelView.text = if (rows.size == 1) "Row to export" else "Rows to export"
-        scopeValueView.text = "All products"
-        subtitleView.text = "Generate a formatted Excel file or a Google Keep-ready note."
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_convert_pricelist, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.92).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
 
-        val noteText = buildNoteText(rows, currentStoreName, currentBranchName)
-        notePreviewText.text = if (noteText.isNotBlank()) noteText else "No products available. Add items to generate a note."
-        noteMetaText.text = "${rows.size} items • ${noteText.length} characters"
-        btnCopyNote.isEnabled = noteText.isNotBlank()
-        btnCopyNote.setOnClickListener {
-            if (noteText.isNotBlank()) {
-                copyNoteToClipboard(noteText)
-            } else {
-                Toast.makeText(this, "Nothing to copy.", Toast.LENGTH_SHORT).show()
+        val tvSummary      = view.findViewById<TextView>(R.id.tvConvertSummary)
+        val cardExcel      = view.findViewById<View>(R.id.cardExcelOption)
+        val cardNotes      = view.findViewById<View>(R.id.cardNotesOption)
+        val imgExcelRadio  = view.findViewById<ImageView>(R.id.imgExcelRadio)
+        val imgNotesRadio  = view.findViewById<ImageView>(R.id.imgNotesRadio)
+        val panelExcel     = view.findViewById<View>(R.id.panelExcelStats)
+        val panelNotes     = view.findViewById<View>(R.id.panelNotesPreview)
+        val tvStatRows     = view.findViewById<TextView>(R.id.tvStatRows)
+        val tvStatScope    = view.findViewById<TextView>(R.id.tvStatScope)
+        val textPreview    = view.findViewById<TextView>(R.id.textNotesPreview)
+        val tvNoteStats    = view.findViewById<TextView>(R.id.tvNoteStats)
+        val btnCopyPreview = view.findViewById<ImageView>(R.id.btnCopyNotePreview)
+        val btnBack        = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnBack)
+        val btnConvert     = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnConvert)
+
+        tvSummary.text = "$catCount ${if (catCount == 1) "category" else "categories"} and $itemCount ${if (itemCount == 1) "item" else "items"} to convert"
+
+        var selectedMode = 0
+        var generatedNoteText = ""
+
+        fun applySelection(mode: Int) {
+            selectedMode = mode
+            imgExcelRadio.setImageResource(if (mode == 1) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            imgNotesRadio.setImageResource(if (mode == 2) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            cardExcel.setBackgroundResource(if (mode == 1) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            cardNotes.setBackgroundResource(if (mode == 2) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            panelExcel.visibility = if (mode == 1) View.VISIBLE else View.GONE
+            panelNotes.visibility = if (mode == 2) View.VISIBLE else View.GONE
+
+            if (mode == 1) {
+                tvStatRows.text  = itemCount.toString()
+                tvStatScope.text = "$catCount ${if (catCount == 1) "Category" else "Categories"}, $itemCount Items"
+                btnConvert.text  = "CONVERT"
+            } else if (mode == 2) {
+                generatedNoteText = buildNoteText(rows, currentStoreName, currentBranchName)
+                textPreview.text  = generatedNoteText
+                tvNoteStats.text  = "$itemCount ${if (itemCount == 1) "item" else "items"} • ${generatedNoteText.length} characters"
+                btnConvert.text   = "SHARE NOTE"
+            }
+            btnConvert.isEnabled = true
+            btnConvert.alpha     = 1.0f
+        }
+
+        cardExcel.setOnClickListener { applySelection(1) }
+        cardNotes.setOnClickListener { applySelection(2) }
+
+        btnCopyPreview.setOnClickListener {
+            if (generatedNoteText.isNotBlank()) {
+                copyNoteToClipboard(generatedNoteText)
             }
         }
 
-        var selectedExportType = ExportType.EXCEL
-        fun refreshExportTypeUi() {
-            val isExcel = selectedExportType == ExportType.EXCEL
-            exportDetailsCard.visibility = if (isExcel) View.VISIBLE else View.GONE
-            notePreviewContainer.visibility = if (isExcel) View.GONE else View.VISIBLE
-            btnConfirmExport.text = if (isExcel) "Export Excel" else "Share Note"
-            btnConfirmExport.isEnabled = if (isExcel) true else noteText.isNotBlank()
-        }
+        btnBack.setOnClickListener { dialog.dismiss() }
 
-        exportTypeGroup.setOnCheckedChangeListener { _, checkedId ->
-            selectedExportType = if (checkedId == R.id.rbExportNotes) ExportType.NOTES else ExportType.EXCEL
-            refreshExportTypeUi()
-        }
-        exportTypeGroup.check(R.id.rbExportExcel)
-        refreshExportTypeUi()
-
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .create()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        dialogView.findViewById<View>(R.id.btnCancelExport).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        btnConfirmExport.setOnClickListener {
-            if (selectedExportType == ExportType.EXCEL) {
-                dialog.dismiss()
-                lifecycleScope.launch {
-                    LoadingOverlayHelper.show(loadingOverlay)
-                    try {
-                        performPricelistExport(rows)
-                    } finally {
-                        LoadingOverlayHelper.hide(loadingOverlay)
+        btnConvert.setOnClickListener {
+            when (selectedMode) {
+                1 -> {
+                    dialog.dismiss()
+                    lifecycleScope.launch {
+                        LoadingOverlayHelper.show(loadingOverlay)
+                        try {
+                            performPricelistExport(rows)
+                        } finally {
+                            LoadingOverlayHelper.hide(loadingOverlay)
+                        }
                     }
                 }
-            } else {
-                if (noteText.isBlank()) {
-                    Toast.makeText(this, "No products available for notes.", Toast.LENGTH_SHORT).show()
-                } else {
-                    shareNoteText(noteText)
+                2 -> {
+                    if (generatedNoteText.isBlank()) {
+                        Toast.makeText(this, "No products available for notes.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        shareNoteText(generatedNoteText)
+                    }
                 }
+                else -> Toast.makeText(this, "Please select a format.", Toast.LENGTH_SHORT).show()
             }
         }
 
         dialog.show()
     }
+
 
     private fun performPricelistExport(rows: List<StoreProductExportRow>) {
         if (rows.isEmpty()) {
@@ -2113,6 +2180,23 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun notifyExportSuccessOrRequest(filename: String) {
+        val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
+        if (userId != null) {
+            lifecycleScope.launch {
+                try {
+                    // Use RPC to bypass RLS (direct insert is blocked by RLS policies)
+                    SupabaseProvider.client.postgrest.rpc(
+                        "create_export_notification",
+                        buildJsonObject {
+                            put("p_user_id", userId)
+                            put("p_store_id", currentStoreId ?: "")
+                            put("p_filename", filename)
+                        }
+                    )
+                } catch (_: Exception) {}
+            }
+        }
+
         if (Build.VERSION.SDK_INT >= 33) {
             val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
             if (granted) {

@@ -8,6 +8,7 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
@@ -53,30 +54,11 @@ object SupabaseAuthService {
         client.auth.signUpWith(Email) {
             this.email = email
             this.password = password
-        }
-        // Set name in user metadata for quick header display
-        try {
-            client.auth.updateUser {
-                data = kotlinx.serialization.json.buildJsonObject {
-                    put("name", name)
-                }
+            // Pass name metadata directly to raw_user_meta_data
+            // This ensures the database trigger 'handle_new_user' gets the name on creation!
+            data = kotlinx.serialization.json.buildJsonObject {
+                put("name", name)
             }
-        } catch (_: Exception) { /* ignore */ }
-
-        // Insert into public.app_users table
-        try {
-            val userId = client.auth.currentUserOrNull()?.id
-            if (userId != null) {
-                client.postgrest["app_users"].insert(
-                    mapOf(
-                        "id" to userId,
-                        "name" to name,
-                        "email" to email
-                    )
-                )
-            }
-        } catch (_: Exception) {
-            // Ignore if table/policy not ready; we can add later
         }
         true
     }
@@ -113,6 +95,18 @@ object SupabaseAuthService {
 
     suspend fun signOut() = withContext(Dispatchers.IO) {
         client.auth.signOut()
+    }
+
+    suspend fun refreshSessionIfExpired() = withContext(Dispatchers.IO) {
+        try {
+            val session = client.auth.currentSessionOrNull()
+            if (session != null) {
+                client.auth.refreshCurrentSession()
+                android.util.Log.d("SupabaseAuth", "Successfully verified/refreshed session")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SupabaseAuth", "Failed to refresh session: ${e.localizedMessage}")
+        }
     }
 
     // Non-suspend helper for immediate display name (auth metadata/email only)
@@ -195,7 +189,7 @@ object SupabaseAuthService {
         try {
             val isoString = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.US).format(java.util.Date())
             client.postgrest["app_users"].update(
-                mapOf("last_activity_at" to isoString)
+                buildJsonObject { put("last_activity_at", isoString) }
             ) {
                 filter { eq("id", uid) }
             }
@@ -214,12 +208,68 @@ object SupabaseAuthService {
 
     suspend fun setOnboardingCompleted() = withContext(Dispatchers.IO) {
         try {
-            client.auth.updateUser {
-                data = buildJsonObject {
-                    put("onboarding_completed", true)
+            val currentMeta = client.auth.currentUserOrNull()?.userMetadata ?: buildJsonObject {}
+            val mergedMeta = buildJsonObject {
+                currentMeta.forEach { (key, value) ->
+                    put(key, value)
                 }
+                put("onboarding_completed", true)
+            }
+            client.auth.updateUser {
+                data = mergedMeta
             }
         } catch (_: Exception) {}
+    }
+
+    suspend fun updateProfile(name: String?, avatarUrl: String?): Boolean = withContext(Dispatchers.IO) {
+        val currentUser = client.auth.currentUserOrNull() ?: return@withContext false
+        val uid = currentUser.id
+        try {
+            // Update auth metadata (merging to preserve onboarding / password flags)
+            val currentMeta = currentUser.userMetadata ?: buildJsonObject {}
+            val mergedMeta = buildJsonObject {
+                currentMeta.forEach { (key, value) ->
+                    put(key, value)
+                }
+                if (name != null) put("name", name)
+                if (avatarUrl != null) put("avatar_url", avatarUrl)
+            }
+            client.auth.updateUser {
+                data = mergedMeta
+            }
+
+            // Update app_users row where auth_uid matches the logged-in user id
+            val dbPayload = buildJsonObject {
+                if (name != null) put("name", name)
+                if (avatarUrl != null) put("avatar_url", avatarUrl)
+            }
+
+            client.postgrest["app_users"].update(dbPayload) {
+                filter {
+                    eq("auth_uid", uid)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun uploadAvatar(bytes: ByteArray, fileExtension: String): String? = withContext(Dispatchers.IO) {
+        val currentUser = client.auth.currentUserOrNull() ?: return@withContext null
+        val uid = currentUser.id
+        val fileName = "$uid-${System.currentTimeMillis()}.$fileExtension"
+        try {
+            val bucket = client.storage.from("avatars")
+            bucket.upload(fileName, bytes) {
+                upsert = true
+            }
+            bucket.publicUrl(fileName)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 }
 

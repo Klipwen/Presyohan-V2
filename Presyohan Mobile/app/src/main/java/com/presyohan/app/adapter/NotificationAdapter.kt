@@ -4,45 +4,45 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.presyohan.app.R
 import com.presyohan.app.Notification
 import com.presyohan.app.SupabaseProvider
 import io.github.jan.supabase.auth.auth
-import java.text.SimpleDateFormat
-import java.util.Date
 
 class NotificationAdapter(
-    private val notifications: List<Notification>,
     private val onAccept: (Notification) -> Unit = {},
     private val onReject: (Notification) -> Unit = {},
+    private val onCancel: (Notification) -> Unit = {},
     private val onViewStore: (Notification) -> Unit = {}
-) : RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder>() {
+) : ListAdapter<Notification, NotificationAdapter.NotificationViewHolder>(NotificationDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NotificationViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.notification_card, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_notification_card, parent, false)
         return NotificationViewHolder(view)
     }
 
-    override fun getItemCount(): Int = notifications.size
-
     override fun onBindViewHolder(holder: NotificationViewHolder, position: Int) {
-        val notification = notifications[position]
-        holder.bind(notification, onAccept, onReject, onViewStore)
+        val notification = getItem(position)
+        holder.bind(notification, onAccept, onReject, onCancel, onViewStore)
     }
 
     class NotificationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val textType: TextView = itemView.findViewById(R.id.textType)
         private val textStatus: TextView = itemView.findViewById(R.id.textStatus)
-        private val textDeclined: TextView = itemView.findViewById(R.id.textDeclined)
         private val textTimestamp: TextView = itemView.findViewById(R.id.textTimestamp)
         private val textMessage: TextView = itemView.findViewById(R.id.textMessage)
         private val layoutActions: View = itemView.findViewById(R.id.layoutActions)
         private val btnAccept: TextView = itemView.findViewById(R.id.btnAccept)
         private val btnReject: TextView = itemView.findViewById(R.id.btnReject)
-        private val textViewStore: TextView = itemView.findViewById(R.id.textViewStore)
+        private val btnCancel: TextView = itemView.findViewById(R.id.btnCancel)
+        private val btnViewStore: TextView = itemView.findViewById(R.id.btnViewStore)
         private val dividerTypeStatus: View = itemView.findViewById(R.id.dividerTypeStatus)
         private val dotSeparator: TextView = itemView.findViewById(R.id.dotSeparator)
+        private val viewOrangeDot: View = itemView.findViewById(R.id.viewOrangeDot)
+        private val layoutDivider: View = itemView.findViewById(R.id.layoutDivider)
 
         private fun getFriendlyTimeString(timestampMillis: Long): String {
             val now = System.currentTimeMillis()
@@ -58,7 +58,7 @@ class NotificationAdapter(
                 hours == 1L -> "1 hour ago"
                 hours < 24 -> "$hours hours ago"
                 days == 1L -> "yesterday"
-                else -> java.text.SimpleDateFormat("MM/dd/yy").format(java.util.Date(timestampMillis))
+                else -> java.text.SimpleDateFormat("MM/dd/yy", java.util.Locale.US).format(java.util.Date(timestampMillis))
             }
         }
 
@@ -66,63 +66,180 @@ class NotificationAdapter(
             notification: Notification,
             onAccept: (Notification) -> Unit,
             onReject: (Notification) -> Unit,
+            onCancel: (Notification) -> Unit,
             onViewStore: (Notification) -> Unit
         ) {
-            textType.text = notification.type
+            // Map type to a user-friendly title matching the design spec
+            textType.text = when (notification.type) {
+                "Join Request" -> "Join Request"
+                "Store Invitation" -> "Store Invitation"
+                "Store Invitation Sent" -> "Store Invitation Sent"
+                "Suki Request" -> if (notification.status == "Accepted") "New Suki" else "Suki Request"
+                // System notification types — already mapped from DB in parseNotificationInfo
+                "Export Complete", "excel_export" -> "Export Complete"
+                "Staff Left Store", "member_left" -> "Staff Left Store"
+                "Staff Joined Store", "member_joined" -> "Staff Joined Store"
+                "Removed Staff", "member_removed" -> "Removed Staff"
+                "Role Changed", "role_changed" -> "Role Changed"
+                "Store Deleted", "store_deleted" -> "Store Deleted"
+                "Updated Store Status", "store_visibility_changed" -> "Updated Store Status"
+                "Copy Price Complete", "copy_price_complete" -> "Copy Price Complete"
+                "Suking Tindahan Connected" -> "Suking Tindahan Connected"
+                "You Have Been Removed" -> "You Have Been Removed"
+                "You Have Left" -> "You Have Left"
+                else -> when {
+                    notification.message.contains("left your") || notification.message.contains("left the") || notification.message.contains("has left") -> "Staff Left Store"
+                    notification.message.contains("removed") && notification.message.contains("from") -> "Removed Staff"
+                    notification.message.contains("deleted") || notification.message.contains("Deleted") -> "Store Deleted"
+                    notification.message.contains("Copy Price") || notification.message.contains("pricelist") -> "Copy Price Complete"
+                    notification.message.contains("status to public") || notification.message.contains("status to private") -> "Updated Store Status"
+                    notification.message.contains("partnered") || notification.message.contains("Suking Tindahan connected") -> "Suking Tindahan Connected"
+                    notification.message.contains("promoted") || notification.message.contains("role has been") || notification.message.contains("role changed") -> "Role Changed"
+                    notification.message.contains("removed from") || notification.message.contains("no longer") -> "You Have Been Removed"
+                    notification.message.contains("You left") -> "You Have Left"
+                    notification.message.contains("Excel") || notification.message.contains("exported") -> "Export Complete"
+                    notification.type.isNotBlank() -> notification.type
+                    else -> "Notification"
+                }
+            }
             textTimestamp.text = getFriendlyTimeString(notification.timestamp)
             textMessage.text = notification.message
 
+            // Orange dot indicator shows when new/unread, toggles off when seen
+            viewOrangeDot.visibility = if (notification.isNew) View.VISIBLE else View.GONE
+
             // Reset visibility
             textStatus.visibility = View.GONE
-            textDeclined.visibility = View.GONE
             layoutActions.visibility = View.GONE
-            textViewStore.visibility = View.GONE
+            btnAccept.visibility = View.GONE
+            btnReject.visibility = View.GONE
+            btnCancel.visibility = View.GONE
+            btnViewStore.visibility = View.GONE
             dividerTypeStatus.visibility = View.GONE
-            dotSeparator.visibility = View.GONE
+            dotSeparator.visibility = View.VISIBLE
+            layoutDivider.visibility = View.GONE
 
             val currentUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
 
             when (notification.status) {
                 "Pending" -> {
-                    // Only show Accept/Reject for join requests if current user is the owner
+                    val isSukiRequest = notification.type == "Suki Request"
                     val isJoinRequest = notification.type == "Join Request"
-                    val isOwner = currentUserId != null && notification.senderId != currentUserId
-                    if (isJoinRequest && isOwner) {
+
+                    if (isSukiRequest) {
                         layoutActions.visibility = View.VISIBLE
-                        btnAccept.setOnClickListener { onAccept(notification) }
-                        btnReject.setOnClickListener { onReject(notification) }
-                    } else if (!isJoinRequest) {
+                        // Sender is the requester (Flow A)
+                        val isRequester = notification.senderId == currentUserId
+                        if (isRequester) {
+                            btnCancel.visibility = View.VISIBLE
+                            btnCancel.text = "Cancel Request"
+                            btnCancel.setOnClickListener { onCancel(notification) }
+                        } else {
+                            // Manager receives request (Flow B)
+                            btnAccept.visibility = View.VISIBLE
+                            btnReject.visibility = View.VISIBLE
+                            btnAccept.setOnClickListener { onAccept(notification) }
+                            btnReject.setOnClickListener { onReject(notification) }
+                        }
+                    } else if (isJoinRequest) {
+                        val isRequester = (currentUserId != null && notification.senderId == currentUserId) ||
+                                          notification.message.startsWith("Your request") ||
+                                          notification.message.startsWith("You requested")
                         layoutActions.visibility = View.VISIBLE
-                        btnAccept.setOnClickListener { onAccept(notification) }
-                        btnReject.setOnClickListener { onReject(notification) }
-                    } else {
-                        layoutActions.visibility = View.GONE
+                        if (isRequester) {
+                            btnCancel.visibility = View.VISIBLE
+                            btnCancel.text = "Cancel Request"
+                            btnCancel.setOnClickListener { onCancel(notification) }
+                        } else {
+                            btnAccept.visibility = View.VISIBLE
+                            btnReject.visibility = View.VISIBLE
+                            btnAccept.setOnClickListener { onAccept(notification) }
+                            btnReject.setOnClickListener { onReject(notification) }
+                        }
+                    } else if (notification.type == "Store Invitation") {
+                        // Store Invitation pending
+                        val isOwnerInviter = notification.message.startsWith("You invited")
+                        layoutActions.visibility = View.VISIBLE
+                        if (isOwnerInviter) {
+                            btnCancel.visibility = View.VISIBLE
+                            btnCancel.text = "Cancel Invitation"
+                            btnCancel.setOnClickListener { onCancel(notification) }
+                        } else {
+                            btnAccept.visibility = View.VISIBLE
+                            btnReject.visibility = View.VISIBLE
+                            btnAccept.setOnClickListener { onAccept(notification) }
+                            btnReject.setOnClickListener { onReject(notification) }
+                        }
                     }
-                    dividerTypeStatus.visibility = View.GONE
-                    textStatus.visibility = View.GONE
-                    textDeclined.visibility = View.GONE
-                    dotSeparator.visibility = View.VISIBLE
                 }
                 "Accepted" -> {
+                    dividerTypeStatus.visibility = View.VISIBLE
                     textStatus.visibility = View.VISIBLE
                     textStatus.text = "Accepted"
                     textStatus.setTextColor(itemView.context.getColor(R.color.presyo_teal))
-                    // Only show 'View store' if current user is NOT the sender
-                    if (currentUserId != notification.senderId) {
-                        textViewStore.visibility = View.VISIBLE
-                        textViewStore.setOnClickListener { onViewStore(notification) }
-                    }
-                    dividerTypeStatus.visibility = View.VISIBLE
-                    dotSeparator.visibility = View.VISIBLE
                 }
-                "Declined" -> {
-                    textDeclined.visibility = View.VISIBLE
-                    textDeclined.text = "Declined"
-                    textDeclined.setTextColor(itemView.context.getColor(R.color.presyo_orange))
+                "Declined", "Rejected" -> {
                     dividerTypeStatus.visibility = View.VISIBLE
-                    dotSeparator.visibility = View.VISIBLE
+                    textStatus.visibility = View.VISIBLE
+                    textStatus.text = "Declined"
+                    textStatus.setTextColor(itemView.context.getColor(R.color.presyo_orange))
+                }
+                "Canceled" -> {
+                    dividerTypeStatus.visibility = View.VISIBLE
+                    textStatus.visibility = View.VISIBLE
+                    textStatus.text = "Canceled"
+                    textStatus.setTextColor(itemView.context.getColor(R.color.presyo_orange))
                 }
             }
+
+            // ── Dynamic Link Action Binding ──
+            btnViewStore.visibility = View.GONE
+            if (notification.type == "excel_export" || notification.message.contains("Excel file") || notification.message.contains("exported")) {
+                btnViewStore.visibility = View.VISIBLE
+                btnViewStore.text = "Open File >"
+                btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))
+                btnViewStore.setOnClickListener { onViewStore(notification) }
+            } else if (notification.message.contains("status to public") || notification.message.contains("status to private")) {
+                val isOwner = currentUserId != null && notification.senderId != currentUserId
+                if (isOwner) {
+                    btnViewStore.visibility = View.VISIBLE
+                    btnViewStore.text = "Store Settings >"
+                    btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))
+                    btnViewStore.setOnClickListener { onViewStore(notification) }
+                } else {
+                    btnViewStore.visibility = View.VISIBLE
+                    btnViewStore.text = "View Store >"
+                    btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))
+                    btnViewStore.setOnClickListener { onViewStore(notification) }
+                }
+            } else if (notification.type == "Suki Request" ||
+                notification.status == "Accepted" || 
+                notification.message.contains("connected") || 
+                notification.message.contains("partnered") || 
+                notification.message.contains("joined") || 
+                notification.message.contains("role") ||
+                notification.message.contains("promoted")) {
+                
+                if (!notification.storeId.isNullOrBlank()) {
+                    btnViewStore.visibility = View.VISIBLE
+                    btnViewStore.text = "View Store >"
+                    btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))
+                    btnViewStore.setOnClickListener { onViewStore(notification) }
+                }
+            }
+
+            // Sync layout divider visibility with layout actions container
+            layoutDivider.visibility = layoutActions.visibility
         }
+    }
+}
+
+class NotificationDiffCallback : DiffUtil.ItemCallback<Notification>() {
+    override fun areItemsTheSame(oldItem: Notification, newItem: Notification): Boolean {
+        return oldItem.id == newItem.id
+    }
+
+    override fun areContentsTheSame(oldItem: Notification, newItem: Notification): Boolean {
+        return oldItem == newItem
     }
 }

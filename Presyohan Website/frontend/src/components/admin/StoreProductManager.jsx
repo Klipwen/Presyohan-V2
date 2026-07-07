@@ -29,6 +29,7 @@ export default function StoreProductManager({ store, onBack }) {
   const [parsedItems, setParsedItems] = useState([]);
   const [parseIssues, setParseIssues] = useState([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const importFileInputRef = React.useRef(null);
 
   const loadData = async () => {
@@ -545,6 +546,118 @@ export default function StoreProductManager({ store, onBack }) {
     }
   };
 
+  const handleExportExcel = async () => {
+    if (products.length === 0) {
+      alert('No products to export.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      // Map products to include category name
+      const rows = products.map(p => {
+        const cat = categories.find(c => c.id === p.category_id);
+        return {
+          category: cat ? cat.name : 'UNCATEGORIZED',
+          name: p.name || '',
+          description: p.description || '',
+          unit: p.unit || 'pc',
+          price: p.price
+        };
+      });
+
+      // Sort by category then name for professional ordering
+      rows.sort((a, b) => {
+        const ca = a.category.toLowerCase();
+        const cb = b.category.toLowerCase();
+        if (ca < cb) return -1;
+        if (ca > cb) return 1;
+        const na = a.name.toLowerCase();
+        const nb = b.name.toLowerCase();
+        if (na < nb) return -1;
+        if (na > nb) return 1;
+        return 0;
+      });
+
+      // Lazy-load exceljs and file-saver to keep initial bundle light
+      const [{ default: ExcelJS }, { saveAs }] = await Promise.all([
+        import('exceljs'),
+        import('file-saver')
+      ]);
+
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Pricelist');
+
+      // Title & store info
+      ws.addRow(['Presyohan']);
+      ws.getRow(1).font = { bold: true, size: 16 };
+      ws.addRow([`Store: ${store.name || ''} — Branch: ${store.branch || ''}`]);
+
+      // Exported by / at
+      let exporterName = '';
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        exporterName = user?.email || 'Admin';
+      } catch {
+        exporterName = 'Admin';
+      }
+      const exportedAt = new Date().toLocaleString();
+      ws.addRow([`Exported by: ${exporterName}    |    Exported at: ${exportedAt}`]);
+
+      ws.addRow(['']); // blank line (Row 4)
+
+      // Headers (Row 5)
+      const header = ['Category', 'Name', 'Description', 'Unit', 'Price'];
+      ws.addRow(header);
+      const headerRow = ws.getRow(ws.rowCount);
+      headerRow.font = { bold: true };
+      ws.views = [{ state: 'frozen', ySplit: 5 }];
+
+      // Column widths
+      ws.columns = [
+        { key: 'category', width: 20 },
+        { key: 'name', width: 28 },
+        { key: 'description', width: 40 },
+        { key: 'unit', width: 12 },
+        { key: 'price', width: 14 }
+      ];
+
+      // Data rows (Row 6+)
+      rows.forEach(r => {
+        const priceNum = typeof r.price === 'number' ? r.price : Number(r.price || 0);
+        const row = ws.addRow([
+          r.category || '',
+          r.name || '',
+          r.description || '',
+          r.unit || '',
+          priceNum
+        ]);
+        row.getCell(5).numFmt = '"₱"#,##0.00';
+        row.getCell(3).alignment = { wrapText: true };
+      });
+
+      // Generate filename matching standard format
+      const slug = `${(store.name || 'store').trim()}_${(store.branch || 'main').trim()}`
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+      const pad = (n) => String(n).padStart(2, '0');
+      const d = new Date();
+      const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+      const filename = `presyohan_${slug}_pricelist_${ts}.xlsx`;
+
+      // Generate and download
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, filename);
+
+    } catch (e) {
+      console.error('Failed to export Excel:', e);
+      alert('Failed to export Excel: ' + (e.message || e));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Filter products by selected category
   const filteredProducts = products.filter(p => {
     if (selectedCategory === 'ALL') return true;
@@ -629,6 +742,17 @@ export default function StoreProductManager({ store, onBack }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
                 Import Excel
+              </button>
+              <button 
+                className="admin-btn-action" 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ff8c00', borderColor: 'rgba(255, 140, 0, 0.2)' }} 
+                onClick={handleExportExcel}
+                disabled={isExporting}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" style={{ width: '14px', height: '14px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                {isExporting ? 'Exporting...' : 'Export Excel'}
               </button>
               <button className="admin-btn-primary" onClick={() => {
                 setEditingProduct(null);

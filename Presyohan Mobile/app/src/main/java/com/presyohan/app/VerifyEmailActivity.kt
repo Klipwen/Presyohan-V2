@@ -309,17 +309,18 @@ class VerifyEmailActivity : AppCompatActivity() {
                     val user = supabaseClient.auth.currentUserOrNull()
                     val uid = user?.id
                     val email = user?.email ?: userEmail!!
-                    val displayName = SupabaseAuthService.getDisplayNameImmediate()
+                    val nameExtra = intent.getStringExtra("name")
+                    val displayName = if (!nameExtra.isNullOrBlank()) nameExtra else SupabaseAuthService.getDisplayNameImmediate()
                     if (uid != null) {
                         try {
-                            supabaseClient.postgrest["app_users"].insert(
+                            supabaseClient.postgrest["app_users"].upsert(
                                 mapOf(
                                     "id" to uid,
                                     "name" to displayName,
                                     "email" to email
                                 )
                             )
-                        } catch (_: Exception) { /* ignore upsert fallback for now */ }
+                        } catch (_: Exception) { /* ignore */ }
                     }
                 } catch (_: Exception) { /* ignore */ }
 
@@ -334,7 +335,8 @@ class VerifyEmailActivity : AppCompatActivity() {
                     isPasswordReset = false,
                     buttonText = "Continue",
                     action = {
-                        val intent = Intent(this@VerifyEmailActivity, StoreActivity::class.java)
+                        // A new account always needs to complete onboarding first
+                        val intent = Intent(this@VerifyEmailActivity, OnboardingActivity::class.java)
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(intent)
                         overridePendingTransition(0, 0)

@@ -1,35 +1,112 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingVertical="8dp"
-    android:layout_marginStart="24dp"
     android:background="?attr/selectableItemBackground"
     android:clickable="true"
-    android:focusable="true">
+    android:focusable="true"
+    android:paddingVertical="4dp">
 
-    <TextView
-        android:id="@+id/txtStoreName"
-        android:layout_width="wrap_content"
+    <!-- Tree Graphic Container (Aligns directly under the store menu icon) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/treeGraphicContainer"
+        android:layout_width="24dp"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <!-- Top Vertical Line (Center of the 24dp container) -->
+        <View
+            android:id="@+id/lineVerticalTop"
+            android:layout_width="1.5dp"
+            android:layout_height="0dp"
+            android:background="#D1D1D1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/lineHorizontalAnchor" />
+
+        <!-- Anchor for horizontal center line -->
+        <Space
+            android:id="@+id/lineHorizontalAnchor"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Bottom Vertical Line (Center of the 24dp container) -->
+        <View
+            android:id="@+id/lineVerticalBottom"
+            android:layout_width="1.5dp"
+            android:layout_height="0dp"
+            android:background="#D1D1D1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/lineHorizontalAnchor"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Horizontal Branch Line (Spans from center to right edge of container) -->
+        <View
+            android:id="@+id/lineHorizontal"
+            android:layout_width="12dp"
+            android:layout_height="1.5dp"
+            android:background="#D1D1D1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/lineHorizontalAnchor"
+            app:layout_constraintBottom_toBottomOf="@+id/lineHorizontalAnchor"
+            app:layout_constraintHorizontal_bias="1.0" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Active Indicator (Vertical Orange Bar) -->
+    <View
+        android:id="@+id/activeIndicator"
+        android:layout_width="3dp"
+        android:layout_height="24dp"
+        android:background="@color/presyo_orange"
+        android:visibility="invisible"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@id/treeGraphicContainer"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- Text Container -->
+    <LinearLayout
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Store Name"
-        android:textColor="#999A9A"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:maxLines="1"
-        android:ellipsize="end" />
+        android:orientation="vertical"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintStart_toEndOf="@id/activeIndicator"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-    <TextView
-        android:id="@+id/txtStoreBranch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="Branch"
-        android:textColor="@color/edittext_hint"
-        android:textSize="11sp"
-        android:visibility="gone"
-        android:maxLines="1"
-        android:ellipsize="end" />
+        <TextView
+            android:id="@+id/txtStoreName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Store Name"
+            android:textColor="#999A9A"
+            android:textSize="13.5sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
-</LinearLayout>
+        <TextView
+            android:id="@+id/txtStoreBranch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Public Prices"
+            android:textColor="#999A9A"
+            android:textSize="11sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

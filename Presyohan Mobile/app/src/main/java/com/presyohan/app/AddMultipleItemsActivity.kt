@@ -329,6 +329,18 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             }
         })
 
+        // Enable scroll inside EditText
+        @android.annotation.SuppressLint("ClickableViewAccessibility")
+        inputRawText.setOnTouchListener { v, event ->
+            if (v.id == R.id.inputRawText) {
+                v.parent.requestDisallowInterceptTouchEvent(true)
+                if ((event.action and android.view.MotionEvent.ACTION_MASK) == android.view.MotionEvent.ACTION_UP) {
+                    v.parent.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+            false
+        }
+
         updateButtonsState()
     }
 
