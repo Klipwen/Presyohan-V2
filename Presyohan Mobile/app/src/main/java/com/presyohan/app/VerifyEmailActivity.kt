@@ -313,13 +313,27 @@ class VerifyEmailActivity : AppCompatActivity() {
                     val displayName = if (!nameExtra.isNullOrBlank()) nameExtra else SupabaseAuthService.getDisplayNameImmediate()
                     if (uid != null) {
                         try {
-                            supabaseClient.postgrest["app_users"].upsert(
-                                mapOf(
-                                    "id" to uid,
-                                    "name" to displayName,
-                                    "email" to email
+                            var upserted = false
+                            try {
+                                supabaseClient.postgrest["app_users"].upsert(
+                                    mapOf(
+                                        "id" to uid,
+                                        "name" to displayName,
+                                        "email" to email
+                                    )
                                 )
-                            )
+                                upserted = true
+                            } catch (_: Exception) {}
+                            if (!upserted) {
+                                supabaseClient.postgrest["app_users"].upsert(
+                                    mapOf(
+                                        "id" to uid,
+                                        "auth_uid" to uid,
+                                        "name" to displayName,
+                                        "email" to email
+                                    )
+                                )
+                            }
                         } catch (_: Exception) { /* ignore */ }
                     }
                 } catch (_: Exception) { /* ignore */ }

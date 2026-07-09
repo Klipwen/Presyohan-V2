@@ -148,6 +148,11 @@ object DrawerHelper {
             drawerLayout.closeDrawers()
         }
 
+        root.findViewById<View>(R.id.drawerItemShare).setOnClickListener {
+            ShareAppHelper.shareApp(activity, activity.lifecycleScope)
+            drawerLayout.closeDrawers()
+        }
+
         root.findViewById<View>(R.id.drawerItemLogout).setOnClickListener {
             drawerLayout.closeDrawers()
             showLogoutDialog(activity)

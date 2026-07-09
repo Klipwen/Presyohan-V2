@@ -304,7 +304,7 @@ class NotificationActivity : AppCompatActivity() {
             "member_left" -> "Staff Left Store"
             "member_joined" -> "Staff Joined Store"
             "member_removed" -> "Removed Staff"
-            "role_changed" -> "Role Changed"
+            "role_changed", "role_change" -> "Role Updated"
             "store_deleted" -> "Store Deleted"
             "store_visibility_changed" -> "Updated Store Status"
             "copy_price_complete" -> "Copy Price Complete"
@@ -527,6 +527,38 @@ class NotificationActivity : AppCompatActivity() {
         }
     }
 
+    private fun getFriendlyNotificationErrorMessage(e: Exception, fallbackMsg: String): String {
+        val rawMsg = e.message ?: ""
+        // If it's a Supabase JSON error, extract the "message" value
+        val jsonMsgRegex = "\"message\"\\s*:\\s*\"([^\"]+)\"".toRegex()
+        val match = jsonMsgRegex.find(rawMsg)
+        val msg = if (match != null) match.groupValues[1] else rawMsg
+
+        return when {
+            msg.contains("Only store owners or managers", ignoreCase = true) -> {
+                "Only store owners or managers can make Suki decisions."
+            }
+            msg.contains("handle_suki_decision", ignoreCase = true) || msg.contains("does not exist", ignoreCase = true) -> {
+                "Unable to process Suki request. Please check your connection."
+            }
+            msg.isNotBlank() && 
+                    !msg.contains("RestException", ignoreCase = true) && 
+                    !msg.contains("PostgrestException", ignoreCase = true) &&
+                    !msg.contains("column", ignoreCase = true) &&
+                    !msg.contains("relation", ignoreCase = true) &&
+                    !msg.contains("does not exist", ignoreCase = true) &&
+                    !msg.contains("syntax", ignoreCase = true) &&
+                    !msg.contains("violates", ignoreCase = true) &&
+                    !msg.contains("constraint", ignoreCase = true) &&
+                    !msg.contains("null value", ignoreCase = true) -> {
+                msg
+            }
+            else -> {
+                fallbackMsg
+            }
+        }
+    }
+
     private fun handleAccept(notification: Notification) {
         if (notification.type == "Join Request") {
             showManageJoinRequestDialog(notification)
@@ -537,68 +569,21 @@ class NotificationActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 if (notification.type == "Suki Request") {
-                    val requesterId = notification.senderId ?: return@launch
-                    val storeId = notification.storeId ?: return@launch
-
-                    // Update suki relationships to active
-                    SupabaseProvider.client.postgrest["suki_relationships"].update(
-                        buildJsonObject { put("status", "active") }
-                    ) {
-                        filter {
-                            eq("user_id", requesterId)
-                            eq("store_id", storeId)
+                    SupabaseProvider.client.postgrest.rpc(
+                        "handle_suki_decision",
+                        buildJsonObject {
+                            put("p_notification_id", notification.id)
+                            put("p_action", "accept")
                         }
-                    }
+                    )
 
-                    // Update local notification status
                     val newMsg = "You accepted ${notification.sender}'s request. They can now view your public prices as a Suki."
                     updateNotificationInPlace(notification.id, "Accepted", newMsg)
 
-                    // Update DB notification
-                    SupabaseProvider.client.postgrest["notifications"].update(
-                        buildJsonObject {
-                            put("type", "suki_accepted")
-                            put("message", newMsg)
-                        }
-                    ) {
-                        filter { eq("id", notification.id) }
-                    }
-
-                    // Let other owners know who accepted the request
-                    try {
-                        val handlerProfile = SupabaseAuthService.getUserProfile()
-                        val handlerName = handlerProfile?.name ?: "An owner"
-                        SupabaseProvider.client.postgrest["notifications"].update(
-                            buildJsonObject {
-                                put("type", "suki_accepted")
-                                put("message", "$handlerName accepted ${notification.sender}'s request. They can now view public prices as a Suki.")
-                            }
-                        ) {
-                            filter {
-                                eq("store_id", storeId)
-                                eq("type", "suki_request_received")
-                                eq("sender_user_id", requesterId)
-                                neq("id", notification.id)
-                            }
-                        }
-                    } catch (_: Exception) {}
-
-                    // Insert decision notification for requester (Flow C)
-                    SupabaseProvider.client.postgrest["notifications"].insert(
-                        buildJsonObject {
-                            put("receiver_user_id", requesterId)
-                            put("sender_user_id", SupabaseProvider.client.auth.currentUserOrNull()?.id ?: "")
-                            put("store_id", storeId)
-                            put("type", "suki_accepted")
-                            put("title", "Suki Request Accepted")
-                            put("message", "${notification.storeName ?: "QSOS"} accepted your request! You are now partnered as a Suking Tindahan and can view their prices.")
-                            put("read", false)
-                        }
-                    )
                     Toast.makeText(this@NotificationActivity, "Suki request accepted", Toast.LENGTH_SHORT).show()
                     LoadingOverlayHelper.hide(loadingOverlay)
                 } else {
-                    // Store Invitation accepted
+                    // Store Registration/Invitation accepted
                     val proceedAccept = {
                         lifecycleScope.launch {
                             try {
@@ -613,7 +598,8 @@ class NotificationActivity : AppCompatActivity() {
                                 updateNotificationInPlace(notification.id, "Accepted", newMsg)
                                 Toast.makeText(this@NotificationActivity, "Invitation accepted", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
-                                Toast.makeText(this@NotificationActivity, "Failed to accept invitation", Toast.LENGTH_SHORT).show()
+                                val friendlyMsg = getFriendlyNotificationErrorMessage(e, "Failed to accept invitation")
+                                Toast.makeText(this@NotificationActivity, friendlyMsg, Toast.LENGTH_LONG).show()
                             } finally {
                                 LoadingOverlayHelper.hide(loadingOverlay)
                             }
@@ -641,7 +627,7 @@ class NotificationActivity : AppCompatActivity() {
                         if (isSuki) {
                             LoadingOverlayHelper.hide(loadingOverlay)
                             val roleName = if (notification.role == "manager") "Manager" else "Sales Staff"
-                            val promptMessage = "You are currently a Suki of this store. Accepting this invitation to join the team as a $roleName will make you a store team member and you will no longer be a Suki. Do you want to proceed?"
+                            val promptMessage = "This store is currently your Suking Tindahan. Joining the team will make you a store staff and you will no longer be a Suki. Do you want to proceed to be a store staff on this store?"
                             
                             ReusableDialogHelper.showCustomDialog(
                                 context = this@NotificationActivity,
@@ -663,7 +649,9 @@ class NotificationActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@NotificationActivity, "Failed to accept invitation", Toast.LENGTH_SHORT).show()
+                val fallback = if (notification.type == "Suki Request") "Failed to accept Suki request" else "Failed to accept invitation"
+                val friendlyMsg = getFriendlyNotificationErrorMessage(e, fallback)
+                Toast.makeText(this@NotificationActivity, friendlyMsg, Toast.LENGTH_LONG).show()
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
@@ -685,62 +673,17 @@ class NotificationActivity : AppCompatActivity() {
                     updateNotificationInPlace(notification.id, "Declined", newMsg)
                     Toast.makeText(this@NotificationActivity, "Join request rejected", Toast.LENGTH_SHORT).show()
                 } else if (notification.type == "Suki Request") {
-                    val requesterId = notification.senderId ?: return@launch
-                    val storeId = notification.storeId ?: return@launch
-
-                    // Delete the pending suki relationship
-                    SupabaseProvider.client.postgrest["suki_relationships"].delete {
-                        filter {
-                            eq("user_id", requesterId)
-                            eq("store_id", storeId)
+                    SupabaseProvider.client.postgrest.rpc(
+                        "handle_suki_decision",
+                        buildJsonObject {
+                            put("p_notification_id", notification.id)
+                            put("p_action", "reject")
                         }
-                    }
+                    )
 
-                    // Update local notification status
                     val newMsg = "You declined the Suking Tindahan request from ${notification.sender}."
                     updateNotificationInPlace(notification.id, "Declined", newMsg)
 
-                    // Update DB notification
-                    SupabaseProvider.client.postgrest["notifications"].update(
-                        buildJsonObject {
-                            put("type", "suki_rejected")
-                            put("message", newMsg)
-                        }
-                    ) {
-                        filter { eq("id", notification.id) }
-                    }
-
-                    // Let other owners know who declined the request
-                    try {
-                        val handlerProfile = SupabaseAuthService.getUserProfile()
-                        val handlerName = handlerProfile?.name ?: "An owner"
-                        SupabaseProvider.client.postgrest["notifications"].update(
-                            buildJsonObject {
-                                put("type", "suki_rejected")
-                                put("message", "$handlerName declined the Suking Tindahan request from ${notification.sender}.")
-                            }
-                        ) {
-                            filter {
-                                eq("store_id", storeId)
-                                eq("type", "suki_request_received")
-                                eq("sender_user_id", requesterId)
-                                neq("id", notification.id)
-                            }
-                        }
-                    } catch (_: Exception) {}
-
-                    // Insert decision notification for requester (Flow C)
-                    SupabaseProvider.client.postgrest["notifications"].insert(
-                        buildJsonObject {
-                            put("receiver_user_id", requesterId)
-                            put("sender_user_id", SupabaseProvider.client.auth.currentUserOrNull()?.id ?: "")
-                            put("store_id", storeId)
-                            put("type", "suki_rejected")
-                            put("title", "Suki Request Rejected")
-                            put("message", "${notification.storeName ?: "QSOS"} declined your request to partner as a Suking Tindahan. You can try again later.")
-                            put("read", false)
-                        }
-                    )
                     Toast.makeText(this@NotificationActivity, "Suki request rejected", Toast.LENGTH_SHORT).show()
                 } else {
                     // Store invitation reject
@@ -757,7 +700,9 @@ class NotificationActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("NotificationActivity", "Failed to reject invitation/request", e)
-                Toast.makeText(this@NotificationActivity, "Failed to reject: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                val fallback = if (notification.type == "Suki Request") "Failed to decline Suki request" else "Failed to reject request"
+                val friendlyMsg = getFriendlyNotificationErrorMessage(e, fallback)
+                Toast.makeText(this@NotificationActivity, friendlyMsg, Toast.LENGTH_LONG).show()
             }
             LoadingOverlayHelper.hide(loadingOverlay)
         }
@@ -801,7 +746,8 @@ class NotificationActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("NotificationActivity", "Failed to cancel request", e)
-                Toast.makeText(this@NotificationActivity, "Failed to cancel: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                val friendlyMsg = getFriendlyNotificationErrorMessage(e, "Failed to cancel request. Please try again.")
+                Toast.makeText(this@NotificationActivity, friendlyMsg, Toast.LENGTH_LONG).show()
             } finally {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
@@ -834,10 +780,111 @@ class NotificationActivity : AppCompatActivity() {
         val storeName = notification.storeName
 
         if (storeId != null) {
-            val intent = Intent(this@NotificationActivity, HomeActivity::class.java)
-            intent.putExtra("storeId", storeId)
-            if (storeName != null) intent.putExtra("storeName", storeName)
-            startActivity(intent)
+            LoadingOverlayHelper.show(loadingOverlay)
+            lifecycleScope.launch {
+                try {
+                    val currentUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
+                    
+                    @Serializable
+                    data class StoreLite(
+                        val id: String,
+                        val name: String,
+                        val branch: String? = null,
+                        val type: String? = null,
+                        val is_standard_store: Boolean = false,
+                        val is_public: Boolean = false
+                    )
+
+                    val storeRow = SupabaseProvider.client.postgrest["stores"]
+                        .select(Columns.list("id", "name", "branch", "type", "is_standard_store", "is_public")) {
+                            filter {
+                                eq("id", storeId)
+                            }
+                        }
+                        .decodeSingle<StoreLite>()
+
+                    @Serializable
+                    data class StoreMemberLiteRow(
+                        val store_id: String,
+                        val user_id: String
+                    )
+
+                    val isMember = if (currentUserId != null) {
+                        try {
+                            val memberList = SupabaseProvider.client.postgrest["store_members"]
+                                .select(Columns.list("store_id", "user_id")) {
+                                    filter {
+                                        eq("user_id", currentUserId)
+                                        eq("store_id", storeId)
+                                    }
+                                }
+                                .decodeList<StoreMemberLiteRow>()
+                            memberList.isNotEmpty()
+                        } catch (e: Exception) {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+
+                    if (isMember) {
+                        val intent = Intent(this@NotificationActivity, HomeActivity::class.java).apply {
+                            putExtra("storeId", storeRow.id)
+                            putExtra("storeName", storeRow.name)
+                        }
+                        startActivity(intent)
+                    } else {
+                        val isSuki = if (storeRow.is_standard_store) {
+                            true
+                        } else if (currentUserId != null) {
+                            try {
+                                val sukiList = SupabaseProvider.client.postgrest["suki_relationships"]
+                                    .select(Columns.list("store_id", "status")) {
+                                        filter {
+                                            eq("user_id", currentUserId)
+                                            eq("store_id", storeId)
+                                            eq("status", "active")
+                                        }
+                                    }
+                                    .decodeList<SukiRelationshipRow>()
+                                sukiList.isNotEmpty()
+                            } catch (e: Exception) {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+
+                        if (!isSuki) {
+                            runOnUiThread {
+                                ReusableDialogHelper.showBroadcastDialog(
+                                    context = this@NotificationActivity,
+                                    title = "Connection Ended",
+                                    body = "You are no longer connected on that store",
+                                    buttonText = "Okay",
+                                    onClose = {}
+                                )
+                            }
+                        } else {
+                            val intent = Intent(this@NotificationActivity, StoreViewActivity::class.java).apply {
+                                putExtra("STORE_ID", storeRow.id)
+                                putExtra("STORE_NAME", storeRow.name)
+                                putExtra("STORE_BRANCH", storeRow.branch)
+                                putExtra("STORE_TYPE", storeRow.type ?: "General Store")
+                                putExtra("IS_PRESYOHAN", storeRow.is_standard_store)
+                            }
+                            startActivity(intent)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("NotificationActivity", "Failed to view store", e)
+                    runOnUiThread {
+                        Toast.makeText(this@NotificationActivity, "Unable to view store. Please check your connection.", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                }
+            }
             return
         }
 
@@ -963,31 +1010,107 @@ class NotificationActivity : AppCompatActivity() {
 
         btnBack.setOnClickListener { dialog.dismiss() }
         btnAccept.setOnClickListener {
-            LoadingOverlayHelper.show(loadingOverlay)
-            dialog.dismiss()
-            lifecycleScope.launch {
-                try {
-                    SupabaseProvider.client.postgrest.rpc(
-                        "handle_join_request",
-                        buildJsonObject {
-                            put("p_notification_id", notification.id)
-                            put("p_action", "accept")
-                            put("p_role", selectedRole)
-                        }
-                    )
+            val senderId = notification.senderId
+            val storeId = notification.storeId
+            if (senderId != null && storeId != null) {
+                LoadingOverlayHelper.show(loadingOverlay)
+                lifecycleScope.launch {
+                    val isSuki = try {
+                        val sukiList = SupabaseProvider.client.postgrest["suki_relationships"]
+                            .select(Columns.list("status")) {
+                                filter {
+                                    eq("user_id", senderId)
+                                    eq("store_id", storeId)
+                                    eq("status", "active")
+                                }
+                            }
+                            .decodeList<SukiRelationshipRow>()
+                        sukiList.isNotEmpty()
+                    } catch (e: Exception) {
+                        false
+                    }
 
-                    val newMsg = "You accepted $resolvedName's request to join $storeName as $selectedRole."
-                    runOnUiThread {
-                        updateNotificationInPlace(notification.id, "Accepted", newMsg)
-                        Toast.makeText(this@NotificationActivity, "Join request accepted", Toast.LENGTH_SHORT).show()
+                    val proceedAcceptJoin = {
+                        dialog.dismiss()
+                        lifecycleScope.launch {
+                            try {
+                                SupabaseProvider.client.postgrest.rpc(
+                                    "handle_join_request",
+                                    buildJsonObject {
+                                        put("p_notification_id", notification.id)
+                                        put("p_action", "accept")
+                                        put("p_role", selectedRole)
+                                    }
+                                )
+
+                                val newMsg = "You accepted $resolvedName's request to join $storeName as $selectedRole."
+                                runOnUiThread {
+                                    updateNotificationInPlace(notification.id, "Accepted", newMsg)
+                                    Toast.makeText(this@NotificationActivity, "Join request accepted", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("NotificationActivity", "Failed to accept join request", e)
+                                runOnUiThread {
+                                    Toast.makeText(this@NotificationActivity, "Failed to accept request: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                                }
+                            } finally {
+                                LoadingOverlayHelper.hide(loadingOverlay)
+                            }
+                        }
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("NotificationActivity", "Failed to accept join request", e)
-                    runOnUiThread {
-                        Toast.makeText(this@NotificationActivity, "Failed to accept request: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
-                    }
-                } finally {
+
                     LoadingOverlayHelper.hide(loadingOverlay)
+
+                    if (isSuki) {
+                        val messageText = if (selectedRole == "manager") {
+                            "This account is currently a Suki on your store. Proceeding will make them a Manager to manage and update your store prices and they will no longer be a Suki. Do you want to proceed?"
+                        } else {
+                            "This account is currently a Suki on your store. Proceeding will make them a Sales Staff to update your store prices and they will no longer be a Suki. Do you want to proceed?"
+                        }
+                        ReusableDialogHelper.showCustomDialog(
+                            context = this@NotificationActivity,
+                            title = "Confirm Join Request",
+                            message = messageText,
+                            positiveButtonText = "Proceed",
+                            positiveAction = {
+                                LoadingOverlayHelper.show(loadingOverlay)
+                                proceedAcceptJoin()
+                            },
+                            negativeButtonText = "Cancel",
+                            negativeAction = {}
+                        )
+                    } else {
+                        LoadingOverlayHelper.show(loadingOverlay)
+                        proceedAcceptJoin()
+                    }
+                }
+            } else {
+                dialog.dismiss()
+                LoadingOverlayHelper.show(loadingOverlay)
+                lifecycleScope.launch {
+                    try {
+                        SupabaseProvider.client.postgrest.rpc(
+                            "handle_join_request",
+                            buildJsonObject {
+                                put("p_notification_id", notification.id)
+                                put("p_action", "accept")
+                                put("p_role", selectedRole)
+                            }
+                        )
+
+                        val newMsg = "You accepted $resolvedName's request to join $storeName as $selectedRole."
+                        runOnUiThread {
+                            updateNotificationInPlace(notification.id, "Accepted", newMsg)
+                            Toast.makeText(this@NotificationActivity, "Join request accepted", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("NotificationActivity", "Failed to accept join request", e)
+                        runOnUiThread {
+                            Toast.makeText(this@NotificationActivity, "Failed to accept request: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    } finally {
+                        LoadingOverlayHelper.hide(loadingOverlay)
+                    }
                 }
             }
         }

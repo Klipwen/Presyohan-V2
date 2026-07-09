@@ -61,6 +61,7 @@ class MembershipsActivity : AppCompatActivity() {
     private var allMemberships = listOf<MembershipItem>()
     private var allSukis = listOf<MembershipItem>()
     private var allPresyohans = listOf<MembershipItem>()
+    private var isFirstResume = true
 
     @Serializable
     data class UserStoreRow(
@@ -148,6 +149,15 @@ class MembershipsActivity : AppCompatActivity() {
 
         // Load all data
         fetchData(showShimmer = true)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isFirstResume) {
+            isFirstResume = false
+        } else {
+            fetchData(showShimmer = false)
+        }
     }
 
     private fun setupBottomSheet() {
@@ -368,7 +378,12 @@ class MembershipsActivity : AppCompatActivity() {
 
                 // 2. Fetch Customer Suki relationships
                 val sukiRelationships = SupabaseProvider.client.postgrest["suki_relationships"]
-                    .select { filter { eq("user_id", userId) } }
+                    .select {
+                        filter {
+                            eq("user_id", userId)
+                            eq("status", "active")
+                        }
+                    }
                     .decodeList<SukiRelationshipRow>()
 
                 val linkedStoreIds = sukiRelationships.map { it.store_id }
@@ -472,7 +487,11 @@ class MembershipsActivity : AppCompatActivity() {
         } else {
             // Customer view -> StoreViewActivity
             val intent = Intent(this, StoreViewActivity::class.java).apply {
-                putExtra("storeId", item.id)
+                putExtra("STORE_ID", item.id)
+                putExtra("STORE_NAME", item.name)
+                putExtra("STORE_BRANCH", item.branch)
+                putExtra("STORE_TYPE", item.type ?: "General Store")
+                putExtra("IS_PRESYOHAN", item.isStandard)
             }
             startActivity(intent)
         }

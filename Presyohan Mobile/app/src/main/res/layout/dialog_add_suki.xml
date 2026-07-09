@@ -12,7 +12,7 @@
         android:id="@+id/tvDialogTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add your Suking Tindahan"
+        android:text="Add Suking Tindahan"
         android:textColor="@color/presyo_orange"
         android:textSize="22sp"
         android:textStyle="bold"

@@ -238,16 +238,30 @@ object SupabaseAuthService {
                 data = mergedMeta
             }
 
-            // Update app_users row where auth_uid matches the logged-in user id
             val dbPayload = buildJsonObject {
+                put("id", uid)
                 if (name != null) put("name", name)
                 if (avatarUrl != null) put("avatar_url", avatarUrl)
             }
 
-            client.postgrest["app_users"].update(dbPayload) {
-                filter {
-                    eq("auth_uid", uid)
+            // Try upserting by primary key id (matches web profile upsert logic)
+            var upserted = false
+            try {
+                client.postgrest["app_users"].upsert(dbPayload)
+                upserted = true
+            } catch (e: Exception) {
+                android.util.Log.d("SupabaseAuth", "Upsert by id failed, falling back to auth_uid: ${e.localizedMessage}")
+            }
+
+            // Fallback for older schemas where auth_uid is a separate column and id is not auth.uid()
+            if (!upserted) {
+                val dbPayloadFallback = buildJsonObject {
+                    put("id", uid)
+                    put("auth_uid", uid)
+                    if (name != null) put("name", name)
+                    if (avatarUrl != null) put("avatar_url", avatarUrl)
                 }
+                client.postgrest["app_users"].upsert(dbPayloadFallback)
             }
             true
         } catch (e: Exception) {
@@ -262,10 +276,32 @@ object SupabaseAuthService {
         val fileName = "$uid-${System.currentTimeMillis()}.$fileExtension"
         try {
             val bucket = client.storage.from("avatars")
+            
+            // 1. Fetch current profile to check if there is an old avatar
+            val oldProfile = getUserProfile()
+            val oldAvatarUrl = oldProfile?.avatar_url
+
+            // 2. Upload new avatar
             bucket.upload(fileName, bytes) {
                 upsert = true
             }
-            bucket.publicUrl(fileName)
+            val newPublicUrl = bucket.publicUrl(fileName)
+
+            // 3. Clean up/delete the old avatar from storage if it is hosted on Supabase avatars bucket
+            if (!oldAvatarUrl.isNullOrBlank() && oldAvatarUrl.contains("/avatars/")) {
+                val rawFileName = oldAvatarUrl.substringAfterLast("/avatars/")
+                val oldFileName = rawFileName.substringBefore("?")
+                if (oldFileName.isNotBlank() && oldFileName != fileName) {
+                    try {
+                        bucket.delete(oldFileName)
+                        android.util.Log.d("SupabaseAuth", "Successfully deleted old avatar: $oldFileName")
+                    } catch (e: Exception) {
+                        android.util.Log.w("SupabaseAuth", "Failed to delete old avatar $oldFileName: ${e.localizedMessage}")
+                    }
+                }
+            }
+
+            newPublicUrl
         } catch (e: Exception) {
             e.printStackTrace()
             null

@@ -80,7 +80,7 @@ class NotificationAdapter(
                 "Staff Left Store", "member_left" -> "Staff Left Store"
                 "Staff Joined Store", "member_joined" -> "Staff Joined Store"
                 "Removed Staff", "member_removed" -> "Removed Staff"
-                "Role Changed", "role_changed" -> "Role Changed"
+                "Role Updated", "role_changed", "role_change" -> "Role Updated"
                 "Store Deleted", "store_deleted" -> "Store Deleted"
                 "Updated Store Status", "store_visibility_changed" -> "Updated Store Status"
                 "Copy Price Complete", "copy_price_complete" -> "Copy Price Complete"
@@ -94,7 +94,7 @@ class NotificationAdapter(
                     notification.message.contains("Copy Price") || notification.message.contains("pricelist") -> "Copy Price Complete"
                     notification.message.contains("status to public") || notification.message.contains("status to private") -> "Updated Store Status"
                     notification.message.contains("partnered") || notification.message.contains("Suking Tindahan connected") -> "Suking Tindahan Connected"
-                    notification.message.contains("promoted") || notification.message.contains("role has been") || notification.message.contains("role changed") -> "Role Changed"
+                    notification.message.contains("promoted") || notification.message.contains("role has been") || notification.message.contains("role changed") -> "Role Updated"
                     notification.message.contains("removed from") || notification.message.contains("no longer") -> "You Have Been Removed"
                     notification.message.contains("You left") -> "You Have Left"
                     notification.message.contains("Excel") || notification.message.contains("exported") -> "Export Complete"
@@ -212,8 +212,17 @@ class NotificationAdapter(
                     btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))
                     btnViewStore.setOnClickListener { onViewStore(notification) }
                 }
-            } else if (notification.type == "Suki Request" ||
-                notification.status == "Accepted" || 
+            } else if (notification.type == "Suki Request") {
+                val isRequester = currentUserId != null && notification.senderId == currentUserId
+                val isAccepted = notification.status == "Accepted"
+                val shouldShow = isAccepted || !isRequester
+                if (shouldShow && !notification.storeId.isNullOrBlank()) {
+                    btnViewStore.visibility = View.VISIBLE
+                    btnViewStore.text = "View Store >"
+                    btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))
+                    btnViewStore.setOnClickListener { onViewStore(notification) }
+                }
+            } else if (notification.status == "Accepted" || 
                 notification.message.contains("connected") || 
                 notification.message.contains("partnered") || 
                 notification.message.contains("joined") || 

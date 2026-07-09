@@ -266,7 +266,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:layout_marginTop="24dp"
-                    android:text="UPDATE"
+                    android:text="Update"
                     android:textColor="@color/white"
                     android:textSize="16sp"
                     android:textStyle="bold"

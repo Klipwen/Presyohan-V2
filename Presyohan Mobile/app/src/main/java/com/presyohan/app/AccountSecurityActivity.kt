@@ -15,9 +15,12 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -111,9 +114,25 @@ class AccountSecurityActivity : AppCompatActivity() {
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
-                val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
-                val providers = currentUser?.identities?.map { it.provider } ?: emptyList()
-                val isEmailUser = "email" in providers
+                // Retrieve user freshly from GoTrue API to populate the identities array
+                val currentUser = try {
+                    SupabaseProvider.client.auth.retrieveUserForCurrentSession()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    SupabaseProvider.client.auth.currentUserOrNull()
+                }
+                
+                // Get provider info from appMetadata (more reliable for cached session user)
+                val appMetadata = currentUser?.appMetadata ?: buildJsonObject {}
+                val appProvider = appMetadata["provider"]?.jsonPrimitive?.contentOrNull
+                val appProviders = try {
+                    appMetadata["providers"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                
+                val identityProviders = currentUser?.identities?.map { it.provider } ?: emptyList()
+                val isEmailUser = appProvider == "email" || "email" in appProviders || "email" in identityProviders
 
                 // Check has_password from userMetadata to support Google accounts that set a password
                 val metaAny: Any? = currentUser?.userMetadata
@@ -125,16 +144,33 @@ class AccountSecurityActivity : AppCompatActivity() {
                     else -> false
                 }
 
-                hasPassword = isEmailUser || hasMetadataPassword
+                // Query database directly to see if user has a password set (covers both email and linked google accounts)
+                var hasPasswordRpc: Boolean? = null
+                try {
+                    val rpcResult = SupabaseProvider.client.postgrest.rpc("has_password")
+                    hasPasswordRpc = rpcResult.decodeAs<Boolean>()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                hasPassword = if (hasPasswordRpc != null) {
+                    hasPasswordRpc
+                } else {
+                    isEmailUser || hasMetadataPassword
+                }
+
+                android.util.Log.d("AccountSecurity", "checkUserAuthType: hasPassword=$hasPassword, rpc=$hasPasswordRpc, isEmail=$isEmailUser, meta=$hasMetadataPassword")
 
                 if (hasPassword) {
                     layoutUpdatePassword.visibility = View.VISIBLE
                     layoutCreatePassword.visibility = View.GONE
                     lblForgotPassword.visibility = View.VISIBLE
+                    btnUpdate.text = "Update"
                 } else {
                     layoutUpdatePassword.visibility = View.GONE
                     layoutCreatePassword.visibility = View.VISIBLE
                     lblForgotPassword.visibility = View.GONE
+                    btnUpdate.text = "Confirm"
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

@@ -31,6 +31,10 @@ import kotlinx.coroutines.Dispatchers
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.File
+import java.io.ByteArrayOutputStream
 
 class AddMultipleItemsActivity : AppCompatActivity() {
 
@@ -122,6 +126,40 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                     btnNext.alpha = 1.0f
                 }
             }
+        }
+    }
+
+    private var tempPhotoUri: Uri? = null
+    private var tempPhotoFile: File? = null
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCamera()
+        } else {
+            Toast.makeText(this, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val cameraLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            val uri = tempPhotoUri
+            if (uri != null) {
+                processAndParseImage(uri)
+            }
+        } else {
+            cleanupTempPhotoFile()
+        }
+    }
+
+    private val galleryImageLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            processAndParseImage(uri)
         }
     }
 
@@ -265,7 +303,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         }
 
         btnScanPhoto.setOnClickListener {
-            Toast.makeText(this, "Photo scanning coming soon!", Toast.LENGTH_SHORT).show()
+            showPhotoChoiceDialog()
         }
 
         btnViewFormats.setOnClickListener {
@@ -1059,6 +1097,150 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             },
             isCancelable = true
         )
+    }
+
+    private fun showPhotoChoiceDialog() {
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_photo_choice, null)
+        dialog.setContentView(view)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        val width = (resources.displayMetrics.widthPixels * 0.95).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val btnTakePhoto = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnTakePhoto)
+        val btnUploadPhoto = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnUploadPhoto)
+
+        btnTakePhoto.setOnClickListener {
+            dialog.dismiss()
+            checkCameraPermissionAndLaunch()
+        }
+
+        btnUploadPhoto.setOnClickListener {
+            dialog.dismiss()
+            galleryImageLauncher.launch("image/*")
+        }
+
+        dialog.show()
+    }
+
+    private fun checkCameraPermissionAndLaunch() {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.CAMERA
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            launchCamera()
+        } else {
+            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+        }
+    }
+
+    private fun launchCamera() {
+        try {
+            cleanupTempPhotoFile()
+            val cameraDir = File(cacheDir, "shared_images").apply { mkdirs() }
+            val file = File(cameraDir, "temp_scan_${System.currentTimeMillis()}.jpg")
+            tempPhotoFile = file
+            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            tempPhotoUri = uri
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error initializing camera: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun cleanupTempPhotoFile() {
+        try {
+            tempPhotoFile?.let {
+                if (it.exists()) {
+                    it.delete()
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AddMultipleItemsActivity", "Error cleaning up temporary file", e)
+        } finally {
+            tempPhotoFile = null
+            tempPhotoUri = null
+        }
+    }
+
+    private fun processAndParseImage(uri: Uri) {
+        val session = viewModel.draftSession.value ?: return
+        LoadingOverlayHelper.show(loadingOverlay)
+        
+        lifecycleScope.launch {
+            try {
+                val dbProds = withContext(Dispatchers.IO) {
+                    ImportValidationUseCase().fetchExistingProducts(session.storeId)
+                }
+                val existingProducts = dbProds.map { it.name.lowercase() }.toSet()
+
+                val imageBytes = withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val options = BitmapFactory.Options().apply {
+                            inJustDecodeBounds = true
+                        }
+                        contentResolver.openInputStream(uri)?.use { boundsStream ->
+                            BitmapFactory.decodeStream(boundsStream, null, options)
+                        }
+                        
+                        var scale = 1
+                        val limit = 1500
+                        if (options.outWidth > limit || options.outHeight > limit) {
+                            scale = Math.max(options.outWidth / limit, options.outHeight / limit)
+                        }
+                        
+                        val decodeOptions = BitmapFactory.Options().apply {
+                            inSampleSize = scale
+                        }
+                        
+                        val bitmap = BitmapFactory.decodeStream(inputStream, null, decodeOptions)
+                        
+                        if (bitmap != null) {
+                            val outputStream = ByteArrayOutputStream()
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+                            val bytes = outputStream.toByteArray()
+                            bitmap.recycle()
+                            bytes
+                        } else {
+                            null
+                        }
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                    if (imageBytes != null) {
+                        AiParsingDialogHelper(
+                            activity = this@AddMultipleItemsActivity,
+                            coroutineScope = lifecycleScope,
+                            rawText = null,
+                            categoryIdByName = categoryIdByName,
+                            existingProductNames = existingProducts,
+                            imageBytes = imageBytes,
+                            mimeType = "image/jpeg",
+                            onSuccess = { parseResult ->
+                                cleanupTempPhotoFile()
+                                onParsingSuccess(parseResult, dbProds)
+                            },
+                            onCancel = {
+                                cleanupTempPhotoFile()
+                            }
+                        ).show()
+                    } else {
+                        cleanupTempPhotoFile()
+                        Toast.makeText(this@AddMultipleItemsActivity, "Failed to load image from photo.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                    cleanupTempPhotoFile()
+                    Toast.makeText(this@AddMultipleItemsActivity, "Error processing image: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     // --- CATEGORY GROUPED ADAPTER FOR SIMPLE MODE ---

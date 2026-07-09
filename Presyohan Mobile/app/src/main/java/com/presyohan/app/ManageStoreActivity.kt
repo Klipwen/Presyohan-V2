@@ -661,6 +661,11 @@ class ManageStoreActivity : AppCompatActivity() {
                     SupabaseProvider.client.postgrest["stores"].delete { filter { eq("id", storeId) } }
                     Toast.makeText(this@ManageStoreActivity, "Store deleted successfully.", Toast.LENGTH_SHORT).show()
                     confirmDialog.dismiss()
+                    val intent = Intent(this@ManageStoreActivity, StoreActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("from_home", true)
+                    }
+                    startActivity(intent)
                     finish()
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageStoreActivity, "Action failed. Check internet.", Toast.LENGTH_LONG).show()
@@ -701,6 +706,11 @@ class ManageStoreActivity : AppCompatActivity() {
                     )
                     Toast.makeText(this@ManageStoreActivity, "You have left the store.", Toast.LENGTH_SHORT).show()
                     confirmDialog.dismiss()
+                    val intent = Intent(this@ManageStoreActivity, StoreActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("from_home", true)
+                    }
+                    startActivity(intent)
                     finish()
                 } catch (e: Exception) {
                     Toast.makeText(this@ManageStoreActivity, "Action failed. Check internet.", Toast.LENGTH_LONG).show()
