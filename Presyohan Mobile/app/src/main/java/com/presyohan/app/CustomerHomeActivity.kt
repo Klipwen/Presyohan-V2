@@ -420,6 +420,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         swipeRefreshLayout.setOnRefreshListener {
             loadCustomerData(showShimmer = false)
             loadUserProfile()
+            loadNotifBadge()
         }
 
         // Initial setup
@@ -433,6 +434,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         // Reload in case the user joined a new store
         loadCustomerData(showShimmer = true)
         loadUserProfile()
+        loadNotifBadge()
 
         // Handle pending onboarding actions
         val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
@@ -817,64 +819,53 @@ class CustomerHomeActivity : AppCompatActivity() {
                                 continue
                             }
 
-                            val insertRow = mapOf(
-                                "user_id" to userId,
-                                "store_id" to store.id,
-                                "status" to "pending"
-                            )
-                            SupabaseProvider.client.postgrest["suki_relationships"].insert(insertRow)
-
                             val senderProfile = try { SupabaseAuthService.getUserProfile() } catch (e: Exception) { null }
                             val senderName = senderProfile?.name ?: "A user"
 
-                            val members = try {
-                                SupabaseProvider.client.postgrest["store_members"]
-                                    .select(Columns.list("user_id", "role")) {
-                                        filter {
-                                            eq("store_id", store.id)
-                                            isIn("role", listOf("owner", "manager"))
-                                        }
+                            // Ensure the user profile exists in app_users to satisfy the foreign key constraint
+                            try {
+                                val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
+                                if (currentUser != null) {
+                                    val email = currentUser.email ?: ""
+                                    var upserted = false
+                                    try {
+                                        SupabaseProvider.client.postgrest["app_users"].upsert(
+                                            mapOf(
+                                                "id" to userId,
+                                                "name" to senderName,
+                                                "email" to email
+                                            )
+                                        )
+                                        upserted = true
+                                    } catch (_: Exception) {}
+                                    if (!upserted) {
+                                        SupabaseProvider.client.postgrest["app_users"].upsert(
+                                            mapOf(
+                                                "id" to userId,
+                                                "auth_uid" to userId,
+                                                "name" to senderName,
+                                                "email" to email
+                                            )
+                                        )
                                     }
-                                    .decodeList<StoreMemberRoleRow>()
-                            } catch (e: Exception) {
-                                emptyList()
-                            }
-
-                            val receivers = (members.map { it.user_id } + store.owner_id.orEmpty()).filter { it.isNotBlank() }.distinct()
-
-                            for (receiverId in receivers) {
-                                if (receiverId.isNotBlank()) {
-                                    SupabaseProvider.client.postgrest["notifications"].insert(
-                                        buildJsonObject {
-                                            put("receiver_user_id", receiverId)
-                                            put("sender_user_id", userId)
-                                            put("store_id", store.id)
-                                            put("type", "suki_request_received")
-                                            put("title", "Suki Request")
-                                            put("message", "$senderName requested to connect with your store as a Suki.")
-                                            put("read", false)
-                                        }
-                                    )
                                 }
+                            } catch (uErr: Exception) {
+                                uErr.printStackTrace()
                             }
 
-                            // Insert notification for current user (Flow A)
-                            SupabaseProvider.client.postgrest["notifications"].insert(
+                            // Call send_suki_request RPC to insert suki relationship and insert notifications for all parties
+                            SupabaseProvider.client.postgrest.rpc(
+                                "send_suki_request",
                                 buildJsonObject {
-                                    put("receiver_user_id", userId)
-                                    put("sender_user_id", userId)
-                                    put("store_id", store.id)
-                                    put("type", "suki_request_sent")
-                                    put("title", "Suki Request")
-                                    put("message", "You requested to partner with ${store.name} as your Suking Tindahan. Please wait for the owner to respond.")
-                                    put("read", false)
+                                    put("p_store_id", store.id)
                                 }
                             )
 
                             successCount++
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            failMessages.add("${store.name}: Failed to request: ${e.localizedMessage}")
+                            val friendlyMsg = getFriendlySukiErrorMessage(e)
+                            failMessages.add("${store.name}: $friendlyMsg")
                         }
                     }
 
@@ -1007,8 +998,10 @@ class CustomerHomeActivity : AppCompatActivity() {
                     }
                     .decodeList<SukiRelationshipRow>()
 
-                val storeIds = sukiLinks.filter { it.status == "active" }.map { it.store_id }
-                if (storeIds.isEmpty()) {
+                val sukiStoreIds = sukiLinks.filter { it.status == "active" }.map { it.store_id }
+                val allVisibleStoreIds = sukiStoreIds.distinct()
+
+                if (allVisibleStoreIds.isEmpty()) {
                     allStores = emptyList()
                     allCategories = emptyList()
                     allProducts = emptyList()
@@ -1027,15 +1020,25 @@ class CustomerHomeActivity : AppCompatActivity() {
                 }
 
                 // 2. Fetch linked store details
-                allStores = SupabaseProvider.client.postgrest["stores"]
-                    .select {
-                        filter { isIn("id", storeIds) }
-                        limit(1000)
+                val sukiStores = if (sukiStoreIds.isNotEmpty()) {
+                    try {
+                        SupabaseProvider.client.postgrest["stores"]
+                            .select {
+                                filter { isIn("id", sukiStoreIds) }
+                                limit(1000)
+                            }
+                            .decodeList<StoreDetailRow>()
+                    } catch (e: Exception) {
+                        emptyList()
                     }
-                    .decodeList<StoreDetailRow>()
+                } else {
+                    emptyList()
+                }
+
+                allStores = sukiStores.distinctBy { it.id }
 
                 val (allCategoriesResult, allProductsResult) = coroutineScope {
-                    val categoryDeferreds = storeIds.map { sId ->
+                    val categoryDeferreds = allVisibleStoreIds.map { sId ->
                         async {
                             try {
                                 SupabaseProvider.client.postgrest["categories"]
@@ -1050,7 +1053,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                         }
                     }
 
-                    val productDeferreds = storeIds.map { sId ->
+                    val productDeferreds = allVisibleStoreIds.map { sId ->
                         async {
                             try {
                                 SupabaseProvider.client.postgrest["products"]
@@ -1084,7 +1087,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                         "get_store_product_counts",
                         kotlinx.serialization.json.buildJsonObject {
                             put("p_store_ids", kotlinx.serialization.json.buildJsonArray {
-                                storeIds.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                                allVisibleStoreIds.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
                             })
                         }
                     ).decodeList<StoreProductCountRow>()
@@ -1841,6 +1844,68 @@ class CustomerHomeActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("CustomerHomeActivity", "Failed to remove store", e)
                 Toast.makeText(this@CustomerHomeActivity, "Failed to remove store", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun loadNotifBadge() {
+        val notifDot = findViewById<View>(R.id.notifDot)
+        val userIdNotif = SupabaseProvider.client.auth.currentUserOrNull()?.id
+        if (notifDot != null && userIdNotif != null) {
+            lifecycleScope.launch {
+                try {
+                    val rows = SupabaseProvider.client.postgrest["notifications"].select {
+                        filter {
+                            eq("receiver_user_id", userIdNotif)
+                            eq("read", false)
+                        }
+                        limit(1)
+                    }.decodeList<com.presyohan.app.HomeActivity.NotificationRow>()
+                    notifDot.visibility = if (rows.isNotEmpty()) View.VISIBLE else View.GONE
+                } catch (e: Exception) {
+                    notifDot.visibility = View.GONE
+                }
+            }
+        } else if (notifDot != null) {
+            notifDot.visibility = View.GONE
+        }
+    }
+
+    private fun getFriendlySukiErrorMessage(e: Exception): String {
+        val rawMsg = e.message ?: ""
+        
+        // If it's a Supabase JSON error, extract the "message" value
+        val jsonMsgRegex = "\"message\"\\s*:\\s*\"([^\"]+)\"".toRegex()
+        val match = jsonMsgRegex.find(rawMsg)
+        val msg = if (match != null) match.groupValues[1] else rawMsg
+
+        return when {
+            msg.contains("Staff members cannot partner with their own stores", ignoreCase = true) -> {
+                "Staff members cannot partner with their own stores."
+            }
+            msg.contains("already pending or active", ignoreCase = true) || msg.contains("suki_user_store_unique", ignoreCase = true) || msg.contains("unique constraint", ignoreCase = true) -> {
+                "A partnership request for this store is already pending or active."
+            }
+            msg.contains("suki_relationships_user_id_fkey", ignoreCase = true) || msg.contains("foreign key constraint", ignoreCase = true) -> {
+                "Your profile information is not yet complete. Please update your profile name first."
+            }
+            msg.contains("row-level security", ignoreCase = true) || msg.contains("rls", ignoreCase = true) -> {
+                "Access denied. Please log out and sign in again."
+            }
+            msg.isNotBlank() && 
+                    !msg.contains("RestException", ignoreCase = true) && 
+                    !msg.contains("PostgrestException", ignoreCase = true) &&
+                    !msg.contains("column", ignoreCase = true) &&
+                    !msg.contains("relation", ignoreCase = true) &&
+                    !msg.contains("does not exist", ignoreCase = true) &&
+                    !msg.contains("syntax", ignoreCase = true) &&
+                    !msg.contains("violates", ignoreCase = true) &&
+                    !msg.contains("constraint", ignoreCase = true) &&
+                    !msg.contains("null value", ignoreCase = true) -> {
+                msg
+            }
+            else -> {
+                "Unable to request Suki partnership. Please try again."
             }
         }
     }

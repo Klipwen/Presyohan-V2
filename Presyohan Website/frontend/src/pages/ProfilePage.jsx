@@ -291,15 +291,33 @@ export default function ProfilePage() {
       if (!fileOrBlob || !ownerId) return;
       const ext = (fileOrBlob.name?.split('.')?.pop()?.toLowerCase()) || 'jpg';
       const filename = `${ownerId}-${Date.now()}.${ext}`;
+
+      // Get the old avatar url to delete
+      const oldAvatarUrl = profile.avatar_url;
+
       const { error: upErr } = await supabase.storage.from('avatars').upload(filename, fileOrBlob, { upsert: true });
       if (upErr) throw upErr;
       const { data } = supabase.storage.from('avatars').getPublicUrl(filename);
       const publicUrl = data?.publicUrl;
       if (!publicUrl) throw new Error('Failed to resolve avatar URL.');
+      
       setProfile((p) => ({ ...p, avatar_url: publicUrl }));
       await upsertAppUserFields({ avatar_url: publicUrl });
       await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
       setActionStatus({ kind: 'success', text: 'Avatar updated.' });
+
+      // Clean up/delete the old avatar from storage if it is hosted in the avatars bucket
+      if (oldAvatarUrl && oldAvatarUrl.includes('/avatars/')) {
+        const oldFilenameWithQuery = oldAvatarUrl.split('/avatars/').pop();
+        const oldFilename = oldFilenameWithQuery ? oldFilenameWithQuery.split('?')[0] : '';
+        if (oldFilename && oldFilename !== filename) {
+          try {
+            await supabase.storage.from('avatars').remove([oldFilename]);
+          } catch (delErr) {
+            console.warn('Failed to delete old avatar from storage:', delErr);
+          }
+        }
+      }
     } catch (e) {
       setActionStatus({ kind: 'error', text: e.message || 'Avatar upload failed.' });
     }
@@ -423,7 +441,12 @@ export default function ProfilePage() {
 
   const changePassword = async (newPassword) => {
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentMeta = user?.user_metadata || {};
+      const { error } = await supabase.auth.updateUser({ 
+        password: newPassword,
+        data: { ...currentMeta, has_password: true }
+      });
       if (error) throw error;
       setActionStatus({ kind: 'success', text: 'Password updated.' });
     } catch (e) {

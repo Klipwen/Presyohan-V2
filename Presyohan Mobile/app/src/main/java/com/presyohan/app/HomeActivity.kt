@@ -1055,6 +1055,11 @@ class HomeActivity : AppCompatActivity() {
                     }
                     confirmDialog.dismiss()
                     menuDialog.dismiss()
+                    val intent = Intent(this@HomeActivity, StoreActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("from_home", true)
+                    }
+                    startActivity(intent)
                     finish() // Return to Store Selection
                 } catch (e: Exception) {
                     val errorMsg = if (e.message?.contains("sole owner", true) == true)
@@ -1819,6 +1824,7 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         SessionManager.markStoreHome(this, currentStoreId, currentStoreName)
         reloadProductsFn?.invoke()
+        loadNotifBadge()
         lifecycleScope.launch {
             try {
                 SupabaseAuthService.updateUserHeartbeat()

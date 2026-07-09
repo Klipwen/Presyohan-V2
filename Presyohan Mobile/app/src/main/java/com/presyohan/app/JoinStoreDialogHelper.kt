@@ -49,6 +49,11 @@ object JoinStoreDialogHelper {
         val id: String
     )
 
+    @Serializable
+    data class SukiRelationshipRow(
+        val status: String
+    )
+
     fun showJoinStoreDialog(
         activity: AppCompatActivity,
         onComplete: (() -> Unit)? = null
@@ -323,48 +328,82 @@ object JoinStoreDialogHelper {
             }
         })
 
-        // Request To Join Action
         buttonRequestJoin.setOnClickListener {
             val store = foundStore ?: return@setOnClickListener
             val supaUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@setOnClickListener
 
-            val overlay = LoadingOverlayHelper.attach(activity)
-            LoadingOverlayHelper.show(overlay)
-
             activity.lifecycleScope.launch {
-                try {
-                    // Send join request using RPC
-                    SupabaseProvider.client.postgrest.rpc(
-                        "send_join_request",
-                        buildJsonObject {
-                            put("p_store_id", store.store_id)
-                        }
-                    )
-
-                    // Create pending notification locally
-                    try {
-                        SupabaseProvider.client.postgrest["notifications"].insert(
-                            buildJsonObject {
-                                put("receiver_user_id", supaUserId)
-                                put("sender_user_id", supaUserId)
-                                put("store_id", store.store_id)
-                                put("type", "join_pending")
-                                put("title", "Join Request")
-                                put("message", "You requested to join ${store.name}")
-                                put("read", false)
+                val isSuki = try {
+                    val sukiList = SupabaseProvider.client.postgrest["suki_relationships"]
+                        .select(Columns.list("status")) {
+                            filter {
+                                eq("user_id", supaUserId)
+                                eq("store_id", store.store_id)
+                                eq("status", "active")
                             }
-                        )
-                    } catch (_: Exception) {}
-
-                    dialog.dismiss()
-                    Toast.makeText(activity, "Join request sent successfully!", Toast.LENGTH_SHORT).show()
-                    onComplete?.invoke()
-
+                        }
+                        .decodeList<SukiRelationshipRow>()
+                    sukiList.isNotEmpty()
                 } catch (e: Exception) {
-                    android.util.Log.e("JoinStoreDialog", "Send request failed", e)
-                    Toast.makeText(activity, "Unable to send request. Please try again.", Toast.LENGTH_SHORT).show()
-                } finally {
-                    LoadingOverlayHelper.hide(overlay)
+                    false
+                }
+
+                val proceedWithJoin = {
+                    val overlay = LoadingOverlayHelper.attach(activity)
+                    LoadingOverlayHelper.show(overlay)
+
+                    activity.lifecycleScope.launch {
+                        try {
+                            // Send join request using RPC
+                            SupabaseProvider.client.postgrest.rpc(
+                                "send_join_request",
+                                buildJsonObject {
+                                    put("p_store_id", store.store_id)
+                                }
+                            )
+
+                            // Create pending notification locally
+                            try {
+                                SupabaseProvider.client.postgrest["notifications"].insert(
+                                    buildJsonObject {
+                                        put("receiver_user_id", supaUserId)
+                                        put("sender_user_id", supaUserId)
+                                        put("store_id", store.store_id)
+                                        put("type", "join_pending")
+                                        put("title", "Join Request")
+                                        put("message", "You requested to join ${store.name}")
+                                        put("read", false)
+                                    }
+                                )
+                            } catch (_: Exception) {}
+
+                            dialog.dismiss()
+                            Toast.makeText(activity, "Join request sent successfully!", Toast.LENGTH_SHORT).show()
+                            onComplete?.invoke()
+
+                        } catch (e: Exception) {
+                            android.util.Log.e("JoinStoreDialog", "Send request failed", e)
+                            Toast.makeText(activity, "Unable to send request. Please try again.", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            LoadingOverlayHelper.hide(overlay)
+                        }
+                    }
+                }
+
+                if (isSuki) {
+                    ReusableDialogHelper.showCustomDialog(
+                        context = activity,
+                        title = "Confirm Request",
+                        message = "This store is currently your Suking Tindahan. Joining the team will make you a store staff and you will no longer be a Suki. Do you want to proceed to be a store staff on this store?",
+                        positiveButtonText = "Proceed",
+                        positiveAction = {
+                            proceedWithJoin()
+                        },
+                        negativeButtonText = "Cancel",
+                        negativeAction = {}
+                    )
+                } else {
+                    proceedWithJoin()
                 }
             }
         }

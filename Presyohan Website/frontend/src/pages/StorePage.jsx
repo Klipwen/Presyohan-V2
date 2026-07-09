@@ -343,24 +343,12 @@ export default function StorePage() {
           storeBranch={storeBranch}
           categories={categories}
           onManageItems={() => navigate(`/manage-items?id=${encodeURIComponent(storeId || '')}`)}
-          onAddCategory={async (newName) => {
-            if (!storeId) return;
-            try {
-              const upper = newName.trim().toUpperCase();
-              const { data, error } = await supabase
-                .from('categories')
-                .insert({ store_id: storeId, name: upper })
-                .select();
-              if (error) {
-                alert(error.message || 'Failed to add category');
-                return;
-              }
-              const inserted = Array.isArray(data) ? data[0] : null;
-              if (inserted) setCategories(prev => [...prev, inserted]);
-              setSelectedCategory(upper);
-            } catch (e) {
-              alert(e.message || 'Unexpected error adding category');
+          onAddCategory={(newName) => {
+            const upper = newName.trim().toUpperCase();
+            if (!categories.some(c => c.name === upper)) {
+              setCategories(prev => [...prev, { name: upper }]);
             }
+            setSelectedCategory(upper);
           }}
           onCreateItem={async (payload) => {
             if (!storeId) return;
@@ -373,7 +361,9 @@ export default function StorePage() {
                 const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: catName });
                 if (error) throw error;
                 categoryId = inserted?.[0]?.category_id;
-                if (categoryId) setCategories(prev => [...prev, { id: categoryId, name: catName }]);
+                if (categoryId) {
+                  setCategories(prev => prev.map(c => c.name === catName ? { id: categoryId, name: catName } : c));
+                }
               }
               const { error: addErr } = await supabase.rpc('add_product', {
                 p_store_id: storeId,

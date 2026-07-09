@@ -112,7 +112,7 @@
                         android:textSize="11sp"
                         android:textStyle="bold" />
 
-                    <!-- Tab: Mga Suking Tindahan -->
+                    <!-- Tab: Suking Tindahan -->
                     <TextView
                         android:id="@+id/chipSuki"
                         android:layout_width="0dp"
@@ -120,7 +120,7 @@
                         android:layout_weight="1"
                         android:gravity="center"
                         android:paddingVertical="8dp"
-                        android:text="Mga Suking tindahan"
+                        android:text="Suking Tindahan"
                         android:textColor="@color/edittext_hint"
                         android:textSize="11sp" />
 

@@ -40,21 +40,11 @@ object GeminiParser {
     }
 
 
-    suspend fun parseText(
-        rawText: String,
-        existingCategoryIds: Map<String, String>, // Category name to ID map
-        existingProductNames: Set<String>
-    ): ParseResult = withContext(Dispatchers.IO) {
-        val apiKey = BuildConfig.GEMINI_API_KEY
-        if (apiKey.isBlank() || apiKey == "YOUR_API_KEY_HERE") {
-            throw IllegalStateException("API key not configured")
-        }
-
+    private fun getSystemInstruction(existingCategoryIds: Map<String, String>): String {
         val existingCategoriesList = existingCategoryIds.keys.joinToString(", ") { "\"$it\"" }
-
-        val systemInstruction = """
+        return """
             You are an expert data parsing assistant for "Presyohan", a price tracking app.
-            Your task is to parse a raw text pricelist or supplier message and convert it into a structured JSON object.
+            Your task is to parse a pricelist (whether from raw text or a photo) and convert it into a structured JSON object.
 
             List of Existing Categories in this Store:
             [$existingCategoriesList]
@@ -80,7 +70,7 @@ object GeminiParser {
               - DO NOT treat the size/unit at the end of the line (e.g., "1L", "750ml", "Small", "Stick") as the price. The price is the value preceded by the peso symbol (e.g. ₱375.00).
 
             Instructions:
-            1. Parse the input text line-by-line or section-by-section to extract items, supporting both line-based entries and inline comma-separated lists of items.
+            1. Parse the input pricelist to extract items, supporting both line-based entries and inline comma-separated lists of items.
             2. For each item, extract:
                - productName: The core name of the product (e.g., "Fuji Apple", "Fresh Milk", "Safeguard"). Exclude sizes or prices from this field.
                - description: Extra details like brand, packaging type, flavor, size, weight, or model numbers (e.g., "1.5L", "10W-40", "Spicy", "500g bag"). Set to null if none.
@@ -88,16 +78,16 @@ object GeminiParser {
                - price: The actual numeric cost (e.g., 150.00). Must be a clean number. Set to null if no price is specified.
                - priceText: The exact raw string representing the price found in the text (e.g., "₱150", "99.50", "P150.00").
                - isValid: Set to true for valid items; set to false if the entry is gibberish, unrecognizable random words/jumbled letters, incomplete, or not a product entry. Any unrecognizable non-words or meaningless letters like 'asdfasdf' must be considered invalid.
-               - originalLine: The exact text segment this item was parsed from.
+               - originalLine: The exact text segment or line this item was parsed from (for images, reconstruct the line text, e.g., "Product Name P150.00").
             3. Determine Categories for each item:
                - Check the "List of Existing Categories" first to see where the item is related.
-               - If the input text contains an explicit category header (e.g., "[Beverages]", "Snacks:") or an inline category prefix (e.g., "groceries - eggs 10 pc"), map the item to that category name (preferably matching or normalizing to one of the existing categories, e.g., "groceries" -> "GROCERIES").
+               - If the input text or image contains an explicit category header (e.g., "[Beverages]", "Snacks:") or an inline category prefix (e.g., "groceries - eggs 10 pc"), map the item to that category name (preferably matching or normalizing to one of the existing categories, e.g., "groceries" -> "GROCERIES").
                - If there is NO category header or category prefix specified (e.g. just a list of items like "eggs 10 pc, kape 15 pack, pancit canton 15 pack" or "Fresh Milk 1L 150"):
                  - Semantically map each individual item to the best-fitting category from the "List of Existing Categories" (e.g., "eggs" -> "DAIRY", "kape" -> "BEVERAGES").
                  - If an item does not map to any existing category, use general knowledge/common sense to group it under a logical, standard high-level category name based on its type (e.g., "pancit canton" -> "CANNED GOODS & NOODLES" or "INSTANT NOODLES", "Tuna (canned)" -> "CANNED GOODS", "Fuji Apple" -> "FRUITS & VEGETABLES"). DO NOT simply copy the item's name as the category name (e.g., do not name the category "TUNA" or "APPLE").
                - If the item is invalid (isValid is false), group it under a category named "UNCATEGORIZED".
             4. Support Inline/Comma-Separated Items:
-               - If a line contains a comma-separated list of items (e.g., "groceries - eggs 10 pc, kape 15 pack, pancit canton 15 pack" or just "eggs 10 pc, kape 15 pack"), split them and parse each item separately.
+               - If a line or section contains a comma-separated list of items (e.g., "groceries - eggs 10 pc, kape 15 pack, pancit canton 15 pack" or just "eggs 10 pc, kape 15 pack"), split them and parse each item separately.
                - If the list starts with a category prefix followed by a separator (like "groceries -" or "Snacks:"), group all the comma-separated items in that line under that category.
 
             Return ONLY a JSON object matching this schema:
@@ -120,6 +110,19 @@ object GeminiParser {
               ]
             }
         """.trimIndent()
+    }
+
+    suspend fun parseText(
+        rawText: String,
+        existingCategoryIds: Map<String, String>, // Category name to ID map
+        existingProductNames: Set<String>
+    ): ParseResult = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        if (apiKey.isBlank() || apiKey == "YOUR_API_KEY_HERE") {
+            throw IllegalStateException("API key not configured")
+        }
+
+        val systemInstruction = getSystemInstruction(existingCategoryIds)
 
         val prompt = """
             Input Text to parse:
@@ -130,12 +133,95 @@ object GeminiParser {
 
         val requestObj = GeminiRestRequest(
             systemInstruction = GeminiRestSystemInstruction(
-                parts = listOf(GeminiRestPart(systemInstruction))
+                parts = listOf(GeminiRestPart(text = systemInstruction))
             ),
             contents = listOf(
                 GeminiRestContent(
                     role = "user",
-                    parts = listOf(GeminiRestPart(prompt))
+                    parts = listOf(GeminiRestPart(text = prompt))
+                )
+            ),
+            generationConfig = GeminiRestGenerationConfig(
+                responseMimeType = "application/json",
+                temperature = 0.1
+            )
+        )
+        val requestBody = jsonDecoder.encodeToString(requestObj)
+
+        var responseText: String? = null
+        var lastError: Exception? = null
+
+        val modelsToTry = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite")
+        for (modelName in modelsToTry) {
+            try {
+                val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.doOutput = true
+                conn.connectTimeout = 30000
+                conn.readTimeout = 30000
+
+                conn.outputStream.use { os ->
+                    val input = requestBody.toByteArray(Charsets.UTF_8)
+                    os.write(input, 0, input.size)
+                }
+
+                val responseCode = conn.responseCode
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    break
+                } else {
+                    val errorText = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    throw IllegalStateException("API call to $modelName failed with code $responseCode: $errorText")
+                }
+            } catch (e: Exception) {
+                lastError = e
+                android.util.Log.w("GeminiParser", "Failed to call model $modelName: ${e.message}")
+            }
+        }
+
+        if (responseText == null) {
+            throw lastError ?: IllegalStateException("All Gemini models failed to respond")
+        }
+
+        val restResponse = jsonDecoder.decodeFromString<GeminiRestResponse>(responseText)
+        val rawJson = restResponse.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            ?: throw IllegalStateException("Empty response from Gemini")
+
+        val cleanedJson = cleanJson(rawJson)
+        val apiResponse = jsonDecoder.decodeFromString<GeminiParseResponse>(cleanedJson)
+
+        mapToParseResult(apiResponse, existingCategoryIds, existingProductNames)
+    }
+
+    suspend fun parseImage(
+        imageBytes: ByteArray,
+        mimeType: String,
+        existingCategoryIds: Map<String, String>,
+        existingProductNames: Set<String>
+    ): ParseResult = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        if (apiKey.isBlank() || apiKey == "YOUR_API_KEY_HERE") {
+            throw IllegalStateException("API key not configured")
+        }
+
+        val systemInstruction = getSystemInstruction(existingCategoryIds)
+        val base64Data = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP)
+        val promptText = "Extract the products, categories, descriptions, units, and prices from the image pricelist. Map categories semantically to the existing categories list."
+
+        val requestObj = GeminiRestRequest(
+            systemInstruction = GeminiRestSystemInstruction(
+                parts = listOf(GeminiRestPart(text = systemInstruction))
+            ),
+            contents = listOf(
+                GeminiRestContent(
+                    role = "user",
+                    parts = listOf(
+                        GeminiRestPart(inlineData = GeminiRestInlineData(mimeType = mimeType, data = base64Data)),
+                        GeminiRestPart(text = promptText)
+                    )
                 )
             ),
             generationConfig = GeminiRestGenerationConfig(
@@ -308,7 +394,16 @@ object GeminiParser {
 }
 
 @Serializable
-data class GeminiRestPart(val text: String)
+data class GeminiRestInlineData(
+    val mimeType: String,
+    val data: String
+)
+
+@Serializable
+data class GeminiRestPart(
+    val text: String? = null,
+    val inlineData: GeminiRestInlineData? = null
+)
 
 @Serializable
 data class GeminiRestContent(val parts: List<GeminiRestPart>, val role: String? = null)

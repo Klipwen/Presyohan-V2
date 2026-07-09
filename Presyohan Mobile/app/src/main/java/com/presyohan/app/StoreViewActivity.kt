@@ -302,7 +302,7 @@ class StoreViewActivity : AppCompatActivity() {
                     tvStoreName.text = it.name
                     tvStoreBranch.text = it.branch ?: "Main Branch"
                 }
-                isPrivateAndNotSubscribed = !isStorePublic && !isPresyohan
+                isPrivateAndNotSubscribed = !isStorePublic && !isPresyohan && !isSubscribed
 
                 if (isPrivateAndNotSubscribed) {
                     // Hide content and button indicators
@@ -699,8 +699,16 @@ class StoreViewActivity : AppCompatActivity() {
             scrollToTopWithLimit(rvStoreProducts)
             return
         }
-        @Suppress("DEPRECATION")
-        super.onBackPressed()
+        
+        // Go back to the customer home screen store tab
+        val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+        prefs.edit().putBoolean("redirect_to_stores_tab", true).apply()
+
+        val intent = Intent(this, CustomerHomeActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        startActivity(intent)
+        finish()
     }
 
     override fun finish() {

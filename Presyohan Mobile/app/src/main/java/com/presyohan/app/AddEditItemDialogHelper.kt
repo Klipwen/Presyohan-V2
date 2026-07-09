@@ -239,34 +239,116 @@ object AddEditItemDialogHelper {
                             filter { eq("id", productId); eq("store_id", storeId) }
                         }
                         Toast.makeText(activity, "Product updated.", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                        onComplete?.invoke()
                     } else {
-                        val result = SupabaseProvider.client.postgrest.rpc(
-                            "add_product",
-                            buildJsonObject {
-                                put("p_store_id", storeId)
-                                put("p_category_id", categoryId)
-                                put("p_name", nameVal)
-                                put("p_description", descriptionVal ?: "")
-                                put("p_price", JsonPrimitive(priceVal))
-                                put("p_unit", unitVal)
-                            }
-                        ).decodeList<MinimalProductReturn>().firstOrNull()
-
-                        if (result != null) {
-                            // Update is_public column
-                            SupabaseProvider.client.postgrest["products"].update(
-                                buildJsonObject {
-                                    put("is_public", isPublicVal)
-                                }
+                        // Check if the item already exists in the store list
+                        val existing = try {
+                            SupabaseProvider.client.postgrest["products"].select(
+                                Columns.list("id, category_id, name, description, price, unit")
                             ) {
-                                filter { eq("id", result.product_id); eq("store_id", storeId) }
-                            }
+                                filter { eq("store_id", storeId) }
+                            }.decodeList<DbProduct>()
+                        } catch (e: Exception) {
+                            emptyList<DbProduct>()
                         }
-                        Toast.makeText(activity, "Product added.", Toast.LENGTH_SHORT).show()
+
+                        val targetKey = ImportDraftKeys.productKey(nameVal, descriptionVal, unitVal)
+                        val matchedDbProduct = existing.find { 
+                            ImportDraftKeys.productKey(it.name, it.description, it.unit) == targetKey 
+                        }
+
+                        if (matchedDbProduct != null) {
+                            if (matchedDbProduct.price == priceVal) {
+                                // Show duplicate confirmation dialog
+                                ReusableDialogHelper.showCustomDialog(
+                                    context = activity,
+                                    title = "Duplicate Item Found",
+                                    message = "The item \"$nameVal\" already exists in the list with the same details and price. This duplicate item will be skipped.",
+                                    positiveButtonText = "Re-edit",
+                                    positiveAction = {
+                                        // Keep Add Item dialog open
+                                    },
+                                    negativeButtonText = "Confirm",
+                                    negativeAction = {
+                                        // Confirm: close the Add Item dialog (skip saving)
+                                        dialog.dismiss()
+                                    }
+                                )
+                            } else {
+                                // Show update confirmation dialog
+                                ReusableDialogHelper.showCustomDialog(
+                                    context = activity,
+                                    title = "Update Item Price",
+                                    message = "This item already exists in the list but has a different price. The price will be updated to PHP ${String.format("%.2f", priceVal)} (previously PHP ${String.format("%.2f", matchedDbProduct.price)}). It will not be created/added as a new item. Do you want to proceed?",
+                                    positiveButtonText = "Proceed",
+                                    positiveAction = {
+                                        activity.lifecycleScope.launch {
+                                            try {
+                                                val updatePayload = buildJsonObject {
+                                                    put("name", nameVal)
+                                                    if (descriptionVal != null) {
+                                                        put("description", descriptionVal)
+                                                    } else {
+                                                        put("description", JsonNull)
+                                                    }
+                                                    put("price", priceVal)
+                                                    put("unit", unitVal)
+                                                    if (categoryId != null) {
+                                                        put("category_id", categoryId)
+                                                    } else {
+                                                        put("category_id", JsonNull)
+                                                    }
+                                                    put("is_public", isPublicVal)
+                                                }
+                                                SupabaseProvider.client.postgrest["products"].update(updatePayload) {
+                                                    filter { eq("id", matchedDbProduct.id); eq("store_id", storeId) }
+                                                }
+                                                Toast.makeText(activity, "Product updated.", Toast.LENGTH_SHORT).show()
+                                                dialog.dismiss()
+                                                onComplete?.invoke()
+                                            } catch (e: Exception) {
+                                                Log.e("AddEditItemDialog", "Update failed: ${e.localizedMessage}")
+                                                Toast.makeText(activity, "Unable to update product.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    negativeButtonText = "Re-edit",
+                                    negativeAction = {
+                                        // Keep Add Item dialog open
+                                    }
+                                )
+                            }
+                        } else {
+                            val result = SupabaseProvider.client.postgrest.rpc(
+                                "add_product",
+                                buildJsonObject {
+                                    put("p_store_id", storeId)
+                                    put("p_category_id", categoryId)
+                                    put("p_name", nameVal)
+                                    put("p_description", descriptionVal ?: "")
+                                    put("p_price", JsonPrimitive(priceVal))
+                                    put("p_unit", unitVal)
+                                }
+                            ).decodeList<MinimalProductReturn>().firstOrNull()
+
+                            if (result != null) {
+                                // Update is_public column
+                                SupabaseProvider.client.postgrest["products"].update(
+                                    buildJsonObject {
+                                        put("is_public", isPublicVal)
+                                    }
+                                ) {
+                                    filter { eq("id", result.product_id); eq("store_id", storeId) }
+                                }
+                            }
+                            Toast.makeText(activity, "Product added.", Toast.LENGTH_SHORT).show()
+                            dialog.dismiss()
+                            onComplete?.invoke()
+                        }
                     }
 
-                    dialog.dismiss()
-                    onComplete?.invoke()
+
 
                 } catch (e: Exception) {
                     Log.e("AddEditItemDialog", "Operation failed: ${e.localizedMessage}")

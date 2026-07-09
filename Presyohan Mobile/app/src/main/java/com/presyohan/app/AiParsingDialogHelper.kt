@@ -18,9 +18,11 @@ import kotlinx.coroutines.*
 class AiParsingDialogHelper(
     private val activity: Activity,
     private val coroutineScope: CoroutineScope,
-    private val rawText: String,
+    private val rawText: String?,
     private val categoryIdByName: Map<String, String>,
     private val existingProductNames: Set<String>,
+    private val imageBytes: ByteArray? = null,
+    private val mimeType: String? = null,
     private val onSuccess: (ParseResult) -> Unit,
     private val onCancel: () -> Unit = {}
 ) {
@@ -142,7 +144,13 @@ class AiParsingDialogHelper(
             try {
                 // Perform Gemini Parsing
                 val result = withContext(Dispatchers.IO) {
-                    GeminiParser.parseText(rawText, categoryIdByName, existingProductNames)
+                    val bytes = imageBytes
+                    val mime = mimeType
+                    if (bytes != null && mime != null) {
+                        GeminiParser.parseImage(bytes, mime, categoryIdByName, existingProductNames)
+                    } else {
+                        GeminiParser.parseText(rawText ?: "", categoryIdByName, existingProductNames)
+                    }
                 }
                 
                 withContext(Dispatchers.Main) {
@@ -170,7 +178,7 @@ class AiParsingDialogHelper(
                 delay(800)
 
                 val result = withContext(Dispatchers.IO) {
-                    AddMultipleItemsParser.parseTextToResult(rawText, existingProductNames)
+                    AddMultipleItemsParser.parseTextToResult(rawText ?: "", existingProductNames)
                 }
 
                 withContext(Dispatchers.Main) {
@@ -234,15 +242,23 @@ class AiParsingDialogHelper(
 
     private fun startTextCycling() {
         textCycleJob?.cancel()
-        val phrases = listOf(
-            "Reading your list... this may take a moment.",
-            "Analyzing details...",
-            "Thinking...",
-            "Almost there...",
-            "Hold on a minute...",
-            "Still working on it...",
-            "Just a little longer..."
-        )
+        val phrases = if (imageBytes != null) {
+            listOf(
+                "Reading columns...",
+                "Extracting prices...",
+                "Organizing categories..."
+            )
+        } else {
+            listOf(
+                "Reading your list... this may take a moment.",
+                "Analyzing details...",
+                "Thinking...",
+                "Almost there...",
+                "Hold on a minute...",
+                "Still working on it...",
+                "Just a little longer..."
+            )
+        }
         
         textCycleJob = coroutineScope.launch {
             var index = 0

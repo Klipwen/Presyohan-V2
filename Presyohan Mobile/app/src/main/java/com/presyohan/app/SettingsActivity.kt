@@ -28,6 +28,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnAtongPresyohan: View
     private lateinit var btnSupport: View
     private lateinit var btnContactUs: View
+    private lateinit var btnShareApp: View
     private lateinit var btnLogout: View
     private lateinit var loadingOverlay: View
 
@@ -48,6 +49,7 @@ class SettingsActivity : AppCompatActivity() {
         btnAtongPresyohan = findViewById(R.id.btnAtongPresyohan)
         btnSupport = findViewById(R.id.btnSupport)
         btnContactUs = findViewById(R.id.btnContactUs)
+        btnShareApp = findViewById(R.id.btnShareApp)
         btnLogout = findViewById(R.id.btnLogout)
 
         // Back action
@@ -153,6 +155,11 @@ class SettingsActivity : AppCompatActivity() {
         // Contact Us
         btnContactUs.setOnClickListener {
             Toast.makeText(this, "Contact details coming soon!", Toast.LENGTH_SHORT).show()
+        }
+
+        // Share App
+        btnShareApp.setOnClickListener {
+            ShareAppHelper.shareApp(this, lifecycleScope)
         }
 
         // Logout action

@@ -347,18 +347,12 @@ export default function ManageItemsPage() {
           storeBranch={stores.find(s => s.id === storeId)?.branch || ''}
           categories={categories}
           defaultCategory={selectedCategory !== 'PRICELIST' ? selectedCategory : ''}
-          onAddCategory={async (newName) => {
-            try {
-              const trimmed = newName.trim();
-              const { data: inserted, error } = await supabase.rpc('add_category', { p_store_id: storeId, p_name: trimmed });
-              if (error) throw error;
-              const newId = inserted?.[0]?.category_id;
-              const normalizedName = inserted?.[0]?.name || trimmed.toUpperCase();
-              if (newId) setCategories(prev => [...prev, { id: newId, name: normalizedName }]);
-              setSelectedCategory(normalizedName);
-            } catch (e) {
-              alert(e.message || 'Failed to add category');
+          onAddCategory={(newName) => {
+            const upper = newName.trim().toUpperCase();
+            if (!categories.some(c => c.name === upper)) {
+              setCategories(prev => [...prev, { name: upper }]);
             }
+            setSelectedCategory(upper);
           }}
           onCreateItem={async (payload) => {
             try {
@@ -370,7 +364,9 @@ export default function ManageItemsPage() {
                 if (error) throw error;
                 categoryId = inserted?.[0]?.category_id;
                 const normalizedName = inserted?.[0]?.name || catName.toUpperCase();
-                if (categoryId) setCategories(prev => [...prev, { id: categoryId, name: normalizedName }]);
+                if (categoryId) {
+                  setCategories(prev => prev.map(c => c.name === normalizedName ? { id: categoryId, name: normalizedName } : c));
+                }
               }
               const { error: addErr } = await supabase.rpc('add_product', {
                 p_store_id: storeId,
