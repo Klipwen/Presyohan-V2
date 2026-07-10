@@ -204,9 +204,9 @@
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
 
-                        <!-- Copy -->
+                        <!-- Clone -->
                         <LinearLayout
-                            android:id="@+id/btnBulkCopy"
+                            android:id="@+id/btnBulkClone"
                             android:layout_width="56dp"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
@@ -218,14 +218,14 @@
                             <ImageView
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
-                                android:src="@drawable/icon_copy_prices"
+                                android:src="@drawable/icon_clone_prices"
                                 app:tint="@color/presyo_orange"
-                                android:contentDescription="Bulk Copy" />
+                                android:contentDescription="Bulk Clone" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Copy"
+                                android:text="Clone"
                                 android:textColor="@color/presyo_orange"
                                 android:textSize="11sp"
                                 android:layout_marginTop="2dp" />

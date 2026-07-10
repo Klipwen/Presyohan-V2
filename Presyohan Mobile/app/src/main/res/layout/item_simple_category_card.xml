@@ -17,20 +17,36 @@
 
         <!-- Category Header Row (Centered) -->
         <RelativeLayout
+            android:id="@+id/layoutCategoryHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="8dp"
+            android:paddingVertical="4dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
 
             <TextView
                 android:id="@+id/tvCategoryName"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="CATEGORY NAME"
                 android:textColor="@color/presyo_orange"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:gravity="center"
-                android:layout_centerInParent="true" />
+                android:layout_centerVertical="true"
+                android:layout_alignParentStart="true"
+                android:layout_marginStart="8dp" />
+
+            <ImageView
+                android:id="@+id/imgExpandIndicator"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/icon_arrow_right"
+                app:tint="@color/presyo_orange"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="8dp" />
 
         </RelativeLayout>
 

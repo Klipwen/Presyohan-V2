@@ -39,10 +39,11 @@ class NotificationAdapter(
         private val btnReject: TextView = itemView.findViewById(R.id.btnReject)
         private val btnCancel: TextView = itemView.findViewById(R.id.btnCancel)
         private val btnViewStore: TextView = itemView.findViewById(R.id.btnViewStore)
-        private val dividerTypeStatus: View = itemView.findViewById(R.id.dividerTypeStatus)
         private val dotSeparator: TextView = itemView.findViewById(R.id.dotSeparator)
         private val viewOrangeDot: View = itemView.findViewById(R.id.viewOrangeDot)
         private val layoutDivider: View = itemView.findViewById(R.id.layoutDivider)
+        private val layoutIconContainer: View = itemView.findViewById(R.id.layoutIconContainer)
+        private val imgNotificationIcon: android.widget.ImageView = itemView.findViewById(R.id.imgNotificationIcon)
 
         private fun getFriendlyTimeString(timestampMillis: Long): String {
             val now = System.currentTimeMillis()
@@ -83,7 +84,7 @@ class NotificationAdapter(
                 "Role Updated", "role_changed", "role_change" -> "Role Updated"
                 "Store Deleted", "store_deleted" -> "Store Deleted"
                 "Updated Store Status", "store_visibility_changed" -> "Updated Store Status"
-                "Copy Price Complete", "copy_price_complete" -> "Copy Price Complete"
+                "Clone Price Complete", "clone_price_complete" -> "Clone Price Complete"
                 "Suking Tindahan Connected" -> "Suking Tindahan Connected"
                 "You Have Been Removed" -> "You Have Been Removed"
                 "You Have Left" -> "You Have Left"
@@ -91,7 +92,7 @@ class NotificationAdapter(
                     notification.message.contains("left your") || notification.message.contains("left the") || notification.message.contains("has left") -> "Staff Left Store"
                     notification.message.contains("removed") && notification.message.contains("from") -> "Removed Staff"
                     notification.message.contains("deleted") || notification.message.contains("Deleted") -> "Store Deleted"
-                    notification.message.contains("Copy Price") || notification.message.contains("pricelist") -> "Copy Price Complete"
+                    notification.message.contains("Clone Price") || notification.message.contains("pricelist") -> "Clone Price Complete"
                     notification.message.contains("status to public") || notification.message.contains("status to private") -> "Updated Store Status"
                     notification.message.contains("partnered") || notification.message.contains("Suking Tindahan connected") -> "Suking Tindahan Connected"
                     notification.message.contains("promoted") || notification.message.contains("role has been") || notification.message.contains("role changed") -> "Role Updated"
@@ -105,6 +106,22 @@ class NotificationAdapter(
             textTimestamp.text = getFriendlyTimeString(notification.timestamp)
             textMessage.text = notification.message
 
+            // Dynamically configure Notification Icon and Background Color matching the notification type
+            val iconRes = when (notification.type) {
+                "Join Request", "Store Invitation", "Store Invitation Sent", "Staff Joined Store", "Staff Left Store", "Removed Staff", "Role Updated" -> R.drawable.icon_profile
+                "Suki Request", "Suking Tindahan Connected" -> R.drawable.icon_store
+                "Export Complete", "Clone Price Complete" -> R.drawable.icon_pricelist
+                "Store Deleted" -> R.drawable.icon_delete
+                else -> R.drawable.icon_notification
+            }
+            imgNotificationIcon.setImageResource(iconRes)
+
+            val bgTint = "#FFEADB"
+            val iconTint = "#FB8500"
+
+            layoutIconContainer.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(bgTint))
+            imgNotificationIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(iconTint))
+
             // Orange dot indicator shows when new/unread, toggles off when seen
             viewOrangeDot.visibility = if (notification.isNew) View.VISIBLE else View.GONE
 
@@ -115,7 +132,6 @@ class NotificationAdapter(
             btnReject.visibility = View.GONE
             btnCancel.visibility = View.GONE
             btnViewStore.visibility = View.GONE
-            dividerTypeStatus.visibility = View.GONE
             dotSeparator.visibility = View.VISIBLE
             layoutDivider.visibility = View.GONE
 
@@ -173,19 +189,16 @@ class NotificationAdapter(
                     }
                 }
                 "Accepted" -> {
-                    dividerTypeStatus.visibility = View.VISIBLE
                     textStatus.visibility = View.VISIBLE
                     textStatus.text = "Accepted"
                     textStatus.setTextColor(itemView.context.getColor(R.color.presyo_teal))
                 }
                 "Declined", "Rejected" -> {
-                    dividerTypeStatus.visibility = View.VISIBLE
                     textStatus.visibility = View.VISIBLE
                     textStatus.text = "Declined"
                     textStatus.setTextColor(itemView.context.getColor(R.color.presyo_orange))
                 }
                 "Canceled" -> {
-                    dividerTypeStatus.visibility = View.VISIBLE
                     textStatus.visibility = View.VISIBLE
                     textStatus.text = "Canceled"
                     textStatus.setTextColor(itemView.context.getColor(R.color.presyo_orange))

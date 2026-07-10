@@ -25,18 +25,18 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * Centralized helper for the "Copy Prices" dialog flow.
+ * Centralized helper for the "Clone Prices" dialog flow.
  *
  * Usage:
- *   CopyPricesDialogHelper.show(
+ *   ClonePricesDialogHelper.show(
  *       activity      = this,
  *       storeId       = storeId,
  *       storeName     = storeName,
- *       selectedIds   = listOf("id1", "id2"),   // pass null to copy ALL items in the store
+ *       selectedIds   = listOf("id1", "id2"),   // pass null to clone ALL items in the store
  *       preselectedCategory = null               // or a category name to pre-filter
  *   )
  */
-object CopyPricesDialogHelper {
+object ClonePricesDialogHelper {
 
     @Serializable
     data class ValidateCodeResult(
@@ -76,7 +76,7 @@ object CopyPricesDialogHelper {
         descriptionText: String? = null   // null = keep the default XML text
     ) {
         val dialog = Dialog(activity)
-        val view = LayoutInflater.from(activity).inflate(R.layout.dialog_copy_prices_code, null)
+        val view = LayoutInflater.from(activity).inflate(R.layout.dialog_clone_prices_code, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
@@ -101,7 +101,7 @@ object CopyPricesDialogHelper {
 
         // Set custom description if provided
         if (!descriptionText.isNullOrBlank()) {
-            view.findViewById<TextView>(R.id.textCopyDescription).text = descriptionText
+            view.findViewById<TextView>(R.id.textCloneDescription).text = descriptionText
         }
 
         var validDestination: ValidateCodeResult? = null
@@ -147,7 +147,7 @@ object CopyPricesDialogHelper {
         btnNext.setOnClickListener {
             val dest = validDestination ?: return@setOnClickListener
             val code = inputCode.text?.toString()?.trim() ?: ""
-            launchCopyPreview(activity, storeId, storeName, dest, code, selectedIds, preselectedCategory, btnNext, dialog)
+            launchClonePreview(activity, storeId, storeName, dest, code, selectedIds, preselectedCategory, btnNext, dialog)
         }
 
         dialog.show()
@@ -162,7 +162,7 @@ object CopyPricesDialogHelper {
     private fun validateCode(
         activity: AppCompatActivity,
         code: String,
-        sourceStoreId: String,       // used to block same-store copy
+        sourceStoreId: String,       // used to block same-store clone
         tvCodeError: TextView,
         btnNext: AppCompatButton,
         layoutPlaceholder: View,
@@ -182,12 +182,12 @@ object CopyPricesDialogHelper {
                 if (rows.isNotEmpty()) {
                     var dest = rows[0]
 
-                    // Block same-store copy
+                    // Block same-store clone
                     if (dest.store_id == sourceStoreId) {
                         onResult(null)
                         layoutPlaceholder.visibility = View.VISIBLE
                         layoutVerified.visibility = View.GONE
-                        tvCodeError.text = "Cannot copy prices to your own store"
+                        tvCodeError.text = "Cannot clone prices to your own store"
                         tvCodeError.visibility = View.VISIBLE
                         btnNext.visibility = View.GONE
                         return@launch
@@ -242,7 +242,7 @@ object CopyPricesDialogHelper {
         }
     }
 
-    private fun launchCopyPreview(
+    private fun launchClonePreview(
         activity: AppCompatActivity,
         storeId: String,
         storeName: String,
@@ -276,7 +276,7 @@ object CopyPricesDialogHelper {
                 }
 
                 if (finalIds.isEmpty()) {
-                    Toast.makeText(activity, "No items selected to copy.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, "No items selected to clone.", Toast.LENGTH_SHORT).show()
                     btnNext.isEnabled = true
                     btnNext.text = "NEXT"
                     return@launch
@@ -284,7 +284,7 @@ object CopyPricesDialogHelper {
 
                 // Dry-run to get preview rows
                 val previewRows = SupabaseProvider.client.postgrest.rpc(
-                    "copy_prices",
+                    "clone_prices",
                     buildJsonObject {
                         put("p_source_store_id", storeId)
                         put("p_dest_paste_code", code)
@@ -343,7 +343,7 @@ object CopyPricesDialogHelper {
                     putExtra("storeId", dest.store_id)
                     putExtra("storeName", dest.store_name)
                     putExtra("draftSessionId", session.sessionId)
-                    putExtra("isCopyPrices", true)
+                    putExtra("isClonePrices", true)
                     putExtra("destPasteCode", code)
                     putExtra("sourceStoreId", storeId)
                     putStringArrayListExtra("selectedProductIds", ArrayList(finalIds))
@@ -352,7 +352,7 @@ object CopyPricesDialogHelper {
                 activity.startActivity(intent)
 
             } catch (e: Exception) {
-                Toast.makeText(activity, "Failed to prepare copy preview: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(activity, "Failed to prepare clone preview: ${e.message}", Toast.LENGTH_LONG).show()
                 btnNext.isEnabled = true
                 btnNext.text = "NEXT"
             }
@@ -360,10 +360,10 @@ object CopyPricesDialogHelper {
     }
 
     /**
-     * Shows the "Copy Complete" dialog after the copy operation succeeds.
-     * Wired up to the confirm action in ReviewImportActivity via isCopyPrices flag.
+     * Shows the "Clone Complete" dialog after the clone operation succeeds.
+     * Wired up to the confirm action in ReviewImportActivity via isClonePrices flag.
      */
-    fun showCopyCompleteDialog(context: Context, onDone: () -> Unit) {
+    fun showCloneCompleteDialog(context: Context, onDone: () -> Unit) {
         val dialog = Dialog(context)
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_export_complete, null)
         dialog.setContentView(view)

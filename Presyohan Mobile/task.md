@@ -12,6 +12,10 @@
   - [x] Aligned the vertical constraints and bias of `activity_forgot_password.xml`, `activity_verify_email.xml`, `activity_enter_reset_code.xml`, and `activity_reset_password.xml` content containers to match `activity_login.xml` (`app:layout_constraintBottom_toBottomOf="parent"` with bias `0.3`).
   - [x] Updated all circular back buttons to have dimensions of `40dp` x `40dp` with padding `8dp` and matching layout constraints.
   - [x] Override transit animations to instant for SignUp and ForgotPassword transitions inside `LoginActivity.kt`.
+  - [x] Update `PdfPageSize.LONG_BOND` to 8.5" x 13" (936pt height)
+  - [x] Implement font loading and brand logo layout in `PricelistPdfHelper.kt`
+  - [x] Rewrite pagination and continuation logic in `PricelistPdfHelper.kt`
+  - [/] Redesign `dialog_pdf_preview.xml` layout
 
 - [x] Onboarding Card Dynamic Color Management
   - [x] Updated onboarding layout with unique subview IDs inside cards.

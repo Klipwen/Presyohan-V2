@@ -7,7 +7,7 @@ import addStaffIcon from '../assets/icon_add_staff.png';
 import InviteStaffModal from '../components/store/InviteStaffModal';
 import ConfirmModal from '../components/store/ConfirmModal';
 import ExportPricelistModal from '../components/store/ExportPricelistModal';
-import CopyPricesModal from '../components/store/CopyPricesModal';
+import ClonePricesModal from '../components/store/ClonePricesModal';
 import ImportPricesModal from '../components/store/ImportPricesModal';
 
 // Store Settings Page
@@ -33,7 +33,7 @@ export default function StoreSettingsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ title: '', message: '', action: null, confirmLabel: 'Confirm' });
   const [exportOpen, setExportOpen] = useState(false);
-  const [copyOpen, setCopyOpen] = useState(false);
+  const [cloneOpen, setCloneOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [pasteCode, setPasteCode] = useState(null);
   const [pasteCodeExpiresAt, setPasteCodeExpiresAt] = useState(null);
@@ -414,11 +414,11 @@ export default function StoreSettingsPage() {
                     gap: '8px',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-                  }} onClick={() => setCopyOpen(true)} disabled={role !== 'owner'}>
+                  }} onClick={() => setCloneOpen(true)} disabled={role !== 'owner'}>
                     <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
                       <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                     </svg>
-                    Copy Prices
+                    Clone Prices
                   </button>
                   <button
                     onMouseEnter={(e) => {
@@ -546,7 +546,7 @@ export default function StoreSettingsPage() {
                 {/* Paste-Code generator */}
                 <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #eee', borderRadius: '12px', background: '#ffffff', marginBottom: '14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <div style={{ fontWeight: 700, color: '#7a4a12' }}>Paste-Code (for copying prices to this store)</div>
+                    <div style={{ fontWeight: 700, color: '#7a4a12' }}>Paste-Code (for cloning prices to this store)</div>
                     {pasteCode ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ fontWeight: 700, color: '#333' }}>Code: {pasteCode}</div>
@@ -938,10 +938,10 @@ export default function StoreSettingsPage() {
         role={role}
       />
 
-      {/* Copy Prices modal */}
-      <CopyPricesModal
-        open={copyOpen}
-        onClose={() => setCopyOpen(false)}
+      {/* Clone Prices modal */}
+      <ClonePricesModal
+        open={cloneOpen}
+        onClose={() => setCloneOpen(false)}
         sourceStoreId={storeId}
         sourceStoreName={storeName}
       />
