@@ -154,7 +154,8 @@ class SettingsActivity : AppCompatActivity() {
 
         // Contact Us
         btnContactUs.setOnClickListener {
-            Toast.makeText(this, "Contact details coming soon!", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ContactUsActivity::class.java)
+            startActivity(intent)
         }
 
         // Share App

@@ -162,31 +162,62 @@ export default function LoginSignupPage() {
     const email = signupEmail.trim();
     const password = signupPassword;
     try {
-      // Request an email OTP and create the user if it doesn't exist. This
-      // ensures the template with {{ .Token }} is used and the user receives
-      // a numeric code to paste into the Verify page.
       setIsSubmittingSignup(true);
-      const { error } = await supabase.auth.signInWithOtp({
+
+      // Check if email already exists in the database
+      const { data: exists, error: checkError } = await supabase.rpc('email_exists', { p_email: email });
+      if (checkError) {
+        setSignupFormError(checkError.message || 'Error checking email availability.');
+        setIsSubmittingSignup(false);
+        return;
+      }
+      if (exists) {
+        setSignupErrors(prev => ({ ...prev, email: 'An account already exists for this email. Please log in.' }));
+        setIsSubmittingSignup(false);
+        return;
+      }
+
+      // Perform direct signup using email & password, passing display name metadata
+      const { data, error } = await supabase.auth.signUp({
         email,
-        options: { 
-          shouldCreateUser: true,
-          // Ensure magic link redirects to deployed site, not localhost
-          emailRedirectTo: `${getAppOrigin()}/auth/callback`
+        password,
+        options: {
+          data: {
+            name: name
+          }
         }
       });
+
       if (error) {
         setSignupFormError(error.message || 'Signup failed. Please try again.');
         setIsSubmittingSignup(false);
         return;
       }
 
-      // Save the pending name so we can set it once the user is verified.
-      localStorage.setItem('pendingEmail', email);
-      localStorage.setItem('pendingName', name);
-      localStorage.setItem('pendingPassword', password);
-      // We request OTP via signInWithOtp, so verification type should be 'email'.
-      localStorage.setItem('pendingVerificationType', 'email');
-      navigate(`/verify-email?email=${encodeURIComponent(email)}&flow=email`, { replace: true });
+      // Manual client-side upsert to guarantee database reflections
+      if (data?.user) {
+        try {
+          const uid = data.user.id;
+          const { error: upsertErr } = await supabase
+            .from('app_users')
+            .upsert({ id: uid, email, name });
+          
+          if (upsertErr) {
+            // Fallback for schemas requiring auth_uid
+            await supabase
+              .from('app_users')
+              .upsert({ id: uid, auth_uid: uid, email, name });
+          }
+        } catch (err) {
+          console.warn('Manual profile upsert failed, relying on trigger:', err);
+        }
+      }
+
+      if (data?.session) {
+        navigate('/stores', { replace: true });
+      } else {
+        setSignupFormError('Account created successfully, but session could not be established.');
+      }
     } catch (err) {
       setSignupFormError(err.message || 'Unexpected error during signup.');
     } finally {

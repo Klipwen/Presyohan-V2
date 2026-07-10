@@ -1,0 +1,365 @@
+/* Modern, minimalist CSS for Feedback & Support Moderation Panel */
+
+.feedback-container {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 28px;
+  align-items: start;
+  font-family: 'Outfit', sans-serif;
+}
+
+@media (max-width: 1024px) {
+  .feedback-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.feedback-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 0;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding-bottom: 12px;
+}
+
+/* Settings Box */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.form-group input {
+  padding: 11px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus {
+  border-color: #00bcd4;
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+}
+
+.save-btn {
+  background-color: #00bcd4;
+  color: #ffffff;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.save-btn:hover {
+  background-color: #0097a7;
+  transform: translateY(-1px);
+}
+
+/* Toggle Navigation for Right Panel */
+.tab-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1.5px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+
+.tab-btn {
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: #ff8c00;
+  background-color: rgba(255, 140, 0, 0.04);
+}
+
+.tab-btn.active {
+  color: #ff8c00;
+  background-color: rgba(255, 140, 0, 0.08);
+}
+
+/* Ratings List */
+.ratings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rating-item {
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
+}
+
+.rating-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.user-info-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #e2e8f0;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.user-email {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.rating-stars-row {
+  display: flex;
+  gap: 3px;
+}
+
+.rating-star-svg {
+  width: 16px;
+  height: 16px;
+  fill: #ffd700;
+}
+
+.rating-star-svg.empty {
+  fill: #e2e8f0;
+}
+
+.rating-reason {
+  font-size: 0.88rem;
+  color: #334155;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.rating-date {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 10px;
+  text-align: right;
+}
+
+/* Feedbacks & Thread Replies styling */
+.threads-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.thread-item {
+  border-bottom: 1.5px solid #f1f5f9;
+  padding-bottom: 20px;
+}
+
+.thread-item:last-child {
+  border-bottom: none;
+}
+
+.message-card {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.message-card.nested {
+  margin-left: 40px;
+  border-left: 2px solid #e2e8f0;
+  padding-left: 14px;
+}
+
+.role-badge {
+  background-color: #ff8c00;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 6px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.message-text {
+  font-size: 0.88rem;
+  color: #334155;
+  margin: 4px 0 0 0;
+  line-height: 1.45;
+}
+
+.message-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+.thread-reply-btn {
+  background: none;
+  border: none;
+  color: #00bcd4;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.thread-reply-btn:hover {
+  background-color: rgba(0, 188, 212, 0.05);
+}
+
+/* Inline Admin Reply input form */
+.reply-input-box {
+  margin-left: 40px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.reply-input-box textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.reply-input-box textarea:focus {
+  border-color: #ff8c00;
+}
+
+.reply-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancel-reply-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 12px;
+}
+
+.submit-reply-btn {
+  background-color: #ff8c00;
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submit-reply-btn:hover {
+  background-color: #e07b00;
+}
+
+/* Admin message action buttons (Edit / Delete) */
+.msg-action-btn {
+  background: none;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.msg-action-btn.edit {
+  color: #00bcd4;
+  border-color: rgba(0, 188, 212, 0.25);
+}
+
+.msg-action-btn.edit:hover {
+  background-color: rgba(0, 188, 212, 0.08);
+  border-color: rgba(0, 188, 212, 0.5);
+}
+
+.msg-action-btn.delete {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.msg-action-btn.delete:hover {
+  color: #ff8c00;
+  border-color: rgba(255, 140, 0, 0.3);
+  background-color: rgba(255, 140, 0, 0.06);
+}

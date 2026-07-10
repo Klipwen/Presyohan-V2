@@ -113,6 +113,10 @@
             android:name=".MembershipsActivity"
             android:exported="false" />
         <activity
+            android:name=".ContactUsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".CustomScannerActivity"
             android:exported="false"
             android:screenOrientation="portrait"

@@ -8,6 +8,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -363,7 +364,13 @@ object ClonePricesDialogHelper {
      * Shows the "Clone Complete" dialog after the clone operation succeeds.
      * Wired up to the confirm action in ReviewImportActivity via isClonePrices flag.
      */
-    fun showCloneCompleteDialog(context: Context, onDone: () -> Unit) {
+    fun showCloneCompleteDialog(
+        context: Context,
+        title: String? = null,
+        message: String? = null,
+        buttonText: String? = null,
+        onDone: () -> Unit
+    ) {
         val dialog = Dialog(context)
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_export_complete, null)
         dialog.setContentView(view)
@@ -374,7 +381,30 @@ object ClonePricesDialogHelper {
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        view.findViewById<AppCompatButton>(R.id.btnDone).setOnClickListener {
+        val tvTitle = view.findViewById<TextView>(R.id.textTitle)
+        val tvMessage = view.findViewById<TextView>(R.id.textMessage)
+        val btnDone = view.findViewById<AppCompatButton>(R.id.btnDone)
+
+        if (title != null) {
+            tvTitle.text = title
+        }
+        if (message != null) {
+            tvMessage.text = message
+            tvMessage.visibility = View.VISIBLE
+            val params = tvTitle.layoutParams as LinearLayout.LayoutParams
+            params.bottomMargin = (8 * context.resources.displayMetrics.density).toInt()
+            tvTitle.layoutParams = params
+        } else {
+            tvMessage.visibility = View.GONE
+            val params = tvTitle.layoutParams as LinearLayout.LayoutParams
+            params.bottomMargin = (24 * context.resources.displayMetrics.density).toInt()
+            tvTitle.layoutParams = params
+        }
+        if (buttonText != null) {
+            btnDone.text = buttonText
+        }
+
+        btnDone.setOnClickListener {
             dialog.dismiss()
             onDone()
         }

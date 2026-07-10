@@ -71,14 +71,26 @@
         android:layout_marginBottom="12dp"
         android:contentDescription="Checkmark" />
 
-    <!-- "Export Complete!" text -->
+    <!-- Title text -->
     <TextView
+        android:id="@+id/textTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Export Complete!"
         android:textColor="@color/edittext_hint"
         android:textSize="20sp"
         android:textStyle="bold"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Message text (optional description) -->
+    <TextView
+        android:id="@+id/textMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/edittext_hint"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:visibility="gone"
         android:layout_marginBottom="24dp" />
 
     <!-- Done button: teal, full-width, pill-shaped -->

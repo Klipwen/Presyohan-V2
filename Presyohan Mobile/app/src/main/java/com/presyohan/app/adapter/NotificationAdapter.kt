@@ -76,6 +76,7 @@ class NotificationAdapter(
                 "Store Invitation" -> "Store Invitation"
                 "Store Invitation Sent" -> "Store Invitation Sent"
                 "Suki Request" -> if (notification.status == "Accepted") "New Suki" else "Suki Request"
+                "Support Reply", "support_reply" -> "Support Reply"
                 // System notification types — already mapped from DB in parseNotificationInfo
                 "Export Complete", "excel_export" -> "Export Complete"
                 "Staff Left Store", "member_left" -> "Staff Left Store"
@@ -112,15 +113,33 @@ class NotificationAdapter(
                 "Suki Request", "Suking Tindahan Connected" -> R.drawable.icon_store
                 "Export Complete", "Clone Price Complete" -> R.drawable.icon_pricelist
                 "Store Deleted" -> R.drawable.icon_delete
+                "Support Reply", "support_reply" -> R.drawable.icon_presyohan
                 else -> R.drawable.icon_notification
             }
             imgNotificationIcon.setImageResource(iconRes)
 
+            val isSupportReply = notification.type == "Support Reply" || notification.type == "support_reply"
             val bgTint = "#FFEADB"
             val iconTint = "#FB8500"
 
             layoutIconContainer.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(bgTint))
-            imgNotificationIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(iconTint))
+
+            val density = itemView.context.resources.displayMetrics.density
+            if (isSupportReply) {
+                imgNotificationIcon.imageTintList = null
+                imgNotificationIcon.rotation = -45f
+                imgNotificationIcon.layoutParams = imgNotificationIcon.layoutParams.also {
+                    it.width = (38 * density).toInt()
+                    it.height = (38 * density).toInt()
+                }
+            } else {
+                imgNotificationIcon.rotation = 0f
+                imgNotificationIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(iconTint))
+                imgNotificationIcon.layoutParams = imgNotificationIcon.layoutParams.also {
+                    it.width = (24 * density).toInt()
+                    it.height = (24 * density).toInt()
+                }
+            }
 
             // Orange dot indicator shows when new/unread, toggles off when seen
             viewOrangeDot.visibility = if (notification.isNew) View.VISIBLE else View.GONE
@@ -207,7 +226,12 @@ class NotificationAdapter(
 
             // ── Dynamic Link Action Binding ──
             btnViewStore.visibility = View.GONE
-            if (notification.type == "excel_export" || notification.message.contains("Excel file") || notification.message.contains("exported")) {
+            if (notification.type == "Support Reply" || notification.type == "support_reply") {
+                btnViewStore.visibility = View.VISIBLE
+                btnViewStore.text = "View Reply >"
+                btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))
+                btnViewStore.setOnClickListener { onViewStore(notification) }
+            } else if (notification.type == "excel_export" || notification.message.contains("Excel file") || notification.message.contains("exported")) {
                 btnViewStore.visibility = View.VISIBLE
                 btnViewStore.text = "Open File >"
                 btnViewStore.setTextColor(itemView.context.getColor(R.color.presyo_teal))

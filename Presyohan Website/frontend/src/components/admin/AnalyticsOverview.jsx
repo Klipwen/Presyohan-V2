@@ -7,7 +7,9 @@ export default function AnalyticsOverview({ setActiveTab }) {
     totalUsers: 0,
     activeUsers: 0,
     totalStores: 0,
-    activeAnnouncements: 0
+    activeAnnouncements: 0,
+    avgRating: 0,
+    totalRatings: 0
   });
   const [recentUsers, setRecentUsers] = useState([]);
 
@@ -45,7 +47,20 @@ export default function AnalyticsOverview({ setActiveTab }) {
         .order('last_activity_at', { ascending: false })
         .limit(5);
 
-      if (userErr || activeErr || storeErr || announceErr || recentErr) {
+      // 6. Fetch Ratings list & compute average
+      const { data: ratingData, error: ratingErr } = await supabase
+        .from('app_ratings')
+        .select('rating');
+
+      let avgRating = 0;
+      let totalRatings = 0;
+      if (ratingData && ratingData.length > 0) {
+        totalRatings = ratingData.length;
+        const sum = ratingData.reduce((acc, r) => acc + r.rating, 0);
+        avgRating = sum / totalRatings;
+      }
+
+      if (userErr || activeErr || storeErr || announceErr || recentErr || ratingErr) {
         throw new Error('Some analytics queries failed to load.');
       }
 
@@ -53,7 +68,9 @@ export default function AnalyticsOverview({ setActiveTab }) {
         totalUsers: userCount || 0,
         activeUsers: activeCount || 0,
         totalStores: storeCount || 0,
-        activeAnnouncements: announceCount || 0
+        activeAnnouncements: announceCount || 0,
+        avgRating: Number(avgRating.toFixed(1)) || 0,
+        totalRatings: totalRatings || 0
       });
 
       setRecentUsers(recentData || []);
@@ -152,6 +169,45 @@ export default function AnalyticsOverview({ setActiveTab }) {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="metric-card ratings">
+          <div className="metric-info">
+            <div className="metric-title">App Rating</div>
+            <div className="metric-value" style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : '0.0'}
+              <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>/ 5</span>
+            </div>
+            <div className="metric-subtext">
+              {stats.totalRatings} total reviews
+              {(() => {
+                const stars = [];
+                for (let i = 0; i < 5; i++) {
+                  const fillPercent = Math.min(Math.max(stats.avgRating - i, 0), 1) * 100;
+                  stars.push(
+                    <svg key={i} viewBox="0 0 24 24" style={{ width: '16px', height: '16px', marginRight: '2px' }}>
+                      <defs>
+                        <linearGradient id={`dashboard-grad-${i}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset={`${fillPercent}%`} stopColor="#ffd700" />
+                          <stop offset={`${fillPercent}%`} stopColor="#e2e8f0" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        fill={`url(#dashboard-grad-${i})`}
+                        d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                      />
+                    </svg>
+                  );
+                }
+                return <div style={{ display: 'flex', marginTop: '6px' }}>{stars}</div>;
+              })()}
+            </div>
+          </div>
+          <div className="metric-icon-wrapper" style={{ backgroundColor: 'rgba(255, 215, 0, 0.1)', color: '#ffd700' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
             </svg>
           </div>
         </div>

@@ -755,6 +755,12 @@ class NotificationActivity : AppCompatActivity() {
     }
     
     private fun handleViewStore(notification: Notification) {
+        if (notification.type == "Support Reply" || notification.type == "support_reply") {
+            val intent = Intent(this, ContactUsActivity::class.java)
+            startActivity(intent)
+            return
+        }
+
         if (notification.type == "excel_export" || notification.message.contains("Excel file") || notification.message.contains("exported")) {
             try {
                 val intent = Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS)
