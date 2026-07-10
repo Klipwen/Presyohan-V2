@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="4dp"
+    android:gravity="start">
+
+    <!-- Indent Spacer for nested replies -->
+    <View
+        android:id="@+id/indentSpacer"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:background="#D1D5DB"
+        android:layout_marginEnd="8dp"
+        android:visibility="gone" />
+
+    <!-- Comment Card Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@drawable/bg_card_unselected"
+        android:padding="12dp">
+
+        <ImageView
+            android:id="@+id/imgCommentAvatar"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/avatar_default"
+            android:scaleType="centerCrop"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:contentDescription="User Avatar" />
+
+        <TextView
+            android:id="@+id/txtCommentUserName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="User Name"
+            android:textColor="@color/presyo_darkblue"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toEndOf="@+id/imgCommentAvatar"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/txtCommentBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_badge_orange"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="1dp"
+            android:text="ADMIN"
+            android:textColor="@color/white"
+            android:textSize="9sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@+id/txtCommentUserName"
+            app:layout_constraintStart_toEndOf="@+id/txtCommentUserName"
+            app:layout_constraintTop_toTopOf="@+id/txtCommentUserName" />
+
+        <TextView
+            android:id="@+id/txtCommentTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="12m ago"
+            android:textColor="#9CA3AF"
+            android:textSize="11sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/txtCommentMessage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="4dp"
+            android:text="This is a feedback or support comment text."
+            android:textColor="#374151"
+            android:textSize="13sp"
+            android:lineSpacingExtra="2dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/imgCommentAvatar"
+            app:layout_constraintTop_toBottomOf="@+id/txtCommentUserName" />
+
+        <!-- Actions container (Reply & Delete) -->
+        <LinearLayout
+            android:id="@+id/layoutCommentActions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="6dp"
+            app:layout_constraintStart_toStartOf="@+id/txtCommentMessage"
+            app:layout_constraintTop_toBottomOf="@+id/txtCommentMessage">
+
+            <TextView
+                android:id="@+id/txtCommentReplyAction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reply"
+                android:textColor="@color/presyo_teal"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:foreground="?android:attr/selectableItemBackground" />
+
+            <TextView
+                android:id="@+id/txtCommentDivider"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" • "
+                android:textColor="#9CA3AF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/txtCommentDeleteAction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Delete"
+                android:textColor="#FB8500"
+                android:textSize="12sp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:foreground="?android:attr/selectableItemBackground" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

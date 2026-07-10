@@ -144,7 +144,7 @@ object DrawerHelper {
         }
 
         root.findViewById<View>(R.id.drawerItemSupport).setOnClickListener {
-            Toast.makeText(activity, "Support under construction", Toast.LENGTH_SHORT).show()
+            activity.startActivity(Intent(activity, ContactUsActivity::class.java))
             drawerLayout.closeDrawers()
         }
 

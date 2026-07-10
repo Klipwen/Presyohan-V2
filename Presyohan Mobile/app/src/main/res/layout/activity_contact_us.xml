@@ -1,0 +1,584 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F4F6F9"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
+
+    <!-- Header bar -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layoutHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:paddingBottom="10dp"
+        android:elevation="2dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/headerTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_header_yellow"
+            android:gravity="center"
+            android:paddingVertical="8dp"
+            android:text="Contact Us"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/icon_back"
+            android:layout_marginStart="16dp"
+            app:layout_constraintBottom_toBottomOf="@+id/headerTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/headerTitle"
+            app:tint="@color/white"
+            android:contentDescription="Back" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Content ScrollView -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp">
+
+            <!-- Section 1: Rate the App -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:text="Rate the App"
+                android:textColor="@color/presyo_teal"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Redesigned Rating Card Container -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="18dp"
+                android:layout_marginBottom="16dp">
+
+                <!-- 1. EDITABLE STATE (No Rating Yet or Edit Mode) -->
+                <LinearLayout
+                    android:id="@+id/layoutRatingEditable"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/txtRatingEditTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="How is your experience with Presyohan?"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textStyle="bold"
+                        android:textSize="15sp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Help us improve Presyohan by submitting a rating and optional feedback."
+                        android:textColor="#5B7083"
+                        android:textSize="12sp"
+                        android:layout_gravity="center_horizontal"
+                        android:textAlignment="center"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Stars Selector -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <ImageView
+                            android:id="@+id/imgStar1"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/ic_star_empty"
+                            android:layout_marginHorizontal="6dp"
+                            android:contentDescription="1 Star" />
+
+                        <ImageView
+                            android:id="@+id/imgStar2"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/ic_star_empty"
+                            android:layout_marginHorizontal="6dp"
+                            android:contentDescription="2 Stars" />
+
+                        <ImageView
+                            android:id="@+id/imgStar3"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/ic_star_empty"
+                            android:layout_marginHorizontal="6dp"
+                            android:contentDescription="3 Stars" />
+
+                        <ImageView
+                            android:id="@+id/imgStar4"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/ic_star_empty"
+                            android:layout_marginHorizontal="6dp"
+                            android:contentDescription="4 Stars" />
+
+                        <ImageView
+                            android:id="@+id/imgStar5"
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:src="@drawable/ic_star_empty"
+                            android:layout_marginHorizontal="6dp"
+                            android:contentDescription="5 Stars" />
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/edtRatingReason"
+                        android:layout_width="match_parent"
+                        android:layout_height="80dp"
+                        android:background="@drawable/bg_edittext"
+                        android:hint="What is your reason? (Optional)"
+                        android:textColorHint="@color/edittext_hint"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="14sp"
+                        android:gravity="top|start"
+                        android:padding="12dp"
+                        android:inputType="textMultiLine"
+                        android:layout_marginBottom="14dp" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnSubmitRating"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_button_round_teal_pill"
+                        android:text="Submit Rating"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:textAllCaps="false" />
+                </LinearLayout>
+
+                <!-- 2. DONE STATE (Rating Submitted View) -->
+                <LinearLayout
+                    android:id="@+id/layoutRatingDone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Thank you for your rating!"
+                        android:textColor="@color/presyo_teal"
+                        android:textStyle="bold"
+                        android:textSize="15sp"
+                        android:layout_marginBottom="10dp" />
+
+                    <!-- Read-Only Stars Display -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="14dp">
+
+                        <ImageView
+                            android:id="@+id/imgDoneStar1"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_star_filled"
+                            android:layout_marginHorizontal="4dp"
+                            android:contentDescription="1 Star" />
+
+                        <ImageView
+                            android:id="@+id/imgDoneStar2"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_star_filled"
+                            android:layout_marginHorizontal="4dp"
+                            android:contentDescription="2 Stars" />
+
+                        <ImageView
+                            android:id="@+id/imgDoneStar3"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_star_filled"
+                            android:layout_marginHorizontal="4dp"
+                            android:contentDescription="3 Stars" />
+
+                        <ImageView
+                            android:id="@+id/imgDoneStar4"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_star_filled"
+                            android:layout_marginHorizontal="4dp"
+                            android:contentDescription="4 Stars" />
+
+                        <ImageView
+                            android:id="@+id/imgDoneStar5"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_star_filled"
+                            android:layout_marginHorizontal="4dp"
+                            android:contentDescription="5 Stars" />
+                    </LinearLayout>
+
+                    <!-- Reason display box (quote styling for high visual appeal) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:background="@drawable/bg_edittext"
+                        android:backgroundTint="#F8FAFC"
+                        android:padding="14dp"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:id="@+id/txtDoneRatingReason"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Reason text goes here."
+                            android:textColor="#475569"
+                            android:textSize="13sp"
+                            android:textStyle="italic"
+                            android:gravity="center" />
+                    </LinearLayout>
+
+                    <!-- Edit Rating button with icon and label -->
+                    <LinearLayout
+                        android:id="@+id/btnEditRating"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_button_round_teal_pill"
+                        android:backgroundTint="#F1F5F9"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/icon_edit"
+                            app:tint="#FB8500"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Update Rating"
+                            android:textColor="#FB8500"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- Section 2: Comments -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp"
+                android:text="Got any questions or feedback?"
+                android:textColor="@color/presyo_teal"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Prompt description text -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:text="We'd love to hear your thoughts! Tell us what we can improve, how you feel about the app, or what we can fix to make your experience better."
+                android:textColor="#64748B"
+                android:textSize="12sp"
+                android:lineSpacingExtra="2dp" />
+
+            <!-- Post Comment Input Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_unselected"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_marginBottom="16dp">
+
+                <!-- Replying Indicator Context -->
+                <LinearLayout
+                    android:id="@+id/layoutReplyContext"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp"
+                    android:visibility="gone">
+                    <TextView
+                        android:id="@+id/txtReplyingTo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Replying to: Juan"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="12sp"
+                        android:textStyle="bold|italic" />
+                    <ImageView
+                        android:id="@+id/btnCancelReply"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_close_gray"
+                        android:contentDescription="Cancel Reply" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <EditText
+                        android:id="@+id/edtComment"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_edittext"
+                        android:hint="Ask a question or share feedback..."
+                        android:textColorHint="@color/edittext_hint"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="14sp"
+                        android:paddingHorizontal="14dp"
+                        android:inputType="text" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnSendComment"
+                        android:layout_width="72dp"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_button_round_teal_pill"
+                        android:text="Post"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:textAllCaps="false" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Comments Feed List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvComments"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Section 3: Contact Info -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="Quick Contacts"
+                android:textColor="@color/presyo_teal"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Unified Contacts Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_unselected"
+                android:orientation="vertical"
+                android:padding="6dp"
+                android:layout_marginBottom="16dp">
+
+                <!-- Location Row -->
+                <LinearLayout
+                    android:id="@+id/cardLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="14dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_location"
+                        app:tint="@color/presyo_teal"
+                        android:contentDescription="Location Icon" />
+                    <TextView
+                        android:id="@+id/txtLocation"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:text="Curva Medellin, Cebu City, Philippines"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E5E7EB"
+                    android:layout_marginHorizontal="14dp" />
+
+                <!-- Email Row -->
+                <LinearLayout
+                    android:id="@+id/cardEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="14dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/icon_email"
+                        app:tint="@color/presyo_teal"
+                        android:contentDescription="Email Icon" />
+                    <TextView
+                        android:id="@+id/txtEmail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:text="presyohan@gmail.com"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E5E7EB"
+                    android:layout_marginHorizontal="14dp" />
+
+                <!-- Phone Row -->
+                <LinearLayout
+                    android:id="@+id/cardPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="14dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/icon_phone"
+                        app:tint="@color/presyo_teal"
+                        android:contentDescription="Phone Icon" />
+                    <TextView
+                        android:id="@+id/txtPhone"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:text="+639 430 8387"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Section 4: Developer Info -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="Developer"
+                android:textColor="@color/presyo_teal"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- CEO Profile Card -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="16dp"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/imgCeoPhoto"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:src="@drawable/profile_ceo"
+                    android:scaleType="centerCrop"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    android:contentDescription="CEO Photo" />
+
+                <TextView
+                    android:id="@+id/txtCeoName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="Gee Caliph A. Juen"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/imgCeoPhoto"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/txtCeoRole"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="2dp"
+                    android:text="Presyohan Developer"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/imgCeoPhoto"
+                    app:layout_constraintTop_toBottomOf="@+id/txtCeoName" />
+
+                <TextView
+                    android:id="@+id/txtCeoBio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Hi! I am the developer behind Presyohan. My goal is to make price monitoring easy and accessible. Feel free to reach out with any feedback, suggestions, or comments."
+                    android:textColor="#5B7083"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="3dp"
+                    app:layout_constraintTop_toBottomOf="@+id/imgCeoPhoto" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

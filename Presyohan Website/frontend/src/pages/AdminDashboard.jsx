@@ -8,6 +8,7 @@ import StoreDirectory from '../components/admin/StoreDirectory.jsx';
 import StandardPriceStores from '../components/admin/StandardPriceStores.jsx';
 import AppReleases from '../components/admin/AppReleases.jsx';
 import Announcements from '../components/admin/Announcements.jsx';
+import FeedbackSupport from '../components/admin/FeedbackSupport.jsx';
 import '../styles/AdminDashboard.css';
 
 export default function AdminDashboard() {
@@ -96,6 +97,15 @@ export default function AdminDashboard() {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       )
+    },
+    {
+      id: 'feedback',
+      label: 'Feedback & Support',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      )
     }
   ];
 
@@ -142,6 +152,16 @@ export default function AdminDashboard() {
           <div className="admin-card">
             <h3 style={{ marginBottom: '12px' }}>System Announcements</h3>
             <Announcements />
+          </div>
+        );
+      case 'feedback':
+        return (
+          <div className="admin-card">
+            <h3 style={{ marginBottom: '6px' }}>Feedback &amp; Support</h3>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '24px' }}>
+              Edit dynamic contact coordinates, moderate incoming user star ratings, and reply to feedback conversations.
+            </p>
+            <FeedbackSupport />
           </div>
         );
       default:

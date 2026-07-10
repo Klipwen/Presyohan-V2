@@ -21,6 +21,10 @@ import kotlinx.serialization.json.booleanOrNull
 object SupabaseAuthService {
     private val client get() = SupabaseProvider.client
 
+    fun getCurrentUserId(): String? {
+        return client.auth.currentUserOrNull()?.id
+    }
+
     suspend fun signInEmail(email: String, password: String): Boolean = withContext(Dispatchers.IO) {
         try {
             client.auth.signInWith(Email) {
@@ -61,6 +65,18 @@ object SupabaseAuthService {
             }
         }
         true
+    }
+
+    suspend fun emailExists(email: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val response = client.postgrest.rpc("email_exists", buildJsonObject {
+                put("p_email", email)
+            })
+            response.decodeAs<Boolean>()
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error checking email existence: ${e.message}", e)
+            false
+        }
     }
 
     // Resend signup verification email (Supabase REST: POST /auth/v1/resend)
@@ -307,6 +323,108 @@ object SupabaseAuthService {
             null
         }
     }
+
+    suspend fun getContactInfo(): AppContactInfoRow? = withContext(Dispatchers.IO) {
+        try {
+            val rows = client.postgrest["app_contact_info"].select {
+                filter { eq("id", "default") }
+                limit(1)
+            }.decodeList<AppContactInfoRow>()
+            rows.firstOrNull()
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error fetching contact info: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun getUserRating(): AppRatingRow? = withContext(Dispatchers.IO) {
+        val uid = client.auth.currentUserOrNull()?.id ?: return@withContext null
+        try {
+            val rows = client.postgrest["app_ratings"].select {
+                filter { eq("user_id", uid) }
+                limit(1)
+            }.decodeList<AppRatingRow>()
+            rows.firstOrNull()
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error fetching user rating: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun upsertUserRating(rating: Int, reason: String?): Boolean = withContext(Dispatchers.IO) {
+        val uid = client.auth.currentUserOrNull()?.id ?: return@withContext false
+        try {
+            val payload = buildJsonObject {
+                put("user_id", uid)
+                put("rating", rating)
+                if (reason != null) {
+                    put("reason", reason)
+                } else {
+                    put("reason", kotlinx.serialization.json.JsonNull)
+                }
+            }
+            client.postgrest["app_ratings"].upsert(payload) {
+                onConflict = "user_id"
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error upserting user rating: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun getContactMessages(): List<ContactMessageRow> = withContext(Dispatchers.IO) {
+        try {
+            client.postgrest["contact_messages"].select {
+                order("created_at", order = io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+            }.decodeList<ContactMessageRow>()
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error fetching contact messages: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun postContactMessage(message: String, parentId: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val uid = client.auth.currentUserOrNull()?.id ?: return@withContext false
+        try {
+            val payload = buildJsonObject {
+                put("user_id", uid)
+                put("message", message)
+                if (parentId != null) put("parent_id", parentId)
+            }
+            client.postgrest["contact_messages"].insert(payload)
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error posting contact message: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun deleteContactMessage(id: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            client.postgrest["contact_messages"].delete {
+                filter { eq("id", id) }
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error deleting contact message: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun getUserProfiles(userIds: List<String>): List<AppUserRow> = withContext(Dispatchers.IO) {
+        if (userIds.isEmpty()) return@withContext emptyList()
+        try {
+            client.postgrest["app_users"].select {
+                filter {
+                    isIn("id", userIds)
+                }
+            }.decodeList<AppUserRow>()
+        } catch (e: Exception) {
+            android.util.Log.e("SupabaseAuth", "Error fetching profiles for messages: ${e.message}", e)
+            emptyList()
+        }
+    }
 }
 
 // Made public for header usage
@@ -316,5 +434,36 @@ data class AppUserRow(
     val name: String? = null,
     val email: String? = null,
     val user_code: String? = null,
-    val avatar_url: String? = null
+    val avatar_url: String? = null,
+    val role: String? = "user"
 )
+
+@kotlinx.serialization.Serializable
+data class AppContactInfoRow(
+    val id: String,
+    val location: String,
+    val email: String,
+    val number: String,
+    val updated_at: String
+)
+
+@kotlinx.serialization.Serializable
+data class AppRatingRow(
+    val id: String? = null,
+    val user_id: String,
+    val rating: Int,
+    val reason: String? = null,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@kotlinx.serialization.Serializable
+data class ContactMessageRow(
+    val id: String? = null,
+    val user_id: String,
+    val message: String,
+    val parent_id: String? = null,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
