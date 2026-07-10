@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../config/supabaseClient';
 
-export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceStoreName }) {
+export default function ClonePricesModal({ open, onClose, sourceStoreId, sourceStoreName }) {
   const [step, setStep] = useState('select'); // select -> code -> review
   const [code, setCode] = useState('');
   const [validDest, setValidDest] = useState(null); // { id, name }
@@ -140,7 +140,7 @@ export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceSt
     setLoading(true);
     try {
       const items = Array.from(selected);
-      const { data, error: rpcErr } = await supabase.rpc('copy_prices', {
+      const { data, error: rpcErr } = await supabase.rpc('clone_prices', {
         p_source_store_id: sourceStoreId,
         p_dest_paste_code: code,
         p_items: items,
@@ -156,12 +156,12 @@ export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceSt
     }
   };
 
-  const applyCopy = async () => {
+  const applyClone = async () => {
     setError('');
     setApplyLoading(true);
     try {
       const items = Array.from(selected);
-      const { data, error: rpcErr } = await supabase.rpc('copy_prices', {
+      const { data, error: rpcErr } = await supabase.rpc('clone_prices', {
         p_source_store_id: sourceStoreId,
         p_dest_paste_code: code,
         p_items: items,
@@ -171,13 +171,13 @@ export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceSt
       // Compute counts
       const created = (data || []).filter(r => r.action === 'create').length;
       const updated = (data || []).filter(r => r.action === 'update').length;
-      setToast({ visible: true, message: `Copied: ${updated} updated, ${created} created`, kind: 'success' });
+      setToast({ visible: true, message: `Cloned: ${updated} updated, ${created} created`, kind: 'success' });
       setTimeout(() => {
         setToast({ visible: false, message: '', kind: 'success' });
         onClose?.();
       }, 1600);
     } catch (e) {
-      setError(e.message || 'Copy failed. No changes were applied.');
+      setError(e.message || 'Clone failed. No changes were applied.');
     } finally {
       setApplyLoading(false);
     }
@@ -197,7 +197,7 @@ export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceSt
         {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>Copy Prices</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>Clone Prices</div>
             <div style={{ color: '#666', fontSize: '0.9rem' }}>Source: {sourceStoreName || 'Store'}{validDest ? `  ·  Destination: ${validDest.name}` : ''}</div>
           </div>
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '1rem', color: '#333', cursor: 'pointer' }}>✕</button>
@@ -247,7 +247,7 @@ export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceSt
           {step === 'select' && (
             <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ marginBottom: 8, background: '#f7fbff', color: '#0b4f6c', padding: '8px 10px', borderRadius: 8, border: '1px solid #dbeafe' }}>
-                Select items to copy from your store. Enter the destination paste-code next.
+                Select items to clone from your store. Enter the destination paste-code next.
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products" style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd' }} />
@@ -344,7 +344,7 @@ export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceSt
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
                 <button onClick={() => setStep('select')} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #eee', background: 'white', color: '#333', fontWeight: 600, cursor: 'pointer' }}>Back</button>
-                <button disabled={applyLoading || previewRows.length === 0} onClick={applyCopy} style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: previewRows.length === 0 ? '#ffd8ae' : '#ff8c00', color: 'white', fontWeight: 700, cursor: previewRows.length === 0 ? 'not-allowed' : 'pointer' }}>Confirm & Copy</button>
+                <button disabled={applyLoading || previewRows.length === 0} onClick={applyClone} style={{ padding: '10px 14px', borderRadius: 10, border: 'none', background: previewRows.length === 0 ? '#ffd8ae' : '#ff8c00', color: 'white', fontWeight: 700, cursor: previewRows.length === 0 ? 'not-allowed' : 'pointer' }}>Confirm & Clone</button>
               </div>
             </div>
           )}
@@ -352,7 +352,7 @@ export default function CopyPricesModal({ open, onClose, sourceStoreId, sourceSt
 
         {/* Footer hint */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid #f2f2f2', color: '#777', fontSize: '0.85rem' }}>
-          Dry-run shows changes before applying. Copy operation overwrites destination prices.
+          Dry-run shows changes before applying. Clone operation overwrites destination prices.
         </div>
       </div>
     </div>

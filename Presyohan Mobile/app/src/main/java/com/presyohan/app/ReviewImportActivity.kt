@@ -108,10 +108,10 @@ class ReviewImportActivity : AppCompatActivity() {
 
         btnBack.setOnClickListener { onBackPressed() }
 
-        val isCopyPrices = intent.getBooleanExtra("isCopyPrices", false)
-        if (isCopyPrices) {
+        val isClonePrices = intent.getBooleanExtra("isClonePrices", false)
+        if (isClonePrices) {
             btnEditItems.visibility = View.GONE
-            btnConfirmImport.text = "Confirm & Copy"
+            btnConfirmImport.text = "Confirm & Clone"
         } else {
             btnEditItems.visibility = View.VISIBLE
             btnConfirmImport.text = "DONE"
@@ -332,8 +332,8 @@ class ReviewImportActivity : AppCompatActivity() {
             return
         }
 
-        val isCopyPrices = intent.getBooleanExtra("isCopyPrices", false)
-        if (isCopyPrices) {
+        val isClonePrices = intent.getBooleanExtra("isClonePrices", false)
+        if (isClonePrices) {
             val destPasteCode = intent.getStringExtra("destPasteCode") ?: ""
             val srcStoreId = intent.getStringExtra("sourceStoreId") ?: ""
             val selectedIds = intent.getStringArrayListExtra("selectedProductIds") ?: emptyList()
@@ -343,7 +343,7 @@ class ReviewImportActivity : AppCompatActivity() {
                 try {
                     withContext(Dispatchers.IO) {
                         SupabaseProvider.client.postgrest.rpc(
-                            "copy_prices",
+                            "clone_prices",
                             buildJsonObject {
                                 put("p_source_store_id", srcStoreId)
                                 put("p_dest_paste_code", destPasteCode)
@@ -367,7 +367,7 @@ class ReviewImportActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         LoadingOverlayHelper.hide(loadingOverlay)
-                        Toast.makeText(this@ReviewImportActivity, "Copy failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@ReviewImportActivity, "Clone failed: ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -392,20 +392,16 @@ class ReviewImportActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     LoadingOverlayHelper.hide(loadingOverlay)
-                    Toast.makeText(
-                        this@ReviewImportActivity,
-                        "Successfully imported ${result.savedCount} items!",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    // Return to store page/dashboard
-                    val intent = Intent(this@ReviewImportActivity, HomeActivity::class.java).apply {
-                        putExtra("storeId", storeId)
-                        putExtra("storeName", storeName)
-                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    ClonePricesDialogHelper.showCloneCompleteDialog(this@ReviewImportActivity) {
+                        // Return to store page/dashboard
+                        val intent = Intent(this@ReviewImportActivity, HomeActivity::class.java).apply {
+                            putExtra("storeId", storeId)
+                            putExtra("storeName", storeName)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        startActivity(intent)
+                        finish()
                     }
-                    startActivity(intent)
-                    finish()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -417,7 +413,7 @@ class ReviewImportActivity : AppCompatActivity() {
     }
 
     private fun showExportCompleteDialog() {
-        CopyPricesDialogHelper.showCopyCompleteDialog(this) {
+        ClonePricesDialogHelper.showCloneCompleteDialog(this) {
             finish()
         }
     }

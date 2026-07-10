@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_dialog_custom"
+    android:gravity="start">
+
+    <!-- ── Header Row (Title on Left, Print Icon on Right) ── -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="20dp"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/btnPdfPrint"
+            android:layout_centerVertical="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PDF Preview"
+                android:textColor="@color/presyo_orange"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvPdfPreviewSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Generating…"
+                android:textColor="@color/presyo_teal"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Print Action Icon (Top Right) -->
+        <ImageButton
+            android:id="@+id/btnPdfPrint"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/icon_print"
+            android:tint="@color/presyo_orange"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Print Pricelist"
+            android:scaleType="centerInside"
+            android:padding="8dp" />
+
+    </RelativeLayout>
+
+    <!-- ── Scrollable Body ── -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="8dp">
+
+            <!-- Centered Professional Page Navigator -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_gravity="center"
+                android:layout_marginBottom="12dp">
+
+                <!-- Previous Page Button -->
+                <ImageView
+                    android:id="@+id/btnPrevPage"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_back"
+                    android:tint="@color/presyo_teal"
+                    android:contentDescription="Previous Page"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:padding="6dp" />
+
+                <!-- Page Number Indicator -->
+                <TextView
+                    android:id="@+id/tvPageCounter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="16dp"
+                    android:text="Page 1 of 1"
+                    android:textColor="@color/presyo_darkblue"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:gravity="center" />
+
+                <!-- Next Page Button -->
+                <ImageView
+                    android:id="@+id/btnNextPage"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/icon_arrow_right"
+                    android:tint="@color/presyo_teal"
+                    android:contentDescription="Next Page"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:padding="6dp" />
+
+            </LinearLayout>
+
+            <!-- Page Preview Image Box -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_rounded_grey"
+                android:padding="2dp"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:id="@+id/imgPagePreview"
+                    android:layout_width="match_parent"
+                    android:layout_height="340dp"
+                    android:scaleType="fitCenter"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="PDF page preview" />
+
+                <!-- Loading Indicator -->
+                <ProgressBar
+                    android:id="@+id/progressPageLoading"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="center"
+                    android:indeterminateTint="@color/presyo_teal"
+                    android:visibility="gone" />
+
+            </FrameLayout>
+
+            <!-- Info Footer -->
+            <TextView
+                android:id="@+id/tvPdfInfoFooter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="@color/edittext_hint"
+                android:textSize="11sp"
+                android:gravity="center"
+                android:layout_marginBottom="4dp" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ── Bottom Action Buttons (Back & Share) ── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="20dp"
+        android:gravity="center_vertical">
+
+        <!-- Back Button -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnPdfBack"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="BACK"
+            android:textColor="@color/white"
+            android:background="@drawable/bg_button_round_teal_pill"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textAllCaps="true"
+            android:layout_marginEnd="10dp" />
+
+        <!-- Share Button -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnPdfShare"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="SHARE"
+            android:textColor="@color/white"
+            android:background="@drawable/bg_button_round_orange_pill"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textAllCaps="true" />
+
+    </LinearLayout>
+
+</LinearLayout>

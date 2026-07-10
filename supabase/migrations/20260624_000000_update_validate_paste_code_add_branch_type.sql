@@ -1,4 +1,4 @@
--- Update validate_paste_code to also return branch and type for the store card display in the Copy Prices dialog
+-- Update validate_paste_code to also return branch and type for the store card display in the Clone Prices dialog
 
 DROP FUNCTION IF EXISTS public.validate_paste_code(TEXT);
 

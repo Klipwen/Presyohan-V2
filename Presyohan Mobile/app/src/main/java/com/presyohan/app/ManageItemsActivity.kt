@@ -77,7 +77,7 @@ class ManageItemsActivity : AppCompatActivity() {
     private lateinit var btnBulkPublish: View
     private lateinit var iconBulkPublish: ImageView
     private lateinit var textBulkPublish: TextView
-    private lateinit var btnBulkCopy: View
+    private lateinit var btnBulkClone: View
     private lateinit var btnBulkConvert: View
     private lateinit var btnBulkDelete: View
 
@@ -168,7 +168,7 @@ class ManageItemsActivity : AppCompatActivity() {
         btnBulkPublish = findViewById(R.id.btnBulkPublish)
         iconBulkPublish = findViewById(R.id.iconBulkPublish)
         textBulkPublish = findViewById(R.id.textBulkPublish)
-        btnBulkCopy = findViewById(R.id.btnBulkCopy)
+        btnBulkClone = findViewById(R.id.btnBulkClone)
         btnBulkConvert = findViewById(R.id.btnBulkConvert)
         btnBulkDelete = findViewById(R.id.btnBulkDelete)
 
@@ -381,8 +381,8 @@ class ManageItemsActivity : AppCompatActivity() {
             showBulkPublishDialog(hasUnpublished)
         }
 
-        btnBulkCopy.setOnClickListener {
-            showCopyPricesDialog()
+        btnBulkClone.setOnClickListener {
+            showClonePricesDialog()
         }
 
         btnBulkConvert.setOnClickListener {
@@ -620,8 +620,8 @@ class ManageItemsActivity : AppCompatActivity() {
         textSelectionCount.text = "$selectionText selected"
 
         val hasSelection = totalSelectedItems > 0
-        btnBulkCopy.isEnabled = hasSelection
-        btnBulkCopy.alpha = if (hasSelection) 1.0f else 0.5f
+        btnBulkClone.isEnabled = hasSelection
+        btnBulkClone.alpha = if (hasSelection) 1.0f else 0.5f
         btnBulkConvert.isEnabled = hasSelection
         btnBulkConvert.alpha = if (hasSelection) 1.0f else 0.5f
         btnBulkDelete.isEnabled = hasSelection
@@ -1379,11 +1379,11 @@ class ManageItemsActivity : AppCompatActivity() {
     }
 
 
-    private fun showCopyPricesDialog() {
+    private fun showClonePricesDialog() {
         val sId = storeId ?: return
         val selectedItems = adapter.getSelectedItems()
         val selectedIds = selectedItems.map { it.id }
-        CopyPricesDialogHelper.show(
+        ClonePricesDialogHelper.show(
             activity = this,
             storeId = sId,
             storeName = storeName ?: "",

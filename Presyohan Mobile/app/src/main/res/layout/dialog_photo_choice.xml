@@ -12,7 +12,7 @@
         android:id="@+id/dialogTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Select Photo Source"
+        android:text="Scan Price List"
         android:textColor="@color/presyo_orange"
         android:textSize="22sp"
         android:textStyle="bold"

@@ -133,7 +133,7 @@ const ExportIcon = ({ color }) => (
   </svg>
 )
 
-const CopyPricesIcon = ({ color }) => (
+const ClonePricesIcon = ({ color }) => (
   <svg width="48" height="48" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       fillRule="evenodd"
@@ -193,7 +193,7 @@ export default function FeaturesSection({ feature1Cards, feature2Cards, feature3
     // Group 3: Data & Ops
     if (t.includes('import') || t.includes('bulk')) return <UploadIcon color={color} />
     if (t.includes('export') || t.includes('print')) return <ExportIcon color={color} />
-    if (t.includes('copy')) return <CopyPricesIcon color={color} />
+    if (t.includes('clone')) return <ClonePricesIcon color={color} />
     if (t.includes('notification') || t.includes('activity')) return <NotificationIcon color={color} />
     if (t.includes('download')) return <DownloadIcon color={color} />
     

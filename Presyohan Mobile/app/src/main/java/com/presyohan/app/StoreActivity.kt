@@ -907,7 +907,7 @@ class StoreActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.menuBranchName).text = "| ${store.branch}"
 
         // Bind Grid Buttons
-        val btnCopyPrices = view.findViewById<LinearLayout>(R.id.btnCopyPrices)
+        val btnClonePrices = view.findViewById<LinearLayout>(R.id.btnClonePrices)
         val btnInviteStaff = view.findViewById<LinearLayout>(R.id.btnInviteStaff)
         val btnExportPrices = view.findViewById<LinearLayout>(R.id.btnExportPrices)
         val btnImportPrices = view.findViewById<LinearLayout>(R.id.btnImportPrices)
@@ -933,9 +933,9 @@ class StoreActivity : AppCompatActivity() {
             showInviteStaffWithCode(store) // Updated to pass 'store' object
         }
 
-        // 3. Copy Prices
-        btnCopyPrices.setOnClickListener {
-            CopyPricesDialogHelper.show(
+        // 3. Clone Prices
+        btnClonePrices.setOnClickListener {
+            ClonePricesDialogHelper.show(
                 activity = this,
                 storeId = store.id,
                 storeName = store.name
@@ -1093,7 +1093,7 @@ class StoreActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.menuBranchName).text = "| ${store.branch}"
 
         // Hide buttons restricted for employees
-        val btnCopyPrices = view.findViewById<LinearLayout>(R.id.btnCopyPrices)
+        val btnClonePrices = view.findViewById<LinearLayout>(R.id.btnClonePrices)
         val btnInviteStaff = view.findViewById<LinearLayout>(R.id.btnInviteStaff)
         val btnExportPrices = view.findViewById<LinearLayout>(R.id.btnExportPrices)
         val btnImportPrices = view.findViewById<LinearLayout>(R.id.btnImportPrices)
@@ -1110,8 +1110,8 @@ class StoreActivity : AppCompatActivity() {
             // Fix: Pass store name and branch to export function
             exportPricelistToExcel(store.id, store.name, store.branch)
         }
-        btnCopyPrices.setOnClickListener {
-            CopyPricesDialogHelper.show(
+        btnClonePrices.setOnClickListener {
+            ClonePricesDialogHelper.show(
                 activity = this,
                 storeId = store.id,
                 storeName = store.name
@@ -1213,14 +1213,22 @@ class StoreActivity : AppCompatActivity() {
         val tvSummary      = view.findViewById<TextView>(R.id.tvConvertSummary)
         val cardExcel      = view.findViewById<View>(R.id.cardExcelOption)
         val cardNotes      = view.findViewById<View>(R.id.cardNotesOption)
+        val cardPdf        = view.findViewById<View>(R.id.cardPdfOption)
         val imgExcelRadio  = view.findViewById<ImageView>(R.id.imgExcelRadio)
         val imgNotesRadio  = view.findViewById<ImageView>(R.id.imgNotesRadio)
+        val imgPdfRadio    = view.findViewById<ImageView>(R.id.imgPdfRadio)
         val panelExcel     = view.findViewById<View>(R.id.panelExcelStats)
         val panelNotes     = view.findViewById<View>(R.id.panelNotesPreview)
+        val panelPdf       = view.findViewById<View>(R.id.panelPdfStats)
         val tvStatRows     = view.findViewById<TextView>(R.id.tvStatRows)
         val tvStatScope    = view.findViewById<TextView>(R.id.tvStatScope)
         val textPreview    = view.findViewById<TextView>(R.id.textNotesPreview)
         val tvNoteStats    = view.findViewById<TextView>(R.id.tvNoteStats)
+        val tvPdfSize      = view.findViewById<TextView>(R.id.tvPdfSelectedSize)
+        val cardPdfLong    = view.findViewById<View>(R.id.cardPdfLong)
+        val cardPdfShort   = view.findViewById<View>(R.id.cardPdfShort)
+        val imgPdfLong     = view.findViewById<ImageView>(R.id.imgPdfLongRadio)
+        val imgPdfShort    = view.findViewById<ImageView>(R.id.imgPdfShortRadio)
         val btnCopyPreview = view.findViewById<ImageView>(R.id.btnCopyNotePreview)
         val btnBack        = view.findViewById<AppCompatButton>(R.id.btnBack)
         val btnConvert     = view.findViewById<AppCompatButton>(R.id.btnConvert)
@@ -1229,32 +1237,58 @@ class StoreActivity : AppCompatActivity() {
 
         var selectedMode = 0
         var generatedNoteText = ""
+        var selectedPdfSize: PdfPageSize? = null
+
+        fun applyPdfSizeSelection(size: PdfPageSize) {
+            selectedPdfSize = size
+            tvPdfSize.text = size.labelName
+            val isLong = size == PdfPageSize.LONG_BOND
+            imgPdfLong.setImageResource(if (isLong) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            imgPdfShort.setImageResource(if (!isLong) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            cardPdfLong.setBackgroundResource(if (isLong) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            cardPdfShort.setBackgroundResource(if (!isLong) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            btnConvert.isEnabled = true
+            btnConvert.alpha = 1.0f
+        }
 
         fun applySelection(mode: Int) {
             selectedMode = mode
             imgExcelRadio.setImageResource(if (mode == 1) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
             imgNotesRadio.setImageResource(if (mode == 2) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            imgPdfRadio.setImageResource(if (mode == 3) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
             cardExcel.setBackgroundResource(if (mode == 1) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
             cardNotes.setBackgroundResource(if (mode == 2) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            cardPdf.setBackgroundResource(if (mode == 3) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
             panelExcel.visibility = if (mode == 1) View.VISIBLE else View.GONE
             panelNotes.visibility = if (mode == 2) View.VISIBLE else View.GONE
+            panelPdf.visibility   = if (mode == 3) View.VISIBLE else View.GONE
 
             if (mode == 1) {
                 tvStatRows.text  = itemCount.toString()
                 tvStatScope.text = "$catCount ${if (catCount == 1) "Category" else "Categories"}, $itemCount Items"
                 btnConvert.text  = "CONVERT"
+                btnConvert.isEnabled = true
+                btnConvert.alpha = 1.0f
             } else if (mode == 2) {
                 generatedNoteText = buildNoteText(rows, storeName, branch)
                 textPreview.text  = generatedNoteText
                 tvNoteStats.text  = "$itemCount ${if (itemCount == 1) "item" else "items"} • ${generatedNoteText.length} characters"
                 btnConvert.text   = "SHARE NOTE"
+                btnConvert.isEnabled = true
+                btnConvert.alpha = 1.0f
+            } else if (mode == 3) {
+                btnConvert.text = "GENERATE PDF"
+                btnConvert.isEnabled = selectedPdfSize != null
+                btnConvert.alpha = if (selectedPdfSize != null) 1.0f else 0.5f
             }
-            btnConvert.isEnabled = true
-            btnConvert.alpha     = 1.0f
         }
 
         cardExcel.setOnClickListener { applySelection(1) }
         cardNotes.setOnClickListener { applySelection(2) }
+        cardPdf.setOnClickListener   { applySelection(3) }
+
+        cardPdfLong.setOnClickListener  { applyPdfSizeSelection(PdfPageSize.LONG_BOND) }
+        cardPdfShort.setOnClickListener { applyPdfSizeSelection(PdfPageSize.SHORT_BOND) }
 
         btnCopyPreview.setOnClickListener {
             if (generatedNoteText.isNotBlank()) copyNoteToClipboard(generatedNoteText)
@@ -1281,6 +1315,31 @@ class StoreActivity : AppCompatActivity() {
                     } else {
                         shareNoteText(generatedNoteText)
                     }
+                }
+                3 -> {
+                    val size = selectedPdfSize
+                    if (size == null) {
+                        Toast.makeText(this, "Please choose a paper size.", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    dialog.dismiss()
+                    val pdfItems = rows.map { r ->
+                        PdfPriceItem(
+                            category    = r.category?.trim() ?: "General",
+                            name        = r.name?.trim() ?: "",
+                            price       = r.price ?: 0.0,
+                            unit        = r.units?.trim() ?: "",
+                            description = r.description?.trim() ?: ""
+                        )
+                    }
+                    PdfPreviewDialogHelper.show(
+                        activity    = this,
+                        items       = pdfItems,
+                        storeName   = storeName,
+                        branchName  = branch,
+                        pageSize    = size,
+                        onBack      = { showExportConfirmationDialog(rows, storeName, branch) }
+                    )
                 }
                 else -> Toast.makeText(this, "Please select a format.", Toast.LENGTH_SHORT).show()
             }

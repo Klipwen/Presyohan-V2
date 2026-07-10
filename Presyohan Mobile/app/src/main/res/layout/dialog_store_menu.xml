@@ -78,9 +78,9 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/divider">
 
-            <!-- Copy Prices -->
+            <!-- Clone Prices -->
             <LinearLayout
-                android:id="@+id/btnCopyPrices"
+                android:id="@+id/btnClonePrices"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -93,13 +93,13 @@
                 <ImageView
                     android:layout_width="32dp"
                     android:layout_height="32dp"
-                    android:src="@drawable/icon_copy_prices"
+                    android:src="@drawable/icon_clone_prices"
                     app:tint="@color/presyo_orange" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Copy Prices"
+                    android:text="Clone Prices"
                     android:textColor="@color/presyo_orange"
                     android:textSize="12sp"
                     android:textAlignment="center"

@@ -307,7 +307,7 @@ class NotificationActivity : AppCompatActivity() {
             "role_changed", "role_change" -> "Role Updated"
             "store_deleted" -> "Store Deleted"
             "store_visibility_changed" -> "Updated Store Status"
-            "copy_price_complete" -> "Copy Price Complete"
+            "clone_price_complete" -> "Clone Price Complete"
             else -> dbType.ifEmpty { null }
         }
         

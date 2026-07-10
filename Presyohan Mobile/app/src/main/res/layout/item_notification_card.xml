@@ -1,49 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:background="@drawable/bg_rounded"
+    android:background="@drawable/bg_notification_card"
     android:padding="16dp"
-    android:layout_marginTop="6dp"
-    android:layout_marginStart="12dp"
-    android:layout_marginEnd="12dp"
-    android:gravity="center_vertical"
-    android:elevation="2dp">
+    android:layout_marginTop="8dp"
+    android:layout_marginHorizontal="12dp"
+    android:gravity="top"
+    android:elevation="1dp">
 
-    <!-- Left Content Column -->
+    <!-- Left side: Notification Icon with dynamic color background -->
+    <FrameLayout
+        android:id="@+id/layoutIconContainer"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/bg_rounded_store_icon"
+        android:backgroundTint="#FFEADB"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/imgNotificationIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/icon_notification"
+            app:tint="@color/presyo_orange" />
+    </FrameLayout>
+
+    <!-- Center side: Title, Message, Link, and Action Buttons -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <!-- Title, Status, Timestamp Row -->
+        <!-- Header Row: Title, Status, and Timestamp -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:baselineAligned="false">
+            android:layout_marginBottom="4dp">
 
             <TextView
                 android:id="@+id/textType"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="Store Invitation"
-                android:textColor="@color/presyo_orange"
+                android:textColor="@color/presyo_darkblue"
                 android:textStyle="bold"
-                android:textSize="17sp" />
+                android:textSize="15sp" />
 
-            <TextView
-                android:id="@+id/dividerTypeStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=" | "
-                android:textColor="#94A3B8"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
+
 
             <TextView
                 android:id="@+id/textStatus"
@@ -52,7 +64,7 @@
                 android:text="Accepted"
                 android:textColor="@color/presyo_teal"
                 android:textStyle="bold"
-                android:textSize="14sp"
+                android:textSize="12sp"
                 android:visibility="gone" />
 
             <TextView
@@ -61,28 +73,28 @@
                 android:layout_height="wrap_content"
                 android:text=" • "
                 android:textColor="#94A3B8"
-                android:textSize="14sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/textTimestamp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="now"
-                android:textColor="#64748B"
-                android:textSize="13sp" />
+                android:textColor="#94A3B8"
+                android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Message Body -->
+        <!-- Message text -->
         <TextView
             android:id="@+id/textMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="You invited Caliph Juen to join on your store QSOS as a Manager. Please wait for their response"
-            android:textColor="#64748B"
-            android:textSize="14sp"
-            android:layout_marginTop="4dp" />
+            android:text="You invited Caliph Juen to join your store as Manager."
+            android:textColor="#475569"
+            android:textSize="13sp"
+            android:lineSpacingMultiplier="1.1" />
 
-        <!-- Bottom Link Action (e.g. View Store) -->
+        <!-- Link button -->
         <TextView
             android:id="@+id/btnViewStore"
             android:layout_width="wrap_content"
@@ -90,85 +102,85 @@
             android:text="View Store >"
             android:textColor="@color/presyo_teal"
             android:textStyle="bold"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:layout_marginTop="8dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
+            android:paddingVertical="4dp"
             android:clickable="true"
             android:focusable="true"
             android:visibility="gone" />
+
+        <!-- Action buttons (Accept/Reject/Cancel) layout at the bottom of message -->
+        <View
+            android:id="@+id/layoutDivider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#E2E8F0"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/layoutActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:visibility="gone">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnReject"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="Reject"
+                android:textColor="#64748B"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:background="@drawable/button_round"
+                android:backgroundTint="#F1F5F9"
+                android:paddingHorizontal="16dp"
+                android:layout_marginEnd="8dp"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnAccept"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="Accept"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:background="@drawable/button_round"
+                android:backgroundTint="@color/presyo_teal"
+                android:paddingHorizontal="16dp"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="Cancel Request"
+                android:textColor="#FB8500"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:background="@drawable/button_round"
+                android:backgroundTint="#FFF3E0"
+                android:paddingHorizontal="16dp"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
 
-    <!-- Orange Dot indicator (New/Unread) -->
+    <!-- Right side: Orange dot for new notification -->
     <View
         android:id="@+id/viewOrangeDot"
         android:layout_width="8dp"
         android:layout_height="8dp"
+        android:layout_gravity="top|end"
         android:layout_marginStart="8dp"
-        android:layout_marginEnd="4dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/bg_orange_dot"
         android:visibility="gone" />
-
-    <!-- Vertical Divider Line -->
-    <View
-        android:id="@+id/layoutDivider"
-        android:layout_width="1dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
-        android:background="#E2E8F0"
-        android:visibility="gone" />
-
-    <!-- Right Action Buttons Column -->
-    <LinearLayout
-        android:id="@+id/layoutActions"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:visibility="gone">
-
-        <!-- Reject Action -->
-        <TextView
-            android:id="@+id/btnReject"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Reject"
-            android:textColor="#64748B"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:visibility="gone" />
-
-        <!-- Accept Action -->
-        <TextView
-            android:id="@+id/btnAccept"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Accept"
-            android:textColor="@color/presyo_orange"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:visibility="gone" />
-
-        <!-- Cancel Request / Invitation Action -->
-        <TextView
-            android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Cancel Invitation"
-            android:textColor="#64748B"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:visibility="gone" />
-    </LinearLayout>
 
 </LinearLayout>

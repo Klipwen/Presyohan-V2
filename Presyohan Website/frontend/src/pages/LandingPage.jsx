@@ -70,7 +70,7 @@ export default function LandingPage() {
     {
       feature: 'Multi-Store Management',
       old: 'Manual spreadsheets and different lists for every branch.',
-      new: 'Copy & Scale: Effortlessly copy entire price lists, promotions, and categories across your store branches to maintain standards.'
+      new: 'Clone & Scale: Effortlessly clone entire price lists, promotions, and categories across your store branches to maintain standards.'
     },
     {
       feature: 'Bulk Import & Export',
@@ -168,9 +168,9 @@ export default function LandingPage() {
     },
     {
       icon: '📋',
-      title: 'Copy Prices Between Stores',
+      title: 'Clone Prices Between Stores',
       description:
-        'Standardize pricing by copying an entire price list from one branch to another, complete with a conflict resolution preview.'
+        'Standardize pricing by cloning an entire price list from one branch to another, complete with a conflict resolution preview.'
     },
     {
       icon: '🔔',

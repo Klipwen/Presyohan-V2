@@ -189,6 +189,46 @@
                 android:layout_height="match_parent"
                 android:visibility="visible">
 
+                <!-- Sticky Category Header floating above RecyclerView -->
+                <LinearLayout
+                    android:id="@+id/layoutStickyHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp"
+                    android:background="#FAFAFA"
+                    android:elevation="2dp"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <TextView
+                        android:id="@+id/tvStickyCategoryName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="CATEGORY NAME"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnStickyAddItemInner"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:text="+ Add Item"
+                        android:textAllCaps="false"
+                        android:background="@drawable/button_round"
+                        android:backgroundTint="@color/presyo_teal"
+                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:paddingHorizontal="12dp" />
+                </LinearLayout>
+
                 <!-- List of Category Cards -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/simpleRecyclerView"

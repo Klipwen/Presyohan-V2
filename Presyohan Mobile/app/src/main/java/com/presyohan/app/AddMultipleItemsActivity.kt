@@ -50,6 +50,10 @@ class AddMultipleItemsActivity : AppCompatActivity() {
     private lateinit var simpleRecyclerView: RecyclerView
     private lateinit var btnSelectCategoryBottom: androidx.appcompat.widget.AppCompatButton
     
+    private lateinit var layoutStickyHeader: View
+    private lateinit var tvStickyCategoryName: TextView
+    private lateinit var btnStickyAddItemInner: androidx.appcompat.widget.AppCompatButton
+    
     private lateinit var inputRawText: EditText
     private lateinit var btnBack: ImageView
     private lateinit var loadingOverlay: View
@@ -91,6 +95,14 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
     // Local manual entry categories copy to preserve focus/cursor state
     private val localCategories = mutableListOf<DraftCategory>()
+    private val expandedCategoryIds = mutableSetOf<String>()
+    
+    sealed class SimpleModeItem {
+        data class Header(val category: DraftCategory) : SimpleModeItem()
+        data class Row(val category: DraftCategory, val item: DraftItem, val index: Int) : SimpleModeItem()
+    }
+    private val simpleModeItems = mutableListOf<SimpleModeItem>()
+    
     private var simpleAdapter: SimpleCategoryAdapter? = null
     private val categoryIdByName = mutableMapOf<String, String>()
     private var existingProductNames = mutableSetOf<String>()
@@ -186,7 +198,13 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                     localCategories.clear()
                     localCategories.addAll(session.categories.filterNot { it.isEmptyUncategorizedPlaceholder() })
                     
-                    setupSimpleRecyclerView()
+                    if (localCategories.isNotEmpty()) {
+                        expandedCategoryIds.clear()
+                        expandedCategoryIds.add(localCategories[0].draftCategoryId)
+                    }
+
+                    rebuildSimpleModeItems()
+                    simpleAdapter?.notifyDataSetChanged()
                     updateSubHeaderCount()
                     isSessionInitialized = true
                     checkAutoOpenCategoryMenu()
@@ -221,6 +239,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         }
 
         initViews()
+        setupSimpleRecyclerView()
         setupDrawer()
         checkAutoOpenCategoryMenu()
 
@@ -246,6 +265,17 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         containerFast = findViewById(R.id.containerFast)
         simpleRecyclerView = findViewById(R.id.simpleRecyclerView)
         btnSelectCategoryBottom = findViewById(R.id.btnSelectCategoryBottom)
+        
+        layoutStickyHeader = findViewById(R.id.layoutStickyHeader)
+        tvStickyCategoryName = findViewById(R.id.tvStickyCategoryName)
+        btnStickyAddItemInner = findViewById(R.id.btnStickyAddItemInner)
+        
+        simpleRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                updateStickyHeader()
+            }
+        })
         
         inputRawText = findViewById(R.id.inputRawText)
         btnBack = findViewById(R.id.btnBack)
@@ -331,6 +361,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 tvSubHeaderSubtitle.visibility = View.VISIBLE
                 containerSimple.visibility = View.GONE
                 containerFast.visibility = View.VISIBLE
+                layoutStickyHeader.visibility = View.GONE
             } else {
                 currentMode = EntryMode.SIMPLE
                 btnToggleMode.text = "Smart Mode"
@@ -338,6 +369,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 tvSubHeaderSubtitle.visibility = View.GONE
                 containerSimple.visibility = View.VISIBLE
                 containerFast.visibility = View.GONE
+                updateStickyHeader()
                 updateSubHeaderCount()
             }
             updateButtonsState()
@@ -408,6 +440,14 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             ?: normalizeCategoryName(categoryName)
     }
 
+    private fun isCategoryFullyCompleted(category: DraftCategory): Boolean {
+        return category.items.all { item ->
+            item.productName.trim().isNotEmpty() &&
+            item.priceText.trim().isNotEmpty() &&
+            item.unit.trim().isNotEmpty()
+        }
+    }
+
     private fun createBlankItem(categoryName: String, categoryId: String? = null): DraftItem {
         return DraftItem(
             draftItemId = "item-${java.util.UUID.randomUUID()}",
@@ -424,8 +464,68 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         )
     }
 
+    private fun rebuildSimpleModeItems() {
+        simpleModeItems.clear()
+        localCategories.forEach { category ->
+            simpleModeItems.add(SimpleModeItem.Header(category))
+            val isExpanded = expandedCategoryIds.contains(category.draftCategoryId)
+            if (isExpanded) {
+                category.items.forEachIndexed { index, item ->
+                    simpleModeItems.add(SimpleModeItem.Row(category, item, index))
+                }
+            }
+        }
+    }
+
+    private fun updateStickyHeader() {
+        val layoutManager = simpleRecyclerView.layoutManager as? LinearLayoutManager ?: return
+        val firstVisiblePos = layoutManager.findFirstVisibleItemPosition()
+        if (firstVisiblePos == RecyclerView.NO_POSITION || simpleModeItems.isEmpty() || currentMode != EntryMode.SIMPLE) {
+            layoutStickyHeader.visibility = View.GONE
+            return
+        }
+
+        val item = simpleModeItems[firstVisiblePos]
+        when (item) {
+            is SimpleModeItem.Header -> {
+                layoutStickyHeader.visibility = View.GONE
+            }
+            is SimpleModeItem.Row -> {
+                val category = item.category
+                tvStickyCategoryName.text = "▼  ${category.name}"
+                layoutStickyHeader.visibility = View.VISIBLE
+
+                tvStickyCategoryName.setOnClickListener {
+                    if (expandedCategoryIds.contains(category.draftCategoryId)) {
+                        expandedCategoryIds.remove(category.draftCategoryId)
+                    }
+                    rebuildSimpleModeItems()
+                    simpleAdapter?.notifyDataSetChanged()
+                    updateStickyHeader()
+                }
+
+                btnStickyAddItemInner.setOnClickListener {
+                    if (!isCategoryFullyCompleted(category)) {
+                        Toast.makeText(this@AddMultipleItemsActivity, "Please complete the current item fields first.", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    category.items.add(0, createBlankItem(category.name, category.categoryId))
+                    expandedCategoryIds.add(category.draftCategoryId)
+                    rebuildSimpleModeItems()
+                    simpleAdapter?.notifyDataSetChanged()
+                    val headerIndex = simpleModeItems.indexOfFirst { it is SimpleModeItem.Header && it.category.draftCategoryId == category.draftCategoryId }
+                    if (headerIndex != -1) {
+                        (simpleRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(headerIndex, 0)
+                    }
+                    updateStickyHeader()
+                    updateSubHeaderCount()
+                }
+            }
+        }
+    }
+
     private fun setupSimpleRecyclerView() {
-        simpleAdapter = SimpleCategoryAdapter(localCategories) {
+        simpleAdapter = SimpleCategoryAdapter {
             updateSubHeaderCount()
         }
         simpleRecyclerView.adapter = simpleAdapter
@@ -1011,10 +1111,17 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             val existingCategory = localCategories[existingIndex]
             if (existingCategory.items.isEmpty()) {
                 existingCategory.items.add(createBlankItem(existingCategory.name, existingCategory.categoryId))
-                simpleAdapter?.notifyItemChanged(existingIndex)
-                updateSubHeaderCount()
             }
-            simpleRecyclerView.scrollToPosition(existingIndex)
+            expandedCategoryIds.clear()
+            expandedCategoryIds.add(existingCategory.draftCategoryId)
+            rebuildSimpleModeItems()
+            simpleAdapter?.notifyDataSetChanged()
+            val headerIndex = simpleModeItems.indexOfFirst { it is SimpleModeItem.Header && it.category.draftCategoryId == existingCategory.draftCategoryId }
+            if (headerIndex != -1) {
+                (simpleRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(headerIndex, 0)
+            }
+            updateStickyHeader()
+            updateSubHeaderCount()
         } else {
             val newCat = DraftCategory(
                 draftCategoryId = "category-${java.util.UUID.randomUUID()}",
@@ -1023,8 +1130,15 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 items = mutableListOf(createBlankItem(catName, categoryId))
             )
             localCategories.add(newCat)
-            simpleAdapter?.notifyItemInserted(localCategories.size - 1)
-            simpleRecyclerView.scrollToPosition(localCategories.size - 1)
+            expandedCategoryIds.clear()
+            expandedCategoryIds.add(newCat.draftCategoryId)
+            rebuildSimpleModeItems()
+            simpleAdapter?.notifyDataSetChanged()
+            val headerIndex = simpleModeItems.indexOfFirst { it is SimpleModeItem.Header && it.category.draftCategoryId == newCat.draftCategoryId }
+            if (headerIndex != -1) {
+                (simpleRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(headerIndex, 0)
+            }
+            updateStickyHeader()
             updateSubHeaderCount()
         }
     }
@@ -1245,127 +1359,170 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
     // --- CATEGORY GROUPED ADAPTER FOR SIMPLE MODE ---
     inner class SimpleCategoryAdapter(
-        private val categories: MutableList<DraftCategory>,
         private val onDataChanged: () -> Unit
-    ) : RecyclerView.Adapter<SimpleCategoryAdapter.ViewHolder>() {
+    ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-        inner class ViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+        private val TYPE_HEADER = 0
+        private val TYPE_ROW = 1
+
+        override fun getItemViewType(position: Int): Int {
+            return when (simpleModeItems[position]) {
+                is SimpleModeItem.Header -> TYPE_HEADER
+                is SimpleModeItem.Row -> TYPE_ROW
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            val inflater = LayoutInflater.from(parent.context)
+            return if (viewType == TYPE_HEADER) {
+                val v = inflater.inflate(R.layout.item_simple_category_header, parent, false)
+                HeaderViewHolder(v)
+            } else {
+                val v = inflater.inflate(R.layout.item_simple_import_row, parent, false)
+                RowViewHolder(v)
+            }
+        }
+
+        inner class HeaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             val tvCategoryName: TextView = v.findViewById(R.id.tvCategoryName)
-            val itemsContainer: LinearLayout = v.findViewById(R.id.itemsContainer)
             val btnAddItemInner: AppCompatButton = v.findViewById(R.id.btnAddItemInner)
         }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val v = LayoutInflater.from(parent.context).inflate(R.layout.item_simple_category_card, parent, false)
-            return ViewHolder(v)
+        inner class RowViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+            val tvRowIndex: TextView = v.findViewById(R.id.tvRowIndex)
+            val btnDelete: ImageView = v.findViewById(R.id.btnDelete)
+            val inputProductName: EditText = v.findViewById(R.id.inputProductName)
+            val inputPrice: EditText = v.findViewById(R.id.inputPrice)
+            val inputUnit: EditText = v.findViewById(R.id.inputUnit)
+            val inputDescription: EditText = v.findViewById(R.id.inputDescription)
+            val tvErrorText: TextView = v.findViewById(R.id.tvErrorText)
         }
 
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val category = categories[position]
-            holder.tvCategoryName.text = category.name
+        override fun getItemCount(): Int = simpleModeItems.size
 
-            holder.btnAddItemInner.setOnClickListener {
-                val currentPos = holder.adapterPosition
-                if (currentPos != RecyclerView.NO_POSITION) {
-                    val targetCategory = categories[currentPos]
-                    targetCategory.items.add(createBlankItem(targetCategory.name, targetCategory.categoryId))
-                    notifyItemChanged(currentPos)
-                    onDataChanged()
-                }
-            }
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            when (val item = simpleModeItems[position]) {
+                is SimpleModeItem.Header -> {
+                    val hHolder = holder as HeaderViewHolder
+                    val category = item.category
+                    val isExpanded = expandedCategoryIds.contains(category.draftCategoryId)
+                    
+                    val displayName = if (isExpanded) "▼  ${category.name}" else "▶  ${category.name}"
+                    hHolder.tvCategoryName.text = displayName
+                    
+                    hHolder.tvCategoryName.setOnClickListener {
+                        val currentPos = holder.adapterPosition
+                        if (currentPos != RecyclerView.NO_POSITION) {
+                            val targetItem = simpleModeItems[currentPos] as? SimpleModeItem.Header ?: return@setOnClickListener
+                            val cat = targetItem.category
+                            if (expandedCategoryIds.contains(cat.draftCategoryId)) {
+                                expandedCategoryIds.remove(cat.draftCategoryId)
+                            } else {
+                                expandedCategoryIds.clear() // Accordion style
+                                expandedCategoryIds.add(cat.draftCategoryId)
+                            }
+                            rebuildSimpleModeItems()
+                            notifyDataSetChanged()
 
-            // Set initial visibility of Add Item button
-            val canAddMore = category.items.isEmpty() || category.items.all { it.productName.isNotBlank() && it.priceText.isNotBlank() }
-            holder.btnAddItemInner.visibility = if (canAddMore) View.VISIBLE else View.GONE
-
-            // Dynamically inflate or reuse items to prevent unnecessary layout inflation and lag
-            val currentChildCount = holder.itemsContainer.childCount
-            val targetChildCount = category.items.size
-            if (currentChildCount > targetChildCount) {
-                holder.itemsContainer.removeViews(targetChildCount, currentChildCount - targetChildCount)
-            }
-            category.items.forEachIndexed { index, item ->
-                val itemView = if (index < currentChildCount) {
-                    holder.itemsContainer.getChildAt(index)
-                } else {
-                    val newView = LayoutInflater.from(holder.itemView.context).inflate(R.layout.item_simple_import_row, holder.itemsContainer, false)
-                    holder.itemsContainer.addView(newView)
-                    newView
-                }
-                bindItemView(itemView, category, index, item) {
-                    val canAdd = category.items.isEmpty() || category.items.all { it.productName.isNotBlank() && it.priceText.isNotBlank() }
-                    holder.btnAddItemInner.visibility = if (canAdd) View.VISIBLE else View.GONE
-                }
-            }
-        }
-
-        override fun getItemCount(): Int = categories.size
-
-        private fun bindItemView(
-            v: View,
-            category: DraftCategory,
-            index: Int,
-            item: DraftItem,
-            onItemFieldsChanged: () -> Unit
-        ) {
-            val tvRowIndex = v.findViewById<TextView>(R.id.tvRowIndex)
-            val btnDelete = v.findViewById<ImageView>(R.id.btnDelete)
-            val inputProductName = v.findViewById<EditText>(R.id.inputProductName)
-            val inputPrice = v.findViewById<EditText>(R.id.inputPrice)
-            val inputUnit = v.findViewById<EditText>(R.id.inputUnit)
-            val inputDescription = v.findViewById<EditText>(R.id.inputDescription)
-            val tvErrorText = v.findViewById<TextView>(R.id.tvErrorText)
-
-            // Remove existing TextWatcher from tag to prevent setting text from triggering listeners on wrong/reused rows
-            val oldWatcher = v.tag as? TextWatcher
-            if (oldWatcher != null) {
-                inputProductName.removeTextChangedListener(oldWatcher)
-                inputPrice.removeTextChangedListener(oldWatcher)
-                inputUnit.removeTextChangedListener(oldWatcher)
-                inputDescription.removeTextChangedListener(oldWatcher)
-            }
-
-            tvRowIndex.text = "#${index + 1}"
-            inputProductName.setText(item.productName)
-            inputPrice.setText(item.priceText)
-            inputUnit.setText(item.unit)
-            inputDescription.setText(item.description ?: "")
-
-            renderValidationErrors(tvErrorText, item.validationErrors)
-
-            btnDelete.setOnClickListener {
-                if (index in category.items.indices) {
-                    category.items.removeAt(index)
-                    val categoryPosition = categories.indexOfFirst { it.draftCategoryId == category.draftCategoryId }
-                    if (categoryPosition != -1) {
-                        notifyItemChanged(categoryPosition)
+                            val headerIndex = simpleModeItems.indexOfFirst { it is SimpleModeItem.Header && it.category.draftCategoryId == cat.draftCategoryId }
+                            if (headerIndex != -1) {
+                                (simpleRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(headerIndex, 0)
+                            }
+                            updateStickyHeader()
+                        }
                     }
-                    onDataChanged()
+
+                    hHolder.btnAddItemInner.setOnClickListener {
+                        val currentPos = holder.adapterPosition
+                        if (currentPos != RecyclerView.NO_POSITION) {
+                            val targetItem = simpleModeItems[currentPos] as? SimpleModeItem.Header ?: return@setOnClickListener
+                            val cat = targetItem.category
+                            if (!isCategoryFullyCompleted(cat)) {
+                                Toast.makeText(this@AddMultipleItemsActivity, "Please complete the current item fields first.", Toast.LENGTH_SHORT).show()
+                                return@setOnClickListener
+                            }
+                            cat.items.add(0, createBlankItem(cat.name, cat.categoryId))
+                            
+                            expandedCategoryIds.add(cat.draftCategoryId)
+                            rebuildSimpleModeItems()
+                            notifyDataSetChanged()
+                            onDataChanged()
+
+                            val headerIndex = simpleModeItems.indexOfFirst { it is SimpleModeItem.Header && it.category.draftCategoryId == cat.draftCategoryId }
+                            if (headerIndex != -1) {
+                                (simpleRecyclerView.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(headerIndex, 0)
+                            }
+                            updateStickyHeader()
+                        }
+                    }
+                }
+                is SimpleModeItem.Row -> {
+                    val rHolder = holder as RowViewHolder
+                    val category = item.category
+                    val index = item.index
+                    val draftItem = item.item
+                    
+                    val oldWatcher = rHolder.itemView.tag as? TextWatcher
+                    if (oldWatcher != null) {
+                        rHolder.inputProductName.removeTextChangedListener(oldWatcher)
+                        rHolder.inputPrice.removeTextChangedListener(oldWatcher)
+                        rHolder.inputUnit.removeTextChangedListener(oldWatcher)
+                        rHolder.inputDescription.removeTextChangedListener(oldWatcher)
+                    }
+
+                    rHolder.tvRowIndex.text = "#${index + 1}"
+                    rHolder.inputProductName.setText(draftItem.productName)
+                    rHolder.inputPrice.setText(draftItem.priceText)
+                    rHolder.inputUnit.setText(draftItem.unit)
+                    rHolder.inputDescription.setText(draftItem.description ?: "")
+
+                    renderValidationErrors(rHolder.tvErrorText, draftItem.validationErrors)
+
+                    val isIncomplete = draftItem.productName.trim().isEmpty() ||
+                            draftItem.priceText.trim().isEmpty() ||
+                            draftItem.unit.trim().isEmpty()
+
+                    if (isIncomplete) {
+                        rHolder.itemView.setBackgroundResource(R.drawable.bg_item_orange_stroke)
+                        rHolder.itemView.backgroundTintList = null
+                    } else {
+                        rHolder.itemView.setBackgroundResource(R.drawable.bg_dialog_custom)
+                        rHolder.itemView.backgroundTintList = null
+                    }
+
+                    rHolder.btnDelete.setOnClickListener {
+                        if (index in category.items.indices) {
+                            category.items.removeAt(index)
+                            rebuildSimpleModeItems()
+                            notifyDataSetChanged()
+                            onDataChanged()
+                        }
+                    }
+
+                    val rowWatcher = object : TextWatcher {
+                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                        override fun afterTextChanged(s: Editable?) {
+                            syncItemFromInputs(
+                                category = category,
+                                index = index,
+                                inputProductName = rHolder.inputProductName,
+                                inputPrice = rHolder.inputPrice,
+                                inputUnit = rHolder.inputUnit,
+                                inputDescription = rHolder.inputDescription,
+                                tvErrorText = rHolder.tvErrorText,
+                                itemView = rHolder.itemView
+                            )
+                        }
+                    }
+
+                    rHolder.itemView.tag = rowWatcher
+                    rHolder.inputProductName.addTextChangedListener(rowWatcher)
+                    rHolder.inputPrice.addTextChangedListener(rowWatcher)
+                    rHolder.inputUnit.addTextChangedListener(rowWatcher)
+                    rHolder.inputDescription.addTextChangedListener(rowWatcher)
                 }
             }
-
-            val rowWatcher = object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-                override fun afterTextChanged(s: Editable?) {
-                    syncItemFromInputs(
-                        category = category,
-                        index = index,
-                        inputProductName = inputProductName,
-                        inputPrice = inputPrice,
-                        inputUnit = inputUnit,
-                        inputDescription = inputDescription,
-                        tvErrorText = tvErrorText,
-                        onItemFieldsChanged = onItemFieldsChanged
-                    )
-                }
-            }
-
-            v.tag = rowWatcher
-            inputProductName.addTextChangedListener(rowWatcher)
-            inputPrice.addTextChangedListener(rowWatcher)
-            inputUnit.addTextChangedListener(rowWatcher)
-            inputDescription.addTextChangedListener(rowWatcher)
         }
 
         private fun syncItemFromInputs(
@@ -1376,7 +1533,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
             inputUnit: EditText,
             inputDescription: EditText,
             tvErrorText: TextView,
-            onItemFieldsChanged: () -> Unit
+            itemView: View
         ) {
             if (index !in category.items.indices) return
 
@@ -1397,7 +1554,16 @@ class AddMultipleItemsActivity : AppCompatActivity() {
 
             category.items[index] = validateItem(updated)
             renderValidationErrors(tvErrorText, category.items[index].validationErrors)
-            onItemFieldsChanged()
+
+            val isIncomplete = productName.isEmpty() || priceText.isEmpty() || unitVal.isEmpty()
+            if (isIncomplete) {
+                itemView.setBackgroundResource(R.drawable.bg_item_orange_stroke)
+                itemView.backgroundTintList = null
+            } else {
+                itemView.setBackgroundResource(R.drawable.bg_dialog_custom)
+                itemView.backgroundTintList = null
+            }
+
             onDataChanged()
         }
 

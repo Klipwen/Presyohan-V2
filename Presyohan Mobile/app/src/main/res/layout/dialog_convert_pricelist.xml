@@ -94,7 +94,7 @@
                 android:gravity="center_vertical"
                 android:background="@drawable/bg_card_unselected_teal"
                 android:paddingHorizontal="16dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="12dp"
                 android:clickable="true"
                 android:focusable="true">
 
@@ -109,6 +109,36 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:text="Convert as Notes"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Option: Convert as PDF -->
+            <LinearLayout
+                android:id="@+id/cardPdfOption"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected_teal"
+                android:paddingHorizontal="16dp"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:id="@+id/imgPdfRadio"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_radio_unchecked" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="Convert as PDF"
                     android:textColor="@color/presyo_teal"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -268,6 +298,163 @@
                     android:textColor="@color/edittext_hint"
                     android:textSize="12sp"
                     android:layout_marginBottom="4dp" />
+
+            </LinearLayout>
+
+            <!-- ── Dynamic Panel: PDF info (shown when PDF selected) ── -->
+            <LinearLayout
+                android:id="@+id/panelPdfStats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_rounded_grey"
+                android:padding="14dp"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <!-- Paper size label -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Paper size"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/tvPdfSelectedSize"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Not selected"
+                        android:textColor="@color/presyo_darkblue"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Page size cards row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="4dp">
+
+                    <!-- Long bond (Legal) -->
+                    <LinearLayout
+                        android:id="@+id/cardPdfLong"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_card_unselected_teal"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="10dp"
+                        android:layout_marginEnd="6dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:id="@+id/imgPdfLongRadio"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_radio_unchecked" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Long Bond"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="8.5&quot; × 13&quot;"
+                                android:textColor="@color/edittext_hint"
+                                android:textSize="11sp" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Short bond (Letter) -->
+                    <LinearLayout
+                        android:id="@+id/cardPdfShort"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_card_unselected_teal"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="10dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:id="@+id/imgPdfShortRadio"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_radio_unchecked" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Short Bond"
+                                android:textColor="@color/presyo_teal"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="8.5&quot; × 11&quot;"
+                                android:textColor="@color/edittext_hint"
+                                android:textSize="11sp" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Info hint -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="A preview of all pages will be shown before printing or sharing."
+                    android:textColor="@color/edittext_hint"
+                    android:textSize="11sp"
+                    android:layout_marginTop="6dp" />
 
             </LinearLayout>
 

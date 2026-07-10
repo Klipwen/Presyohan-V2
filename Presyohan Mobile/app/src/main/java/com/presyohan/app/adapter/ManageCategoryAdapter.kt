@@ -15,7 +15,7 @@ class ManageCategoryAdapter(
     private val onViewItems: ((String) -> Unit)? = null,
     private val onRename: ((String) -> Unit)? = null,
     private val onDelete: ((String) -> Unit)? = null,
-    private val onCopy: ((String) -> Unit)? = null,
+    private val onClone: ((String) -> Unit)? = null,
     private val onConvert: ((String) -> Unit)? = null,
     private val onPublicToggle: ((String, Boolean) -> Unit)? = null
 ) : RecyclerView.Adapter<ManageCategoryAdapter.CategoryViewHolder>() {
@@ -23,7 +23,7 @@ class ManageCategoryAdapter(
     inner class CategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val name: TextView = itemView.findViewById(R.id.textCategoryName)
         val itemCount: TextView = itemView.findViewById(R.id.textItemCount)
-        val btnCopy: View = itemView.findViewById(R.id.btnCopyCategory)
+        val btnClone: View = itemView.findViewById(R.id.btnCloneCategory)
         val btnConvert: View = itemView.findViewById(R.id.btnConvertCategory)
         val layoutPublic: View = itemView.findViewById(R.id.layoutPublicContainer)
         val checkboxPublic: ImageView = itemView.findViewById(R.id.checkboxPublic)
@@ -50,7 +50,7 @@ class ManageCategoryAdapter(
             holder.checkboxPublic.setImageResource(R.drawable.ic_radio_unchecked)
         }
 
-        holder.btnCopy.setOnClickListener { onCopy?.invoke(category) }
+        holder.btnClone.setOnClickListener { onClone?.invoke(category) }
         holder.btnConvert.setOnClickListener { onConvert?.invoke(category) }
         holder.layoutPublic.setOnClickListener {
             onPublicToggle?.invoke(category, !isPublic)
