@@ -28,4 +28,18 @@
         <item name="cornerSizeTopLeft">6dp</item>
         <item name="cornerSizeBottomRight">6dp</item>
     </style>
+
+    <style name="ShapeAppearanceOverlay.DownloadCard" parent="">
+        <item name="cornerSizeTopRight">240px</item>
+        <item name="cornerSizeBottomLeft">240px</item>
+        <item name="cornerSizeTopLeft">60px</item>
+        <item name="cornerSizeBottomRight">60px</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.DownloadCardSmall" parent="">
+        <item name="cornerSizeTopRight">60px</item>
+        <item name="cornerSizeBottomLeft">60px</item>
+        <item name="cornerSizeTopLeft">18px</item>
+        <item name="cornerSizeBottomRight">18px</item>
+    </style>
 </resources>

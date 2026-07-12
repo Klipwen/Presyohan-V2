@@ -237,7 +237,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="han?"
+                android:text="han"
                 android:textColor="@color/presyo_teal"
                 android:paddingBottom="6dp"
                 android:textSize="22sp"

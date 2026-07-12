@@ -17,7 +17,8 @@ class ManageCategoryAdapter(
     private val onDelete: ((String) -> Unit)? = null,
     private val onClone: ((String) -> Unit)? = null,
     private val onConvert: ((String) -> Unit)? = null,
-    private val onPublicToggle: ((String, Boolean) -> Unit)? = null
+    private val onPublicToggle: ((String, Boolean) -> Unit)? = null,
+    private var isOwner: Boolean = true
 ) : RecyclerView.Adapter<ManageCategoryAdapter.CategoryViewHolder>() {
 
     inner class CategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -50,6 +51,9 @@ class ManageCategoryAdapter(
             holder.checkboxPublic.setImageResource(R.drawable.ic_radio_unchecked)
         }
 
+        holder.btnClone.visibility = if (isOwner) View.VISIBLE else View.GONE
+        holder.btnConvert.visibility = if (isOwner) View.VISIBLE else View.GONE
+
         holder.btnClone.setOnClickListener { onClone?.invoke(category) }
         holder.btnConvert.setOnClickListener { onConvert?.invoke(category) }
         holder.layoutPublic.setOnClickListener {
@@ -66,11 +70,13 @@ class ManageCategoryAdapter(
     fun updateCategories(
         newCategories: List<String>,
         newCounts: Map<String, Int> = itemCounts,
-        newPublic: Set<String> = publicCategories
+        newPublic: Set<String> = publicCategories,
+        newIsOwner: Boolean = isOwner
     ) {
         categories = newCategories
         itemCounts = newCounts
         publicCategories = newPublic
+        isOwner = newIsOwner
         notifyDataSetChanged()
     }
 }

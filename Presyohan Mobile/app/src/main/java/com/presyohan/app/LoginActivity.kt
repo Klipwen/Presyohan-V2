@@ -222,6 +222,9 @@ class LoginActivity : androidx.appcompat.app.AppCompatActivity() {
             .setDuration(500)
             .setInterpolator(android.view.animation.DecelerateInterpolator())
             .start()
+
+        // Check for pre-auth maintenance broadcasts (show_before_auth flag)
+        ReusableDialogHelper.checkAndShowMaintenanceBroadcast(this, lifecycleScope)
     }
 
     override fun onNewIntent(intent: Intent) {

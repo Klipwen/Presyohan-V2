@@ -545,6 +545,9 @@ class ManageStoreActivity : AppCompatActivity() {
 
                 // Dynamically update the Delete Store button to Leave Store if there are multiple owners
                 val isUserOwner = currentUserRole.lowercase() == "owner"
+                toolCopy.visibility = if (isUserOwner) View.VISIBLE else View.GONE
+                toolConvert.visibility = if (isUserOwner) View.VISIBLE else View.GONE
+
                 if (isUserOwner) {
                     toolDeleteStore.visibility = View.VISIBLE
                     if (ownersCount > 1) {

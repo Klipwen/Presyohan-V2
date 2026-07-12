@@ -33,6 +33,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.presyohan.app.adapter.ManageCategoryAdapter
 import com.presyohan.app.adapter.ManageItemData
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -71,6 +72,7 @@ class ManageCategoryActivity : AppCompatActivity() {
     private var publicCategories = setOf<String>()
     private var allProducts = listOf<UserProductRow>()
     private var categoryNameToId = mapOf<String, String>()
+    private var currentUserRole: String = "employee"
 
     @Serializable
     data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
@@ -273,6 +275,17 @@ class ManageCategoryActivity : AppCompatActivity() {
         }
         lifecycleScope.launch {
             try {
+                // Fetch current user's role
+                val uid = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
+                @Serializable
+                data class StoreMemberUser(val user_id: String, val name: String, val role: String)
+                val members = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<StoreMemberUser>()
+                val currentMember = members.firstOrNull { it.user_id == uid }
+                currentUserRole = currentMember?.role ?: "employee"
+
                 val categoryRows = SupabaseProvider.client.postgrest.rpc(
                     "get_user_categories",
                     buildJsonObject { put("p_store_id", sId) }
@@ -364,7 +377,8 @@ class ManageCategoryActivity : AppCompatActivity() {
                 }
             }
 
-            adapter.updateCategories(filtered, allCategoryCounts, publicCategories)
+            val isOwner = currentUserRole.lowercase() == "owner"
+            adapter.updateCategories(filtered, allCategoryCounts, publicCategories, isOwner)
         }
     }
 

@@ -2,18 +2,18 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="1200px"
-    android:layout_height="1600px"
+    android:layout_height="1500px"
     android:background="#FFB703"
     android:padding="60px">
 
     <!-- Inner Card with Custom Rounded Shape -->
     <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         app:cardBackgroundColor="@color/white"
         app:cardElevation="0dp"
         app:strokeWidth="0dp"
-        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.CustomCard"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.DownloadCard"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -23,94 +23,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <!-- Top Header Logo Section -->
-            <LinearLayout
-                android:id="@+id/layoutLogoContainer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="80px"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent">
-
-                <!-- Logo icon -->
-                <ImageView
-                    android:layout_width="100px"
-                    android:layout_height="100px"
-                    android:src="@drawable/icon_presyohan"
-                    android:rotation="-45"
-                    android:contentDescription="Presyohan Icon" />
-
-                <!-- Logo Text with 'atong' stacked and 'presyohan?' -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginStart="20px">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="atong"
-                        android:textColor="#FB8500"
-                        android:textSize="32sp"
-                        android:textStyle="bold"
-                        android:includeFontPadding="false"
-                        android:lineSpacingExtra="0dp" />
-
-                    <!-- Horizontal container for presyohan? -->
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="-10px">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="presyo"
-                            android:textColor="#FB8500"
-                            android:textSize="58sp"
-                            android:textStyle="bold"
-                            android:includeFontPadding="false" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="han?"
-                            android:textColor="#219EBC"
-                            android:textSize="58sp"
-                            android:textStyle="bold"
-                            android:includeFontPadding="false" />
-                    </LinearLayout>
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Center QR Code Image -->
-            <ImageView
-                android:id="@+id/ivDownloadQr"
-                android:layout_width="720px"
-                android:layout_height="720px"
-                android:scaleType="fitCenter"
-                android:contentDescription="Store QR Code"
-                app:layout_constraintTop_toBottomOf="@id/layoutLogoContainer"
-                app:layout_constraintBottom_toTopOf="@id/layoutStoreInfo"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- Bottom Store Info Section (Cream Box) -->
+            <!-- Top Store Info Section -->
             <LinearLayout
                 android:id="@+id/layoutStoreInfo"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:background="#FFF9E9"
-                android:paddingVertical="70px"
-                android:paddingHorizontal="40px"
-                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginTop="120px"
+                app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
@@ -120,8 +41,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="QSOS"
-                    android:textColor="#FB8500"
-                    android:textSize="52sp"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="64px"
                     android:textStyle="bold" />
 
                 <!-- Store ID -->
@@ -129,11 +50,10 @@
                     android:id="@+id/tvDownloadStoreId"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Store ID: SID25-0009"
-                    android:textColor="#FB8500"
-                    android:textSize="30sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="16px" />
+                    android:text="Store ID: SID25-009"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="32px"
+                    android:layout_marginTop="20px" />
 
                 <!-- Location -->
                 <TextView
@@ -141,10 +61,74 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Curva Medellin, Cebu"
-                    android:textColor="#FB8500"
-                    android:textSize="26sp"
-                    android:layout_marginTop="12px" />
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="32px"
+                    android:textStyle="bold"
+                    android:layout_marginTop="16px" />
             </LinearLayout>
+
+            <!-- Center QR Code Image -->
+            <ImageView
+                android:id="@+id/ivDownloadQr"
+                android:layout_width="760px"
+                android:layout_height="760px"
+                android:scaleType="fitCenter"
+                android:contentDescription="Store QR Code"
+                app:layout_constraintTop_toBottomOf="@id/layoutStoreInfo"
+                app:layout_constraintBottom_toTopOf="@id/layoutFooter"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- Bottom Logo/Pill Container -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/layoutFooter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="#F2F2F2"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.DownloadCardSmall"
+                android:layout_marginBottom="100px"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingStart="2px"
+                    android:paddingEnd="22px"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="72px"
+                        android:layout_height="72px"
+                        android:src="@drawable/icon_presyohan"
+                        android:rotation="-45"
+                        android:contentDescription="Logo icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="presyo"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="48px"
+                        android:textStyle="bold"
+                        android:paddingBottom="12px"
+                        android:includeFontPadding="false" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="han"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="48px"
+                        android:textStyle="bold"
+                        android:paddingBottom="12px"
+                        android:includeFontPadding="false" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>

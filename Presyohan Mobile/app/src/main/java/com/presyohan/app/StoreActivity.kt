@@ -1099,25 +1099,12 @@ class StoreActivity : AppCompatActivity() {
         val btnImportPrices = view.findViewById<LinearLayout>(R.id.btnImportPrices)
         val btnSettings = view.findViewById<TextView>(R.id.btnSettings)
 
-        // Hide restricted items
+        // Hide restricted items (Invite staff, import prices, settings, export/convert prices, clone prices)
         btnInviteStaff.visibility = View.GONE
         btnImportPrices.visibility = View.GONE
         btnSettings.visibility = View.GONE
-
-        // Allow Export/Copy
-        btnExportPrices.setOnClickListener {
-            dialog.dismiss()
-            // Fix: Pass store name and branch to export function
-            exportPricelistToExcel(store.id, store.name, store.branch)
-        }
-        btnClonePrices.setOnClickListener {
-            ClonePricesDialogHelper.show(
-                activity = this,
-                storeId = store.id,
-                storeName = store.name
-            )
-            dialog.dismiss()
-        }
+        btnExportPrices.visibility = View.GONE
+        btnClonePrices.visibility = View.GONE
 
         // Leave Logic (Top Right)
         val btnLeaveDelete = view.findViewById<ImageView>(R.id.btnLeaveDelete)
