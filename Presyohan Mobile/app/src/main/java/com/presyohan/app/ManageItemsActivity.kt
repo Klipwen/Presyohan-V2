@@ -32,6 +32,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.presyohan.app.adapter.ManageItemData
 import com.presyohan.app.adapter.ManageItemsAdapter
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -100,6 +101,7 @@ class ManageItemsActivity : AppCompatActivity() {
     
     private var storeId: String? = null
     private var storeName: String? = null
+    private var currentUserRole: String = "employee"
     private lateinit var loadingOverlay: android.view.View
     private lateinit var shimmerContainer: com.facebook.shimmer.ShimmerFrameLayout
     private lateinit var swipeRefreshLayout: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -405,6 +407,22 @@ class ManageItemsActivity : AppCompatActivity() {
         }
         lifecycleScope.launch {
             try {
+                // Fetch current user's role
+                val uid = SupabaseProvider.client.auth.currentUserOrNull()?.id.orEmpty()
+                @Serializable
+                data class StoreMemberUser(val user_id: String, val name: String, val role: String)
+                val members = SupabaseProvider.client.postgrest.rpc(
+                    "get_store_members",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<StoreMemberUser>()
+                val currentMember = members.firstOrNull { it.user_id == uid }
+                currentUserRole = currentMember?.role ?: "employee"
+
+                // Hide Clone & Convert if not owner
+                val isOwner = currentUserRole.lowercase() == "owner"
+                btnBulkClone.visibility = if (isOwner) View.VISIBLE else View.GONE
+                btnBulkConvert.visibility = if (isOwner) View.VISIBLE else View.GONE
+
                 @Serializable
                 data class UserProductRow(
                     val product_id: String,

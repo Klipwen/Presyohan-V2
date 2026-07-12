@@ -108,7 +108,7 @@ class StoreQrActivity : AppCompatActivity() {
         val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, width, height)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-        val tealColor = Color.parseColor("#00A5C4")
+        val tealColor = Color.parseColor("#219EBC")
         val whiteColor = Color.WHITE
 
         for (x in 0 until width) {
@@ -136,17 +136,17 @@ class StoreQrActivity : AppCompatActivity() {
         tvLoc.text = storeLocation
 
         // High-res QR for print
-        val qrBitmap = generateTealQRCode(qrContent, 720, 720)
+        val qrBitmap = generateTealQRCode(qrContent, 760, 760)
         ivQr.setImageBitmap(qrBitmap)
 
         // Measure & layout offscreen view
         val widthSpec = View.MeasureSpec.makeMeasureSpec(1200, View.MeasureSpec.EXACTLY)
-        val heightSpec = View.MeasureSpec.makeMeasureSpec(1600, View.MeasureSpec.EXACTLY)
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(1500, View.MeasureSpec.EXACTLY)
         cardView.measure(widthSpec, heightSpec)
         cardView.layout(0, 0, cardView.measuredWidth, cardView.measuredHeight)
 
         // Render card to bitmap
-        val cardBitmap = Bitmap.createBitmap(1200, 1600, Bitmap.Config.ARGB_8888)
+        val cardBitmap = Bitmap.createBitmap(1200, 1500, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(cardBitmap)
         cardView.draw(canvas)
 

@@ -24,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
 
 @kotlinx.serialization.Serializable
 private data class AppReleaseRow(
@@ -117,6 +119,9 @@ class SplashActivity : Activity() {
         }
 
         // Configure default button listener if no updates block proceeding
+        // Check for pre-auth maintenance broadcasts (show_before_auth flag)
+        val uiScope = CoroutineScope(Dispatchers.Main)
+        ReusableDialogHelper.checkAndShowMaintenanceBroadcast(this@SplashActivity, uiScope)
         setupGetStartedNavigation(getStartedButton)
     }
 
@@ -149,23 +154,26 @@ class SplashActivity : Activity() {
     }
 
     private fun showOptionalUpdateDialog(release: AppReleaseRow, getStartedButton: Button) {
-        showReusableDialog(
+        val announcement = AnnouncementRow(
+            id = "temp_version_update_id",
             title = "New Version Available",
-            message = "A new version of Presyohan is available (v${release.version_name}). Would you like to update now?\n\nWhat's New:\n${release.whats_new}",
-            positiveButtonText = "Update Now",
-            positiveAction = {
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(release.download_url))
-                    startActivity(intent)
-                } catch (_: Exception) {}
-                setupGetStartedNavigation(getStartedButton)
-            },
-            negativeButtonText = "Later",
-            negativeAction = {
-                setupGetStartedNavigation(getStartedButton)
-            },
-            isCancelable = false
+            content = "v${release.version_name}",
+            is_active = true,
+            button_label = "Update Now",
+            created_at = "",
+            template_type = "version_check",
+            template_data = kotlinx.serialization.json.buildJsonObject {
+                put("version_name", release.version_name)
+                put("version_code", release.version_code)
+                put("whats_new", release.whats_new)
+                put("is_forced", false)
+                put("download_url", release.download_url)
+            }
         )
+        val uiScope = CoroutineScope(Dispatchers.Main)
+        ReusableDialogHelper.showBroadcastDialog(this@SplashActivity, announcement, uiScope) {
+            setupGetStartedNavigation(getStartedButton)
+        }
     }
 
     private fun setupGetStartedNavigation(getStartedButton: Button) {

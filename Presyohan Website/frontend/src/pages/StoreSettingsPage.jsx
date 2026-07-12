@@ -379,47 +379,49 @@ export default function StoreSettingsPage() {
                   gap: '15px',
                   marginBottom: '30px'
                 }}>
-                  <button
-                    onMouseEnter={(e) => {
-                      if (e.currentTarget.disabled) return;
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
-                    }}
-                    onMouseDown={(e) => {
-                      if (e.currentTarget.disabled) return;
-                      e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
-                      e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
-                    }}
-                    onMouseUp={(e) => {
-                      if (e.currentTarget.disabled) return;
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
-                    }}
-                    style={{
-                    padding: '15px',
-                    border: '2px solid #ff8c00',
-                    borderRadius: '12px',
-                    background: 'white',
-                    color: '#ff8c00',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-                  }} onClick={() => setCloneOpen(true)} disabled={role !== 'owner'}>
-                    <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
-                      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                    </svg>
-                    Clone Prices
-                  </button>
+                  {role === 'owner' && (
+                    <button
+                      onMouseEnter={(e) => {
+                        if (e.currentTarget.disabled) return;
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
+                      }}
+                      onMouseDown={(e) => {
+                        if (e.currentTarget.disabled) return;
+                        e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+                        e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
+                      }}
+                      onMouseUp={(e) => {
+                        if (e.currentTarget.disabled) return;
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                      }}
+                      style={{
+                      padding: '15px',
+                      border: '2px solid #ff8c00',
+                      borderRadius: '12px',
+                      background: 'white',
+                      color: '#ff8c00',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                    }} onClick={() => setCloneOpen(true)} disabled={role !== 'owner'}>
+                      <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                      </svg>
+                      Clone Prices
+                    </button>
+                  )}
                   <button
                     onMouseEnter={(e) => {
                       if (e.currentTarget.disabled) return;
@@ -459,47 +461,49 @@ export default function StoreSettingsPage() {
                     <img src={addStaffIcon} alt="Invite staff" style={{ width: '28px', height: '28px' }} />
                     Invite staff
                   </button>
-                  <button
-                    onMouseEnter={(e) => {
-                      if (e.currentTarget.disabled) return;
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
-                    }}
-                    onMouseDown={(e) => {
-                      if (e.currentTarget.disabled) return;
-                      e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
-                      e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
-                    }}
-                    onMouseUp={(e) => {
-                      if (e.currentTarget.disabled) return;
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
-                    }}
-                    style={{
-                    padding: '15px',
-                    border: '2px solid #ff8c00',
-                    borderRadius: '12px',
-                    background: 'white',
-                    color: '#ff8c00',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-                  }} onClick={() => setExportOpen(true)}>
-                    <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
-                      <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
-                    </svg>
-                    Convert
-                  </button>
+                  {role === 'owner' && (
+                    <button
+                      onMouseEnter={(e) => {
+                        if (e.currentTarget.disabled) return;
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
+                      }}
+                      onMouseDown={(e) => {
+                        if (e.currentTarget.disabled) return;
+                        e.currentTarget.style.transform = 'translateY(0) scale(0.98)';
+                        e.currentTarget.style.boxShadow = 'inset 0 2px 6px rgba(0,0,0,0.08)';
+                      }}
+                      onMouseUp={(e) => {
+                        if (e.currentTarget.disabled) return;
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 12px rgba(255,140,0,0.18)';
+                      }}
+                      style={{
+                      padding: '15px',
+                      border: '2px solid #ff8c00',
+                      borderRadius: '12px',
+                      background: 'white',
+                      color: '#ff8c00',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                    }} onClick={() => setExportOpen(true)}>
+                      <svg width="28" height="28" fill="#ff8c00" viewBox="0 0 24 24">
+                        <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                      </svg>
+                      Convert
+                    </button>
+                  )}
                   <button
                     onMouseEnter={(e) => {
                       if (e.currentTarget.disabled) return;
@@ -544,39 +548,41 @@ export default function StoreSettingsPage() {
                 </div>
 
                 {/* Paste-Code generator */}
-                <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #eee', borderRadius: '12px', background: '#ffffff', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <div style={{ fontWeight: 700, color: '#7a4a12' }}>Paste-Code (for cloning prices to this store)</div>
-                    {pasteCode ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ fontWeight: 700, color: '#333' }}>Code: {pasteCode}</div>
-                        <div style={{ color: '#777' }}>Expires in {codeCountdown || '00:00:00'}</div>
-                        <button onClick={copyPasteCode} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #eee', background: 'white', color: '#333', fontWeight: 600, cursor: 'pointer' }}>Copy</button>
-                      </div>
-                    ) : (
-                      <div style={{ color: '#999' }}>No active code</div>
+                {role === 'owner' && (
+                  <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #eee', borderRadius: '12px', background: '#ffffff', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <div style={{ fontWeight: 700, color: '#7a4a12' }}>Paste-Code (for cloning prices to this store)</div>
+                      {pasteCode ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ fontWeight: 700, color: '#333' }}>Code: {pasteCode}</div>
+                          <div style={{ color: '#777' }}>Expires in {codeCountdown || '00:00:00'}</div>
+                          <button onClick={copyPasteCode} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #eee', background: 'white', color: '#333', fontWeight: 600, cursor: 'pointer' }}>Copy</button>
+                        </div>
+                      ) : (
+                        <div style={{ color: '#999' }}>No active code</div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <button
+                        disabled={role !== 'owner'}
+                        onClick={generatePasteCode}
+                        style={{ padding: '10px 14px', borderRadius: '10px', border: 'none', background: role !== 'owner' ? '#ffd8ae' : 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)', color: 'white', fontWeight: 700, cursor: role !== 'owner' ? 'not-allowed' : 'pointer' }}
+                      >
+                        Generate Code
+                      </button>
+                      <button
+                        disabled={role !== 'owner' || !pasteCode}
+                        onClick={revokePasteCode}
+                        style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #ff8c00', background: 'white', color: '#ff8c00', fontWeight: 700, cursor: role !== 'owner' || !pasteCode ? 'not-allowed' : 'pointer' }}
+                      >
+                        Revoke
+                      </button>
+                    </div>
+                    {role !== 'owner' && (
+                      <div style={{ marginTop: '8px', color: '#a85e00' }}>Only store owners can generate or revoke codes.</div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button
-                      disabled={role !== 'owner'}
-                      onClick={generatePasteCode}
-                      style={{ padding: '10px 14px', borderRadius: '10px', border: 'none', background: role !== 'owner' ? '#ffd8ae' : 'linear-gradient(135deg, #ffb800 0%, #ff8c00 100%)', color: 'white', fontWeight: 700, cursor: role !== 'owner' ? 'not-allowed' : 'pointer' }}
-                    >
-                      Generate Code
-                    </button>
-                    <button
-                      disabled={role !== 'owner' || !pasteCode}
-                      onClick={revokePasteCode}
-                      style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #ff8c00', background: 'white', color: '#ff8c00', fontWeight: 700, cursor: role !== 'owner' || !pasteCode ? 'not-allowed' : 'pointer' }}
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                  {role !== 'owner' && (
-                    <div style={{ marginTop: '8px', color: '#a85e00' }}>Only store owners can generate or revoke codes.</div>
-                  )}
-                </div>
+                )}
 
                 {/* Store Details Form */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
