@@ -290,32 +290,42 @@ class ManageMembersActivity : AppCompatActivity() {
         val imgManager = view.findViewById<ImageView>(R.id.imgOptionManager)
         val imgSalesStaff = view.findViewById<ImageView>(R.id.imgOptionSalesStaff)
 
+        val tvOwner = view.findViewById<TextView>(R.id.tvOptionOwner)
+        val tvManager = view.findViewById<TextView>(R.id.tvOptionManager)
+        val tvSalesStaff = view.findViewById<TextView>(R.id.tvOptionSalesStaff)
+
         fun updateSelectionUi() {
             // Owner
             if (selectedRole == "owner") {
                 layoutOwner.setBackgroundResource(R.drawable.bg_card_selected_orange)
                 imgOwner.setImageResource(R.drawable.ic_radio_checked_orange)
+                tvOwner.setTextColor(getColor(R.color.presyo_orange))
             } else {
                 layoutOwner.setBackgroundResource(R.drawable.bg_card_unselected)
                 imgOwner.setImageResource(R.drawable.ic_radio_unchecked)
+                tvOwner.setTextColor(getColor(R.color.presyo_darkblue))
             }
 
             // Manager
             if (selectedRole == "manager") {
                 layoutManager.setBackgroundResource(R.drawable.bg_card_selected_orange)
                 imgManager.setImageResource(R.drawable.ic_radio_checked_orange)
+                tvManager.setTextColor(getColor(R.color.presyo_orange))
             } else {
                 layoutManager.setBackgroundResource(R.drawable.bg_card_unselected)
                 imgManager.setImageResource(R.drawable.ic_radio_unchecked)
+                tvManager.setTextColor(getColor(R.color.presyo_darkblue))
             }
 
             // Sales Staff
             if (selectedRole == "sales staff") {
                 layoutSalesStaff.setBackgroundResource(R.drawable.bg_card_selected_orange)
                 imgSalesStaff.setImageResource(R.drawable.ic_radio_checked_orange)
+                tvSalesStaff.setTextColor(getColor(R.color.presyo_orange))
             } else {
                 layoutSalesStaff.setBackgroundResource(R.drawable.bg_card_unselected)
                 imgSalesStaff.setImageResource(R.drawable.ic_radio_unchecked)
+                tvSalesStaff.setTextColor(getColor(R.color.presyo_darkblue))
             }
         }
 
@@ -337,25 +347,44 @@ class ManageMembersActivity : AppCompatActivity() {
         view.findViewById<Button>(R.id.btnCancel).setOnClickListener { dialog.dismiss() }
         view.findViewById<Button>(R.id.btnChange).setOnClickListener {
             val sId = storeId ?: return@setOnClickListener
-            LoadingOverlayHelper.show(loadingOverlay)
-            lifecycleScope.launch {
-                try {
-                    val newRole = mapRoleToSupabase(selectedRole)
-                    SupabaseProvider.client.postgrest.rpc(
-                        "update_store_member_role",
-                        buildJsonObject {
-                            put("p_store_id", sId)
-                            put("p_member_id", member.id)
-                            put("p_new_role", newRole)
-                        }
-                    )
-                    Toast.makeText(this@ManageMembersActivity, "Role updated.", Toast.LENGTH_SHORT).show()
-                    fetchMembers()
-                    dialog.dismiss()
-                } catch (e: Exception) {
-                    Toast.makeText(this@ManageMembersActivity, "Unable to update role.", Toast.LENGTH_LONG).show()
+
+            val executeRoleChange = {
+                LoadingOverlayHelper.show(loadingOverlay)
+                lifecycleScope.launch {
+                    try {
+                        val newRole = mapRoleToSupabase(selectedRole)
+                        SupabaseProvider.client.postgrest.rpc(
+                            "update_store_member_role",
+                            buildJsonObject {
+                                put("p_store_id", sId)
+                                put("p_member_id", member.id)
+                                put("p_new_role", newRole)
+                            }
+                        )
+                        Toast.makeText(this@ManageMembersActivity, "Role updated.", Toast.LENGTH_SHORT).show()
+                        fetchMembers()
+                        dialog.dismiss()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@ManageMembersActivity, "Unable to update role.", Toast.LENGTH_LONG).show()
+                    }
+                    LoadingOverlayHelper.hide(loadingOverlay)
                 }
-                LoadingOverlayHelper.hide(loadingOverlay)
+            }
+
+            if (selectedRole == "owner" && member.role != "owner") {
+                ReusableDialogHelper.showCustomDialog(
+                    context = this@ManageMembersActivity,
+                    title = "Confirm Role Change",
+                    message = "Promoting this staff member to Store Owner grants them full control. This role change is permanent: you will not be able to downgrade their role or remove them from the store later. Do you want to proceed?",
+                    positiveButtonText = "Proceed",
+                    positiveAction = {
+                        executeRoleChange()
+                    },
+                    negativeButtonText = "Cancel",
+                    negativeAction = null
+                )
+            } else {
+                executeRoleChange()
             }
         }
         dialog.show()

@@ -137,11 +137,9 @@ class SplashActivity : Activity() {
 
         tvVersionTag.text = "V${release.version_name}"
 
-        // Format bullet points for release notes
-        val bulletPoints = release.whats_new.split("\n")
-            .filter { it.trim().isNotEmpty() }
-            .joinToString("\n") { "• ${it.trim().removePrefix("•").trim()}" }
-        tvWhatsNewList.text = bulletPoints
+        tvWhatsNewList.text = ReusableDialogHelper.parseHtml(release.whats_new)
+
+        val svWhatsNew = overlayView.findViewById<android.widget.ScrollView>(R.id.svWhatsNew)
 
         btnUpdateNow.setOnClickListener {
             try {

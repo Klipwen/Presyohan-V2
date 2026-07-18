@@ -1391,6 +1391,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         inner class RowViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             val tvRowIndex: TextView = v.findViewById(R.id.tvRowIndex)
             val btnDelete: ImageView = v.findViewById(R.id.btnDelete)
+            val cbMakePublic: android.widget.CheckBox = v.findViewById(R.id.cbMakePublic)
             val inputProductName: EditText = v.findViewById(R.id.inputProductName)
             val inputPrice: EditText = v.findViewById(R.id.inputPrice)
             val inputUnit: EditText = v.findViewById(R.id.inputUnit)
@@ -1475,6 +1476,21 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                     rHolder.inputPrice.setText(draftItem.priceText)
                     rHolder.inputUnit.setText(draftItem.unit)
                     rHolder.inputDescription.setText(draftItem.description ?: "")
+
+                    rHolder.cbMakePublic.setOnCheckedChangeListener(null)
+                    rHolder.cbMakePublic.isChecked = draftItem.isPublic
+                    rHolder.cbMakePublic.setOnCheckedChangeListener { _, isChecked ->
+                        val curPos = rHolder.adapterPosition
+                        if (curPos != RecyclerView.NO_POSITION) {
+                            val rowItem = simpleModeItems[curPos] as? SimpleModeItem.Row ?: return@setOnCheckedChangeListener
+                            val cat = rowItem.category
+                            val idx = rowItem.index
+                            if (idx in cat.items.indices) {
+                                cat.items[idx] = cat.items[idx].copy(isPublic = isChecked)
+                                onDataChanged()
+                            }
+                        }
+                    }
 
                     renderValidationErrors(rHolder.tvErrorText, draftItem.validationErrors)
 

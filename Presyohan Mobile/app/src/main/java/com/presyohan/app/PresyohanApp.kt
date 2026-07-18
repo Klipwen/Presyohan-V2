@@ -40,5 +40,26 @@ class PresyohanApp : Application() {
         super.onCreate()
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         SupabaseProvider.init(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
+        setupUpdateChecker()
+    }
+
+    private fun setupUpdateChecker() {
+        try {
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
+            val workRequest = androidx.work.PeriodicWorkRequestBuilder<UpdateCheckWorker>(4, java.util.concurrent.TimeUnit.HOURS)
+                .setConstraints(constraints)
+                .build()
+
+            androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "PresyohanUpdateChecker",
+                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                workRequest
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

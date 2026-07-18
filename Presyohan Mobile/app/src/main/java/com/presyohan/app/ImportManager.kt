@@ -162,12 +162,14 @@ class SupabaseImportRepository : ImportRepository {
                     put("price", item.price ?: 0.0)
                     put("unit", item.unit)
                     put("category_id", categoryId)
+                    put("is_public", true) // Default imported items to public
                 }
                 SupabaseProvider.client.postgrest["products"].update(payload) {
                     filter { eq("id", existing); eq("store_id", storeId) }
                 }
             } else {
-                SupabaseProvider.client.postgrest.rpc(
+                @Serializable data class AddedProd(val product_id: String)
+                val response = SupabaseProvider.client.postgrest.rpc(
                     "add_product",
                     buildJsonObject {
                         put("p_store_id", kotlinx.serialization.json.JsonPrimitive(storeId))
@@ -181,7 +183,15 @@ class SupabaseImportRepository : ImportRepository {
                         put("p_price", kotlinx.serialization.json.JsonPrimitive(item.price ?: 0.0))
                         put("p_unit", kotlinx.serialization.json.JsonPrimitive(item.unit))
                     }
-                )
+                ).decodeList<AddedProd>()
+                val insertedId = response.firstOrNull()?.product_id
+                if (!insertedId.isNullOrBlank()) {
+                    SupabaseProvider.client.postgrest["products"].update(
+                        buildJsonObject { put("is_public", true) }
+                    ) {
+                        filter { eq("id", insertedId); eq("store_id", storeId) }
+                    }
+                }
             }
             true
         } catch (_: Exception) { false }
@@ -198,12 +208,14 @@ class SupabaseImportRepository : ImportRepository {
                     put("price", item.price ?: 0.0)
                     put("unit", item.unit)
                     put("category_id", categoryId)
+                    put("is_public", item.isPublic) // Respect draft item's public visibility
                 }
                 SupabaseProvider.client.postgrest["products"].update(payload) {
                     filter { eq("id", existing); eq("store_id", storeId) }
                 }
             } else {
-                SupabaseProvider.client.postgrest.rpc(
+                @Serializable data class AddedProd(val product_id: String)
+                val response = SupabaseProvider.client.postgrest.rpc(
                     "add_product",
                     buildJsonObject {
                         put("p_store_id", kotlinx.serialization.json.JsonPrimitive(storeId))
@@ -217,7 +229,15 @@ class SupabaseImportRepository : ImportRepository {
                         put("p_price", kotlinx.serialization.json.JsonPrimitive(item.price ?: 0.0))
                         put("p_unit", kotlinx.serialization.json.JsonPrimitive(item.unit))
                     }
-                )
+                ).decodeList<AddedProd>()
+                val insertedId = response.firstOrNull()?.product_id
+                if (!insertedId.isNullOrBlank()) {
+                    SupabaseProvider.client.postgrest["products"].update(
+                        buildJsonObject { put("is_public", item.isPublic) }
+                    ) {
+                        filter { eq("id", insertedId); eq("store_id", storeId) }
+                    }
+                }
             }
             true
         } catch (_: Exception) { false }

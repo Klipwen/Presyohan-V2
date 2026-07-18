@@ -288,6 +288,65 @@
 
             </LinearLayout>
 
+            <!-- Internet Price Search Settings Card (Customer Portal Only) -->
+            <LinearLayout
+                android:id="@+id/btnInternetPriceSearchSetting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="16dp"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone">
+
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:padding="12dp">
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/icon_internet"
+                        app:tint="@color/presyo_orange" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Internet Price Search"
+                        android:textColor="#757575"
+                        android:textSize="15sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Show a online search option on the home screen"
+                        android:textColor="#9CA3AF"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
+
+                </LinearLayout>
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchInternetSearch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    app:thumbTint="@color/switch_thumb_color"
+                    app:trackTint="@color/switch_track_color" />
+
+            </LinearLayout>
+
             <!-- Section 2: Go to Header -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -611,6 +670,19 @@
                     app:tint="@color/presyo_teal" />
 
             </LinearLayout>
+
+            <!-- Version Label -->
+            <TextView
+                android:id="@+id/tvAppVersion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:textColor="#9CA3AF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="Version 1.0.0" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

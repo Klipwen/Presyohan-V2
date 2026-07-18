@@ -10,294 +10,373 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
+        android:paddingTop="8dp"
         android:paddingBottom="24dp">
 
-        <!-- Category Header Placeholder 1 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="10dp"
-            android:paddingTop="22dp"
-            android:paddingBottom="4dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_card_unselected"
-                android:padding="12dp">
-
-                <View
-                    android:layout_width="120dp"
-                    android:layout_height="18dp"
-                    android:background="#E0E0E0"
-                    android:layout_weight="1" />
-
-                <View
-                    android:layout_width="48dp"
-                    android:layout_height="14dp"
-                    android:background="#E5E5E5"
-                    android:layout_marginEnd="12dp" />
-
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="#E0E0E0"
-                    android:layout_marginEnd="8dp" />
-
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="#E0E0E0" />
-            </LinearLayout>
-        </LinearLayout>
-
         <!-- Product Card Skeleton 1 -->
-        <LinearLayout
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:layout_marginTop="8dp">
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white">
 
-            <LinearLayout
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_card_unselected"
-                android:padding="12dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:layout_marginEnd="8dp">
-
-                    <View
-                        android:layout_width="140dp"
-                        android:layout_height="16dp"
-                        android:background="#E0E0E0"
-                        android:layout_marginBottom="6dp" />
-
-                    <View
-                        android:layout_width="180dp"
-                        android:layout_height="12dp"
-                        android:background="#E5E5E5"
-                        android:layout_marginBottom="6dp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <View
-                            android:layout_width="50dp"
-                            android:layout_height="14dp"
-                            android:background="#E0E0E0" />
-
-                        <View
-                            android:layout_width="40dp"
-                            android:layout_height="14dp"
-                            android:background="#E5E5E5"
-                            android:layout_marginStart="10dp" />
-                    </LinearLayout>
-                </LinearLayout>
+                android:paddingVertical="14dp"
+                android:paddingHorizontal="16dp">
 
                 <View
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:background="#E0E0E0"
-                    android:layout_marginEnd="8dp" />
+                    android:id="@+id/s1_store"
+                    android:layout_width="180dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
                 <View
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:background="#E0E0E0" />
-            </LinearLayout>
-        </LinearLayout>
+                    android:id="@+id/s1_category"
+                    android:layout_width="50dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="8dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s1_store" />
+
+                <View
+                    android:id="@+id/s1_name"
+                    android:layout_width="140dp"
+                    android:layout_height="18dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#D1D5DB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s1_category" />
+
+                <View
+                    android:id="@+id/s1_desc"
+                    android:layout_width="200dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s1_name" />
+
+                <View
+                    android:id="@+id/s1_price"
+                    android:layout_width="70dp"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="16dp"
+                    android:background="#CBD5E1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s1_store" />
+
+                <View
+                    android:id="@+id/s1_units"
+                    android:layout_width="45dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s1_price" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
 
         <!-- Product Card Skeleton 2 -->
-        <LinearLayout
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:layout_marginTop="8dp">
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white">
 
-            <LinearLayout
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_card_unselected"
-                android:padding="12dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:layout_marginEnd="8dp">
-
-                    <View
-                        android:layout_width="100dp"
-                        android:layout_height="16dp"
-                        android:background="#E0E0E0"
-                        android:layout_marginBottom="6dp" />
-
-                    <View
-                        android:layout_width="120dp"
-                        android:layout_height="12dp"
-                        android:background="#E5E5E5"
-                        android:layout_marginBottom="6dp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <View
-                            android:layout_width="60dp"
-                            android:layout_height="14dp"
-                            android:background="#E0E0E0" />
-
-                        <View
-                            android:layout_width="30dp"
-                            android:layout_height="14dp"
-                            android:background="#E5E5E5"
-                            android:layout_marginStart="10dp" />
-                    </LinearLayout>
-                </LinearLayout>
+                android:paddingVertical="14dp"
+                android:paddingHorizontal="16dp">
 
                 <View
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:background="#E0E0E0"
-                    android:layout_marginEnd="8dp" />
+                    android:id="@+id/s2_store"
+                    android:layout_width="210dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
                 <View
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:background="#E0E0E0" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Category Header Placeholder 2 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="10dp"
-            android:paddingTop="22dp"
-            android:paddingBottom="4dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_card_unselected"
-                android:padding="12dp">
+                    android:id="@+id/s2_category"
+                    android:layout_width="60dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="8dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s2_store" />
 
                 <View
-                    android:layout_width="150dp"
+                    android:id="@+id/s2_name"
+                    android:layout_width="160dp"
                     android:layout_height="18dp"
-                    android:background="#E0E0E0"
-                    android:layout_weight="1" />
+                    android:layout_marginTop="4dp"
+                    android:background="#D1D5DB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s2_category" />
 
                 <View
-                    android:layout_width="48dp"
-                    android:layout_height="14dp"
-                    android:background="#E5E5E5"
-                    android:layout_marginEnd="12dp" />
+                    android:id="@+id/s2_desc"
+                    android:layout_width="120dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s2_name" />
 
                 <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="#E0E0E0"
-                    android:layout_marginEnd="8dp" />
+                    android:id="@+id/s2_price"
+                    android:layout_width="60dp"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="16dp"
+                    android:background="#CBD5E1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s2_store" />
 
                 <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="#E0E0E0" />
-            </LinearLayout>
-        </LinearLayout>
+                    android:id="@+id/s2_units"
+                    android:layout_width="35dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s2_price" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
 
         <!-- Product Card Skeleton 3 -->
-        <LinearLayout
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:layout_marginTop="8dp">
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white">
 
-            <LinearLayout
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_card_unselected"
-                android:padding="12dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:layout_marginEnd="8dp">
-
-                    <View
-                        android:layout_width="120dp"
-                        android:layout_height="16dp"
-                        android:background="#E0E0E0"
-                        android:layout_marginBottom="6dp" />
-
-                    <View
-                        android:layout_width="160dp"
-                        android:layout_height="12dp"
-                        android:background="#E5E5E5"
-                        android:layout_marginBottom="6dp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <View
-                            android:layout_width="45dp"
-                            android:layout_height="14dp"
-                            android:background="#E0E0E0" />
-
-                        <View
-                            android:layout_width="45dp"
-                            android:layout_height="14dp"
-                            android:background="#E5E5E5"
-                            android:layout_marginStart="10dp" />
-                    </LinearLayout>
-                </LinearLayout>
+                android:paddingVertical="14dp"
+                android:paddingHorizontal="16dp">
 
                 <View
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:background="#E0E0E0"
-                    android:layout_marginEnd="8dp" />
+                    android:id="@+id/s3_store"
+                    android:layout_width="150dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
                 <View
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:background="#E0E0E0" />
-            </LinearLayout>
-        </LinearLayout>
+                    android:id="@+id/s3_category"
+                    android:layout_width="45dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="8dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s3_store" />
+
+                <View
+                    android:id="@+id/s3_name"
+                    android:layout_width="120dp"
+                    android:layout_height="18dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#D1D5DB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s3_category" />
+
+                <View
+                    android:id="@+id/s3_desc"
+                    android:layout_width="220dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s3_name" />
+
+                <View
+                    android:id="@+id/s3_price"
+                    android:layout_width="80dp"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="16dp"
+                    android:background="#CBD5E1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s3_store" />
+
+                <View
+                    android:id="@+id/s3_units"
+                    android:layout_width="50dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s3_price" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Product Card Skeleton 4 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp"
+                android:paddingHorizontal="16dp">
+
+                <View
+                    android:id="@+id/s4_store"
+                    android:layout_width="190dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <View
+                    android:id="@+id/s4_category"
+                    android:layout_width="55dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="8dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s4_store" />
+
+                <View
+                    android:id="@+id/s4_name"
+                    android:layout_width="150dp"
+                    android:layout_height="18dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#D1D5DB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s4_category" />
+
+                <View
+                    android:id="@+id/s4_desc"
+                    android:layout_width="160dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s4_name" />
+
+                <View
+                    android:id="@+id/s4_price"
+                    android:layout_width="65dp"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="16dp"
+                    android:background="#CBD5E1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s4_store" />
+
+                <View
+                    android:id="@+id/s4_units"
+                    android:layout_width="40dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s4_price" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Product Card Skeleton 5 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="8dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@android:color/white">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="14dp"
+                android:paddingHorizontal="16dp">
+
+                <View
+                    android:id="@+id/s5_store"
+                    android:layout_width="170dp"
+                    android:layout_height="12dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <View
+                    android:id="@+id/s5_category"
+                    android:layout_width="50dp"
+                    android:layout_height="10dp"
+                    android:layout_marginTop="8dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s5_store" />
+
+                <View
+                    android:id="@+id/s5_name"
+                    android:layout_width="130dp"
+                    android:layout_height="18dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#D1D5DB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s5_category" />
+
+                <View
+                    android:id="@+id/s5_desc"
+                    android:layout_width="190dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s5_name" />
+
+                <View
+                    android:id="@+id/s5_price"
+                    android:layout_width="75dp"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="16dp"
+                    android:background="#CBD5E1"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s5_store" />
+
+                <View
+                    android:id="@+id/s5_units"
+                    android:layout_width="45dp"
+                    android:layout_height="12dp"
+                    android:layout_marginTop="4dp"
+                    android:background="#E5E7EB"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/s5_price" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
 
     </LinearLayout>
 </ScrollView>

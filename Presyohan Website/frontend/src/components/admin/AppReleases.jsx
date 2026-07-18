@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../config/supabaseClient';
 import rocketImg from '../../assets/icon_rocket.png';
 import launcherImg from '../../assets/icon_presyohan_launcher.png';
@@ -13,10 +13,35 @@ export default function AppReleases() {
   const [whatsNew, setWhatsNew] = useState('');
   const [isForced, setIsForced] = useState(false);
   const [apkFile, setApkFile] = useState(null);
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   
+  const editorRef = useRef(null);
+
   const [dragging, setDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [actionLoading, setActionLoading] = useState(null); // 'upload' or releaseId
+
+  useEffect(() => {
+    setIsPreviewExpanded(false);
+  }, [whatsNew]);
+
+  useEffect(() => {
+    if (whatsNew === '' && editorRef.current) {
+      editorRef.current.innerHTML = '';
+    }
+  }, [whatsNew]);
+
+  const handleEditorInput = (e) => {
+    setWhatsNew(e.target.innerHTML);
+  };
+
+  const handleFormat = (command, value = null) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand('styleWithCSS', false, false);
+    document.execCommand(command, false, value);
+    setWhatsNew(editorRef.current.innerHTML);
+  };
 
   const loadReleases = async () => {
     try {
@@ -76,10 +101,16 @@ export default function AppReleases() {
 
   const handleSubmitRelease = async (e) => {
     e.preventDefault();
-    if (!versionCode || !versionName || !whatsNew.trim() || !apkFile) {
+    const strippedWhatsNew = whatsNew.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    if (!versionCode || !versionName || !strippedWhatsNew || !apkFile) {
       alert('Please fill out all release metadata and upload an APK file.');
       return;
     }
+
+    const cleanWhatsNew = whatsNew
+      .replace(/(<[a-z0-9]+[^>]*)\s+style="[^"]*text-align:\s*center;?[^"]*"/gi, '$1 align="center"')
+      .replace(/(<[a-z0-9]+[^>]*)\s+style="[^"]*text-align:\s*right;?[^"]*"/gi, '$1 align="right"')
+      .replace(/(<[a-z0-9]+[^>]*)\s+style="[^"]*text-align:\s*left;?[^"]*"/gi, '$1 align="left"');
 
     const vCodeInt = parseInt(versionCode);
     if (releases.some(r => r.version_code === vCodeInt)) {
@@ -127,7 +158,7 @@ export default function AppReleases() {
           version_code: vCodeInt,
           version_name: versionName.trim(),
           download_url: downloadUrl,
-          whats_new: whatsNew.trim(),
+          whats_new: cleanWhatsNew.trim(),
           is_forced: isForced,
           created_by: user?.id || null
         });
@@ -221,6 +252,8 @@ export default function AppReleases() {
   const forcedCount = releases.filter(r => r.is_forced).length;
   const optionalCount = totalReleases - forcedCount;
 
+  const isTextTooLong = whatsNew.length > 120 || whatsNew.split('\n').length > 4;
+
   if (loading) {
     return (
       <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
@@ -306,14 +339,156 @@ export default function AppReleases() {
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#475569', marginBottom: '6px', letterSpacing: '0.5px' }}>
                 2. RELEASE CHANGELOG (WHATS NEW?)
               </label>
-              <textarea
-                className="admin-search-input"
-                style={{ paddingLeft: '16px', height: '90px', resize: 'none', paddingTop: '12px', fontSize: '0.9rem', borderRadius: '8px' }}
-                placeholder="List bug fixes, visual improvements, or new modules in this update..."
-                value={whatsNew}
-                onChange={(e) => setWhatsNew(e.target.value)}
-                required
+
+              {/* Rich Text Helper Toolbar */}
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '6px',
+                padding: '8px 12px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderBottom: 'none',
+                borderTopLeftRadius: '8px',
+                borderTopRightRadius: '8px',
+                alignItems: 'center'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('bold')}
+                  style={{ padding: '4px 10px', fontSize: '0.8rem', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Bold"
+                >
+                  B
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('foreColor', '#219EBC')}
+                  style={{ padding: '4px 10px', fontSize: '0.8rem', fontWeight: '600', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', color: '#219EBC', cursor: 'pointer' }}
+                  title="Teal Text"
+                >
+                  Teal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('foreColor', '#FB8500')}
+                  style={{ padding: '4px 10px', fontSize: '0.8rem', fontWeight: '600', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', color: '#FB8500', cursor: 'pointer' }}
+                  title="Orange Text"
+                >
+                  Orange
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('foreColor', '#475569')}
+                  style={{ padding: '4px 10px', fontSize: '0.8rem', fontWeight: '600', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', color: '#475569', cursor: 'pointer' }}
+                  title="Normal Text Color"
+                >
+                  Reset Color
+                </button>
+                <span style={{ color: '#cbd5e1', margin: '0 4px' }}>|</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#64748b' }}>Size:</span>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('fontSize', '2')}
+                  style={{ padding: '4px 8px', fontSize: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Small"
+                >
+                  Sm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('fontSize', '4')}
+                  style={{ padding: '4px 8px', fontSize: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Medium"
+                >
+                  Med
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('fontSize', '6')}
+                  style={{ padding: '4px 8px', fontSize: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Large"
+                >
+                  Lg
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('fontSize', '7')}
+                  style={{ padding: '4px 8px', fontSize: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Extra Large"
+                >
+                  XL
+                </button>
+                <span style={{ color: '#cbd5e1', margin: '0 4px' }}>|</span>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('insertUnorderedList')}
+                  style={{ padding: '4px 10px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Bullet List"
+                >
+                  • List
+                </button>
+                <span style={{ color: '#cbd5e1', margin: '0 4px' }}>|</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#64748b' }}>Align:</span>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('justifyLeft')}
+                  style={{ padding: '4px 8px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Align Left"
+                >
+                  Left
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('justifyCenter')}
+                  style={{ padding: '4px 8px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Align Center"
+                >
+                  Center
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormat('justifyRight')}
+                  style={{ padding: '4px 8px', fontSize: '0.8rem', border: '1px solid #cbd5e1', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+                  title="Align Right"
+                >
+                  Right
+                </button>
+              </div>
+
+              {/* WYSIWYG contenteditable div styled like search-input */}
+              <div
+                ref={editorRef}
+                className="wysiwyg-editor"
+                contentEditable={true}
+                onInput={handleEditorInput}
+                placeholder="Type your changelog here... (e.g. Whats New, list items, thank you notes)"
+                style={{
+                  padding: '12px 16px',
+                  minHeight: '120px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  border: '1px solid #cbd5e1',
+                  borderTop: 'none',
+                  borderBottomLeftRadius: '8px',
+                  borderBottomRightRadius: '8px',
+                  backgroundColor: '#ffffff',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  color: '#475569',
+                  lineHeight: '1.5',
+                  boxSizing: 'border-box'
+                }}
               />
+              
+              <style>{`
+                .wysiwyg-editor:empty:before {
+                  content: attr(placeholder);
+                  color: #94a3b8;
+                  pointer-events: none;
+                  display: block;
+                }
+              `}</style>
             </div>
 
             {/* Custom switch toggler for isForced */}
@@ -581,24 +756,26 @@ export default function AppReleases() {
 
                     {/* Bullet points */}
                     <div style={{ alignSelf: 'stretch', textAlign: 'left', width: '100%', boxSizing: 'border-box' }}>
-                      <h5 style={{ fontSize: '10.5px', fontWeight: 800, color: '#219EBC', margin: '0 0 6px 0' }}>Whats New?</h5>
                       <div style={{
-                        maxHeight: '110px',
-                        overflowY: 'auto',
+                        maxHeight: isTextTooLong ? (isPreviewExpanded ? '110px' : '55px') : 'none',
+                        overflowY: isTextTooLong && isPreviewExpanded ? 'auto' : 'hidden',
                         fontSize: '9.5px',
                         color: '#475569',
-                        lineHeight: 1.4
-                      }}>
-                        {(whatsNew || 'List down release features...')
-                          .split('\n')
-                          .filter(line => line.trim().length > 0)
-                          .map((line, idx) => (
-                            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '4px' }}>
-                              <span style={{ marginRight: '4px', color: '#219EBC' }}>•</span>
-                              <span>{line.replace(/^•\s*/, '')}</span>
-                            </div>
-                          ))}
-                      </div>
+                        lineHeight: 1.4,
+                        whiteSpace: 'pre-wrap',
+                        border: isTextTooLong && isPreviewExpanded ? '1px dashed #cbd5e1' : 'none',
+                        padding: isTextTooLong && isPreviewExpanded ? '2px' : '0'
+                      }}
+                        dangerouslySetInnerHTML={{ __html: whatsNew.replace(/\n/g, '<br/>') || 'List down release features...' }}
+                      />
+                      {isTextTooLong && !isPreviewExpanded && (
+                        <div 
+                          onClick={() => setIsPreviewExpanded(true)}
+                          style={{ color: '#219EBC', fontSize: '9px', fontWeight: 'bold', cursor: 'pointer', marginTop: '4px', textAlign: 'center' }}
+                        >
+                          See More...
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -686,24 +863,26 @@ export default function AppReleases() {
 
                       {/* Changelog notes list */}
                       <div style={{ alignSelf: 'stretch', textAlign: 'left', width: '100%' }}>
-                        <h5 style={{ fontSize: '9px', fontWeight: 800, color: '#219EBC', margin: '0 0 4px 0' }}>Whats New?</h5>
                         <div style={{
-                          maxHeight: '60px',
-                          overflowY: 'auto',
+                          maxHeight: isTextTooLong ? (isPreviewExpanded ? '90px' : '40px') : 'none',
+                          overflowY: isTextTooLong && isPreviewExpanded ? 'auto' : 'hidden',
                           fontSize: '8.5px',
                           color: '#475569',
-                          lineHeight: 1.3
-                        }}>
-                          {(whatsNew || 'Changelog features...')
-                            .split('\n')
-                            .filter(line => line.trim().length > 0)
-                            .map((line, idx) => (
-                              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '2px' }}>
-                                <span style={{ marginRight: '3px', color: '#219EBC' }}>•</span>
-                                <span>{line.replace(/^•\s*/, '')}</span>
-                              </div>
-                            ))}
-                        </div>
+                          lineHeight: 1.3,
+                          whiteSpace: 'pre-wrap',
+                          border: isTextTooLong && isPreviewExpanded ? '1px dashed #cbd5e1' : 'none',
+                          padding: isTextTooLong && isPreviewExpanded ? '2px' : '0'
+                        }}
+                          dangerouslySetInnerHTML={{ __html: whatsNew.replace(/\n/g, '<br/>') || 'Changelog features...' }}
+                        />
+                        {isTextTooLong && !isPreviewExpanded && (
+                          <div 
+                            onClick={() => setIsPreviewExpanded(true)}
+                            style={{ color: '#219EBC', fontSize: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '2px', textAlign: 'center' }}
+                          >
+                            See More...
+                          </div>
+                        )}
                       </div>
                     </div>
 

@@ -35,6 +35,7 @@ import com.presyohan.app.adapter.ManageCategoryAdapter
 import com.presyohan.app.adapter.ManageItemData
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +54,7 @@ class ManageCategoryActivity : AppCompatActivity() {
     private lateinit var adapter: ManageCategoryAdapter
     private var storeId: String? = null
     private var storeName: String? = null
+    private var branchName: String? = null
     private lateinit var loadingOverlay: View
     private lateinit var shimmerContainer: com.facebook.shimmer.ShimmerFrameLayout
     private lateinit var swipeRefreshLayout: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -96,6 +98,7 @@ class ManageCategoryActivity : AppCompatActivity() {
 
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName")
+        branchName = intent.getStringExtra("branchName")
         if (storeId.isNullOrBlank()) {
             finish()
             return
@@ -128,14 +131,15 @@ class ManageCategoryActivity : AppCompatActivity() {
             try {
                 @Serializable
                 data class StoreRow(val id: String, val name: String, val branch: String? = null)
-                val rows = SupabaseProvider.client.postgrest["stores"].select {
+                val rows = SupabaseProvider.client.postgrest["stores"].select(Columns.list("id", "name", "branch")) {
                     filter { eq("id", storeId!!) }
                     limit(1)
                 }.decodeList<StoreRow>()
                 val s = rows.firstOrNull()
                 storeName = s?.name ?: storeName
+                branchName = s?.branch ?: branchName
                 textStoreName.text = storeName ?: "Store Name"
-                textStoreBranch.text = s?.branch ?: "Branch Name"
+                textStoreBranch.text = branchName ?: "Branch Name"
                 SessionManager.markStoreHome(this@ManageCategoryActivity, storeId, storeName)
             } catch (_: Exception) { /* ignore */ }
             LoadingOverlayHelper.hide(loadingOverlay)
@@ -240,6 +244,7 @@ class ManageCategoryActivity : AppCompatActivity() {
                 val intent = Intent(this, ManageItemsActivity::class.java)
                 intent.putExtra("storeId", storeId)
                 intent.putExtra("storeName", storeName ?: "Store Name")
+                intent.putExtra("branchName", branchName)
                 intent.putExtra("filterCategory", category)
                 startActivity(intent)
             },
@@ -759,7 +764,7 @@ class ManageCategoryActivity : AppCompatActivity() {
                         activity    = this,
                         items       = pdfItems,
                         storeName   = storeName ?: "",
-                        branchName  = "",
+                        branchName  = branchName ?: "",
                         pageSize    = size,
                         onBack      = { showConvertPricelistDialog(items) }
                     )

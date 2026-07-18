@@ -83,6 +83,11 @@ class HomeActivity : AppCompatActivity() {
     private var currentStoreType: String? = null
     private var userRole: String? = null
 
+    fun getUserRole(): String? = userRole
+    fun getCurrentStoreId(): String? = currentStoreId
+    fun getCurrentStoreName(): String? = currentStoreName
+    fun getCurrentBranchName(): String? = currentBranchName
+
     // Invite Code Countdown
     private var inviteCodeCountdownJob: kotlinx.coroutines.Job? = null
     private var hasAutoOpenedAddDialog = false
@@ -730,6 +735,7 @@ class HomeActivity : AppCompatActivity() {
             val intent = Intent(this, ManageItemsActivity::class.java)
             intent.putExtra("storeId", sId)
             intent.putExtra("storeName", currentStoreName)
+            intent.putExtra("branchName", currentBranchName)
             startActivity(intent)
         }
 
@@ -739,6 +745,7 @@ class HomeActivity : AppCompatActivity() {
             val intent = Intent(this, ManageCategoryActivity::class.java)
             intent.putExtra("storeId", sId)
             intent.putExtra("storeName", currentStoreName)
+            intent.putExtra("branchName", currentBranchName)
             startActivity(intent)
         }
 

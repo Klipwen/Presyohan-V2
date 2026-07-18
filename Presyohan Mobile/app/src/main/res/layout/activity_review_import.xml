@@ -136,120 +136,227 @@
         android:paddingHorizontal="16dp"
         android:elevation="16dp"
         android:outlineProvider="background"
+        android:animateLayoutChanges="true"
         app:layout_constraintBottom_toBottomOf="parent">
 
-            <!-- New Category Count Line -->
-            <TextView
-                android:id="@+id/tvGroupSummaryText"
+            <!-- Sheet Toggle Header -->
+            <LinearLayout
+                android:id="@+id/layoutSheetHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:orientation="horizontal"
                 android:gravity="center"
-                android:text="0 Categories and 0 total items"
-                android:textColor="@color/edittext_hint"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginBottom="12dp"
-                android:background="#EAEAEA" />
-
-            <RelativeLayout
-                android:id="@+id/layoutNewCategoryClick"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:paddingVertical="4dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:background="?attr/selectableItemBackground"
-                android:paddingVertical="4dp">
+                android:layout_marginBottom="8dp">
 
                 <TextView
+                    android:id="@+id/tvGroupSummaryText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="New Category"
-                    android:textColor="@color/presyo_orange"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_alignParentStart="true" />
+                    android:text="0 Categories and 0 total items"
+                    android:textColor="#333333"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tvNewCategoriesSummary"
+                    android:id="@+id/btnViewSummaryToggle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textColor="@color/presyo_orange"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_alignParentEnd="true" />
-
-            </RelativeLayout>
-
-            <!-- New Items Count Line -->
-            <RelativeLayout
-                android:id="@+id/layoutNewItemsClick"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="?attr/selectableItemBackground"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="New items"
-                    android:textColor="@color/presyo_orange"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_alignParentStart="true" />
-
-                <TextView
-                    android:id="@+id/tvNewItemsSummary"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textColor="@color/presyo_orange"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_alignParentEnd="true" />
-
-            </RelativeLayout>
-
-            <!-- Update Items Count Line -->
-            <RelativeLayout
-                android:id="@+id/layoutUpdateItemsClick"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="?attr/selectableItemBackground"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Update Items"
+                    android:layout_marginStart="8dp"
+                    android:text="View Summary"
                     android:textColor="@color/presyo_teal"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_alignParentStart="true" />
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/tvUpdateItemsSummary"
-                    android:layout_width="wrap_content"
+                <ImageView
+                    android:id="@+id/imgSheetChevron"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="4dp"
+                    android:src="@drawable/icon_arrow_right"
+                    android:rotation="270"
+                    app:tint="@color/presyo_teal" />
+
+            </LinearLayout>
+
+            <!-- Collapsable Summary Details -->
+            <LinearLayout
+                android:id="@+id/layoutSummaryDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginBottom="8dp">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="#EAEAEA" />
+
+                <RelativeLayout
+                    android:id="@+id/layoutNewCategoryClick"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textColor="@color/presyo_teal"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_alignParentEnd="true" />
+                    android:layout_marginBottom="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingVertical="4dp">
 
-            </RelativeLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="New Category"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentStart="true" />
+
+                    <TextView
+                        android:id="@+id/tvNewCategoriesSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentEnd="true" />
+
+                </RelativeLayout>
+
+                <!-- New Items Count Line -->
+                <RelativeLayout
+                    android:id="@+id/layoutNewItemsClick"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingVertical="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="New items"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentStart="true" />
+
+                    <TextView
+                        android:id="@+id/tvNewItemsSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentEnd="true" />
+
+                </RelativeLayout>
+
+                <!-- Update Items Count Line -->
+                <RelativeLayout
+                    android:id="@+id/layoutUpdateItemsClick"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingVertical="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Update Items"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentStart="true" />
+
+                    <TextView
+                        android:id="@+id/tvUpdateItemsSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentEnd="true" />
+
+                </RelativeLayout>
+
+                <!-- Public Items Count Line -->
+                <RelativeLayout
+                    android:id="@+id/layoutPublicItemsSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingVertical="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Public items"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentStart="true" />
+
+                    <TextView
+                        android:id="@+id/tvPublicItemsCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentEnd="true" />
+
+                </RelativeLayout>
+
+                <!-- Private Items Count Line -->
+                <RelativeLayout
+                    android:id="@+id/layoutPrivateItemsSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingVertical="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Private items"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentStart="true" />
+
+                    <TextView
+                        android:id="@+id/tvPrivateItemsCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_alignParentEnd="true" />
+
+                </RelativeLayout>
+
+            </LinearLayout>
 
             <!-- DONE / Confirm button -->
             <androidx.appcompat.widget.AppCompatButton

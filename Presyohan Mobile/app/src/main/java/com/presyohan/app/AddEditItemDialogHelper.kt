@@ -156,7 +156,7 @@ object AddEditItemDialogHelper {
             }
         } else {
             dialogTitle.text = "Add Item"
-            btnTopAction.text = "+ Multiple Items"
+            btnTopAction.text = "Add Multiple Items"
             btnTopAction.setOnClickListener {
                 dialog.dismiss()
                 val intent = Intent(activity, AddMultipleItemsActivity::class.java)

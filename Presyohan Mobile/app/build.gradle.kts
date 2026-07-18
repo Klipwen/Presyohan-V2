@@ -122,6 +122,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:20.7.0") // For Google Sign-In
     // Force compatible browser version for compileSdk 35
     implementation("androidx.browser:browser:1.8.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Supabase Kotlin client (Android variants pinned to 3.2.5)
     implementation("io.github.jan-tennert.supabase:postgrest-kt-android:3.2.5") {

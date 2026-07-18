@@ -27,6 +27,22 @@
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true" />
 
+        <CheckBox
+            android:id="@+id/cbMakePublic"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@id/btnDelete"
+            android:layout_marginEnd="12dp"
+            android:button="@null"
+            android:drawableStart="@drawable/selector_public_checkbox"
+            android:drawablePadding="6dp"
+            android:text="Make Public"
+            android:textColor="#555555"
+            android:textSize="11sp"
+            android:checked="true"
+            android:gravity="center_vertical"
+            android:layout_centerVertical="true" />
+
         <ImageView
             android:id="@+id/btnDelete"
             android:layout_width="20dp"
