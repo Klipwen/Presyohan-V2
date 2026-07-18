@@ -93,9 +93,10 @@
                 android:layout_marginEnd="12dp" />
 
             <TextView
+                android:id="@+id/tvOptionOwner"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Store owner"
+                android:text="Store Owner(Full Control)"
                 android:textColor="@color/presyo_darkblue"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -122,9 +123,10 @@
                 android:layout_marginEnd="12dp" />
 
             <TextView
+                android:id="@+id/tvOptionManager"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Manager"
+                android:text="Manager(Manage Prices)"
                 android:textColor="@color/presyo_darkblue"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -150,9 +152,10 @@
                 android:layout_marginEnd="12dp" />
 
             <TextView
+                android:id="@+id/tvOptionSalesStaff"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sale-staff"
+                android:text="Sale-staff (View Only Prices)"
                 android:textColor="@color/presyo_darkblue"
                 android:textSize="14sp"
                 android:textStyle="bold" />

@@ -345,6 +345,7 @@ class ManageStoreActivity : AppCompatActivity() {
             val intent = Intent(this, ManageCategoryActivity::class.java).apply {
                 putExtra("storeId", storeId)
                 putExtra("storeName", storeName)
+                putExtra("branchName", branchName)
             }
             startActivity(intent)
         }
@@ -354,6 +355,7 @@ class ManageStoreActivity : AppCompatActivity() {
             val intent = Intent(this, ManageItemsActivity::class.java).apply {
                 putExtra("storeId", storeId)
                 putExtra("storeName", storeName)
+                putExtra("branchName", branchName)
             }
             startActivity(intent)
         }

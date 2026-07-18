@@ -109,26 +109,20 @@
             <!-- Whats New Section -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:orientation="vertical"
                 android:gravity="start"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Whats New?"
-                    android:textColor="@color/presyo_teal"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp" />
 
                 <!-- Bullet points scroll view or container -->
                 <ScrollView
+                    android:id="@+id/svWhatsNew"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:maxHeight="160dp">
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
 
                     <TextView
                         android:id="@+id/tvWhatsNewList"
@@ -138,6 +132,7 @@
                         android:textSize="14sp"
                         android:lineSpacingExtra="4dp" />
                 </ScrollView>
+
 
             </LinearLayout>
 

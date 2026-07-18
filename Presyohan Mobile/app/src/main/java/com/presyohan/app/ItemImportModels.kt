@@ -110,7 +110,8 @@ data class DraftItem(
     val originalLine: String? = null,
     val validationStatus: ValidationStatus = ValidationStatus.INVALID,
     val validationErrors: List<ValidationError> = emptyList(),
-    val duplicateKey: String = ImportDraftKeys.productKey(productName, description, unit)
+    val duplicateKey: String = ImportDraftKeys.productKey(productName, description, unit),
+    val isPublic: Boolean = true
 )
 
 object ImportDraftKeys {

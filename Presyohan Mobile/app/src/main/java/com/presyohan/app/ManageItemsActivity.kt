@@ -34,6 +34,7 @@ import com.presyohan.app.adapter.ManageItemData
 import com.presyohan.app.adapter.ManageItemsAdapter
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -101,6 +102,7 @@ class ManageItemsActivity : AppCompatActivity() {
     
     private var storeId: String? = null
     private var storeName: String? = null
+    private var branchName: String? = null
     private var currentUserRole: String = "employee"
     private lateinit var loadingOverlay: android.view.View
     private lateinit var shimmerContainer: com.facebook.shimmer.ShimmerFrameLayout
@@ -113,6 +115,7 @@ class ManageItemsActivity : AppCompatActivity() {
 
         storeId = intent.getStringExtra("storeId")
         storeName = intent.getStringExtra("storeName")
+        branchName = intent.getStringExtra("branchName")
         val initialFilterCategory = intent.getStringExtra("filterCategory")
         if (!initialFilterCategory.isNullOrBlank()) {
             selectedCategory = initialFilterCategory
@@ -388,7 +391,12 @@ class ManageItemsActivity : AppCompatActivity() {
         }
 
         btnBulkConvert.setOnClickListener {
-            showConvertPricelistDialog()
+            val selected = adapter.getSelectedItems()
+            if (selected.isEmpty()) {
+                Toast.makeText(this, "No items selected.", Toast.LENGTH_SHORT).show()
+            } else {
+                showConvertPricelistDialog(selected)
+            }
         }
 
         btnBulkDelete.setOnClickListener {
@@ -417,6 +425,23 @@ class ManageItemsActivity : AppCompatActivity() {
                 ).decodeList<StoreMemberUser>()
                 val currentMember = members.firstOrNull { it.user_id == uid }
                 currentUserRole = currentMember?.role ?: "employee"
+
+                // Fetch store details (specifically name and branch)
+                @Serializable
+                data class StoreRow(val id: String, val name: String, val branch: String? = null)
+                try {
+                    val storeRows = SupabaseProvider.client.postgrest["stores"].select(Columns.list("id", "name", "branch")) {
+                        filter { eq("id", sId) }
+                        limit(1)
+                    }.decodeList<StoreRow>()
+                    val store = storeRows.firstOrNull()
+                    if (store != null) {
+                        storeName = store.name
+                        branchName = store.branch ?: branchName
+                    }
+                } catch (e: java.lang.Exception) {
+                    android.util.Log.e("ManageItems", "Fetch store details failed: ${e.localizedMessage}")
+                }
 
                 // Hide Clone & Convert if not owner
                 val isOwner = currentUserRole.lowercase() == "owner"
@@ -1112,13 +1137,7 @@ class ManageItemsActivity : AppCompatActivity() {
         )
     }
 
-    private fun showConvertPricelistDialog() {
-        val selectedItems = adapter.getSelectedItems()
-        if (selectedItems.isEmpty()) {
-            Toast.makeText(this, "No items selected.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
+    private fun showConvertPricelistDialog(items: List<ManageItemData>) {
         val dialog = Dialog(this)
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_convert_pricelist, null)
         dialog.setContentView(view)
@@ -1133,29 +1152,50 @@ class ManageItemsActivity : AppCompatActivity() {
         val tvSummary      = view.findViewById<TextView>(R.id.tvConvertSummary)
         val cardExcel      = view.findViewById<android.view.View>(R.id.cardExcelOption)
         val cardNotes      = view.findViewById<android.view.View>(R.id.cardNotesOption)
+        val cardPdf        = view.findViewById<android.view.View>(R.id.cardPdfOption)
         val imgExcelRadio  = view.findViewById<ImageView>(R.id.imgExcelRadio)
         val imgNotesRadio  = view.findViewById<ImageView>(R.id.imgNotesRadio)
+        val imgPdfRadio    = view.findViewById<ImageView>(R.id.imgPdfRadio)
         val panelExcel     = view.findViewById<android.view.View>(R.id.panelExcelStats)
         val panelNotes     = view.findViewById<android.view.View>(R.id.panelNotesPreview)
+        val panelPdf       = view.findViewById<android.view.View>(R.id.panelPdfStats)
         val tvStatRows     = view.findViewById<TextView>(R.id.tvStatRows)
         val tvStatScope    = view.findViewById<TextView>(R.id.tvStatScope)
         val textPreview    = view.findViewById<TextView>(R.id.textNotesPreview)
         val tvNoteStats    = view.findViewById<TextView>(R.id.tvNoteStats)
+        val tvPdfSize      = view.findViewById<TextView>(R.id.tvPdfSelectedSize)
+        val cardPdfLong    = view.findViewById<android.view.View>(R.id.cardPdfLong)
+        val cardPdfShort   = view.findViewById<android.view.View>(R.id.cardPdfShort)
+        val imgPdfLong     = view.findViewById<ImageView>(R.id.imgPdfLongRadio)
+        val imgPdfShort    = view.findViewById<ImageView>(R.id.imgPdfShortRadio)
         val btnCopyPreview = view.findViewById<ImageView>(R.id.btnCopyNotePreview)
         val btnBack        = view.findViewById<AppCompatButton>(R.id.btnBack)
         val btnConvert     = view.findViewById<AppCompatButton>(R.id.btnConvert)
 
         // --- Summary line ---
-        val grouped = selectedItems.groupBy { it.category.trim() }
+        val grouped = items.groupBy { it.category.trim() }
         val catCount  = grouped.keys.filter { it.isNotBlank() }.size
-        val itemCount = selectedItems.size
+        val itemCount = items.size
         tvSummary.text = "$catCount ${if (catCount == 1) "category" else "categories"} and " +
                 "$itemCount ${if (itemCount == 1) "item" else "items"} to convert"
 
         // --- State ---
-        // 0 = nothing chosen yet, 1 = Excel, 2 = Notes
+        // 0 = nothing chosen yet, 1 = Excel, 2 = Notes, 3 = PDF
         var selectedMode = 0
         var generatedNoteText = ""
+        var selectedPdfSize: PdfPageSize? = null
+
+        fun applyPdfSizeSelection(size: PdfPageSize) {
+            selectedPdfSize = size
+            tvPdfSize.text = size.labelName
+            val isLong = size == PdfPageSize.LONG_BOND
+            imgPdfLong.setImageResource(if (isLong) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            imgPdfShort.setImageResource(if (!isLong) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            cardPdfLong.setBackgroundResource(if (isLong) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            cardPdfShort.setBackgroundResource(if (!isLong) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            btnConvert.isEnabled = true
+            btnConvert.alpha = 1.0f
+        }
 
         fun applySelection(mode: Int) {
             selectedMode = mode
@@ -1163,24 +1203,29 @@ class ManageItemsActivity : AppCompatActivity() {
             // Update radio icon states
             imgExcelRadio.setImageResource(if (mode == 1) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
             imgNotesRadio.setImageResource(if (mode == 2) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
+            imgPdfRadio.setImageResource(if (mode == 3) R.drawable.ic_radio_checked_orange else R.drawable.ic_radio_unchecked)
 
             // Update card backgrounds
             cardExcel.setBackgroundResource(if (mode == 1) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
             cardNotes.setBackgroundResource(if (mode == 2) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
+            cardPdf.setBackgroundResource(if (mode == 3) R.drawable.bg_card_selected_orange else R.drawable.bg_card_unselected_teal)
 
             // Show / hide panels
             panelExcel.visibility = if (mode == 1) android.view.View.VISIBLE else android.view.View.GONE
             panelNotes.visibility = if (mode == 2) android.view.View.VISIBLE else android.view.View.GONE
+            panelPdf.visibility   = if (mode == 3) android.view.View.VISIBLE else android.view.View.GONE
 
             if (mode == 1) {
                 // Populate Excel stats
                 tvStatRows.text  = itemCount.toString()
                 tvStatScope.text = "${catCount} ${if (catCount == 1) "Category" else "Categories"}, $itemCount Items"
                 btnConvert.text  = "CONVERT"
+                btnConvert.isEnabled = true
+                btnConvert.alpha     = 1.0f
             } else if (mode == 2) {
                 // Build and show note preview
                 generatedNoteText = buildPlainTextNotes(
-                    selectedItems,
+                    items,
                     includeTitle = true,
                     includeDesc  = true,
                     includePrice = true,
@@ -1190,16 +1235,22 @@ class ManageItemsActivity : AppCompatActivity() {
                 textPreview.text  = generatedNoteText
                 tvNoteStats.text  = "$itemCount ${if (itemCount == 1) "item" else "items"} • ${generatedNoteText.length} characters"
                 btnConvert.text   = "SHARE NOTE"
+                btnConvert.isEnabled = true
+                btnConvert.alpha     = 1.0f
+            } else if (mode == 3) {
+                btnConvert.text = "GENERATE PDF"
+                btnConvert.isEnabled = selectedPdfSize != null
+                btnConvert.alpha = if (selectedPdfSize != null) 1.0f else 0.5f
             }
-
-            // Enable the action button once a mode is chosen
-            btnConvert.isEnabled = true
-            btnConvert.alpha     = 1.0f
         }
 
         // --- Click listeners ---
         cardExcel.setOnClickListener { applySelection(1) }
         cardNotes.setOnClickListener { applySelection(2) }
+        cardPdf.setOnClickListener   { applySelection(3) }
+
+        cardPdfLong.setOnClickListener  { applyPdfSizeSelection(PdfPageSize.LONG_BOND) }
+        cardPdfShort.setOnClickListener { applyPdfSizeSelection(PdfPageSize.SHORT_BOND) }
 
         btnCopyPreview.setOnClickListener {
             if (generatedNoteText.isNotBlank()) {
@@ -1215,7 +1266,7 @@ class ManageItemsActivity : AppCompatActivity() {
             when (selectedMode) {
                 1 -> {
                     dialog.dismiss()
-                    exportToExcel(selectedItems)
+                    exportToExcel(items)
                 }
                 2 -> {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -1223,6 +1274,31 @@ class ManageItemsActivity : AppCompatActivity() {
                         putExtra(Intent.EXTRA_TEXT, generatedNoteText)
                     }
                     startActivity(Intent.createChooser(shareIntent, "Share Pricelist via"))
+                }
+                3 -> {
+                    val size = selectedPdfSize
+                    if (size == null) {
+                        Toast.makeText(this, "Please choose a paper size.", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    dialog.dismiss()
+                    val pdfItems = items.map { item ->
+                        PdfPriceItem(
+                            category    = item.category.trim().ifBlank { "General" },
+                            name        = item.name.trim(),
+                            price       = item.price,
+                            unit        = item.unit.trim(),
+                            description = item.description.trim()
+                        )
+                    }
+                    PdfPreviewDialogHelper.show(
+                        activity    = this,
+                        items       = pdfItems,
+                        storeName   = storeName ?: "",
+                        branchName  = branchName ?: "",
+                        pageSize    = size,
+                        onBack      = { showConvertPricelistDialog(items) }
+                    )
                 }
                 else -> Toast.makeText(this, "Please select a format first.", Toast.LENGTH_SHORT).show()
             }

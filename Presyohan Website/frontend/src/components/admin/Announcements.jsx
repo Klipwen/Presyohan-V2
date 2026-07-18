@@ -492,7 +492,7 @@ export default function Announcements() {
 
               {/* Layout-specific dynamic options */}
               {templateType === 'two_buttons' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
                       <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Positive Action Label</label>
@@ -515,16 +515,155 @@ export default function Announcements() {
                       />
                     </div>
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Positive Action URL Link / Deep Link</label>
-                    <input
-                      type="text"
-                      className="admin-search-input"
-                      style={{ paddingLeft: '10px', height: '34px', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
-                      placeholder="e.g. presyohan://ratings or https://play.google.com"
-                      value={templateData.positive_action || ''}
-                      onChange={(e) => updateTemplateField('positive_action', e.target.value)}
-                    />
+
+                  {/* Positive Button Configurator */}
+                  <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '10px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                      POSITIVE BUTTON ACTION CONFIG
+                    </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Action Type</label>
+                        <select
+                          className="admin-search-input"
+                          style={{ paddingLeft: '10px', height: '34px', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                          value={templateData.positive_action_type || 'url'}
+                          onChange={(e) => {
+                            const type = e.target.value;
+                            setTemplateData(prev => {
+                              const updated = {
+                                ...prev,
+                                positive_action_type: type,
+                                positive_action: type === 'screen' ? 'settings' : ''
+                              };
+                              // Auto-update filter target key to match positive action screen
+                              if (type === 'screen') {
+                                updated.target_navigation_screen = 'settings';
+                              } else {
+                                delete updated.target_navigation_screen;
+                              }
+                              return updated;
+                            });
+                          }}
+                        >
+                          <option value="url">Open Web Page / Deep Link</option>
+                          <option value="screen">Navigate to App Screen</option>
+                        </select>
+                      </div>
+
+                      {templateData.positive_action_type === 'screen' ? (
+                        <div>
+                          <label style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Target Screen</label>
+                          <select
+                            className="admin-search-input"
+                            style={{ paddingLeft: '10px', height: '34px', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                            value={templateData.positive_action || 'settings'}
+                            onChange={(e) => {
+                              const screenKey = e.target.value;
+                              setTemplateData(prev => ({
+                                ...prev,
+                                positive_action: screenKey,
+                                target_navigation_screen: screenKey // Sync filter target key
+                              }));
+                            }}
+                          >
+                            <option value="settings">App Settings (Internet Price Search Toggle)</option>
+                            <option value="customer_home">Regular User Portal (Search Prices Dashboard)</option>
+                            <option value="store_home">Store Portal (Create/Join/View Store List Screen)</option>
+                            <option value="manage_members">Manage Members Screen (Staff Settings - Owner Only)</option>
+                            <option value="manage_store">Manage Store Details Screen (Owner Only)</option>
+                            <option value="account_security">User Account & Security Settings</option>
+                            <option value="edit_profile">Edit User Profile Details (Name, Photo)</option>
+                            <option value="notifications">App Notification Inbox / updates center</option>
+                            <option value="memberships">Store Memberships & Loyalty Programs</option>
+                            <option value="contact_us">Contact Us / Support Helpdesk</option>
+                            <option value="manage_categories">Manage Product Categories (Store context required)</option>
+                            <option value="store_qr">View/Share Store QR Code (Store context required)</option>
+                            <option value="manage_items">Manage Store Products & Prices (Store context required)</option>
+                            <option value="add_multiple_items">Bulk Add / Import Products (Store context required)</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div>
+                          <label style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Web URL Link</label>
+                          <input
+                            type="text"
+                            className="admin-search-input"
+                            style={{ paddingLeft: '10px', height: '34px', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                            placeholder="e.g. https://play.google.com"
+                            value={templateData.positive_action || ''}
+                            onChange={(e) => updateTemplateField('positive_action', e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Negative Button Configurator */}
+                  <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '10px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                      NEGATIVE BUTTON ACTION CONFIG
+                    </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Action Type</label>
+                        <select
+                          className="admin-search-input"
+                          style={{ paddingLeft: '10px', height: '34px', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                          value={templateData.negative_action_type || 'url'}
+                          onChange={(e) => {
+                            const type = e.target.value;
+                            setTemplateData(prev => ({
+                              ...prev,
+                              negative_action_type: type,
+                              negative_action: type === 'screen' ? 'settings' : ''
+                            }));
+                          }}
+                        >
+                          <option value="url">Open Web Page / Deep Link</option>
+                          <option value="screen">Navigate to App Screen</option>
+                        </select>
+                      </div>
+
+                      {templateData.negative_action_type === 'screen' ? (
+                        <div>
+                          <label style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Target Screen</label>
+                          <select
+                            className="admin-search-input"
+                            style={{ paddingLeft: '10px', height: '34px', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                            value={templateData.negative_action || 'settings'}
+                            onChange={(e) => updateTemplateField('negative_action', e.target.value)}
+                          >
+                            <option value="settings">App Settings (Internet Price Search Toggle)</option>
+                            <option value="customer_home">Regular User Portal (Search Prices Dashboard)</option>
+                            <option value="store_home">Store Portal (Create/Join/View Store List Screen)</option>
+                            <option value="manage_members">Manage Members Screen (Staff Settings - Owner Only)</option>
+                            <option value="manage_store">Manage Store Details Screen (Owner Only)</option>
+                            <option value="account_security">User Account & Security Settings</option>
+                            <option value="edit_profile">Edit User Profile Details (Name, Photo)</option>
+                            <option value="notifications">App Notification Inbox / updates center</option>
+                            <option value="memberships">Store Memberships & Loyalty Programs</option>
+                            <option value="contact_us">Contact Us / Support Helpdesk</option>
+                            <option value="manage_categories">Manage Product Categories (Store context required)</option>
+                            <option value="store_qr">View/Share Store QR Code (Store context required)</option>
+                            <option value="manage_items">Manage Store Products & Prices (Store context required)</option>
+                            <option value="add_multiple_items">Bulk Add / Import Products (Store context required)</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div>
+                          <label style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>Web URL Link</label>
+                          <input
+                            type="text"
+                            className="admin-search-input"
+                            style={{ paddingLeft: '10px', height: '34px', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                            placeholder="e.g. https://play.google.com"
+                            value={templateData.negative_action || ''}
+                            onChange={(e) => updateTemplateField('negative_action', e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

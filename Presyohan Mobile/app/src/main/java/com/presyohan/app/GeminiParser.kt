@@ -151,7 +151,7 @@ object GeminiParser {
         var responseText: String? = null
         var lastError: Exception? = null
 
-        val modelsToTry = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite")
+        val modelsToTry = listOf("gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite")
         for (modelName in modelsToTry) {
             try {
                 val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey")
@@ -234,7 +234,7 @@ object GeminiParser {
         var responseText: String? = null
         var lastError: Exception? = null
 
-        val modelsToTry = listOf("gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite")
+        val modelsToTry = listOf("gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite")
         for (modelName in modelsToTry) {
             try {
                 val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey")
@@ -391,6 +391,152 @@ object GeminiParser {
             warnings = warnings
         )
     }
+
+    suspend fun searchInternetPrices(query: String): List<InternetSearchProduct> = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        if (apiKey.isBlank() || apiKey == "YOUR_API_KEY_HERE") {
+            throw IllegalStateException("API key not configured")
+        }
+
+        val systemInstructionText = """
+            You are an expert shopping assistant. Your task is to find current online prices in the Philippines for the product specified in the user query.
+            Search Google for the product prices and find real items from Philippine online stores, brands, supermarkets, or retailers.
+            CRITICAL: Prioritize the official source of the product (such as the official brand/manufacturer website in the Philippines, official distributor page, or official brand stores) to show the official Suggested Retail Price (SRP) first. Place these official sources at the top of your results list. Below that, list prices from major retail supermarkets (e.g., SM Markets, Robinsons, MetroMart, Watsons, etc.) or general marketplaces.
+            Extract at least 3-5 real items and their prices.
+            Format your response strictly as a JSON object matching this structure:
+            {
+              "items": [
+                {
+                  "sourceName": "string (the name of the store, website, or brand, e.g., 'Honda Philippines', 'SM Markets', 'Lazada')",
+                  "itemName": "string (the name of the product)",
+                  "description": "string (brief product details, size, or packaging)",
+                  "price": number (the price in PHP, e.g. 15.00)",
+                  "unit": "string (the unit size or weight, e.g., '500 ml', '1 kg', 'piece')"
+                }
+              ]
+            }
+            Do NOT include any markdown formatting, backticks, or explanation. Only return the JSON.
+            If the query is gibberish, empty, or no prices can be found, return an empty array for "items".
+        """.trimIndent()
+
+        val prompt = "Find prices for: $query"
+
+        val requestObj = GeminiSearchRequest(
+            systemInstruction = GeminiRestSystemInstruction(
+                parts = listOf(GeminiRestPart(text = systemInstructionText))
+            ),
+            contents = listOf(
+                GeminiRestContent(
+                    role = "user",
+                    parts = listOf(GeminiRestPart(text = prompt))
+                )
+            ),
+            generationConfig = GeminiRestGenerationConfig(
+                responseMimeType = "application/json",
+                temperature = 0.2
+            ),
+            tools = listOf(GeminiRestTool(googleSearch = GoogleSearchToolConfig()))
+        )
+
+        val requestBody = jsonDecoder.encodeToString(requestObj)
+
+        var responseText: String? = null
+        var lastError: Exception? = null
+
+        val modelsToTry = listOf("gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite")
+        for (modelName in modelsToTry) {
+            try {
+                val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.doOutput = true
+                conn.connectTimeout = 30000
+                conn.readTimeout = 30000
+
+                conn.outputStream.use { os ->
+                    val input = requestBody.toByteArray(Charsets.UTF_8)
+                    os.write(input, 0, input.size)
+                }
+
+                val responseCode = conn.responseCode
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                    break
+                } else {
+                    val errorText = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    throw IllegalStateException("API call to $modelName failed with code $responseCode: $errorText")
+                }
+            } catch (e: Exception) {
+                lastError = e
+                android.util.Log.w("GeminiParser", "Failed to call model $modelName with search tool: ${e.message}")
+            }
+        }
+
+        // Fallback: If search tool fails, try WITHOUT search tool
+        if (responseText == null) {
+            val fallbackRequestObj = GeminiSearchRequest(
+                systemInstruction = GeminiRestSystemInstruction(
+                    parts = listOf(GeminiRestPart(text = systemInstructionText))
+                ),
+                contents = listOf(
+                    GeminiRestContent(
+                        role = "user",
+                        parts = listOf(GeminiRestPart(text = prompt))
+                    )
+                ),
+                generationConfig = GeminiRestGenerationConfig(
+                    responseMimeType = "application/json",
+                    temperature = 0.2
+                ),
+                tools = null
+            )
+            val fallbackRequestBody = jsonDecoder.encodeToString(fallbackRequestObj)
+
+            for (modelName in modelsToTry) {
+                try {
+                    val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                    conn.setRequestProperty("Accept", "application/json")
+                    conn.doOutput = true
+                    conn.connectTimeout = 30000
+                    conn.readTimeout = 30000
+
+                    conn.outputStream.use { os ->
+                        val input = fallbackRequestBody.toByteArray(Charsets.UTF_8)
+                        os.write(input, 0, input.size)
+                    }
+
+                    val responseCode = conn.responseCode
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                        break
+                    } else {
+                        val errorText = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                        throw IllegalStateException("API call fallback to $modelName failed: $errorText")
+                    }
+                } catch (e: Exception) {
+                    lastError = e
+                    android.util.Log.w("GeminiParser", "Failed to call fallback model $modelName: ${e.message}")
+                }
+            }
+        }
+
+        if (responseText == null) {
+            throw lastError ?: IllegalStateException("All Gemini models failed to respond")
+        }
+
+        val restResponse = jsonDecoder.decodeFromString<GeminiRestResponse>(responseText)
+        val rawJson = restResponse.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            ?: throw IllegalStateException("Empty response from Gemini")
+
+        val cleanedJson = cleanJson(rawJson)
+        val apiResponse = jsonDecoder.decodeFromString<InternetSearchResponse>(cleanedJson)
+        apiResponse.items
+    }
 }
 
 @Serializable
@@ -430,4 +576,36 @@ data class GeminiRestCandidate(val content: GeminiRestContent, val finishReason:
 
 @Serializable
 data class GeminiRestResponse(val candidates: List<GeminiRestCandidate>)
+
+@Serializable
+data class GeminiSearchRequest(
+    @SerialName("system_instruction")
+    val systemInstruction: GeminiRestSystemInstruction? = null,
+    val contents: List<GeminiRestContent>,
+    val generationConfig: GeminiRestGenerationConfig? = null,
+    val tools: List<GeminiRestTool>? = null
+)
+
+@Serializable
+data class GeminiRestTool(
+    val googleSearch: GoogleSearchToolConfig? = null
+)
+
+@Serializable
+class GoogleSearchToolConfig
+
+@Serializable
+data class InternetSearchProduct(
+    val sourceName: String,
+    val itemName: String,
+    val description: String? = null,
+    val price: Double = 0.0,
+    val unit: String? = null
+)
+
+@Serializable
+data class InternetSearchResponse(
+    val items: List<InternetSearchProduct>
+)
+
 

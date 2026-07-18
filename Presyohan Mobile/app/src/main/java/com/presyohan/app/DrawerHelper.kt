@@ -196,7 +196,7 @@ object DrawerHelper {
                         val lineVerticalBottom = storeView.findViewById<View>(R.id.lineVerticalBottom)
 
                         txtName.text = row.name
-                        val subtitle = if (!row.branch.isNullOrBlank()) row.branch else (row.type ?: "Public Prices")
+                        val subtitle = if (!row.branch.isNullOrBlank()) row.branch else (row.type ?: "Search Prices")
                         txtBranch.text = subtitle
                         txtBranch.visibility = View.VISIBLE
 

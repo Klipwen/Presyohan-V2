@@ -1,5 +1,6 @@
 package com.presyohan.app
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -26,9 +27,15 @@ import coil.transform.CircleCropTransformation
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import android.animation.ValueAnimator
+import android.graphics.Shader
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import android.app.Dialog
@@ -52,8 +59,37 @@ class CustomerHomeActivity : AppCompatActivity() {
     private lateinit var rvCustomerStores: RecyclerView
     private lateinit var layoutEmptyState: View
     private lateinit var emptyStateMessage: TextView
+    private lateinit var ivEmptyStateIcon: ImageView
     private lateinit var shimmerPricesContainer: com.facebook.shimmer.ShimmerFrameLayout
     private lateinit var shimmerStoresContainer: com.facebook.shimmer.ShimmerFrameLayout
+
+    // Internet Price Search Properties
+    private var isInternetPriceSearchMode = false
+    private var isSwitchingModes = false
+    private var wasSearchQueryEmpty = true
+    private lateinit var btnInternetSearchMode: View
+    private lateinit var btnInternetSearchAction: TextView
+    private lateinit var headerDivider: View
+    private lateinit var headerProgressBar: android.widget.ProgressBar
+    private lateinit var layoutInternetSearchProgress: View
+    private lateinit var internetSkeletonLoader: SkeletonLoaderView
+    private lateinit var imgInternetSearchMascot: ImageView
+    private lateinit var tvInternetSearchProgressSubtitle: TextView
+    private var internetMascotAnimator: ValueAnimator? = null
+    private var internetTextShimmerAnimator: ValueAnimator? = null
+    private var internetTextCycleJob: kotlinx.coroutines.Job? = null
+    private var internetSearchJob: kotlinx.coroutines.Job? = null
+    private lateinit var ivSearchInternetIcon: View
+    private lateinit var btnBackToLocalStoresTop: View
+    private lateinit var bottomNavigationContainer: View
+    private lateinit var layoutInternetBottomCard: View
+    private lateinit var tvInternetBottomCardText: TextView
+    private lateinit var tvInternetBottomCardAction: TextView
+    private var internetSearchFailureCount = 0
+
+    // Load More state properties
+    private var visibleProductsLimit = 10
+    private var isLoadMoreLoading = false
 
     // Bottom Navigation Views
     private lateinit var btnTabPrices: View
@@ -215,12 +251,28 @@ class CustomerHomeActivity : AppCompatActivity() {
         rvCustomerStores = findViewById(R.id.rvCustomerStores)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
         emptyStateMessage = findViewById(R.id.emptyStateMessage)
+        ivEmptyStateIcon = findViewById(R.id.ivEmptyStateIcon)
         profileIconContainer = findViewById(R.id.profileIconContainer)
         profileIcon = findViewById(R.id.profileIcon)
 
-        // Apply dynamic top padding to headerPresyohan matching status bar height
+        btnInternetSearchMode = findViewById(R.id.btnInternetSearchMode)
+        btnInternetSearchAction = findViewById(R.id.btnInsideSearchAction)
+        headerDivider = findViewById(R.id.headerDivider)
+        headerProgressBar = findViewById(R.id.headerProgressBar)
+        layoutInternetSearchProgress = findViewById(R.id.layoutInternetSearchProgress)
+        internetSkeletonLoader = findViewById(R.id.internetSkeletonLoader)
+        imgInternetSearchMascot = findViewById(R.id.imgInternetSearchMascot)
+        tvInternetSearchProgressSubtitle = findViewById(R.id.tvInternetSearchProgressSubtitle)
+        ivSearchInternetIcon = findViewById(R.id.ivSearchInternetIcon)
+        btnBackToLocalStoresTop = findViewById(R.id.btnBackToLocalStoresTop)
+        bottomNavigationContainer = findViewById(R.id.bottomNavigationContainer)
+        layoutInternetBottomCard = findViewById(R.id.layoutInternetBottomCard)
+        tvInternetBottomCardText = findViewById(R.id.tvInternetBottomCardText)
+        tvInternetBottomCardAction = findViewById(R.id.tvInternetBottomCardAction)
+
+        // Apply dynamic top padding to header layouts matching status bar height
         val headerPresyohan = findViewById<View>(R.id.headerPresyohan)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(headerPresyohan) { view, insets ->
+        val insetListener = androidx.core.view.OnApplyWindowInsetsListener { view, insets ->
             val statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
             view.setPadding(
                 view.paddingLeft,
@@ -230,6 +282,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             )
             insets
         }
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(headerPresyohan, insetListener)
 
         // Bottom Nav
         btnTabPrices = findViewById(R.id.btnTabPrices)
@@ -329,6 +382,25 @@ class CustomerHomeActivity : AppCompatActivity() {
             onViewAllClick = {
                 searchEditText.setText("Category: ")
                 searchEditText.setSelection(searchEditText.text.length)
+            },
+            onInternetSearchClick = { query ->
+                enterInternetSearchMode(query)
+            },
+            onLoadMoreClick = {
+                triggerLoadMorePrices()
+            },
+            onBackToLocalClick = {
+                ReusableDialogHelper.showCustomDialog(
+                    context = this,
+                    title = "Close Internet Search",
+                    message = "Are you sure you want to close the Internet Price Search?",
+                    positiveButtonText = "Close",
+                    positiveAction = {
+                        exitInternetSearchMode()
+                    },
+                    negativeButtonText = "No",
+                    negativeAction = {}
+                )
             }
         )
         storeAdapter = CustomerStoreAdapter(
@@ -364,7 +436,45 @@ class CustomerHomeActivity : AppCompatActivity() {
 
         // Setup Tab Navigation clicks
         btnTabPrices.setOnClickListener { selectTab(true) }
-        btnTabStores.setOnClickListener { selectTab(false) }
+        btnTabStores.setOnClickListener {
+            if (isInternetPriceSearchMode) {
+                ReusableDialogHelper.showCustomDialog(
+                    context = this,
+                    title = "Close Internet Search",
+                    message = "Are you sure you want to close the Internet Price Search?",
+                    positiveButtonText = "Close",
+                    positiveAction = {
+                        exitInternetSearchMode()
+                        selectTab(false)
+                    },
+                    negativeButtonText = "No",
+                    negativeAction = {}
+                )
+            } else {
+                selectTab(false)
+            }
+        }
+
+        // Internet Price Search click actions
+        btnInternetSearchMode.setOnClickListener {
+            enterInternetSearchMode()
+        }
+        btnInternetSearchAction.setOnClickListener {
+            performInternetSearch()
+        }
+        btnBackToLocalStoresTop.setOnClickListener {
+            ReusableDialogHelper.showCustomDialog(
+                context = this,
+                title = "Close Internet Search",
+                message = "Are you sure you want to close the Internet Price Search?",
+                positiveButtonText = "Close",
+                positiveAction = {
+                    exitInternetSearchMode()
+                },
+                negativeButtonText = "No",
+                negativeAction = {}
+            )
+        }
 
         // Add Button triggers Bottom Sheet
         btnNavAdd.setOnClickListener { showBottomSheet() }
@@ -390,7 +500,22 @@ class CustomerHomeActivity : AppCompatActivity() {
 
         val btnClearSearch = findViewById<ImageView>(R.id.btnClearSearch)
         btnClearSearch.setOnClickListener {
-            searchEditText.setText("")
+            if (isInternetPriceSearchMode && currentSearchQuery.isNotEmpty()) {
+                ReusableDialogHelper.showCustomDialog(
+                    context = this,
+                    title = "Cancel Search",
+                    message = "Are you sure you want to cancel the search?",
+                    positiveButtonText = "Cancel",
+                    positiveAction = {
+                        searchEditText.setText("")
+                        cancelInternetSearch()
+                    },
+                    negativeButtonText = "No",
+                    negativeAction = {}
+                )
+            } else {
+                searchEditText.setText("")
+            }
         }
 
         // Search text watcher with debounce
@@ -398,7 +523,30 @@ class CustomerHomeActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 currentSearchQuery = s?.toString()?.trim() ?: ""
-                btnClearSearch.visibility = if (currentSearchQuery.isEmpty()) View.GONE else View.VISIBLE
+                val isQueryEmpty = currentSearchQuery.isEmpty()
+                
+                if (isSwitchingModes) {
+                    btnClearSearch.visibility = if (isQueryEmpty) View.GONE else View.VISIBLE
+                    wasSearchQueryEmpty = isQueryEmpty
+                    return
+                }
+
+                if (!isInternetPriceSearchMode && wasSearchQueryEmpty != isQueryEmpty) {
+                    val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
+                    android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer)
+                }
+
+                wasSearchQueryEmpty = isQueryEmpty
+                btnClearSearch.visibility = if (isQueryEmpty) View.GONE else View.VISIBLE
+                updateInternetSearchButtonVisibility()
+                
+                if (isInternetPriceSearchMode) {
+                    if (isQueryEmpty) {
+                        searchAdapter.updateList(emptyList())
+                        toggleEmptyState(true, "Internet Price Search")
+                    }
+                    return
+                }
                 
                 if (currentSearchQuery.isEmpty()) {
                     findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
@@ -414,6 +562,29 @@ class CustomerHomeActivity : AppCompatActivity() {
             }
             override fun afterTextChanged(s: Editable?) {}
         })
+
+        // Expand/Collapse Search Bar Animation and Key Actions
+        searchEditText.setOnFocusChangeListener { _, _ ->
+            if (!isInternetPriceSearchMode) {
+                val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
+                android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer)
+            }
+            updateInternetSearchButtonVisibility()
+        }
+
+        searchEditText.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                if (isInternetPriceSearchMode) {
+                    performInternetSearch()
+                } else {
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                    imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+                }
+                true
+            } else {
+                false
+            }
+        }
 
         // Swipe Refresh
         swipeRefreshLayout.setColorSchemeResources(R.color.presyo_orange)
@@ -452,6 +623,15 @@ class CustomerHomeActivity : AppCompatActivity() {
             prefs.edit().remove("redirect_to_stores_tab").apply()
             selectTab(false) // Switch to Stores tab!
         }
+
+        // Apply internet search setting updates on resume
+        val enableInternetSearch = prefs.getBoolean("enable_internet_search", true)
+        if (!enableInternetSearch && isInternetPriceSearchMode) {
+            exitInternetSearchMode()
+        }
+        updateInternetSearchButtonVisibility()
+        filterAndRenderData(delayMillis = 0L, resetLimit = false)
+
         ReusableDialogHelper.checkAndShowBroadcast(this, lifecycleScope)
     }
 
@@ -464,6 +644,20 @@ class CustomerHomeActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        if (isInternetPriceSearchMode) {
+            ReusableDialogHelper.showCustomDialog(
+                context = this,
+                title = "Close Internet Search",
+                message = "Are you sure you want to close the Internet Price Search?",
+                positiveButtonText = "Close",
+                positiveAction = {
+                    exitInternetSearchMode()
+                },
+                negativeButtonText = "No",
+                negativeAction = {}
+            )
+            return
+        }
         if (currentSearchQuery.isNotEmpty()) {
             searchEditText.setText("")
             return
@@ -560,7 +754,434 @@ class CustomerHomeActivity : AppCompatActivity() {
 
             searchEditText.hint = "Search Store..."
         }
+        updateInternetSearchButtonVisibility()
         filterAndRenderData(delayMillis = 0)
+    }
+
+    private fun updateInternetSearchButtonVisibility() {
+        if (isInternetPriceSearchMode) {
+            btnInternetSearchMode.visibility = View.GONE
+            return
+        }
+        
+        // Ensure inside search button and internet icon are hidden when not in internet search mode
+        ivSearchInternetIcon.visibility = View.GONE
+        btnInternetSearchAction.visibility = View.GONE
+
+        val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+        val shouldShow = enableInternetSearch && isPricesTabActive && currentSearchQuery.isEmpty()
+        
+        btnInternetSearchMode.visibility = if (shouldShow) View.VISIBLE else View.GONE
+    }
+
+    private fun enterInternetSearchMode(initialQuery: String? = null) {
+        isSwitchingModes = true
+        isInternetPriceSearchMode = true
+        internetSearchFailureCount = 0
+
+        val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
+        val transition = android.transition.TransitionSet().apply {
+            ordering = android.transition.TransitionSet.ORDERING_TOGETHER
+            addTransition(android.transition.ChangeBounds())
+            addTransition(android.transition.Fade())
+            duration = 300
+        }
+        android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer, transition)
+
+        headerDivider.visibility = View.VISIBLE
+        findViewById<View>(R.id.searchEditTextContainer).background = 
+            androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_customer_search_input_teal)
+        ivSearchInternetIcon.visibility = View.VISIBLE
+        btnBackToLocalStoresTop.visibility = View.VISIBLE
+        btnInternetSearchAction.visibility = View.VISIBLE
+
+        searchAdapter.updateList(emptyList())
+        searchEditText.hint = "Find online prices..."
+        btnInternetSearchMode.visibility = View.GONE
+        layoutInternetBottomCard.visibility = View.GONE
+        
+        // Disable scroll up refresh
+        swipeRefreshLayout.isEnabled = false
+
+        // Slide down bottom navigation container to prevent interaction
+        val bottomBarHeight = bottomNavigationContainer.height.toFloat()
+        val slideDist = if (bottomBarHeight > 0) bottomBarHeight else 300f
+        bottomNavigationContainer.animate()
+            .translationY(slideDist)
+            .setDuration(300)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .start()
+
+        if (initialQuery != null) {
+            searchEditText.setText(initialQuery)
+            searchEditText.setSelection(initialQuery.length)
+            performInternetSearch(initialQuery)
+        } else {
+            searchEditText.setText("")
+            toggleEmptyState(true, "Internet Price Search")
+        }
+        isSwitchingModes = false
+    }
+
+    private fun exitInternetSearchMode() {
+        isSwitchingModes = true
+        isInternetPriceSearchMode = false
+
+        // Cancel jobs and stop animations
+        internetSearchJob?.cancel()
+        internetSearchJob = null
+        stopInternetSearchAnimations()
+
+        val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
+        val transition = android.transition.TransitionSet().apply {
+            ordering = android.transition.TransitionSet.ORDERING_TOGETHER
+            addTransition(android.transition.ChangeBounds())
+            addTransition(android.transition.Fade())
+            duration = 300
+        }
+        android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer, transition)
+
+        headerDivider.visibility = View.GONE
+        headerProgressBar.visibility = View.GONE
+        layoutInternetSearchProgress.visibility = View.GONE
+        btnInternetSearchAction.text = "Search"
+        findViewById<View>(R.id.searchEditTextContainer).background = 
+            androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_customer_search_input)
+        ivSearchInternetIcon.visibility = View.GONE
+        btnBackToLocalStoresTop.visibility = View.GONE
+        btnInternetSearchAction.visibility = View.GONE
+
+        searchEditText.setText("")
+        searchEditText.hint = if (isPricesTabActive) "Search Item.." else "Search Store..."
+        currentSearchQuery = ""
+        layoutInternetBottomCard.visibility = View.GONE
+        
+        // Re-enable scroll up refresh
+        swipeRefreshLayout.isEnabled = true
+
+        // Slide back up bottom navigation container
+        bottomNavigationContainer.animate()
+            .translationY(0f)
+            .setDuration(300)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .start()
+        
+        updateInternetSearchButtonVisibility()
+        filterAndRenderData(delayMillis = 0L)
+        isSwitchingModes = false
+    }
+
+    private fun isGibberish(query: String): Boolean {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return true
+        
+        // Split into words
+        val words = trimmed.split(Regex("\\s+"))
+        for (word in words) {
+            val cleanWord = word.filter { it.isLetter() }.lowercase()
+            if (cleanWord.length >= 4) {
+                // Check if it has repeated characters (e.g. "aaaa", "xxxx")
+                if (cleanWord.all { it == cleanWord[0] }) {
+                    return true
+                }
+                // Check if it has any vowels (a, e, i, o, u, y)
+                val vowels = cleanWord.filter { it in "aeiouy" }
+                if (vowels.isEmpty()) {
+                    return true
+                }
+                
+                // Check for too many consecutive consonants (e.g. 5 or more)
+                var consecutiveConsonants = 0
+                var maxConsecutiveConsonants = 0
+                for (char in cleanWord) {
+                    if (char in "aeiouy") {
+                        consecutiveConsonants = 0
+                    } else {
+                        consecutiveConsonants++
+                        if (consecutiveConsonants > maxConsecutiveConsonants) {
+                            maxConsecutiveConsonants = consecutiveConsonants
+                        }
+                    }
+                }
+                if (maxConsecutiveConsonants >= 5) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private fun performInternetSearch(query: String = searchEditText.text.toString().trim()) {
+        if (query.isEmpty()) {
+            Toast.makeText(this, "Please enter a search query", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Empty list and hide errors
+        searchAdapter.updateList(emptyList())
+        toggleEmptyState(false, "")
+        layoutInternetBottomCard.visibility = View.GONE
+        rvCustomerPrices.visibility = View.GONE
+
+        // Check if query is gibberish locally first to avoid letting the user wait for a network call
+        if (isGibberish(query)) {
+            // Show loaders
+            layoutInternetSearchProgress.visibility = View.VISIBLE
+            startInternetSearchAnimations()
+            headerProgressBar.visibility = View.VISIBLE
+            btnInternetSearchAction.text = "Searching..."
+            btnBackToLocalStoresTop.visibility = View.GONE
+
+            lifecycleScope.launch {
+                // Small delay to make it feel natural/professional but fast
+                kotlinx.coroutines.delay(400)
+                // Hide loaders
+                layoutInternetSearchProgress.visibility = View.GONE
+                stopInternetSearchAnimations()
+                headerProgressBar.visibility = View.GONE
+                btnInternetSearchAction.text = "Search"
+                btnBackToLocalStoresTop.visibility = View.VISIBLE
+
+                rvCustomerPrices.visibility = View.VISIBLE
+                searchAdapter.updateList(emptyList())
+                toggleEmptyState(true, "No items found on that search")
+                
+                tvInternetBottomCardText.text = "No Items Found"
+                tvInternetBottomCardAction.text = "Search again"
+                tvInternetBottomCardAction.setOnClickListener {
+                    searchEditText.requestFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                    imm.showSoftInput(searchEditText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                }
+                layoutInternetBottomCard.visibility = View.VISIBLE
+                layoutInternetBottomCard.alpha = 0f
+                layoutInternetBottomCard.animate().alpha(1f).setDuration(250).start()
+            }
+            return
+        }
+
+        // Show loaders
+        layoutInternetSearchProgress.visibility = View.VISIBLE
+        startInternetSearchAnimations()
+        headerProgressBar.visibility = View.VISIBLE
+        btnInternetSearchAction.text = "Searching..."
+        btnBackToLocalStoresTop.visibility = View.GONE
+
+        internetSearchJob?.cancel()
+        internetSearchJob = lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // Call Gemini search prices
+                val results = GeminiParser.searchInternetPrices(query)
+
+                // Map results to SearchItem and append BackToLocalCard at the very bottom
+                val searchItems: List<SearchItem> = if (results.isNotEmpty()) {
+                    results.map { SearchItem.InternetProduct(it) } + SearchItem.BackToLocalCard
+                } else {
+                    emptyList()
+                }
+
+                runOnUiThread {
+                    internetSearchFailureCount = 0 // Reset failure count on success
+                    
+                    // Hide loaders
+                    layoutInternetSearchProgress.visibility = View.GONE
+                    stopInternetSearchAnimations()
+                    headerProgressBar.visibility = View.GONE
+                    btnInternetSearchAction.text = "Search"
+                    btnBackToLocalStoresTop.visibility = if (results.isNotEmpty()) View.GONE else View.VISIBLE
+
+                    rvCustomerPrices.visibility = View.VISIBLE
+                    searchAdapter.updateList(searchItems)
+
+                    if (results.isEmpty()) {
+                        toggleEmptyState(true, "No items found on that search")
+                        tvInternetBottomCardText.text = "No Items Found"
+                        tvInternetBottomCardAction.text = "Search again"
+                        tvInternetBottomCardAction.setOnClickListener {
+                            searchEditText.requestFocus()
+                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                            imm.showSoftInput(searchEditText, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                        }
+                        layoutInternetBottomCard.visibility = View.VISIBLE
+                        layoutInternetBottomCard.alpha = 0f
+                        layoutInternetBottomCard.animate().alpha(1f).setDuration(250).start()
+                    } else {
+                        toggleEmptyState(false, "")
+                        layoutInternetBottomCard.visibility = View.GONE
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    // Hide loaders
+                    layoutInternetSearchProgress.visibility = View.GONE
+                    stopInternetSearchAnimations()
+                    headerProgressBar.visibility = View.GONE
+                    btnInternetSearchAction.text = "Search"
+                    btnBackToLocalStoresTop.visibility = View.VISIBLE
+
+                    searchAdapter.updateList(emptyList())
+                    
+                    internetSearchFailureCount++
+                    
+                    if (internetSearchFailureCount >= 3) {
+                        internetSearchFailureCount = 0 // Reset failure count when dialog is shown
+                        
+                        ReusableDialogHelper.showCustomDialog(
+                            context = this@CustomerHomeActivity,
+                            title = "Connection Lost",
+                            message = "Failed to connect to online search. Would you like to continue trying or switch back to local stores search?",
+                            positiveButtonText = "Continue",
+                            positiveAction = {
+                                performInternetSearch(query)
+                            },
+                            negativeButtonText = "Local Stores",
+                            negativeAction = {
+                                exitInternetSearchMode()
+                            }
+                        )
+                    } else {
+                        toggleEmptyState(true, "Connection lost. Please try again.")
+                        tvInternetBottomCardText.text = "Connection Lost"
+                        tvInternetBottomCardAction.text = "Reload"
+                        tvInternetBottomCardAction.setOnClickListener {
+                            performInternetSearch(query)
+                        }
+                        layoutInternetBottomCard.visibility = View.VISIBLE
+                        layoutInternetBottomCard.alpha = 0f
+                        layoutInternetBottomCard.animate().alpha(1f).setDuration(250).start()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startInternetSearchAnimations() {
+        internetSkeletonLoader.resumeAnimations()
+
+        internetMascotAnimator?.cancel()
+        val density = resources.displayMetrics.density
+        val ampX = 80f * density // Large infinity loop path
+        val ampY = 30f * density
+        
+        internetMascotAnimator = ValueAnimator.ofFloat(0f, (2 * Math.PI).toFloat()).apply {
+            duration = 5000
+            interpolator = android.view.animation.LinearInterpolator()
+            repeatCount = ValueAnimator.INFINITE
+            addUpdateListener { animator ->
+                val t = animator.animatedValue as Float
+                val tx = ampX * Math.sin(t.toDouble()).toFloat()
+                val ty = ampY * Math.sin(2.0 * t.toDouble()).toFloat()
+                imgInternetSearchMascot.translationX = tx
+                imgInternetSearchMascot.translationY = ty
+            }
+            start()
+        }
+
+        internetTextCycleJob?.cancel()
+        val phrases = listOf(
+            "Finding the best prices...",
+            "Comparing stores online...",
+            "Retrieving latest item details...",
+            "Sorting results for you...",
+            "Almost there...",
+            "Checking local availability...",
+            "Analyzing Philippine market prices..."
+        )
+        
+        internetTextCycleJob = lifecycleScope.launch {
+            var index = 0
+            while (isActive) {
+                val text = phrases[index]
+                withContext(Dispatchers.Main) {
+                    tvInternetSearchProgressSubtitle.text = text
+                }
+                delay(4000)
+                index = (index + 1) % phrases.size
+            }
+        }
+
+        internetTextShimmerAnimator?.cancel()
+        tvInternetSearchProgressSubtitle.post {
+            val width = tvInternetSearchProgressSubtitle.width.toFloat()
+            if (width <= 0) return@post
+
+            val baseColor = tvInternetSearchProgressSubtitle.currentTextColor
+            val highlightColor = Color.parseColor("#DDDDDD")
+            
+            val shader = android.graphics.LinearGradient(
+                0f, 0f, width * 0.4f, 0f,
+                intArrayOf(baseColor, highlightColor, baseColor),
+                floatArrayOf(0f, 0.5f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            tvInternetSearchProgressSubtitle.paint.shader = shader
+
+            internetTextShimmerAnimator = ValueAnimator.ofFloat(0f, width * 1.5f).apply {
+                duration = 2500
+                interpolator = android.view.animation.LinearInterpolator()
+                repeatCount = ValueAnimator.INFINITE
+                addUpdateListener { animator ->
+                    val offset = animator.animatedValue as Float
+                    val matrix = android.graphics.Matrix()
+                    matrix.setTranslate(offset - width * 0.5f, 0f)
+                    shader.setLocalMatrix(matrix)
+                    tvInternetSearchProgressSubtitle.invalidate()
+                }
+                start()
+            }
+        }
+    }
+
+    private fun stopInternetSearchAnimations() {
+        internetSkeletonLoader.stopAnimations()
+        
+        internetMascotAnimator?.cancel()
+        internetMascotAnimator = null
+        imgInternetSearchMascot.translationX = 0f
+        imgInternetSearchMascot.translationY = 0f
+
+        internetTextCycleJob?.cancel()
+        internetTextCycleJob = null
+
+        internetTextShimmerAnimator?.cancel()
+        internetTextShimmerAnimator = null
+        tvInternetSearchProgressSubtitle.paint.shader = null
+        tvInternetSearchProgressSubtitle.invalidate()
+    }
+
+    private fun cancelInternetSearch() {
+        internetSearchJob?.cancel()
+        internetSearchJob = null
+        runOnUiThread {
+            headerProgressBar.visibility = View.GONE
+            layoutInternetSearchProgress.visibility = View.GONE
+            stopInternetSearchAnimations()
+            btnInternetSearchAction.text = "Search"
+            btnBackToLocalStoresTop.visibility = View.VISIBLE
+            searchAdapter.updateList(emptyList())
+            toggleEmptyState(true, "Internet Price Search")
+        }
+    }
+
+    private fun triggerLoadMorePrices() {
+        if (isLoadMoreLoading) return
+        isLoadMoreLoading = true
+        
+        // Notify the adapter to show the loading spinner on the load more item
+        filterAndRenderData(delayMillis = 0L, resetLimit = false)
+        
+        lifecycleScope.launch {
+            // Wait for 800ms to show the simple but professional loading state
+            kotlinx.coroutines.delay(800)
+            
+            // Increase visible limit by 50
+            visibleProductsLimit += 20
+            isLoadMoreLoading = false
+            
+            // Re-render data without resetting limit
+            filterAndRenderData(delayMillis = 0L, resetLimit = false)
+        }
     }
 
     private fun showBottomSheet() {
@@ -1119,9 +1740,20 @@ class CustomerHomeActivity : AppCompatActivity() {
                         storeLocation = store?.branch ?: "Main Branch",
                         categoryName = category?.name ?: "PRICELIST"
                     )
-                }
+                }.shuffled()
 
-                filterAndRenderData()
+                visibleProductsLimit = 10
+                isLoadMoreLoading = false
+                if (isInternetPriceSearchMode) {
+                    if (currentSearchQuery.isNotEmpty()) {
+                        performInternetSearch(currentSearchQuery)
+                    } else {
+                        searchAdapter.updateList(emptyList())
+                        toggleEmptyState(true, "Search prices online...")
+                    }
+                } else {
+                    filterAndRenderData()
+                }
                 ReusableDialogHelper.resetReloadCount()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -1212,9 +1844,14 @@ class CustomerHomeActivity : AppCompatActivity() {
         return tokens.all { token -> isFuzzyMatch(token, categoryName) }
     }
 
-    private fun filterAndRenderData(delayMillis: Long = 0) {
+    private fun filterAndRenderData(delayMillis: Long = 0, resetLimit: Boolean = true) {
         val query = currentSearchQuery.trim()
         val isPrices = isPricesTabActive
+        
+        if (resetLimit) {
+            visibleProductsLimit = 10
+            isLoadMoreLoading = false
+        }
         
         // Take snapshots of data for thread-safe background processing
         val snapshotStores = allStores
@@ -1229,6 +1866,9 @@ class CustomerHomeActivity : AppCompatActivity() {
             }
 
             if (isPrices) {
+                if (isInternetPriceSearchMode) {
+                    return@launch
+                }
                 // Render Prices/Products Tab
                 val searchItems = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     val storeMap = snapshotStores.associateBy { it.id }
@@ -1352,21 +1992,32 @@ class CustomerHomeActivity : AppCompatActivity() {
                         }
                     }
 
+                    val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+
                     if (query.isEmpty()) {
                         val publicStores = snapshotStores.filter { it.is_public || it.is_standard_store }
                         if (publicStores.isEmpty()) {
                             emptyList<SearchItem>()
                         } else {
                             val defaultHeader = SearchItem.DefaultHeader(
-                                stores = publicStores,
+                                stores = publicStores.shuffled(),
                                 categories = snapshotCategories,
                                 products = snapshotProducts,
                                 storeProductCounts = storeProductCounts
                             )
-                            listOf(defaultHeader) + finalProducts.map { SearchItem.Product(it) }
+                            val limitedProducts = finalProducts.take(visibleProductsLimit).map { SearchItem.Product(it) }
+                            val loadMore = if (finalProducts.size > visibleProductsLimit) {
+                                listOf(SearchItem.LoadMorePrices(isLoadMoreLoading))
+                            } else {
+                                emptyList()
+                            }
+                            val internetCard = if (enableInternetSearch) listOf(SearchItem.InternetSearchCard("")) else emptyList()
+                            listOf(defaultHeader) + limitedProducts + loadMore + internetCard
                         }
                     } else {
-                        displayCategories.map { SearchItem.Category(it) } + finalProducts.map { SearchItem.Product(it) }
+                        val localResults = displayCategories.map { SearchItem.Category(it) } + finalProducts.map { SearchItem.Product(it) }
+                        val internetCard = if (enableInternetSearch) listOf(SearchItem.InternetSearchCard(query)) else emptyList()
+                        localResults + internetCard
                     }
                 }
 
@@ -1380,7 +2031,8 @@ class CustomerHomeActivity : AppCompatActivity() {
                 } else {
                     "No products found matching \"$query\""
                 }
-                toggleEmptyState(searchItems.isEmpty(), emptyMessage)
+                val hasActualResults = searchItems.any { it is SearchItem.Product || it is SearchItem.Category }
+                toggleEmptyState(query.isNotEmpty() && !hasActualResults || searchItems.isEmpty(), emptyMessage)
             } else {
                 // Render Stores Tab
                 val filteredStores = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
@@ -1452,8 +2104,77 @@ class CustomerHomeActivity : AppCompatActivity() {
         if (isEmpty) {
             layoutEmptyState.visibility = View.VISIBLE
             emptyStateMessage.text = message
+            emptyStateMessage.setTextColor(android.graphics.Color.parseColor("#B3B3B3"))
+            if (isInternetPriceSearchMode) {
+                when {
+                    message.contains("Connection lost", ignoreCase = true) -> {
+                        val base = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.icon_internet)
+                        if (base != null) {
+                            val tintColor = android.graphics.Color.parseColor("#B3B3B3")
+                            val wrapped = androidx.core.graphics.drawable.DrawableCompat.wrap(base.mutate())
+                            androidx.core.graphics.drawable.DrawableCompat.setTint(wrapped, tintColor)
+                            val density = resources.displayMetrics.density
+                            ivEmptyStateIcon.setImageDrawable(SlashDrawable(wrapped, tintColor, density))
+                        } else {
+                            ivEmptyStateIcon.setImageResource(R.drawable.icon_internet)
+                            ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
+                        }
+                    }
+                    message.contains("No items found", ignoreCase = true) || message.contains("No products found", ignoreCase = true) -> {
+                        ivEmptyStateIcon.setImageResource(R.drawable.icon_searching)
+                        ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
+                    }
+                    else -> {
+                        ivEmptyStateIcon.setImageResource(R.drawable.icon_internet)
+                        ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
+                    }
+                }
+            } else {
+                ivEmptyStateIcon.setImageResource(R.drawable.icon_store)
+                ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
+            }
         } else {
             layoutEmptyState.visibility = View.GONE
+        }
+    }
+
+    private class SlashDrawable(private val baseDrawable: android.graphics.drawable.Drawable, private val strokeColor: Int, private val density: Float) : android.graphics.drawable.Drawable() {
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = strokeColor
+            strokeWidth = 4f * density
+            strokeCap = android.graphics.Paint.Cap.ROUND
+        }
+
+        override fun draw(canvas: android.graphics.Canvas) {
+            baseDrawable.bounds = bounds
+            baseDrawable.draw(canvas)
+
+            val w = bounds.width().toFloat()
+            val h = bounds.height().toFloat()
+            val paddingX = w * 0.15f
+            val paddingY = h * 0.15f
+            canvas.drawLine(
+                bounds.left + paddingX,
+                bounds.top + paddingY,
+                bounds.right - paddingX,
+                bounds.bottom - paddingY,
+                paint
+            )
+        }
+
+        override fun setAlpha(alpha: Int) {
+            baseDrawable.alpha = alpha
+            paint.alpha = alpha
+        }
+
+        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {
+            baseDrawable.colorFilter = colorFilter
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int {
+            @Suppress("DEPRECATION")
+            return baseDrawable.opacity
         }
     }
 
@@ -1470,6 +2191,10 @@ class CustomerHomeActivity : AppCompatActivity() {
         ) : SearchItem()
         data class Category(val category: DisplayCategory) : SearchItem()
         data class Product(val product: DisplayProduct) : SearchItem()
+        data class InternetSearchCard(val query: String) : SearchItem()
+        data class InternetProduct(val product: InternetSearchProduct) : SearchItem()
+        data class LoadMorePrices(val isLoading: Boolean = false) : SearchItem()
+        object BackToLocalCard : SearchItem()
     }
 
     private class StoresCarouselAdapter(
@@ -1544,7 +2269,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             }
 
             holder.layoutCategoriesContainer.removeAllViews()
-            val storeCategories = categories.filter { it.store_id == store.id }
+            val storeCategories = categories.filter { it.store_id == store.id }.shuffled()
             val displayedCategories = storeCategories.take(5)
 
             for (category in displayedCategories) {
@@ -1581,14 +2306,23 @@ class CustomerHomeActivity : AppCompatActivity() {
         private val onProductCategoryClick: (DisplayProduct) -> Unit,
         private val onStoreClick: (DisplayStore) -> Unit,
         private val onMoreClick: (StoreDetailRow) -> Unit,
-        private val onViewAllClick: () -> Unit
+        private val onViewAllClick: () -> Unit,
+        private val onInternetSearchClick: (String) -> Unit,
+        private val onLoadMoreClick: () -> Unit,
+        private val onBackToLocalClick: () -> Unit
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         companion object {
             private const val TYPE_CATEGORY = 0
             private const val TYPE_PRODUCT = 1
             private const val TYPE_DEFAULT_HEADER = 2
+            private const val TYPE_INTERNET_SEARCH = 3
+            private const val TYPE_INTERNET_PRODUCT = 4
+            private const val TYPE_LOAD_MORE = 5
+            private const val TYPE_BACK_TO_LOCAL = 6
         }
+
+        class BackToLocalViewHolder(val view: View) : RecyclerView.ViewHolder(view)
 
         class CategoryViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
             val tvCategoryName: TextView = view.findViewById(R.id.tvCategoryName)
@@ -1612,11 +2346,34 @@ class CustomerHomeActivity : AppCompatActivity() {
             val tvTotalItems: TextView = view.findViewById(R.id.tvTotalItems)
         }
 
+        class InternetSearchCardViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+            val tvSearchHeader: TextView = view.findViewById(R.id.tvSearchHeader)
+            val tvSearchSubtext: TextView = view.findViewById(R.id.tvSearchSubtext)
+            val dividerLine: View = view.findViewById(R.id.dividerLine)
+        }
+
+        class InternetProductViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+            val tvSourceName: TextView = view.findViewById(R.id.tvSourceName)
+            val tvProductName: TextView = view.findViewById(R.id.tvProductName)
+            val tvProductDescription: TextView = view.findViewById(R.id.tvProductDescription)
+            val tvProductUnits: TextView = view.findViewById(R.id.tvProductUnits)
+            val tvProductPrice: TextView = view.findViewById(R.id.tvProductPrice)
+        }
+
+        class LoadMoreViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+            val normalStateContainer: View = view.findViewById(R.id.normalStateContainer)
+            val loadingStateContainer: View = view.findViewById(R.id.loadingStateContainer)
+        }
+
         override fun getItemViewType(position: Int): Int {
             return when (items[position]) {
                 is SearchItem.Category -> TYPE_CATEGORY
                 is SearchItem.Product -> TYPE_PRODUCT
                 is SearchItem.DefaultHeader -> TYPE_DEFAULT_HEADER
+                is SearchItem.InternetSearchCard -> TYPE_INTERNET_SEARCH
+                is SearchItem.InternetProduct -> TYPE_INTERNET_PRODUCT
+                is SearchItem.LoadMorePrices -> TYPE_LOAD_MORE
+                is SearchItem.BackToLocalCard -> TYPE_BACK_TO_LOCAL
             }
         }
 
@@ -1629,6 +2386,22 @@ class CustomerHomeActivity : AppCompatActivity() {
                 TYPE_CATEGORY -> {
                     val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_category, parent, false)
                     CategoryViewHolder(view)
+                }
+                TYPE_INTERNET_SEARCH -> {
+                    val view = LayoutInflater.from(parent.context).inflate(R.layout.item_internet_search_card, parent, false)
+                    InternetSearchCardViewHolder(view)
+                }
+                TYPE_INTERNET_PRODUCT -> {
+                    val view = LayoutInflater.from(parent.context).inflate(R.layout.item_internet_product, parent, false)
+                    InternetProductViewHolder(view)
+                }
+                TYPE_LOAD_MORE -> {
+                    val view = LayoutInflater.from(parent.context).inflate(R.layout.item_load_more_prices, parent, false)
+                    LoadMoreViewHolder(view)
+                }
+                TYPE_BACK_TO_LOCAL -> {
+                    val view = LayoutInflater.from(parent.context).inflate(R.layout.item_back_to_local_stores, parent, false)
+                    BackToLocalViewHolder(view)
                 }
                 else -> {
                     val view = LayoutInflater.from(parent.context).inflate(R.layout.item_customer_product, parent, false)
@@ -1688,6 +2461,58 @@ class CustomerHomeActivity : AppCompatActivity() {
                     prodHolder.tvProductPrice.text = String.format(Locale.US, "₱ %,.2f", data.price)
                     prodHolder.tvProductCategory.setOnClickListener {
                         onProductCategoryClick(data)
+                    }
+                }
+                is SearchItem.InternetSearchCard -> {
+                    val cardHolder = holder as InternetSearchCardViewHolder
+                    if (item.query.isEmpty()) {
+                        cardHolder.tvSearchSubtext.visibility = View.GONE
+                    } else {
+                        cardHolder.tvSearchSubtext.visibility = View.VISIBLE
+                        cardHolder.tvSearchSubtext.text = "Search for '${item.query}' online"
+                    }
+                    cardHolder.dividerLine.visibility = if (position > 0) View.VISIBLE else View.GONE
+                    
+                    val params = cardHolder.itemView.layoutParams as ViewGroup.MarginLayoutParams
+                    if (position == 0) {
+                        params.topMargin = (12 * cardHolder.itemView.resources.displayMetrics.density).toInt()
+                    } else {
+                        params.topMargin = 0
+                    }
+                    cardHolder.itemView.layoutParams = params
+                    
+                    cardHolder.itemView.setOnClickListener {
+                        onInternetSearchClick(item.query)
+                    }
+                }
+                is SearchItem.InternetProduct -> {
+                    val prodHolder = holder as InternetProductViewHolder
+                    val data = item.product
+                    prodHolder.tvSourceName.text = data.sourceName
+                    prodHolder.tvProductName.text = data.itemName
+                    prodHolder.tvProductDescription.text = data.description ?: ""
+                    prodHolder.tvProductDescription.visibility = if (data.description.isNullOrBlank()) View.GONE else View.VISIBLE
+                    prodHolder.tvProductUnits.text = data.unit ?: ""
+                    prodHolder.tvProductUnits.visibility = if (data.unit.isNullOrBlank()) View.GONE else View.VISIBLE
+                    prodHolder.tvProductPrice.text = String.format(Locale.US, "₱ %,.2f", data.price)
+                }
+                is SearchItem.LoadMorePrices -> {
+                    val lmHolder = holder as LoadMoreViewHolder
+                    if (item.isLoading) {
+                        lmHolder.loadingStateContainer.visibility = View.VISIBLE
+                        lmHolder.normalStateContainer.visibility = View.GONE
+                    } else {
+                        lmHolder.loadingStateContainer.visibility = View.GONE
+                        lmHolder.normalStateContainer.visibility = View.VISIBLE
+                        lmHolder.itemView.setOnClickListener {
+                            onLoadMoreClick()
+                        }
+                    }
+                }
+                is SearchItem.BackToLocalCard -> {
+                    val backHolder = holder as BackToLocalViewHolder
+                    backHolder.itemView.setOnClickListener {
+                        onBackToLocalClick()
                     }
                 }
             }

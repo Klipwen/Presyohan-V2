@@ -32,6 +32,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnLogout: View
     private lateinit var loadingOverlay: View
 
+    private lateinit var btnInternetPriceSearchSetting: View
+    private lateinit var switchInternetSearch: androidx.appcompat.widget.SwitchCompat
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -51,6 +54,8 @@ class SettingsActivity : AppCompatActivity() {
         btnContactUs = findViewById(R.id.btnContactUs)
         btnShareApp = findViewById(R.id.btnShareApp)
         btnLogout = findViewById(R.id.btnLogout)
+        btnInternetPriceSearchSetting = findViewById(R.id.btnInternetPriceSearchSetting)
+        switchInternetSearch = findViewById(R.id.switchInternetSearch)
 
         // Back action
         btnBack.setOnClickListener {
@@ -76,6 +81,22 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         val fromSide = intent.getStringExtra("from_side") ?: "customer"
+
+        // Handle Internet Price Search Card Visibility and Switch
+        if (fromSide == "customer") {
+            btnInternetPriceSearchSetting.visibility = View.VISIBLE
+            val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
+            switchInternetSearch.isChecked = prefs.getBoolean("enable_internet_search", true)
+            switchInternetSearch.setOnCheckedChangeListener { _, isChecked ->
+                prefs.edit().putBoolean("enable_internet_search", isChecked).apply()
+            }
+            btnInternetPriceSearchSetting.setOnClickListener {
+                switchInternetSearch.isChecked = !switchInternetSearch.isChecked
+            }
+        } else {
+            btnInternetPriceSearchSetting.visibility = View.GONE
+        }
+
         val lblGotoLabel = findViewById<TextView>(R.id.lblGotoLabel)
         val lblGotoTitle = findViewById<TextView>(R.id.lblGotoTitle)
         val lblGotoDesc = findViewById<TextView>(R.id.lblGotoDesc)
@@ -86,7 +107,7 @@ class SettingsActivity : AppCompatActivity() {
         if (fromSide == "tindiro") {
             lblGotoLabel.text = "Regular User Portal"
             lblGotoTitle.text = "Presyohan"
-            lblGotoDesc.text = "Public Prices"
+            lblGotoDesc.text = "Search Prices"
             imgGotoIcon.setImageResource(R.drawable.icon_public_indacator)
             imgGotoIcon.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.presyo_orange))
             imgGotoIcon.rotation = 0f
@@ -175,6 +196,25 @@ class SettingsActivity : AppCompatActivity() {
                 negativeButtonText = "Cancel"
             )
         }
+
+        // Display current version dynamically
+        val tvAppVersion = findViewById<TextView>(R.id.tvAppVersion)
+        val version = try {
+            BuildConfig.VERSION_NAME
+        } catch (e: Throwable) {
+            try {
+                val pInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    packageManager.getPackageInfo(packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageManager.getPackageInfo(packageName, 0)
+                }
+                pInfo.versionName
+            } catch (e2: Exception) {
+                "1.0.0"
+            }
+        }
+        tvAppVersion.text = "V$version"
     }
 
     private fun performLogout() {

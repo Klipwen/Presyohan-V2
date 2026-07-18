@@ -25,8 +25,8 @@ class SkeletonLoaderView @JvmOverloads constructor(
     // Relative widths of the lines for a natural reading pattern
     private val lineWidthFractions = floatArrayOf(0.40f, 0.75f, 0.55f, 0.50f, 0.85f, 0.45f)
     private val density = resources.displayMetrics.density
-    private val lineHeight = 14f * density
-    private val lineSpacing = 12f * density
+    private val lineHeight = 24f * density
+    private val lineSpacing = 16f * density
     private val stepY = lineHeight + lineSpacing
     private val cornerRadius = 6f * density
 

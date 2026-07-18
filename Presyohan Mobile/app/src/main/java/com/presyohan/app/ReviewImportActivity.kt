@@ -62,12 +62,23 @@ class ReviewImportActivity : AppCompatActivity() {
     private lateinit var layoutNewItemsClick: View
     private lateinit var layoutUpdateItemsClick: View
 
+    private lateinit var layoutSheetHeader: View
+    private lateinit var layoutSummaryDetails: View
+    private lateinit var btnViewSummaryToggle: TextView
+    private lateinit var imgSheetChevron: ImageView
+    private lateinit var tvPublicItemsCount: TextView
+    private lateinit var tvPrivateItemsCount: TextView
+    private lateinit var layoutPublicItemsSummary: View
+    private lateinit var layoutPrivateItemsSummary: View
+
     enum class ReviewFilterMode {
         ALL,
         NEW_CATEGORIES,
         NEW_ITEMS,
         UPDATE_ITEMS,
-        INVALID_ONLY
+        INVALID_ONLY,
+        PUBLIC_ONLY,
+        PRIVATE_ONLY
     }
 
     private var currentFilterMode = ReviewFilterMode.ALL
@@ -103,6 +114,20 @@ class ReviewImportActivity : AppCompatActivity() {
         layoutNewCategoryClick = findViewById(R.id.layoutNewCategoryClick)
         layoutNewItemsClick = findViewById(R.id.layoutNewItemsClick)
         layoutUpdateItemsClick = findViewById(R.id.layoutUpdateItemsClick)
+
+        // Collapsible sheet views
+        layoutSheetHeader = findViewById(R.id.layoutSheetHeader)
+        layoutSummaryDetails = findViewById(R.id.layoutSummaryDetails)
+        btnViewSummaryToggle = findViewById(R.id.btnViewSummaryToggle)
+        imgSheetChevron = findViewById(R.id.imgSheetChevron)
+        tvPublicItemsCount = findViewById(R.id.tvPublicItemsCount)
+        tvPrivateItemsCount = findViewById(R.id.tvPrivateItemsCount)
+        layoutPublicItemsSummary = findViewById(R.id.layoutPublicItemsSummary)
+        layoutPrivateItemsSummary = findViewById(R.id.layoutPrivateItemsSummary)
+
+        layoutSheetHeader.setOnClickListener {
+            toggleSummaryDetails()
+        }
 
         reviewRecyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -162,6 +187,26 @@ class ReviewImportActivity : AppCompatActivity() {
             applyFilterAndVisualStates(s)
         }
 
+        layoutPublicItemsSummary.setOnClickListener {
+            val s = session ?: return@setOnClickListener
+            currentFilterMode = if (currentFilterMode == ReviewFilterMode.PUBLIC_ONLY) {
+                ReviewFilterMode.ALL
+            } else {
+                ReviewFilterMode.PUBLIC_ONLY
+            }
+            applyFilterAndVisualStates(s)
+        }
+
+        layoutPrivateItemsSummary.setOnClickListener {
+            val s = session ?: return@setOnClickListener
+            currentFilterMode = if (currentFilterMode == ReviewFilterMode.PRIVATE_ONLY) {
+                ReviewFilterMode.ALL
+            } else {
+                ReviewFilterMode.PRIVATE_ONLY
+            }
+            applyFilterAndVisualStates(s)
+        }
+
         btnFloatingErrors.setOnClickListener {
             val s = session ?: return@setOnClickListener
             currentFilterMode = if (currentFilterMode == ReviewFilterMode.INVALID_ONLY) {
@@ -170,6 +215,18 @@ class ReviewImportActivity : AppCompatActivity() {
                 ReviewFilterMode.INVALID_ONLY
             }
             applyFilterAndVisualStates(s)
+        }
+    }
+
+    private fun toggleSummaryDetails() {
+        if (layoutSummaryDetails.visibility == View.VISIBLE) {
+            layoutSummaryDetails.visibility = View.GONE
+            btnViewSummaryToggle.text = "View Summary"
+            imgSheetChevron.animate().rotation(270f).setDuration(200).start()
+        } else {
+            layoutSummaryDetails.visibility = View.VISIBLE
+            btnViewSummaryToggle.text = "Hide Summary"
+            imgSheetChevron.animate().rotation(90f).setDuration(200).start()
         }
     }
 
@@ -200,6 +257,12 @@ class ReviewImportActivity : AppCompatActivity() {
         tvNewItemsSummary.text = summary.newItemsCount.toString()
         tvUpdateItemsSummary.text = summary.updateItemsCount.toString()
         tvGroupSummaryText.text = "There are ${summary.totalCategories} Categories and ${summary.totalItems} total items"
+
+        val totalItemsList = session.categories.flatMap { it.items }
+        val publicCount = totalItemsList.count { it.isPublic }
+        val privateCount = totalItemsList.count { !it.isPublic }
+        tvPublicItemsCount.text = publicCount.toString()
+        tvPrivateItemsCount.text = privateCount.toString()
 
         // Warning state
         if (summary.invalidItemsCount > 0 || summary.duplicateItemsCount > 0) {
@@ -261,6 +324,8 @@ class ReviewImportActivity : AppCompatActivity() {
                     ReviewFilterMode.NEW_ITEMS -> item.validationStatus == ValidationStatus.NEW
                     ReviewFilterMode.UPDATE_ITEMS -> item.validationStatus == ValidationStatus.UPDATE
                     ReviewFilterMode.NEW_CATEGORIES -> isNewCategory
+                    ReviewFilterMode.PUBLIC_ONLY -> item.isPublic
+                    ReviewFilterMode.PRIVATE_ONLY -> !item.isPublic
                 }
             }
 
@@ -279,6 +344,8 @@ class ReviewImportActivity : AppCompatActivity() {
         layoutNewCategoryClick.setBackgroundResource(getSelectableItemBackgroundResourceId())
         layoutNewItemsClick.setBackgroundResource(getSelectableItemBackgroundResourceId())
         layoutUpdateItemsClick.setBackgroundResource(getSelectableItemBackgroundResourceId())
+        layoutPublicItemsSummary.setBackgroundResource(getSelectableItemBackgroundResourceId())
+        layoutPrivateItemsSummary.setBackgroundResource(getSelectableItemBackgroundResourceId())
         cardFloatingErrorCircle.setCardBackgroundColor(ColorStateList.valueOf(Color.parseColor("#FB8500")))
 
         // Adjust opacities (alpha) based on active filter mode for premium minimalism
@@ -287,27 +354,51 @@ class ReviewImportActivity : AppCompatActivity() {
                 layoutNewCategoryClick.alpha = 1.0f
                 layoutNewItemsClick.alpha = 1.0f
                 layoutUpdateItemsClick.alpha = 1.0f
+                layoutPublicItemsSummary.alpha = 1.0f
+                layoutPrivateItemsSummary.alpha = 1.0f
             }
             ReviewFilterMode.NEW_CATEGORIES -> {
                 layoutNewCategoryClick.alpha = 1.0f
                 layoutNewItemsClick.alpha = 0.4f
                 layoutUpdateItemsClick.alpha = 0.4f
+                layoutPublicItemsSummary.alpha = 0.4f
+                layoutPrivateItemsSummary.alpha = 0.4f
             }
             ReviewFilterMode.NEW_ITEMS -> {
                 layoutNewCategoryClick.alpha = 0.4f
                 layoutNewItemsClick.alpha = 1.0f
                 layoutUpdateItemsClick.alpha = 0.4f
+                layoutPublicItemsSummary.alpha = 0.4f
+                layoutPrivateItemsSummary.alpha = 0.4f
             }
             ReviewFilterMode.UPDATE_ITEMS -> {
                 layoutNewCategoryClick.alpha = 0.4f
                 layoutNewItemsClick.alpha = 0.4f
                 layoutUpdateItemsClick.alpha = 1.0f
+                layoutPublicItemsSummary.alpha = 0.4f
+                layoutPrivateItemsSummary.alpha = 0.4f
+            }
+            ReviewFilterMode.PUBLIC_ONLY -> {
+                layoutNewCategoryClick.alpha = 0.4f
+                layoutNewItemsClick.alpha = 0.4f
+                layoutUpdateItemsClick.alpha = 0.4f
+                layoutPublicItemsSummary.alpha = 1.0f
+                layoutPrivateItemsSummary.alpha = 0.4f
+            }
+            ReviewFilterMode.PRIVATE_ONLY -> {
+                layoutNewCategoryClick.alpha = 0.4f
+                layoutNewItemsClick.alpha = 0.4f
+                layoutUpdateItemsClick.alpha = 0.4f
+                layoutPublicItemsSummary.alpha = 0.4f
+                layoutPrivateItemsSummary.alpha = 1.0f
             }
             ReviewFilterMode.INVALID_ONLY -> {
                 cardFloatingErrorCircle.setCardBackgroundColor(ColorStateList.valueOf(Color.parseColor("#E65100"))) // Dark orange when active
                 layoutNewCategoryClick.alpha = 0.4f
                 layoutNewItemsClick.alpha = 0.4f
                 layoutUpdateItemsClick.alpha = 0.4f
+                layoutPublicItemsSummary.alpha = 0.4f
+                layoutPrivateItemsSummary.alpha = 0.4f
             }
         }
 
@@ -517,6 +608,7 @@ class ReviewImportActivity : AppCompatActivity() {
                 )
 
                 holder.itemName.text = builder
+                holder.iconPublicGlobe.visibility = if (item.isPublic) View.VISIBLE else View.GONE
 
                 // Details Text (descriptions)
                 val descText = item.description
@@ -579,11 +671,32 @@ class ReviewImportActivity : AppCompatActivity() {
 
         class ItemViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             val itemName: TextView = v.findViewById(R.id.itemName)
+            val iconPublicGlobe: ImageView = v.findViewById(R.id.iconPublicGlobe)
             val itemDetails: TextView = v.findViewById(R.id.itemDetails)
             val itemPrice: TextView = v.findViewById(R.id.itemPrice)
             val itemUnit: TextView = v.findViewById(R.id.itemUnit)
             val tvErrorText: TextView = v.findViewById(R.id.tvErrorText)
         }
+    }
+
+    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        showExitConfirmationDialog()
+    }
+
+    private fun showExitConfirmationDialog() {
+        ReusableDialogHelper.showCustomDialog(
+            context = this,
+            title = "Exit Review?",
+            message = "Your imported items are not saved yet. Exiting now will discard the current review session. Are you sure you want to exit?",
+            positiveButtonText = "Discard & Exit",
+            positiveAction = {
+                finish()
+            },
+            negativeButtonText = "Cancel",
+            negativeAction = null
+        )
     }
 }
 

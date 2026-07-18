@@ -418,11 +418,142 @@ object ReusableDialogHelper {
                 text = label
                 setTextColor(Color.WHITE)
                 textSize = 15f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
                 isAllCaps = false
                 setBackgroundResource(R.drawable.button_round)
                 supportBackgroundTintList = ColorStateList.valueOf(Color.parseColor(colorHex))
                 layoutParams = LinearLayout.LayoutParams(0, (48 * dp).toInt(), 1f).apply {
                     if (endMarginDp > 0) marginEnd = (endMarginDp * dp).toInt()
+                }
+            }
+        }
+
+        fun handleAction(actionType: String?, actionVal: String?) {
+            if (actionVal.isNullOrEmpty()) return
+            if (actionType == "screen") {
+                when (actionVal) {
+                    "customer_home" -> {
+                        val intent = Intent(context, CustomerHomeActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        context.startActivity(intent)
+                    }
+                    "settings" -> {
+                        val intent = Intent(context, SettingsActivity::class.java).apply {
+                            putExtra("from_side", "customer")
+                        }
+                        context.startActivity(intent)
+                    }
+                    "store_home" -> {
+                        val intent = Intent(context, StoreActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                    "manage_store" -> {
+                        val homeAct = context as? HomeActivity
+                        val sId = homeAct?.getCurrentStoreId()
+                        val sName = homeAct?.getCurrentStoreName()
+                        if (!sId.isNullOrEmpty()) {
+                            val intent = Intent(context, ManageStoreActivity::class.java).apply {
+                                putExtra("storeId", sId)
+                                putExtra("storeName", sName ?: "Store")
+                            }
+                            context.startActivity(intent)
+                        }
+                    }
+                    "manage_members" -> {
+                        val homeAct = context as? HomeActivity
+                        val sId = homeAct?.getCurrentStoreId()
+                        val sName = homeAct?.getCurrentStoreName()
+                        if (!sId.isNullOrEmpty()) {
+                            val intent = Intent(context, ManageMembersActivity::class.java).apply {
+                                putExtra("storeId", sId)
+                                putExtra("storeName", sName ?: "Store")
+                            }
+                            context.startActivity(intent)
+                        }
+                    }
+                    "account_security" -> {
+                        val intent = Intent(context, AccountSecurityActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                    "edit_profile" -> {
+                        val intent = Intent(context, EditProfileActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                    "notifications" -> {
+                        val intent = Intent(context, NotificationActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                    "memberships" -> {
+                        val intent = Intent(context, MembershipsActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                    "contact_us" -> {
+                        val intent = Intent(context, ContactUsActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                    "manage_categories" -> {
+                        val homeAct = context as? HomeActivity
+                        val sId = homeAct?.getCurrentStoreId()
+                        val sName = homeAct?.getCurrentStoreName()
+                        if (!sId.isNullOrEmpty()) {
+                            val intent = Intent(context, ManageCategoryActivity::class.java).apply {
+                                putExtra("storeId", sId)
+                                putExtra("storeName", sName ?: "Store")
+                            }
+                            context.startActivity(intent)
+                        }
+                    }
+                    "store_qr" -> {
+                        val homeAct = context as? HomeActivity
+                        val sId = homeAct?.getCurrentStoreId()
+                        val sName = homeAct?.getCurrentStoreName()
+                        val loc = homeAct?.getCurrentBranchName() ?: "Main Branch"
+                        if (!sId.isNullOrEmpty()) {
+                            val intent = Intent(context, StoreQrActivity::class.java).apply {
+                                putExtra("storeId", sId)
+                                putExtra("storeName", sName ?: "Store")
+                                putExtra("displayId", sId)
+                                putExtra("storeLocation", loc)
+                            }
+                            context.startActivity(intent)
+                        }
+                    }
+                    "manage_items" -> {
+                        val homeAct = context as? HomeActivity
+                        val sId = homeAct?.getCurrentStoreId()
+                        val sName = homeAct?.getCurrentStoreName()
+                        val branch = homeAct?.getCurrentBranchName()
+                        if (!sId.isNullOrEmpty()) {
+                            val intent = Intent(context, ManageItemsActivity::class.java).apply {
+                                putExtra("storeId", sId)
+                                putExtra("storeName", sName ?: "Store")
+                                putExtra("branchName", branch)
+                            }
+                            context.startActivity(intent)
+                        }
+                    }
+                    "add_multiple_items" -> {
+                        val homeAct = context as? HomeActivity
+                        val sId = homeAct?.getCurrentStoreId()
+                        val sName = homeAct?.getCurrentStoreName()
+                        if (!sId.isNullOrEmpty()) {
+                            val intent = Intent(context, AddMultipleItemsActivity::class.java).apply {
+                                putExtra("storeId", sId)
+                                putExtra("storeName", sName ?: "Store")
+                                putExtra("showImportDialog", true)
+                            }
+                            context.startActivity(intent)
+                        }
+                    }
+                }
+            } else {
+                if (actionVal.startsWith("http") || actionVal.contains("://")) {
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(actionVal)))
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
         }
@@ -458,8 +589,9 @@ object ReusableDialogHelper {
                 val btnNegative = makeBtn(btnNegativeLabel, "#219EBC", endMarginDp = 8).apply {
                     setOnClickListener {
                         saveResponse(btnNegativeLabel)
-                        val action = announcement.template_data?.get("negative_action")?.jsonPrimitive?.content ?: ""
-                        if (action.startsWith("http")) try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(action))) } catch (e: Exception) { e.printStackTrace() }
+                        val actionType = announcement.template_data?.get("negative_action_type")?.jsonPrimitive?.content
+                        val action = announcement.template_data?.get("negative_action")?.jsonPrimitive?.content
+                        handleAction(actionType, action)
                         dialog.dismiss(); onClose()
                     }
                 }
@@ -467,8 +599,9 @@ object ReusableDialogHelper {
                 val btnPositive = makeBtn(btnPositiveLabel, "#FB8500").apply {
                     setOnClickListener {
                         saveResponse(btnPositiveLabel)
-                        val action = announcement.template_data?.get("positive_action")?.jsonPrimitive?.content ?: ""
-                        if (action.startsWith("http")) try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(action))) } catch (e: Exception) { e.printStackTrace() }
+                        val actionType = announcement.template_data?.get("positive_action_type")?.jsonPrimitive?.content
+                        val action = announcement.template_data?.get("positive_action")?.jsonPrimitive?.content
+                        handleAction(actionType, action)
                         dialog.dismiss(); onClose()
                     }
                 }
@@ -900,44 +1033,81 @@ object ReusableDialogHelper {
                 }
                 dynamicContent.addView(tvCustomVersion)
 
-                // Whats New Header: Whats New?
-                val tvWhatsNewTitle = TextView(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        bottomMargin = (6 * dp).toInt()
-                    }
-                    text = "Whats New?"
-                    setTextColor(Color.parseColor("#219EBC")) // Teal
-                    textSize = 13f
-                    setTypeface(null, android.graphics.Typeface.BOLD)
-                }
-                dynamicContent.addView(tvWhatsNewTitle)
 
-                // Whats New bullet lists
+                 // Whats New bullet lists
                 val whatsNewText = announcement.template_data?.get("whats_new")?.jsonPrimitive?.content ?: ""
                 val formattedWhatsNew = if (whatsNewText.isNotEmpty()) {
-                    if (whatsNewText.contains("\n") || whatsNewText.startsWith("•") || whatsNewText.startsWith("-")) {
-                        whatsNewText
-                    } else {
-                        "• $whatsNewText"
-                    }
+                    whatsNewText
                 } else {
-                    "• Bug fixes and performance improvements."
+                    "Bug fixes and performance improvements."
                 }
 
-                val tvWhatsNewContent = TextView(context).apply {
+                val whatsNewScrollView = android.widget.ScrollView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
                     )
-                    text = formattedWhatsNew
+                    isVerticalScrollBarEnabled = true
+                    scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+                }
+
+                val tvWhatsNewContent = TextView(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    )
+                    text = parseHtml(formattedWhatsNew)
                     setTextColor(Color.parseColor("#475569")) // Slate 600
                     textSize = 12f
                     setLineSpacing(0f, 1.2f)
                 }
-                dynamicContent.addView(tvWhatsNewContent)
+                whatsNewScrollView.addView(tvWhatsNewContent)
+                dynamicContent.addView(whatsNewScrollView)
+
+                val btnSeeMore = TextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        gravity = android.view.Gravity.CENTER_HORIZONTAL
+                        topMargin = (6 * dp).toInt()
+                        bottomMargin = (4 * dp).toInt()
+                    }
+                    text = "See More..."
+                    setTextColor(Color.parseColor("#219EBC"))
+                    textSize = 12f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                    visibility = View.GONE
+                    setPadding((8 * dp).toInt(), (4 * dp).toInt(), (8 * dp).toInt(), (4 * dp).toInt())
+                }
+                dynamicContent.addView(btnSeeMore)
+
+                tvWhatsNewContent.post {
+                    val lineCount = tvWhatsNewContent.lineCount
+                    if (lineCount > 4) {
+                        tvWhatsNewContent.maxLines = 4
+                        tvWhatsNewContent.ellipsize = android.text.TextUtils.TruncateAt.END
+                        btnSeeMore.visibility = View.VISIBLE
+                        
+                        btnSeeMore.setOnClickListener {
+                            tvWhatsNewContent.maxLines = Int.MAX_VALUE
+                            btnSeeMore.visibility = View.GONE
+                            
+                            whatsNewScrollView.post {
+                                val measuredHeight = tvWhatsNewContent.measuredHeight
+                                val maxHeight = (150 * dp).toInt()
+                                if (measuredHeight > maxHeight) {
+                                    whatsNewScrollView.layoutParams = LinearLayout.LayoutParams(
+                                        LinearLayout.LayoutParams.MATCH_PARENT,
+                                        maxHeight
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        btnSeeMore.visibility = View.GONE
+                    }
+                }
 
                 val btnUpdate = makeBtn("Update Now", "#FB8500").apply {
                     setOnClickListener {
@@ -1103,6 +1273,68 @@ object ReusableDialogHelper {
                             } catch (e: Exception) {}
                         }
 
+                        // Context filtering for screen-targeted announcements to avoid bugs
+                        val targetScreen = announcement.template_data?.get("target_navigation_screen")?.jsonPrimitive?.content
+                        if (!targetScreen.isNullOrEmpty()) {
+                            when (targetScreen) {
+                                "customer_home" -> {
+                                    if (activity is CustomerHomeActivity) return@filter false
+                                }
+                                "settings" -> {
+                                    if (activity is SettingsActivity) return@filter false
+                                }
+                                "store_home" -> {
+                                    if (activity is StoreActivity) return@filter false
+                                }
+                                "manage_members", "manage_store" -> {
+                                    if (activity !is HomeActivity) return@filter false
+                                    val isOwner = (activity as? HomeActivity)?.getUserRole()?.lowercase() == "owner"
+                                    if (!isOwner) return@filter false
+                                    val storeId = (activity as? HomeActivity)?.getCurrentStoreId()
+                                    if (storeId.isNullOrEmpty()) return@filter false
+                                }
+                                "account_security" -> {
+                                    if (activity is AccountSecurityActivity) return@filter false
+                                }
+                                "edit_profile" -> {
+                                    if (activity is EditProfileActivity) return@filter false
+                                }
+                                "notifications" -> {
+                                    if (activity is NotificationActivity) return@filter false
+                                }
+                                "memberships" -> {
+                                    if (activity is MembershipsActivity) return@filter false
+                                }
+                                "contact_us" -> {
+                                    if (activity is ContactUsActivity) return@filter false
+                                }
+                                "manage_categories" -> {
+                                    if (activity is ManageCategoryActivity) return@filter false
+                                    if (activity !is HomeActivity) return@filter false
+                                    val storeId = (activity as? HomeActivity)?.getCurrentStoreId()
+                                    if (storeId.isNullOrEmpty()) return@filter false
+                                }
+                                "store_qr" -> {
+                                    if (activity is StoreQrActivity) return@filter false
+                                    if (activity !is HomeActivity) return@filter false
+                                    val storeId = (activity as? HomeActivity)?.getCurrentStoreId()
+                                    if (storeId.isNullOrEmpty()) return@filter false
+                                }
+                                "manage_items" -> {
+                                    if (activity is ManageItemsActivity) return@filter false
+                                    if (activity !is HomeActivity) return@filter false
+                                    val storeId = (activity as? HomeActivity)?.getCurrentStoreId()
+                                    if (storeId.isNullOrEmpty()) return@filter false
+                                }
+                                "add_multiple_items" -> {
+                                    if (activity is AddMultipleItemsActivity) return@filter false
+                                    if (activity !is HomeActivity) return@filter false
+                                    val storeId = (activity as? HomeActivity)?.getCurrentStoreId()
+                                    if (storeId.isNullOrEmpty()) return@filter false
+                                }
+                            }
+                        }
+
                         val ignoreCooldown = announcement.template_data?.get("ignore_new_user_cooldown")?.jsonPrimitive?.booleanOrNull == true
                         if (!ignoreCooldown && announcement.template_type != "maintenance") {
                             if (userId.isNotEmpty()) {
@@ -1245,6 +1477,27 @@ object ReusableDialogHelper {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    fun parseHtml(html: String): android.text.Spanned {
+        var clean = html
+        if (clean.contains("&lt;") || clean.contains("&gt;")) {
+            clean = clean.replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+        }
+        clean = clean.replace(Regex("style=\"[^\"]*text-align:\\s*center;?[^\"]*\"", RegexOption.IGNORE_CASE), "align=\"center\"")
+        clean = clean.replace(Regex("style=\"[^\"]*text-align:\\s*right;?[^\"]*\"", RegexOption.IGNORE_CASE), "align=\"right\"")
+        clean = clean.replace(Regex("style=\"[^\"]*text-align:\\s*left;?[^\"]*\"", RegexOption.IGNORE_CASE), "align=\"left\"")
+
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            android.text.Html.fromHtml(clean, android.text.Html.FROM_HTML_MODE_LEGACY)
+        } else {
+            @Suppress("DEPRECATION")
+            android.text.Html.fromHtml(clean)
         }
     }
 }
