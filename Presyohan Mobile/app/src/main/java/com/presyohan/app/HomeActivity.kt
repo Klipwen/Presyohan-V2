@@ -94,8 +94,8 @@ class HomeActivity : AppCompatActivity() {
     private var hasLoadedProductsOnce = false
 
 
-    private val spinnerCategories = mutableListOf("PRICELIST")
-    private lateinit var spinnerAdapter: android.widget.ArrayAdapter<String>
+    private var categoryTabAdapter: com.presyohan.app.adapter.CategoryTabAdapter? = null
+    private var btnHomeAddFab: android.widget.ImageButton? = null
 
     // Export permission handler
     private var lastExportFilenamePending: String? = null
@@ -224,7 +224,6 @@ class HomeActivity : AppCompatActivity() {
 
     // UI Variables for Scope
     private lateinit var searchBarContainer: View
-    private lateinit var layoutPricelistTrigger: View
     private lateinit var addButton: View
     private lateinit var searchEditText: EditText
 
@@ -245,23 +244,24 @@ class HomeActivity : AppCompatActivity() {
         val btnBack = findViewById<ImageView>(R.id.btnBack)
         val storeText = findViewById<TextView>(R.id.textStoreName)
         val productRecyclerView = findViewById<RecyclerView>(R.id.productRecyclerView)
-        val categoryLabel = findViewById<TextView>(R.id.categoryLabel)
-        val categorySpinner = findViewById<Spinner>(R.id.categorySpinner)
-        val categoryDrawerButton = findViewById<ImageView>(R.id.categoryDrawerButton)
         val notifIcon = findViewById<ImageView>(R.id.notifIcon)
         val searchItemButton = findViewById<android.widget.ImageButton>(R.id.searchItemButton)
         val btnStoreOptions = findViewById<ImageView>(R.id.btnStoreOptions)
+        btnHomeAddFab = findViewById(R.id.btnHomeAddFab)
 
         // Assign to class-level vars
-        searchBarContainer = findViewById(R.id.bottomSheet)
-        searchEditText = findViewById(R.id.bottomSearchEditText)
-        layoutPricelistTrigger = findViewById(R.id.layoutPricelistTrigger)
-        addButton = findViewById(R.id.btnSheetAddItem)
+        val sContainer = findViewById<View?>(R.id.bottomSheet)
+        val aBtn = findViewById<View?>(R.id.btnSheetAddItem)
+        val sEdit = findViewById<EditText?>(R.id.bottomSearchEditText)
 
-        if (searchBarContainer == null || layoutPricelistTrigger == null || addButton == null) {
+        if (sContainer == null || aBtn == null || sEdit == null) {
             Log.e("HomeActivity", "Critical views not found in XML")
             return
         }
+
+        searchBarContainer = sContainer
+        addButton = aBtn
+        searchEditText = sEdit
 
         val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id
         currentStoreId = intent.getStringExtra("storeId")
@@ -596,7 +596,7 @@ class HomeActivity : AppCompatActivity() {
 
         swipeRefreshLayout.setOnRefreshListener {
             loadProductsFromSupabase(false)
-            refreshSpinnerCategories(currentStoreId)
+            refreshCategoryTabs(currentStoreId)
         }
         swipeRefreshLayout.isNestedScrollingEnabled = false
 
@@ -604,16 +604,16 @@ class HomeActivity : AppCompatActivity() {
         if (currentStoreId != null) {
             reloadProductsFn = {
                 loadProductsFromSupabase(false)
-                refreshSpinnerCategories(currentStoreId)
+                refreshCategoryTabs(currentStoreId)
             }
             loadProductsFromSupabase(true)
         }
 
         // --- Bottom Sheet & Search Behavior Implementation ---
         val bottomSheetBehavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(searchBarContainer)
-        bottomSheetBehavior.isHideable = true
-        bottomSheetBehavior.isFitToContents = true // Lets it sit naturally at the bottom
-        bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
+        bottomSheetBehavior.isHideable = false
+        bottomSheetBehavior.isFitToContents = true
+        bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
         homeBottomSheetBehavior = bottomSheetBehavior
 
         fun updateRecyclerPadding(bottomHeight: Int) {
@@ -660,49 +660,104 @@ class HomeActivity : AppCompatActivity() {
         searchEditText.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 sheetRevealJob?.cancel()
-                // Snaps to the bottom showing just the search bar, no floating
-                bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
+                val layoutSheetActions = findViewById<View>(R.id.layoutSheetActions)
+                if (layoutSheetActions?.visibility == View.VISIBLE) {
+                    layoutSheetActions.visibility = View.GONE
+                    searchBarContainer.requestLayout()
+                }
             }
         }
 
-        // Search Button Click (Toggle Bottom Sheet State)
+        // Search Button Click (Opens Search Bar State - State 2)
         searchItemButton?.setOnClickListener {
-            bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
-        }
-
-        // Tap handle to toggle sheet state between COLLAPSED and EXPANDED
-        val bottomSheetHandle = findViewById<View>(R.id.bottomSheetHandle)
-        bottomSheetHandle?.setOnClickListener {
+            val isOwnerOrManager = userRole == "owner" || userRole == "manager"
+            val layoutSheetActions = findViewById<View>(R.id.layoutSheetActions)
             if (bottomSheetBehavior.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                layoutSheetActions?.visibility = View.GONE
+                searchBarContainer.requestLayout()
                 bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
-            } else if (bottomSheetBehavior.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED) {
+                searchEditText.requestFocus()
+                showKeyboard(searchEditText)
+            } else if (bottomSheetBehavior.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED && layoutSheetActions?.visibility == View.VISIBLE) {
+                // Switch to Search Bar state (State 2)
+                layoutSheetActions.visibility = View.GONE
+                searchBarContainer.requestLayout()
+                searchEditText.requestFocus()
+                showKeyboard(searchEditText)
+            } else {
+                hideKeyboard(searchEditText)
+                if (isOwnerOrManager) layoutSheetActions?.visibility = View.VISIBLE
                 bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
             }
         }
+
+        // Tap handle or handle container to toggle/expand between State 1, State 2, and State 3
+        val handleClickListener = View.OnClickListener {
+            val isOwnerOrManager = userRole == "owner" || userRole == "manager"
+            val layoutSheetActions = findViewById<View>(R.id.layoutSheetActions)
+            if (bottomSheetBehavior.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                if (isOwnerOrManager) {
+                    layoutSheetActions?.visibility = View.VISIBLE
+                } else {
+                    layoutSheetActions?.visibility = View.GONE
+                }
+                searchBarContainer.requestLayout()
+                bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+            } else if (bottomSheetBehavior.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED && layoutSheetActions?.visibility == View.GONE && isOwnerOrManager) {
+                // Expand from State 2 to State 3 (Full Controls)
+                hideKeyboard(searchEditText)
+                layoutSheetActions.visibility = View.VISIBLE
+                searchBarContainer.requestLayout()
+            } else {
+                hideKeyboard(searchEditText)
+                if (isOwnerOrManager) layoutSheetActions?.visibility = View.VISIBLE
+                bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
+            }
+        }
+
+        findViewById<View>(R.id.bottomSheetHandle)?.setOnClickListener(handleClickListener)
+        findViewById<View>(R.id.bottomSheetHandleContainer)?.setOnClickListener(handleClickListener)
 
         // Bottom Sheet Behavior Callback
         bottomSheetBehavior.addBottomSheetCallback(object : com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
+                val isOwnerOrManager = userRole == "owner" || userRole == "manager"
+                val layoutSheetActions = findViewById<View>(R.id.layoutSheetActions)
                 when (newState) {
                     com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_DRAGGING -> {
-                        // User manually dragging — cancel the auto-reveal timer
                         sheetRevealJob?.cancel()
+                        if (isOwnerOrManager && layoutSheetActions?.visibility != View.VISIBLE) {
+                            layoutSheetActions?.visibility = View.VISIBLE
+                            searchBarContainer.requestLayout()
+                        }
                     }
                     com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED -> {
                         searchItemButton?.visibility = View.GONE
+                        btnHomeAddFab?.visibility = View.GONE
                         updateRecyclerPadding(bottomSheet.height)
                     }
                     com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HALF_EXPANDED -> {
-                        // Keyboard is open — sheet is half-visible, items still accessible
                         searchItemButton?.visibility = View.GONE
+                        btnHomeAddFab?.visibility = View.GONE
                         updateRecyclerPadding(0)
                     }
                     com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED -> {
-                        searchItemButton?.visibility = View.GONE
-                        updateRecyclerPadding(bottomSheetBehavior.peekHeight)
-                    }
-                    com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN -> {
                         searchItemButton?.visibility = View.VISIBLE
+                        searchItemButton?.alpha = 1.0f
+                        searchItemButton?.scaleX = 1.0f
+                        searchItemButton?.scaleY = 1.0f
+
+                        if (isOwnerOrManager) {
+                            layoutSheetActions?.visibility = View.VISIBLE
+                            btnHomeAddFab?.visibility = View.VISIBLE
+                            btnHomeAddFab?.alpha = 1.0f
+                            btnHomeAddFab?.scaleX = 1.0f
+                            btnHomeAddFab?.scaleY = 1.0f
+                        } else {
+                            layoutSheetActions?.visibility = View.GONE
+                            btnHomeAddFab?.visibility = View.GONE
+                        }
+
                         hideKeyboard(searchEditText)
                         updateRecyclerPadding(0)
                     }
@@ -711,18 +766,44 @@ class HomeActivity : AppCompatActivity() {
             }
 
             override fun onSlide(bottomSheet: View, slideOffset: Float) {
-                // Empty to prevent recursive layout requests during drag/slide gestures
+                val isOwnerOrManager = userRole == "owner" || userRole == "manager"
+                val fabAlpha = (1.0f - slideOffset * 2.0f).coerceIn(0f, 1f)
+                val fabScale = (1.0f - slideOffset * 2.0f).coerceIn(0f, 1f)
+
+                searchItemButton?.let { fab ->
+                    if (fabAlpha > 0f) {
+                        fab.visibility = View.VISIBLE
+                        fab.alpha = fabAlpha
+                        fab.scaleX = fabScale
+                        fab.scaleY = fabScale
+                    } else {
+                        fab.visibility = View.GONE
+                    }
+                }
+
+                if (isOwnerOrManager) {
+                    btnHomeAddFab?.let { fab ->
+                        if (fabAlpha > 0f) {
+                            fab.visibility = View.VISIBLE
+                            fab.alpha = fabAlpha
+                            fab.scaleX = fabScale
+                            fab.scaleY = fabScale
+                        } else {
+                            fab.visibility = View.GONE
+                        }
+                    }
+                } else {
+                    btnHomeAddFab?.visibility = View.GONE
+                }
             }
         })
 
         productRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
-                
-                // Scrolling down hides bottom sheet completely (only if dragged by user)
                 if (dy > 10 && recyclerView.scrollState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                    if (bottomSheetBehavior.state != com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN) {
-                        bottomSheetBehavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
+                    if (homeBottomSheetBehavior?.state != com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                        homeBottomSheetBehavior?.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
                     }
                 }
             }
@@ -750,12 +831,23 @@ class HomeActivity : AppCompatActivity() {
         }
 
         // --- Category Logic ---
-        setupCategorySpinner(currentStoreId, categoryLabel, categorySpinner, categoryDrawerButton) { category ->
+        setupCategoryTabs(currentStoreId) { category ->
             selectedCategory = category
             productRecyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
             loadProductsFromSupabase(true)
         }
-        categoryLabel.setOnClickListener { categorySpinner.performClick() }
+
+        btnHomeAddFab?.setOnClickListener {
+            if (currentStoreId.isNullOrBlank()) return@setOnClickListener
+            AddEditItemDialogHelper.showAddOrEditItemDialog(
+                activity = this@HomeActivity,
+                storeId = currentStoreId!!,
+                storeName = currentStoreName ?: "Store",
+                onComplete = {
+                    reloadProductsFn?.invoke()
+                }
+            )
+        }
 
         // --- Actions ---
         addButton.setOnClickListener {
@@ -1434,23 +1526,41 @@ class HomeActivity : AppCompatActivity() {
         val isOwnerOrManager = role == "owner" || role == "manager"
         val layoutSheetActions = findViewById<View>(R.id.layoutSheetActions)
         val bottomSheetHandle = findViewById<View>(R.id.bottomSheetHandle)
+        val bottomSheetHandleContainer = findViewById<View>(R.id.bottomSheetHandleContainer)
+
+        // Yellow drawer handle is ALWAYS revealed for all roles
+        bottomSheetHandle?.visibility = View.VISIBLE
+        bottomSheetHandleContainer?.visibility = View.VISIBLE
 
         if (isOwnerOrManager) {
             layoutSheetActions?.visibility = View.VISIBLE
-            bottomSheetHandle?.visibility = View.VISIBLE
             addButton.visibility = View.VISIBLE
+            if (homeBottomSheetBehavior?.state == com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                btnHomeAddFab?.visibility = View.VISIBLE
+                btnHomeAddFab?.alpha = 1.0f
+                btnHomeAddFab?.scaleX = 1.0f
+                btnHomeAddFab?.scaleY = 1.0f
+            } else {
+                btnHomeAddFab?.visibility = View.GONE
+            }
         } else {
             layoutSheetActions?.visibility = View.GONE
-            bottomSheetHandle?.visibility = View.GONE
             addButton.visibility = View.GONE
+            btnHomeAddFab?.visibility = View.GONE
         }
 
         try {
             val behavior = com.google.android.material.bottomsheet.BottomSheetBehavior.from(searchBarContainer)
-            behavior.isDraggable = isOwnerOrManager
+            behavior.isDraggable = true
         } catch (e: Exception) {
             Log.e("HomeActivity", "Failed to update bottom sheet draggable state", e)
         }
+    }
+
+    private fun showKeyboard(view: View) {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+        isKeyboardOpen = true
     }
 
     // --- Search and Scroll Helper Methods (Obsolete in Bottom Sheet design) ---
@@ -1478,7 +1588,17 @@ class HomeActivity : AppCompatActivity() {
                 v.getGlobalVisibleRect(outRect)
                 if (!outRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
                     hideKeyboard(v)
-                    hideSearchBar(hideKeyboard = false)
+                }
+            }
+            if (homeBottomSheetBehavior != null && homeBottomSheetBehavior?.state != com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED) {
+                val sheetRect = Rect()
+                searchBarContainer.getGlobalVisibleRect(sheetRect)
+                if (!sheetRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                    val isOwnerOrManager = userRole == "owner" || userRole == "manager"
+                    if (isOwnerOrManager) {
+                        findViewById<View>(R.id.layoutSheetActions)?.visibility = View.VISIBLE
+                    }
+                    homeBottomSheetBehavior?.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
                 }
             }
         }
@@ -1531,60 +1651,49 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupCategorySpinner(storeId: String?, categoryLabel: TextView, categorySpinner: Spinner, categoryDrawerButton: ImageView, onCategorySelected: (String) -> Unit) {
-        spinnerAdapter = object : android.widget.ArrayAdapter<String>(
-            this, android.R.layout.simple_spinner_dropdown_item, spinnerCategories
-        ) {
-            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
-                val view = super.getView(position, convertView, parent)
-                (view as? TextView)?.text = spinnerCategories[position].uppercase()
-                return view
-            }
-            override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
-                val view = super.getDropDownView(position, convertView, parent)
-                (view as? TextView)?.text = spinnerCategories[position].uppercase()
-                return view
-            }
-        }
-        categorySpinner.adapter = spinnerAdapter
-        categorySpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                val cat = spinnerCategories[position]
-                categoryLabel.text = cat.uppercase()
-                onCategorySelected(cat)
-            }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
-        }
-        categorySpinner.background = null
-        categorySpinner.layoutParams.width = 1
-        categorySpinner.requestLayout()
-        categoryDrawerButton.setOnClickListener { categorySpinner.performClick() }
+    private fun setupCategoryTabs(
+        storeId: String?,
+        onCategorySelected: (String?) -> Unit
+    ) {
+        val categoryTabsRecyclerView = findViewById<RecyclerView>(R.id.categoryTabsRecyclerView)
+        categoryTabsRecyclerView?.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
+            this, androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false
+        )
 
-        refreshSpinnerCategories(storeId)
+        val initialList = listOf("ALL ITEMS")
+        categoryTabAdapter = com.presyohan.app.adapter.CategoryTabAdapter(
+            categories = initialList,
+            selectedCategory = selectedCategory,
+            onCategorySelected = { category ->
+                selectedCategory = category
+                onCategorySelected(category)
+            }
+        )
+        categoryTabsRecyclerView?.adapter = categoryTabAdapter
+
+        refreshCategoryTabs(storeId)
     }
 
-    private fun refreshSpinnerCategories(storeId: String?) {
+    private fun refreshCategoryTabs(storeId: String?) {
         val sId = storeId ?: return
         lifecycleScope.launch {
             try {
-                val rows = supabase.postgrest.rpc("get_user_categories", buildJsonObject { put("p_store_id", sId) }).decodeList<UserCategoryRow>()
-                val selected = spinnerCategories.getOrNull(findViewById<Spinner>(R.id.categorySpinner)?.selectedItemPosition ?: 0) ?: "PRICELIST"
-                spinnerCategories.clear()
-                spinnerCategories.add("PRICELIST")
+                val rows = supabase.postgrest.rpc(
+                    "get_user_categories",
+                    buildJsonObject { put("p_store_id", sId) }
+                ).decodeList<UserCategoryRow>()
+
+                val updatedList = mutableListOf("ALL ITEMS")
                 for (row in rows) {
-                    val catName = row.name.uppercase()
-                    if (!spinnerCategories.contains(catName)) {
-                        spinnerCategories.add(catName)
+                    val catName = row.name.trim()
+                    if (catName.isNotEmpty() && !updatedList.any { it.equals(catName, ignoreCase = true) }) {
+                        updatedList.add(catName)
                     }
                 }
-                spinnerAdapter.notifyDataSetChanged()
-                
-                val index = spinnerCategories.indexOf(selected)
-                if (index >= 0) {
-                    findViewById<Spinner>(R.id.categorySpinner)?.setSelection(index, false)
-                }
+
+                categoryTabAdapter?.updateCategories(updatedList, selectedCategory)
             } catch (e: Exception) {
-                Log.e("HomeActivity", "Failed to refresh spinner categories: ${e.localizedMessage}")
+                Log.e("HomeActivity", "Failed to refresh category tabs: ${e.localizedMessage}")
             }
         }
     }
