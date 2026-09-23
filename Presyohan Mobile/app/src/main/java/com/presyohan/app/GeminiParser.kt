@@ -410,8 +410,9 @@ object GeminiParser {
                   "sourceName": "string (the name of the store, website, or brand, e.g., 'Honda Philippines', 'SM Markets', 'Lazada')",
                   "itemName": "string (the name of the product)",
                   "description": "string (brief product details, size, or packaging)",
-                  "price": number (the price in PHP, e.g. 15.00)",
-                  "unit": "string (the unit size or weight, e.g., '500 ml', '1 kg', 'piece')"
+                  "price": number (the price in PHP, e.g. 15.00),
+                  "unit": "string (the unit size or weight, e.g., '500 ml', '1 kg', 'piece')",
+                  "imageUrl": "string (direct public image asset HTTP/HTTPS URL ending in .jpg, .png, .webp or CDN image URL found for the product. Do NOT return web page links or html links. Use null if no direct image asset URL is found)"
                 }
               ]
             }
@@ -600,7 +601,8 @@ data class InternetSearchProduct(
     val itemName: String,
     val description: String? = null,
     val price: Double = 0.0,
-    val unit: String? = null
+    val unit: String? = null,
+    val imageUrl: String? = null
 )
 
 @Serializable

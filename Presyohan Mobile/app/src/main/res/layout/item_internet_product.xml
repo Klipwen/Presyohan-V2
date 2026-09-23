@@ -45,19 +45,42 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- Product Image Thumbnail Container (Hidden when no image is available) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardProductImage"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="#F1F5F9"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/sourceContainer">
+
+            <ImageView
+                android:id="@+id/ivProductImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="Product Image" />
+        </androidx.cardview.widget.CardView>
+
         <!-- Product Name -->
         <TextView
             android:id="@+id/tvProductName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
             android:text="Product Name"
             android:textColor="@color/presyo_orange"
-            android:textSize="18sp"
+            android:textSize="17sp"
             android:textStyle="bold"
+            app:layout_goneMarginStart="0dp"
             app:layout_constraintEnd_toStartOf="@id/tvProductPrice"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/cardProductImage"
             app:layout_constraintTop_toBottomOf="@id/sourceContainer" />
 
         <!-- Description -->
@@ -65,14 +88,29 @@
             android:id="@+id/tvProductDescription"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
             android:text="Description"
             android:textColor="#555555"
             android:textSize="12sp"
+            app:layout_goneMarginStart="0dp"
             app:layout_constraintEnd_toStartOf="@id/tvProductPrice"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/cardProductImage"
             app:layout_constraintTop_toBottomOf="@id/tvProductName" />
+
+        <!-- Price -->
+        <TextView
+            android:id="@+id/tvProductPrice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="₱ 0.00"
+            android:textColor="@color/presyo_teal"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/sourceContainer" />
 
         <!-- Quantity/Units -->
         <TextView
@@ -84,19 +122,6 @@
             android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="@+id/tvProductPrice"
             app:layout_constraintTop_toBottomOf="@+id/tvProductPrice" />
-
-        <!-- Price -->
-        <TextView
-            android:id="@+id/tvProductPrice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="₱ 0.00"
-            android:textColor="@color/presyo_teal"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="@id/tvProductUnits"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sourceContainer" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
