@@ -1466,7 +1466,6 @@ class CustomerHomeActivity : AppCompatActivity() {
                                 val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
                                 if (currentUser != null) {
                                     val email = currentUser.email ?: ""
-                                    var upserted = false
                                     try {
                                         SupabaseProvider.client.postgrest["app_users"].upsert(
                                             mapOf(
@@ -1475,18 +1474,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                                                 "email" to email
                                             )
                                         )
-                                        upserted = true
                                     } catch (_: Exception) {}
-                                    if (!upserted) {
-                                        SupabaseProvider.client.postgrest["app_users"].upsert(
-                                            mapOf(
-                                                "id" to userId,
-                                                "auth_uid" to userId,
-                                                "name" to senderName,
-                                                "email" to email
-                                            )
-                                        )
-                                    }
                                 }
                             } catch (uErr: Exception) {
                                 uErr.printStackTrace()

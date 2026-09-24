@@ -84,6 +84,10 @@
             android:name=".ManageCategoryActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ManageSukiActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".StoreQrActivity"

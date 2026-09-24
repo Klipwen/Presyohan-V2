@@ -88,9 +88,15 @@ class ManageStoreActivity : AppCompatActivity() {
     private lateinit var btnGenerateCode: Button
     private lateinit var btnRevokeCode: Button
     
-    private lateinit var btnManageMembers: Button
-    private lateinit var btnManageCategory: Button
-    private lateinit var btnManageItems: Button
+    private lateinit var btnManageMembers: View
+    private lateinit var btnManageCategory: View
+    private lateinit var btnManageItems: View
+    private lateinit var btnManageSuki: View
+
+    private lateinit var tvCountItems: TextView
+    private lateinit var tvCountCategories: TextView
+    private lateinit var tvCountStaffs: TextView
+    private lateinit var tvCountSuki: TextView
 
     private lateinit var shimmerStoreSettings: com.facebook.shimmer.ShimmerFrameLayout
     private lateinit var layoutStoreCardInner: LinearLayout
@@ -228,9 +234,15 @@ class ManageStoreActivity : AppCompatActivity() {
         btnGenerateCode = findViewById(R.id.btnGenerateCode)
         btnRevokeCode = findViewById(R.id.btnRevokeCode)
         
-        btnManageMembers = findViewById(R.id.btnManageMembers)
-        btnManageCategory = findViewById(R.id.btnManageCategory)
-        btnManageItems = findViewById(R.id.btnManageItems)
+        btnManageMembers = findViewById(R.id.cardManageStaffs)
+        btnManageCategory = findViewById(R.id.cardManageCategories)
+        btnManageItems = findViewById(R.id.cardManageItems)
+        btnManageSuki = findViewById(R.id.cardManageSuki)
+
+        tvCountItems = findViewById(R.id.tvCountItems)
+        tvCountCategories = findViewById(R.id.tvCountCategories)
+        tvCountStaffs = findViewById(R.id.tvCountStaffs)
+        tvCountSuki = findViewById(R.id.tvCountSuki)
 
         shimmerStoreSettings = findViewById(R.id.shimmerStoreSettings)
         layoutStoreCardInner = findViewById(R.id.layoutStoreCardInner)
@@ -356,6 +368,16 @@ class ManageStoreActivity : AppCompatActivity() {
                 putExtra("storeId", storeId)
                 putExtra("storeName", storeName)
                 putExtra("branchName", branchName)
+            }
+            startActivity(intent)
+        }
+
+        btnManageSuki.setOnClickListener {
+            if (storeId.isNullOrBlank()) return@setOnClickListener
+            val intent = Intent(this, ManageSukiActivity::class.java).apply {
+                putExtra("storeId", storeId)
+                putExtra("storeName", storeName)
+                putExtra("isPublic", cbMakeStorePublic.isChecked)
             }
             startActivity(intent)
         }
@@ -491,6 +513,7 @@ class ManageStoreActivity : AppCompatActivity() {
                     buildJsonObject { put("p_store_id", sId) }
                 ).decodeList<UserCategoryRow>()
                 tvStatCategories.text = categories.size.toString()
+                tvCountCategories.text = categories.size.toString()
 
                 // 3. Fetch Product Count
                 val products = SupabaseProvider.client.postgrest.rpc(
@@ -502,6 +525,7 @@ class ManageStoreActivity : AppCompatActivity() {
                     }
                 ).decodeList<UserProductRow>()
                 tvStatItems.text = products.size.toString()
+                tvCountItems.text = products.size.toString()
 
                 // 4. Fetch Members and calculate counts by role
                 val members = SupabaseProvider.client.postgrest.rpc(
@@ -510,6 +534,7 @@ class ManageStoreActivity : AppCompatActivity() {
                 ).decodeList<StoreMemberUser>()
 
                 tvStatMembers.text = members.size.toString()
+                tvCountStaffs.text = members.size.toString()
                 val ownersCount = members.count { it.role.lowercase() == "owner" }
                 val managersCount = members.count { it.role.lowercase() == "manager" }
                 val salesStaffCount = members.count { it.role.lowercase() == "employee" }
@@ -541,9 +566,17 @@ class ManageStoreActivity : AppCompatActivity() {
                         buildJsonObject { put("p_store_id", sId) }
                     ).decodeAs<Int>()
                 } catch (e: Exception) {
-                    0
+                    try {
+                        val rows = SupabaseProvider.client.postgrest["suki_relationships"].select {
+                            filter { eq("store_id", sId) }
+                        }.decodeList<SukiRelationshipRow>()
+                        rows.size
+                    } catch (_: Exception) {
+                        0
+                    }
                 }
                 tvStatSuki.text = sukiCount.toString()
+                tvCountSuki.text = sukiCount.toString()
 
                 // Dynamically update the Delete Store button to Leave Store if there are multiple owners
                 val isUserOwner = currentUserRole.lowercase() == "owner"
@@ -846,7 +879,7 @@ class ManageStoreActivity : AppCompatActivity() {
                     val hrs = remaining / 3600
                     val mins = (remaining % 3600) / 60
                     val secs = remaining % 60
-                    storeCodeExpiryView.text = String.format("Expires in %02d:%02d:%02d", hrs, mins, secs)
+                    storeCodeExpiryView.text = String.format("%02d:%02d:%02d", hrs, mins, secs)
                     kotlinx.coroutines.delay(1000)
                 }
             } catch (e: Exception) {

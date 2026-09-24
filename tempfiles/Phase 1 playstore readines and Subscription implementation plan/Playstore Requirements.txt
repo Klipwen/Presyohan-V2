@@ -1,0 +1,15 @@
+🚨 1. The 3 Technical Code Blockers
+Missing Camera Permission (AndroidManifest.xml)
+
+Problem: Camera/scanning features request Manifest.permission.CAMERA in code, but the permission is not declared in AndroidManifest.xml.
+Result: Camera will crash or silently fail on real Android devices.
+Missing In-App Account Deletion (Google Play Mandate)
+
+Problem: Google Play policy strictly mandates that any app allowing user signup (SignupActivity) MUST provide:
+An in-app button to permanently delete their account and data.
+A public webpage link for users to request account deletion online.
+Result: Automatic Play Console app review rejection.
+Release Build & App Protection (build.gradle.kts)
+
+Problem: Minification/Obfuscation is turned off (isMinifyEnabled = false), and release signing (.jks keystore) is not yet configured.
+Result: Larger bundle size, unprotected code, and inability to build signed production bundles (.aab).
