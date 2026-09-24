@@ -216,7 +216,7 @@
                     android:id="@+id/containerControls"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="#F5F5F5"
+                    android:background="#FFFFFF"
                     android:layout_marginTop="4dp">
 
                     <androidx.recyclerview.widget.RecyclerView

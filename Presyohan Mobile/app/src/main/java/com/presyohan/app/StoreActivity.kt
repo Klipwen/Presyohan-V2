@@ -762,14 +762,55 @@ class StoreActivity : AppCompatActivity() {
             }
         }
 
-        view.findViewById<View>(R.id.btnBack).setOnClickListener {
+        val isOwner = store.role.lowercase(Locale.ROOT) == "owner"
+        if (isOwner) {
+            view.findViewById<View>(R.id.cardCategoriesTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@StoreActivity, ManageCategoryActivity::class.java).apply {
+                    putExtra("storeId", store.id)
+                    putExtra("storeName", store.name)
+                    putExtra("branchName", store.branch)
+                }
+                startActivity(intent)
+            }
+
+            view.findViewById<View>(R.id.cardItemsTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@StoreActivity, ManageItemsActivity::class.java).apply {
+                    putExtra("storeId", store.id)
+                    putExtra("storeName", store.name)
+                    putExtra("branchName", store.branch)
+                }
+                startActivity(intent)
+            }
+
+            view.findViewById<View>(R.id.cardMembersTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@StoreActivity, ManageMembersActivity::class.java).apply {
+                    putExtra("storeId", store.id)
+                    putExtra("storeName", store.name)
+                }
+                startActivity(intent)
+            }
+
+            view.findViewById<View>(R.id.cardSukiTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@StoreActivity, ManageSukiActivity::class.java).apply {
+                    putExtra("storeId", store.id)
+                    putExtra("storeName", store.name)
+                }
+                startActivity(intent)
+            }
+        }
+
+        view.findViewById<View>(R.id.btnBack)?.setOnClickListener {
             dialog.dismiss()
         }
 
-        btnLeaveStore.setOnClickListener {
+        btnLeaveStore?.setOnClickListener {
             dialog.dismiss()
-            val isOwner = store.role.lowercase() == "owner"
-            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, isOwner = isOwner, null)
+            val isOwnerRole = store.role.lowercase(Locale.ROOT) == "owner"
+            showLeaveDeleteConfirmation(store.id, store.name, isDelete = false, isOwner = isOwnerRole, null)
         }
 
         dialog.show()

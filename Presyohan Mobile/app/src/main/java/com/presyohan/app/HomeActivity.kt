@@ -928,6 +928,45 @@ class HomeActivity : AppCompatActivity() {
         val txtEmployeesCount = view.findViewById<TextView>(R.id.dialogEmployeesCount)
 
         if (isOwner) {
+            // 2x2 Grid Stat Tiles Navigation for Owners
+            view.findViewById<View>(R.id.cardCategoriesTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@HomeActivity, ManageCategoryActivity::class.java).apply {
+                    putExtra("storeId", sId)
+                    putExtra("storeName", sName)
+                    putExtra("branchName", currentBranchName ?: "")
+                }
+                startActivity(intent)
+            }
+
+            view.findViewById<View>(R.id.cardItemsTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@HomeActivity, ManageItemsActivity::class.java).apply {
+                    putExtra("storeId", sId)
+                    putExtra("storeName", sName)
+                    putExtra("branchName", currentBranchName ?: "")
+                }
+                startActivity(intent)
+            }
+
+            view.findViewById<View>(R.id.cardMembersTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@HomeActivity, ManageMembersActivity::class.java).apply {
+                    putExtra("storeId", sId)
+                    putExtra("storeName", sName)
+                }
+                startActivity(intent)
+            }
+
+            view.findViewById<View>(R.id.cardSukiTile)?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this@HomeActivity, ManageSukiActivity::class.java).apply {
+                    putExtra("storeId", sId)
+                    putExtra("storeName", sName)
+                }
+                startActivity(intent)
+            }
+
             // OWNER SPECIFIC BINDINGS
             view.findViewById<View>(R.id.layoutConvert)?.setOnClickListener {
                 dialog.dismiss()

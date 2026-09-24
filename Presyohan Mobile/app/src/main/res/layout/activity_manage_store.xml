@@ -238,8 +238,8 @@
 
                                 <ImageView
                                     android:id="@+id/ivStoreIcon"
-                                    android:layout_width="60dp"
-                                    android:layout_height="60dp"
+                                    android:layout_width="54dp"
+                                    android:layout_height="54dp"
                                     android:src="@drawable/icon_store"
                                     android:contentDescription="Store Logo" />
 
@@ -247,8 +247,9 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:orientation="vertical"
-                                    android:layout_marginStart="16dp">
+                                    android:layout_marginStart="14dp">
 
+                                    <!-- Store Name -->
                                     <TextView
                                         android:id="@+id/tvStoreName"
                                         android:layout_width="wrap_content"
@@ -258,28 +259,30 @@
                                         android:textSize="20sp"
                                         android:textStyle="bold" />
 
+                                    <!-- Store Category -->
                                     <TextView
                                         android:id="@+id/tvStoreType"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="--"
                                         android:textColor="@color/presyo_teal"
-                                        android:textSize="14sp"
-                                        android:textStyle="normal"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold"
                                         android:layout_marginTop="2dp" />
 
+                                    <!-- Branch Location (Separate row below Category) -->
                                     <LinearLayout
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:orientation="horizontal"
                                         android:gravity="center_vertical"
-                                        android:layout_marginTop="4dp">
+                                        android:layout_marginTop="2dp">
 
                                         <ImageView
-                                            android:layout_width="14dp"
-                                            android:layout_height="14dp"
+                                            android:layout_width="12dp"
+                                            android:layout_height="12dp"
                                             android:src="@drawable/ic_location"
-                                            app:tint="#757575"
+                                            app:tint="#64748B"
                                             android:contentDescription="Location Icon" />
 
                                         <TextView
@@ -287,9 +290,9 @@
                                             android:layout_width="wrap_content"
                                             android:layout_height="wrap_content"
                                             android:text="--"
-                                            android:textColor="#757575"
-                                            android:textSize="13sp"
-                                            android:layout_marginStart="4dp" />
+                                            android:textColor="#64748B"
+                                            android:textSize="12sp"
+                                            android:layout_marginStart="3dp" />
                                     </LinearLayout>
                                 </LinearLayout>
                             </LinearLayout>
@@ -300,9 +303,9 @@
                                 android:layout_height="wrap_content"
                                 android:orientation="horizontal"
                                 android:gravity="center_vertical"
-                                android:layout_marginTop="18dp">
+                                android:layout_marginTop="16dp">
 
-                                <!-- Store Info Collapsible Header -->
+                                <!-- Store Info Collapsible Header Toggle -->
                                 <LinearLayout
                                     android:id="@+id/layoutStoreInfoToggle"
                                     android:layout_width="wrap_content"
@@ -317,7 +320,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="Store info:"
-                                        android:textColor="#616161"
+                                        android:textColor="#475569"
                                         android:textSize="14sp"
                                         android:textStyle="bold" />
 
@@ -326,7 +329,7 @@
                                         android:layout_width="14dp"
                                         android:layout_height="14dp"
                                         android:src="@drawable/icon_dropdown"
-                                        app:tint="#616161"
+                                        app:tint="#475569"
                                         android:layout_marginStart="4dp"
                                         android:contentDescription="Toggle Stats" />
                                 </LinearLayout>
@@ -347,18 +350,18 @@
                                     <LinearLayout
                                         android:id="@+id/toolAddStaff"
                                         android:layout_width="wrap_content"
-                                        android:layout_height="36dp"
+                                        android:layout_height="34dp"
                                         android:background="@drawable/bg_outline_button_orange"
                                         android:gravity="center"
-                                        android:paddingHorizontal="12dp"
+                                        android:paddingHorizontal="10dp"
                                         android:clickable="true"
                                         android:focusable="true"
-                                        android:layout_marginEnd="8dp"
+                                        android:layout_marginEnd="6dp"
                                         android:contentDescription="Add Staff">
 
                                         <ImageView
-                                            android:layout_width="18dp"
-                                            android:layout_height="18dp"
+                                            android:layout_width="16dp"
+                                            android:layout_height="16dp"
                                             android:src="@drawable/icon_invite_staff"
                                             app:tint="@color/presyo_orange"
                                             android:contentDescription="Add Staff Icon" />
@@ -368,26 +371,26 @@
                                             android:layout_height="wrap_content"
                                             android:text="Add Staff"
                                             android:textColor="@color/presyo_orange"
-                                            android:textSize="13sp"
+                                            android:textSize="12sp"
                                             android:textStyle="bold"
-                                            android:layout_marginStart="6dp" />
+                                            android:layout_marginStart="4dp" />
                                     </LinearLayout>
 
                                     <!-- [ ✏️ Edit Store ] -->
                                     <LinearLayout
                                         android:id="@+id/toolEditStore"
-                                        android:layout_width="36dp"
-                                        android:layout_height="36dp"
+                                        android:layout_width="34dp"
+                                        android:layout_height="34dp"
                                         android:background="@drawable/bg_outline_button_orange"
                                         android:gravity="center"
                                         android:clickable="true"
                                         android:focusable="true"
-                                        android:layout_marginEnd="8dp"
+                                        android:layout_marginEnd="6dp"
                                         android:contentDescription="Edit Store">
 
                                         <ImageView
-                                            android:layout_width="18dp"
-                                            android:layout_height="18dp"
+                                            android:layout_width="16dp"
+                                            android:layout_height="16dp"
                                             android:src="@drawable/icon_edit"
                                             app:tint="@color/presyo_orange"
                                             android:contentDescription="Edit Icon" />
@@ -396,8 +399,8 @@
                                     <!-- [ 🗑️ Delete Store ] -->
                                     <LinearLayout
                                         android:id="@+id/toolDeleteStore"
-                                        android:layout_width="36dp"
-                                        android:layout_height="36dp"
+                                        android:layout_width="34dp"
+                                        android:layout_height="34dp"
                                         android:background="@drawable/bg_outline_button_orange"
                                         android:gravity="center"
                                         android:clickable="true"
@@ -406,8 +409,8 @@
 
                                         <ImageView
                                             android:id="@+id/ivDeleteStoreIcon"
-                                            android:layout_width="18dp"
-                                            android:layout_height="18dp"
+                                            android:layout_width="16dp"
+                                            android:layout_height="16dp"
                                             android:src="@drawable/icon_delete"
                                             app:tint="@color/presyo_orange"
                                             android:contentDescription="Delete Icon" />
@@ -415,144 +418,360 @@
                                 </LinearLayout>
                             </LinearLayout>
 
-                            <!-- Collapsible Stats Layout -->
+                            <!-- Collapsible Stats Layout (Clean Grouped Info Container) -->
                             <LinearLayout
                                 android:id="@+id/layoutCollapsibleStats"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:orientation="horizontal"
+                                android:orientation="vertical"
+                                android:background="@drawable/bg_store_details_card"
+                                android:padding="12dp"
                                 android:layout_marginTop="12dp"
                                 android:visibility="gone">
 
-                                <!-- Left Column -->
-                                <LinearLayout
-                                    android:layout_width="0dp"
+                                <!-- Group 1: General Info -->
+                                <TextView
+                                    android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_weight="1.1"
-                                    android:orientation="vertical">
+                                    android:text="GENERAL INFO"
+                                    android:textColor="#475569"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold"
+                                    android:layout_marginBottom="6dp" />
 
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
+                                <!-- Store ID -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="6dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Store ID" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatStoreId" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
+                                        android:text="Store ID:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatStoreId"
+                                        android:layout_width="0dp"
                                         android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Created at:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatCreatedAt" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Status:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Join Store code:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatJoinCode" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Paste-Code:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatPasteCode" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Categories:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatCategories" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Items:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatItems" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" />
-                                    </LinearLayout>
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="#334155"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
                                 </LinearLayout>
 
-                                <!-- Right Column -->
+                                <!-- Created at -->
                                 <LinearLayout
-                                    android:layout_width="0dp"
+                                    android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:layout_weight="0.9"
-                                    android:orientation="vertical"
-                                    android:layout_marginStart="20dp">
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="6dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:gravity="center_vertical"
-                                        android:layout_marginBottom="4dp">
-                                        <ImageView android:layout_width="12dp" android:layout_height="12dp" android:src="@drawable/icon_people" app:tint="#666666" android:contentDescription="Members" />
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="members:" android:textColor="#666666" android:textSize="12sp" android:layout_marginStart="4dp" />
-                                        <TextView android:id="@+id/tvStatMembers" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" android:textStyle="bold" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
+                                        android:text="Created at:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatCreatedAt"
+                                        android:layout_width="0dp"
                                         android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp"
-                                        android:paddingStart="16dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="• Owners:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatOwners" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" android:textStyle="bold" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="4dp"
-                                        android:paddingStart="16dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="• Managers:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatManagers" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" android:textStyle="bold" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:layout_marginBottom="8dp"
-                                        android:paddingStart="16dp">
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="• Sales-staf:" android:textColor="#666666" android:textSize="12sp" />
-                                        <TextView android:id="@+id/tvStatSalesStaff" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" android:textStyle="bold" />
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
-                                        android:orientation="horizontal"
-                                        android:gravity="center_vertical">
-                                        <ImageView android:layout_width="12dp" android:layout_height="12dp" android:src="@drawable/icon_people" app:tint="#666666" android:contentDescription="Suki" />
-                                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Mga Suki" android:textColor="#666666" android:textSize="12sp" android:layout_marginStart="4dp" />
-                                        <TextView android:id="@+id/tvStatSuki" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="#666666" android:textSize="12sp" android:textStyle="bold" />
-                                    </LinearLayout>
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="#334155"
+                                        android:textSize="13sp"
+                                        android:gravity="end" />
                                 </LinearLayout>
+
+                                <!-- Status -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="6dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Status:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatStatus"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="#334155"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Join Store Code -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="6dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Join Store code:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatJoinCode"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="#334155"
+                                        android:textSize="13sp"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Paste-Code -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="8dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Paste-Code:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatPasteCode"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="#334155"
+                                        android:textSize="13sp"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Section Divider -->
+                                <View
+                                    android:layout_width="match_parent"
+                                    android:layout_height="1dp"
+                                    android:background="#F1F5F9"
+                                    android:layout_marginBottom="8dp" />
+
+                                <!-- Group 2: Store Metrics -->
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="STORE METRICS"
+                                    android:textColor="#475569"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold"
+                                    android:layout_marginBottom="6dp" />
+
+                                <!-- Categories -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="6dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Categories:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatCategories"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="@color/presyo_orange"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Items -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="6dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Items:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatItems"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="@color/presyo_teal"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Mga Suki -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="8dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Mga Suki:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatSuki"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="@color/presyo_orange"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Section Divider -->
+                                <View
+                                    android:layout_width="match_parent"
+                                    android:layout_height="1dp"
+                                    android:background="#F1F5F9"
+                                    android:layout_marginBottom="8dp" />
+
+                                <!-- Group 3: Members Breakdown -->
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="MEMBERS BREAKDOWN"
+                                    android:textColor="#475569"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold"
+                                    android:layout_marginBottom="6dp" />
+
+                                <!-- Total Members -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="6dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Total Members:"
+                                        android:textColor="#64748B"
+                                        android:textSize="13sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatMembers"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="#334155"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Owners -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="4dp"
+                                    android:paddingStart="12dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="• Owners:"
+                                        android:textColor="#64748B"
+                                        android:textSize="12sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatOwners"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="@color/presyo_orange"
+                                        android:textSize="12sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Managers -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginBottom="4dp"
+                                    android:paddingStart="12dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="• Managers:"
+                                        android:textColor="#64748B"
+                                        android:textSize="12sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatManagers"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="@color/presyo_teal"
+                                        android:textSize="12sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
+                                <!-- Sales Staff -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:paddingStart="12dp">
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="• Sales Staff:"
+                                        android:textColor="#64748B"
+                                        android:textSize="12sp" />
+                                    <TextView
+                                        android:id="@+id/tvStatSalesStaff"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:text="--"
+                                        android:textColor="#334155"
+                                        android:textSize="12sp"
+                                        android:textStyle="bold"
+                                        android:gravity="end" />
+                                </LinearLayout>
+
                             </LinearLayout>
                         </LinearLayout>
                     </FrameLayout>

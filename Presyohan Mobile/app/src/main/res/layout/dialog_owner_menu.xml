@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:background="@drawable/bg_dialog_custom"
     android:orientation="vertical"
-    android:padding="24dp"
+    android:padding="18dp"
     android:gravity="center_horizontal">
 
     <!-- Title: Store Details -->
@@ -15,27 +15,27 @@
         android:layout_height="wrap_content"
         android:text="Store Details"
         android:textColor="@color/presyo_orange"
-        android:textSize="22sp"
+        android:textSize="20sp"
         android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="12dp" />
 
-    <!-- Store Summary Card (Horizontal Layout) -->
+    <!-- Store Summary Header Card -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_rounded_grey"
+        android:background="@drawable/bg_store_details_card"
         android:orientation="horizontal"
-        android:padding="16dp"
+        android:padding="12dp"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <!-- Store Icon -->
         <ImageView
             android:id="@+id/dialogStoreIcon"
-            android:layout_width="54dp"
-            android:layout_height="54dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@drawable/icon_store"
-            android:layout_marginEnd="16dp"
+            android:layout_marginEnd="12dp"
             android:contentDescription="Store Logo"/>
 
         <!-- Store Details Info -->
@@ -51,8 +51,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Store Name"
-                android:textColor="@color/presyo_orange"
-                android:textSize="18sp"
+                android:textColor="@color/presyo_darkblue"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <!-- Store Category -->
@@ -62,34 +62,464 @@
                 android:layout_height="wrap_content"
                 android:text="Store Category"
                 android:textColor="@color/presyo_teal"
-                android:textSize="14sp"/>
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="2dp" />
 
-            <!-- Branch / Location -->
+            <!-- Branch Location -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:layout_marginTop="2dp">
 
                 <ImageView
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
                     android:src="@drawable/ic_location"
-                    app:tint="#888888"
-                    android:layout_marginEnd="4dp" />
+                    app:tint="#64748B"
+                    android:layout_marginEnd="3dp" />
 
                 <TextView
                     android:id="@+id/dialogStoreBranch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Branch Location"
-                    android:textColor="#888888"
-                    android:textSize="13sp" />
+                    android:textColor="#64748B"
+                    android:textSize="12sp" />
             </LinearLayout>
 
         </LinearLayout>
 
     </LinearLayout>
+
+    <!-- Role designation text banner -->
+    <TextView
+        android:id="@+id/textRoleDesignation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_role_chip"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:text="You are the Owner of this store."
+        android:textColor="#475569"
+        android:textSize="13sp"
+        android:gravity="start|center_vertical"
+        android:layout_marginBottom="10dp" />
+
+    <!-- Stats Frame Layout containing Shimmer and Actual Stats -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp">
+
+        <!-- Shimmer Skeleton Loading -->
+        <com.facebook.shimmer.ShimmerFrameLayout
+            android:id="@+id/dialogShimmerLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="110dp"
+                    android:background="#F1F5F9"
+                    android:layout_marginBottom="10dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:background="#F1F5F9"
+                        android:layout_marginEnd="6dp" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:background="#F1F5F9"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:background="#F1F5F9"
+                        android:layout_marginEnd="6dp" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:background="#F1F5F9"
+                        android:layout_marginStart="6dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+        </com.facebook.shimmer.ShimmerFrameLayout>
+
+        <!-- Actual Stats Layout -->
+        <LinearLayout
+            android:id="@+id/dialogStatsLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- 1. Metadata Info Container (FIRST) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_store_details_card"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginBottom="10dp">
+
+                <!-- Row 1: Store ID -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Store ID:"
+                        android:textColor="#64748B"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/dialogStoreId"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="--"
+                        android:textColor="#334155"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:gravity="end" />
+                </LinearLayout>
+
+                <!-- Row 2: Created at -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Created at:"
+                        android:textColor="#64748B"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/dialogCreatedAt"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="--"
+                        android:textColor="#334155"
+                        android:textSize="13sp"
+                        android:gravity="end" />
+                </LinearLayout>
+
+                <!-- Row 3: Visibility Status -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Status:"
+                        android:textColor="#64748B"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/dialogVisibilityStatus"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="--"
+                        android:textColor="#334155"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:gravity="end" />
+                </LinearLayout>
+
+                <!-- Row 4: Join code -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Join code:"
+                        android:textColor="#64748B"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/dialogJoinCode"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="--"
+                        android:textColor="#334155"
+                        android:textSize="13sp"
+                        android:gravity="end" />
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#F1F5F9"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Member Breakdown Sub-Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Members:"
+                        android:textColor="#475569"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:layout_marginEnd="6dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Owners "
+                        android:textColor="#64748B"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/dialogOwnersCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" • Managers "
+                        android:textColor="#64748B"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/dialogManagersCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" • Staff "
+                        android:textColor="#64748B"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/dialogEmployeesCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="#334155"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- 2. 2x2 Metric Stat Tiles (SECOND) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <!-- Categories Tile -->
+                <LinearLayout
+                    android:id="@+id/cardCategoriesTile"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_store_stat_tile"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:padding="10dp"
+                    android:gravity="center"
+                    android:layout_marginEnd="4dp">
+
+                    <TextView
+                        android:id="@+id/dialogCategoriesCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Categories"
+                        android:textColor="#64748B"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Items Tile -->
+                <LinearLayout
+                    android:id="@+id/cardItemsTile"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_store_stat_tile"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:padding="10dp"
+                    android:gravity="center"
+                    android:layout_marginStart="4dp">
+
+                    <TextView
+                        android:id="@+id/dialogItemsCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Items"
+                        android:textColor="#64748B"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <!-- Members Tile -->
+                <LinearLayout
+                    android:id="@+id/cardMembersTile"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_store_stat_tile"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:padding="10dp"
+                    android:gravity="center"
+                    android:layout_marginEnd="4dp">
+
+                    <TextView
+                        android:id="@+id/dialogMembersCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/presyo_teal"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Members"
+                        android:textColor="#64748B"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Suki Tile -->
+                <LinearLayout
+                    android:id="@+id/cardSukiTile"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_store_stat_tile"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:padding="10dp"
+                    android:gravity="center"
+                    android:layout_marginStart="4dp">
+
+                    <TextView
+                        android:id="@+id/dialogSukiCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Suki"
+                        android:textColor="#64748B"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- Quick Actions Row (Convert Prices, Add Staff, QR Code, Settings) -->
     <LinearLayout
@@ -98,7 +528,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:layout_marginBottom="16dp">
+        android:layout_marginBottom="14dp">
 
         <!-- Convert Prices -->
         <LinearLayout
@@ -113,8 +543,8 @@
             android:focusable="true"
             android:padding="6dp">
             <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:src="@drawable/icon_convert"
                 app:tint="@color/presyo_teal" />
             <TextView
@@ -124,7 +554,7 @@
                 android:textColor="@color/presyo_teal"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:gravity="center" />
         </LinearLayout>
 
@@ -141,8 +571,8 @@
             android:focusable="true"
             android:padding="6dp">
             <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:src="@drawable/icon_invite_staff"
                 app:tint="@color/presyo_teal" />
             <TextView
@@ -152,7 +582,7 @@
                 android:textColor="@color/presyo_teal"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:gravity="center" />
         </LinearLayout>
 
@@ -169,8 +599,8 @@
             android:focusable="true"
             android:padding="6dp">
             <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:src="@drawable/icon_qr_code"
                 app:tint="@color/presyo_teal" />
             <TextView
@@ -180,7 +610,7 @@
                 android:textColor="@color/presyo_teal"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:gravity="center" />
         </LinearLayout>
 
@@ -197,8 +627,8 @@
             android:focusable="true"
             android:padding="6dp">
             <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:src="@drawable/icon_settings"
                 app:tint="@color/presyo_teal" />
             <TextView
@@ -208,376 +638,11 @@
                 android:textColor="@color/presyo_teal"
                 android:textSize="11sp"
                 android:textStyle="bold"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:gravity="center" />
         </LinearLayout>
 
     </LinearLayout>
-
-    <!-- Divider -->
-    <View
-        android:id="@+id/dialogOwnerDivider"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#D9D9D9"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Role designation text -->
-    <TextView
-        android:id="@+id/textRoleDesignation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="You are the Owner of this store."
-        android:textColor="#555555"
-        android:textSize="14sp"
-        android:gravity="start"
-        android:layout_marginBottom="20dp" />
-
-    <!-- Stats Frame Layout containing Shimmer and Actual Stats -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp">
-
-        <!-- Shimmer Skeleton Loading -->
-        <com.facebook.shimmer.ShimmerFrameLayout
-            android:id="@+id/dialogShimmerLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <!-- Two-column mock layout for skeleton -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <!-- Left Column -->
-                <TableLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.25"
-                    android:stretchColumns="1"
-                    android:layout_marginEnd="4dp">
-
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="60dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="70dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="70dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="50dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="55dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="60dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="80dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="40dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="65dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="30dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="45dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="35dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-
-                </TableLayout>
-
-                <!-- Right Column -->
-                <TableLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.75"
-                    android:stretchColumns="1"
-                    android:layout_marginStart="4dp">
-
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="60dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="30dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="70dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="20dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="80dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="20dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="12dp">
-                        <View android:layout_width="75dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="20dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-                    <TableRow android:layout_marginBottom="8dp">
-                        <View android:layout_width="50dp" android:layout_height="14dp" android:background="#E8E8E8" />
-                        <View android:layout_width="30dp" android:layout_height="14dp" android:layout_gravity="end" android:background="#E8E8E8" />
-                    </TableRow>
-
-                </TableLayout>
-
-            </LinearLayout>
-
-        </com.facebook.shimmer.ShimmerFrameLayout>
-
-        <!-- Actual Stats Layout -->
-        <LinearLayout
-            android:id="@+id/dialogStatsLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
-            <!-- Left Column -->
-            <TableLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1.25"
-                android:stretchColumns="1"
-                android:layout_marginEnd="4dp">
-
-                <!-- Store ID -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Store ID"
-                        android:textColor="#555555"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-                    <TextView
-                        android:id="@+id/dialogStoreId"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SID25-009"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Created at -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Created at:"
-                        android:textColor="#555555"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogCreatedAt"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="04/07/24"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Status -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Status:"
-                        android:textColor="#555555"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogVisibilityStatus"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Public"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Join Store Code -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Join code:"
-                        android:textColor="#555555"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogJoinCode"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Expired"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Categories -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Categories:"
-                        android:textColor="#555555"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogCategoriesCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="16"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Items -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Items:"
-                        android:textColor="#555555"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogItemsCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="106"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-            </TableLayout>
-
-            <!-- Right Column -->
-            <TableLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.75"
-                android:stretchColumns="1"
-                android:layout_marginStart="4dp">
-
-                <!-- Members Label -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-                        <ImageView
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
-                            android:src="@drawable/icon_people"
-                            app:tint="#555555"
-                            android:layout_marginEnd="4dp" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="members:"
-                            android:textColor="#555555"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                    <TextView
-                        android:id="@+id/dialogMembersCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="12"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Owners -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="  • Owners:"
-                        android:textColor="#777777"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogOwnersCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="1"
-                        android:textColor="#777777"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Managers -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="  • Managers:"
-                        android:textColor="#777777"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogManagersCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="5"
-                        android:textColor="#777777"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Sales Staff -->
-                <TableRow android:layout_marginBottom="12dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="  • Staff:"
-                        android:textColor="#777777"
-                        android:textSize="13sp" />
-                    <TextView
-                        android:id="@+id/dialogEmployeesCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="6"
-                        android:textColor="#777777"
-                        android:textSize="13sp"
-                        android:gravity="end" />
-                </TableRow>
-
-                <!-- Suki Label -->
-                <TableRow android:layout_marginBottom="8dp">
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-                        <ImageView
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
-                            android:src="@drawable/icon_people"
-                            app:tint="#555555"
-                            android:layout_marginEnd="4dp" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Suki"
-                            android:textColor="#555555"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                    <TextView
-                        android:id="@+id/dialogSukiCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="21"
-                        android:textColor="#333333"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:gravity="end" />
-                </TableRow>
-
-            </TableLayout>
-
-        </LinearLayout>
-    </FrameLayout>
 
     <!-- Buttons Section -->
     <LinearLayout
@@ -590,13 +655,13 @@
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnDone"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="44dp"
             android:background="@drawable/button_round"
             android:backgroundTint="@color/presyo_orange"
             android:text="DONE"
             android:textColor="@android:color/white"
             android:textStyle="bold"
-            android:textSize="16sp" />
+            android:textSize="15sp" />
 
     </LinearLayout>
 
