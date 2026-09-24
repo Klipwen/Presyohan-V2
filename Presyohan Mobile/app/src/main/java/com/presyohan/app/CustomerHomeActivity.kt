@@ -55,6 +55,7 @@ class CustomerHomeActivity : AppCompatActivity() {
     private lateinit var profileIcon: ImageView
     private lateinit var searchEditText: EditText
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
+    private lateinit var layoutPricesTabContainer: View
     private lateinit var rvCustomerPrices: RecyclerView
     private lateinit var rvCustomerStores: RecyclerView
     private lateinit var layoutEmptyState: View
@@ -122,6 +123,7 @@ class CustomerHomeActivity : AppCompatActivity() {
     private var searchJob: kotlinx.coroutines.Job? = null
 
     // Screen States
+    private var activePillFilterId: Int = R.id.chipFilterAll
     private var isPricesTabActive = false
     private var currentSearchQuery = ""
     private var lastBackPress: Long = 0
@@ -189,7 +191,8 @@ class CustomerHomeActivity : AppCompatActivity() {
         val storeId: String,
         val storeName: String,
         val storeLocation: String,
-        val categoryName: String
+        val categoryName: String,
+        val isPresyohan: Boolean = false
     )
 
     data class DisplayCategory(
@@ -247,6 +250,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         // Initialize Views
         searchEditText = findViewById(R.id.searchEditText)
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
+        layoutPricesTabContainer = findViewById(R.id.layoutPricesTabContainer)
         rvCustomerPrices = findViewById(R.id.rvCustomerPrices)
         rvCustomerStores = findViewById(R.id.rvCustomerStores)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
@@ -320,6 +324,11 @@ class CustomerHomeActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        // Setup Segmented Pill Filter Chips
+        findViewById<TextView>(R.id.chipFilterAll)?.setOnClickListener { updatePillFilterSelection(R.id.chipFilterAll) }
+        findViewById<TextView>(R.id.chipFilterPresyohan)?.setOnClickListener { updatePillFilterSelection(R.id.chipFilterPresyohan) }
+        findViewById<TextView>(R.id.chipFilterSuki)?.setOnClickListener { updatePillFilterSelection(R.id.chipFilterSuki) }
+
         // Setup RecyclerViews
         rvCustomerPrices.layoutManager = LinearLayoutManager(this)
         rvCustomerStores.layoutManager = LinearLayoutManager(this)
@@ -344,21 +353,10 @@ class CustomerHomeActivity : AppCompatActivity() {
                 startActivity(intent, options.toBundle())
             },
             onProductCategoryClick = { product ->
-                val intent = Intent(this, StoreViewActivity::class.java).apply {
-                    val store = allStores.find { it.id == product.storeId }
-                    putExtra("STORE_ID", product.storeId)
-                    putExtra("STORE_NAME", product.storeName)
-                    putExtra("STORE_BRANCH", product.storeLocation)
-                    putExtra("STORE_TYPE", store?.type ?: "General Store")
-                    putExtra("IS_PRESYOHAN", store?.is_standard_store ?: false)
-                    putExtra("FILTER_CATEGORY", product.categoryName)
-                }
-                val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
-                    this,
-                    R.anim.slide_in_up,
-                    R.anim.stay
-                )
-                startActivity(intent, options.toBundle())
+                showProductDetailModal(product)
+            },
+            onProductClick = { product ->
+                showProductDetailModal(product)
             },
             onStoreClick = { displayStore ->
                 val intent = Intent(this, StoreViewActivity::class.java).apply {
@@ -401,6 +399,12 @@ class CustomerHomeActivity : AppCompatActivity() {
                     negativeButtonText = "No",
                     negativeAction = {}
                 )
+            },
+            onSukiRequestClick = { storeId, storeName ->
+                handleSendSukiRequest(storeId, storeName)
+            },
+            getStoreRelationship = { storeId ->
+                getStoreRelationship(storeId)
             }
         )
         storeAdapter = CustomerStoreAdapter(
@@ -500,6 +504,7 @@ class CustomerHomeActivity : AppCompatActivity() {
 
         val btnClearSearch = findViewById<ImageView>(R.id.btnClearSearch)
         btnClearSearch.setOnClickListener {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             if (isInternetPriceSearchMode && currentSearchQuery.isNotEmpty()) {
                 ReusableDialogHelper.showCustomDialog(
                     context = this,
@@ -508,13 +513,19 @@ class CustomerHomeActivity : AppCompatActivity() {
                     positiveButtonText = "Cancel",
                     positiveAction = {
                         searchEditText.setText("")
+                        searchEditText.clearFocus()
+                        imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
                         cancelInternetSearch()
+                        updateFilterTabVisibility()
                     },
                     negativeButtonText = "No",
                     negativeAction = {}
                 )
             } else {
                 searchEditText.setText("")
+                searchEditText.clearFocus()
+                imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+                updateFilterTabVisibility()
             }
         }
 
@@ -539,6 +550,8 @@ class CustomerHomeActivity : AppCompatActivity() {
                 wasSearchQueryEmpty = isQueryEmpty
                 btnClearSearch.visibility = if (isQueryEmpty) View.GONE else View.VISIBLE
                 updateInternetSearchButtonVisibility()
+                updateQuickSearchCardsVisibility()
+                updateFilterTabVisibility()
                 
                 if (isInternetPriceSearchMode) {
                     if (isQueryEmpty) {
@@ -564,12 +577,24 @@ class CustomerHomeActivity : AppCompatActivity() {
         })
 
         // Expand/Collapse Search Bar Animation and Key Actions
+        searchEditText.setOnClickListener {
+            updateFilterTabVisibility()
+        }
+
+        searchEditText.setOnTouchListener { _, event ->
+            if (event.action == android.view.MotionEvent.ACTION_UP) {
+                searchEditText.postDelayed({ updateFilterTabVisibility() }, 50)
+            }
+            false
+        }
+
         searchEditText.setOnFocusChangeListener { _, _ ->
             if (!isInternetPriceSearchMode) {
                 val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
                 android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer)
             }
             updateInternetSearchButtonVisibility()
+            updateFilterTabVisibility()
         }
 
         searchEditText.setOnEditorActionListener { _, actionId, _ ->
@@ -594,9 +619,249 @@ class CustomerHomeActivity : AppCompatActivity() {
             loadNotifBadge()
         }
 
+        // Bind 2-column Quick Search Grid Cards
+        setupQuickSearchCards()
+
+        // Handle Onboarding intent extras
+        val shouldOpenAddStoreSheet = intent.getBooleanExtra("extra_open_add_store_sheet", false)
+        if (shouldOpenAddStoreSheet) {
+            rvCustomerPrices.postDelayed({ showBottomSheet() }, 400)
+        }
+
         // Initial setup
         selectTab(true)
         loadCustomerData(showShimmer = true)
+    }
+
+    private fun setupQuickSearchCards() {
+        val cardMap = mapOf(
+            R.id.cardSearchRice to "Rice",
+            R.id.cardSearchSoftdrinks to "Softdrinks",
+            R.id.cardSearchCannedGoods to "Canned Goods",
+            R.id.cardSearchMineralWater to "Mineral Water",
+            R.id.cardSearchNoodles to "Instant Noodles",
+            R.id.cardSearchCoffee to "Coffee",
+            R.id.cardSearchMilk to "Powdered Milk",
+            R.id.cardSearchBiscuits to "Biscuits"
+        )
+
+        cardMap.forEach { (viewId, query) ->
+            findViewById<View>(viewId)?.setOnClickListener {
+                if (isInternetPriceSearchMode) {
+                    exitInternetSearchMode()
+                }
+                selectTab(true)
+                searchEditText.setText(query)
+                searchEditText.setSelection(searchEditText.text.length)
+                searchEditText.requestFocus()
+            }
+        }
+    }
+
+    private fun updateQuickSearchCardsVisibility() {
+        val layoutQuickSearchCards = findViewById<View>(R.id.layoutQuickSearchCards) ?: return
+
+        // 1. Must be on Prices Tab
+        if (!isPricesTabActive) {
+            layoutQuickSearchCards.visibility = View.GONE
+            return
+        }
+
+        // 2. Must NOT be in Internet Search Mode
+        if (isInternetPriceSearchMode) {
+            layoutQuickSearchCards.visibility = View.GONE
+            return
+        }
+
+        // 3. User must NOT have any Suki stores linked
+        val hasSukiPartners = searchAdapter.linkedStoreIds.isNotEmpty() || allStores.any { !it.is_standard_store }
+        if (hasSukiPartners) {
+            layoutQuickSearchCards.visibility = View.GONE
+            return
+        }
+
+        // 4. Search query must NOT be active (must be empty/blank)
+        val isSearchActive = currentSearchQuery.isNotBlank()
+        if (isSearchActive) {
+            layoutQuickSearchCards.visibility = View.GONE
+            return
+        }
+
+        // If all conditions pass, show the quick search cards!
+        layoutQuickSearchCards.visibility = View.VISIBLE
+    }
+
+    private fun updateFilterTabVisibility(animate: Boolean = true) {
+        val tabContainerFilter = findViewById<View>(R.id.tabContainerFilter) ?: return
+        val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
+        val hasSukiStores = searchAdapter.linkedStoreIds.isNotEmpty() || allStores.any { !it.is_standard_store }
+        val isSearching = searchEditText.hasFocus() || currentSearchQuery.isNotBlank()
+        val shouldShow = isPricesTabActive && !isInternetPriceSearchMode && hasSukiStores && isSearching
+
+        tabContainerFilter.animate().cancel()
+
+        if (shouldShow) {
+            if (tabContainerFilter.visibility != View.VISIBLE) {
+                if (curvedHeaderContainer != null && animate) {
+                    android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer)
+                }
+                tabContainerFilter.visibility = View.VISIBLE
+                tabContainerFilter.alpha = 1f
+                tabContainerFilter.translationY = 0f
+                tabContainerFilter.post {
+                    val defaultChip = findViewById<TextView>(activePillFilterId) ?: return@post
+                    val indicator = findViewById<View>(R.id.tabIndicatorFilter) ?: return@post
+                    val parentView = defaultChip.parent as? View ?: return@post
+                    val params = indicator.layoutParams
+                    params.width = defaultChip.width
+                    params.height = defaultChip.height
+                    indicator.layoutParams = params
+                    indicator.x = defaultChip.x + parentView.left
+                    indicator.y = defaultChip.y + parentView.top
+                }
+            }
+        } else {
+            if (tabContainerFilter.visibility != View.GONE) {
+                if (curvedHeaderContainer != null && animate) {
+                    android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer)
+                }
+                tabContainerFilter.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun dpToPx(dp: Float): Float {
+        return dp * resources.displayMetrics.density
+    }
+
+    private fun animatePillTabIndicator(selectedChipId: Int) {
+        val indicator = findViewById<View>(R.id.tabIndicatorFilter) ?: return
+        val targetChip = findViewById<TextView>(selectedChipId) ?: return
+        val parentView = targetChip.parent as? View ?: return
+
+        val startX = indicator.x
+        val startWidth = indicator.width
+        val startHeight = indicator.height
+
+        val endX = targetChip.x + parentView.left
+        val endWidth = targetChip.width
+        val endHeight = targetChip.height
+
+        val animatorX = ValueAnimator.ofFloat(startX, endX)
+        animatorX.addUpdateListener { animation ->
+            indicator.x = animation.animatedValue as Float
+        }
+
+        val animatorW = ValueAnimator.ofInt(startWidth, endWidth)
+        animatorW.addUpdateListener { animation ->
+            val p = indicator.layoutParams
+            p.width = animation.animatedValue as Int
+            indicator.layoutParams = p
+        }
+
+        val animatorH = ValueAnimator.ofInt(startHeight, endHeight)
+        animatorH.addUpdateListener { animation ->
+            val p = indicator.layoutParams
+            p.height = animation.animatedValue as Int
+            indicator.layoutParams = p
+        }
+
+        val animatorSet = android.animation.AnimatorSet()
+        animatorSet.playTogether(animatorX, animatorW, animatorH)
+        animatorSet.duration = 220
+        animatorSet.interpolator = android.view.animation.DecelerateInterpolator()
+        animatorSet.start()
+    }
+
+    private fun updatePillFilterSelection(selectedChipId: Int) {
+        if (activePillFilterId == selectedChipId) return
+        activePillFilterId = selectedChipId
+
+        val chips = listOf(
+            R.id.chipFilterAll,
+            R.id.chipFilterPresyohan,
+            R.id.chipFilterSuki
+        )
+
+        for (id in chips) {
+            val chip = findViewById<TextView>(id) ?: continue
+            if (id == selectedChipId) {
+                chip.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
+                chip.setTypeface(null, android.graphics.Typeface.BOLD)
+            } else {
+                chip.setTextColor(ContextCompat.getColor(this, R.color.edittext_hint))
+                chip.setTypeface(null, android.graphics.Typeface.NORMAL)
+            }
+        }
+
+        animatePillTabIndicator(selectedChipId)
+        filterAndRenderData(delayMillis = 0L)
+    }
+
+    private fun handleSendSukiRequest(storeId: String, storeName: String) {
+        val store = allStores.find { it.id == storeId }
+        val isPresyohan = store?.is_standard_store ?: false
+        if (isPresyohan) {
+            handleAddPresyohanStore(storeId, storeName)
+        } else {
+            showReusableDialog(
+                title = "Request Suki Partnership?",
+                message = "Would you like to send a Suki request to \"$storeName\" to unlock their store catalog and receive price updates?",
+                positiveButtonText = "Send Request",
+                positiveAction = {
+                    executeSendSukiRequest(storeId)
+                },
+                negativeButtonText = "Cancel"
+            )
+        }
+    }
+
+    private fun handleAddPresyohanStore(storeId: String, storeName: String) {
+        showReusableDialog(
+            title = "Add Presyohan Store?",
+            message = "Would you like to add \"$storeName\" to your store list to access its reference price guide?",
+            positiveButtonText = "Add Store",
+            positiveAction = {
+                executeAddPresyohanStore(storeId)
+            },
+            negativeButtonText = "Cancel"
+        )
+    }
+
+    private fun executeAddPresyohanStore(storeId: String) {
+        lifecycleScope.launch {
+            try {
+                val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return@launch
+                SupabaseProvider.client.postgrest["suki_relationships"].insert(
+                    buildJsonObject {
+                        put("user_id", JsonPrimitive(userId))
+                        put("store_id", JsonPrimitive(storeId))
+                        put("status", JsonPrimitive("active"))
+                    }
+                )
+                Toast.makeText(this@CustomerHomeActivity, "Presyohan store added successfully!", Toast.LENGTH_SHORT).show()
+                loadCustomerData(showShimmer = false)
+            } catch (e: Exception) {
+                val friendlyMsg = getFriendlySukiErrorMessage(e)
+                Toast.makeText(this@CustomerHomeActivity, friendlyMsg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun executeSendSukiRequest(storeId: String) {
+        lifecycleScope.launch {
+            try {
+                SupabaseProvider.client.postgrest.rpc(
+                    "send_suki_request",
+                    buildJsonObject { put("p_store_id", JsonPrimitive(storeId)) }
+                )
+                Toast.makeText(this@CustomerHomeActivity, "Suki request sent successfully!", Toast.LENGTH_LONG).show()
+                loadCustomerData(showShimmer = false)
+            } catch (e: Exception) {
+                val friendlyMsg = getFriendlySukiErrorMessage(e)
+                Toast.makeText(this@CustomerHomeActivity, friendlyMsg, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     override fun onResume() {
@@ -728,7 +993,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             storesIconContainer.setBackgroundResource(R.drawable.bg_nav_icon_inactive)
             storesIconContainer.setPadding(inactivePadding, inactivePadding, inactivePadding, inactivePadding)
 
-            rvCustomerPrices.visibility = if (shimmerPricesContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            layoutPricesTabContainer.visibility = if (shimmerPricesContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
             rvCustomerStores.visibility = View.GONE
 
             searchEditText.hint = "Search Item.."
@@ -745,7 +1010,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             pricesIconContainer.setBackgroundResource(R.drawable.bg_nav_icon_inactive)
             pricesIconContainer.setPadding(inactivePadding, inactivePadding, inactivePadding, inactivePadding)
 
-            rvCustomerPrices.visibility = View.GONE
+            layoutPricesTabContainer.visibility = View.GONE
             rvCustomerStores.visibility = if (shimmerStoresContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
 
             // Clear inputted search when user navigates to stores tab
@@ -754,7 +1019,9 @@ class CustomerHomeActivity : AppCompatActivity() {
 
             searchEditText.hint = "Search Store..."
         }
+        updateFilterTabVisibility()
         updateInternetSearchButtonVisibility()
+        updateQuickSearchCardsVisibility()
         filterAndRenderData(delayMillis = 0)
     }
 
@@ -799,6 +1066,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         searchEditText.hint = "Find online prices..."
         btnInternetSearchMode.visibility = View.GONE
         layoutInternetBottomCard.visibility = View.GONE
+        updateFilterTabVisibility()
         
         // Disable scroll up refresh
         swipeRefreshLayout.isEnabled = false
@@ -820,6 +1088,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             searchEditText.setText("")
             toggleEmptyState(true, "Internet Price Search")
         }
+        updateQuickSearchCardsVisibility()
         isSwitchingModes = false
     }
 
@@ -855,6 +1124,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         searchEditText.hint = if (isPricesTabActive) "Search Item.." else "Search Store..."
         currentSearchQuery = ""
         layoutInternetBottomCard.visibility = View.GONE
+        updateFilterTabVisibility()
         
         // Re-enable scroll up refresh
         swipeRefreshLayout.isEnabled = true
@@ -867,6 +1137,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             .start()
         
         updateInternetSearchButtonVisibility()
+        updateQuickSearchCardsVisibility()
         filterAndRenderData(delayMillis = 0L)
         isSwitchingModes = false
     }
@@ -1619,17 +1890,68 @@ class CustomerHomeActivity : AppCompatActivity() {
                 }
 
                 // 1. Fetch suki store links
-                val sukiLinks = SupabaseProvider.client.postgrest["suki_relationships"]
-                    .select {
-                        filter { eq("user_id", userId) }
-                    }
-                    .decodeList<SukiRelationshipRow>()
+                val sukiLinks = try {
+                    SupabaseProvider.client.postgrest["suki_relationships"]
+                        .select {
+                            filter { eq("user_id", userId) }
+                        }
+                        .decodeList<SukiRelationshipRow>()
+                } catch (e: Exception) {
+                    emptyList()
+                }
 
-                val sukiStoreIds = sukiLinks.filter { it.status == "active" }.map { it.store_id }
-                val allVisibleStoreIds = sukiStoreIds.distinct()
+                val sukiStoreIds = sukiLinks.filter { it.status == "active" }.map { it.store_id }.toSet()
+                searchAdapter.updateLinkedStores(sukiStoreIds)
+                updateQuickSearchCardsVisibility()
 
-                if (allVisibleStoreIds.isEmpty()) {
+                if (sukiStoreIds.isEmpty()) {
                     allStores = emptyList()
+                    allCategories = emptyList()
+                    allProducts = emptyList()
+                    baseProducts = emptyList()
+                    filterAndRenderData()
+                    if (showShimmer) {
+                        shimmerPricesContainer.stopShimmer()
+                        shimmerPricesContainer.visibility = View.GONE
+                        shimmerStoresContainer.stopShimmer()
+                        shimmerStoresContainer.visibility = View.GONE
+                        swipeRefreshLayout.visibility = View.VISIBLE
+                        if (isPricesTabActive) {
+                            rvCustomerPrices.visibility = View.VISIBLE
+                            rvCustomerStores.visibility = View.GONE
+                        } else {
+                            rvCustomerPrices.visibility = View.GONE
+                            rvCustomerStores.visibility = View.VISIBLE
+                        }
+                    } else {
+                        swipeRefreshLayout.isRefreshing = false
+                    }
+                    return@launch
+                }
+
+                // 2. Fetch ONLY Suki stores for default load
+                val fetchedStores = try {
+                    SupabaseProvider.client.postgrest["stores"]
+                        .select {
+                            filter {
+                                isIn("id", sukiStoreIds.toList())
+                            }
+                            limit(1000)
+                        }
+                        .decodeList<StoreDetailRow>()
+                } catch (e: Exception) {
+                    android.util.Log.e("CustomerHomeActivity", "Failed to fetch stores", e)
+                    emptyList()
+                }
+
+                allStores = fetchedStores.distinctBy { it.id }
+                val sukiStoreIdsAll = (sukiStoreIds + allStores.filter { !it.is_standard_store }.map { it.id }).toSet()
+                searchAdapter.updateLinkedStores(sukiStoreIdsAll)
+                updateQuickSearchCardsVisibility()
+                updateFilterTabVisibility(animate = false)
+                val accessibleStoreIds = allStores.map { it.id }
+
+                if (accessibleStoreIds.isEmpty()) {
                     allCategories = emptyList()
                     allProducts = emptyList()
                     baseProducts = emptyList()
@@ -1646,93 +1968,65 @@ class CustomerHomeActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // 2. Fetch linked store details
-                val sukiStores = if (sukiStoreIds.isNotEmpty()) {
-                    try {
-                        SupabaseProvider.client.postgrest["stores"]
-                            .select {
-                                filter { isIn("id", sukiStoreIds) }
-                                limit(1000)
-                            }
-                            .decodeList<StoreDetailRow>()
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-                } else {
-                    emptyList()
-                }
-
-                allStores = sukiStores.distinctBy { it.id }
-
+                // 3 & 4. Fetch Categories & Products from Suki stores concurrently
                 val (allCategoriesResult, allProductsResult) = coroutineScope {
-                    val categoryDeferreds = allVisibleStoreIds.map { sId ->
-                        async {
-                            try {
-                                SupabaseProvider.client.postgrest["categories"]
-                                    .select {
-                                        filter { eq("store_id", sId) }
-                                        limit(1000)
-                                    }
-                                    .decodeList<CategoryDetailRow>()
-                            } catch (e: Exception) {
-                                emptyList<CategoryDetailRow>()
-                            }
+                    val categoryDeferred = async {
+                        try {
+                            SupabaseProvider.client.postgrest["categories"]
+                                .select {
+                                    filter { isIn("store_id", accessibleStoreIds) }
+                                    limit(5000)
+                                }
+                                .decodeList<CategoryDetailRow>()
+                        } catch (e: Exception) {
+                            android.util.Log.e("CustomerHomeActivity", "Failed to fetch categories", e)
+                            emptyList<CategoryDetailRow>()
                         }
                     }
 
-                    val productDeferreds = allVisibleStoreIds.map { sId ->
-                        async {
-                            try {
-                                SupabaseProvider.client.postgrest["products"]
-                                    .select {
-                                        filter {
-                                            eq("store_id", sId)
-                                            eq("is_public", true)
-                                        }
-                                        limit(5000)
+                    val productDeferred = async {
+                        try {
+                            SupabaseProvider.client.postgrest["products"]
+                                .select {
+                                    filter {
+                                        isIn("store_id", accessibleStoreIds)
+                                        eq("is_public", true)
                                     }
-                                    .decodeList<ProductDetailRow>()
-                            } catch (e: Exception) {
-                                android.util.Log.e("CustomerHomeActivity", "Failed to fetch products for store $sId", e)
-                                emptyList<ProductDetailRow>()
-                            }
+                                    limit(10000)
+                                }
+                                .decodeList<ProductDetailRow>()
+                        } catch (e: Exception) {
+                            android.util.Log.e("CustomerHomeActivity", "Failed to fetch public products", e)
+                            emptyList<ProductDetailRow>()
                         }
                     }
 
-                    Pair(
-                        awaitAll(*categoryDeferreds.toTypedArray()).flatten(),
-                        awaitAll(*productDeferreds.toTypedArray()).flatten()
-                    )
+                    Pair(categoryDeferred.await(), productDeferred.await())
                 }
 
                 allCategories = allCategoriesResult
                 allProducts = allProductsResult
 
-                // 5. Fetch accurate product counts from database
+                // 5. Fetch product counts from database
                 try {
                     val counts = SupabaseProvider.client.postgrest.rpc(
                         "get_store_product_counts",
                         kotlinx.serialization.json.buildJsonObject {
                             put("p_store_ids", kotlinx.serialization.json.buildJsonArray {
-                                allVisibleStoreIds.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                                accessibleStoreIds.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
                             })
                         }
                     ).decodeList<StoreProductCountRow>()
                     storeProductCounts = counts.associate { it.store_id to it.public_count }
                 } catch (e: Exception) {
-                    android.util.Log.e("CustomerHomeActivity", "Failed to fetch product counts", e)
-                    // Fallback to in-memory counting if RPC fails
                     storeProductCounts = allProducts.groupBy { it.store_id }.mapValues { it.value.size }
                 }
 
-                // Precompute baseProducts once data is successfully loaded to avoid lag during search queries
-                // Include products from all linked (Suki) stores — user is authorized to see public prices of their suki stores
-                val publicStoreIds = allStores.filter { it.is_public || it.is_standard_store }.map { it.id }.toSet()
+                // Precompute baseProducts once data is loaded
                 val storeMap = allStores.associateBy { it.id }
                 val categoryMap = allCategories.associateBy { it.id }
-                baseProducts = allProducts
-                    .filter { it.store_id in publicStoreIds }
-                    .map { prod ->
+
+                baseProducts = allProducts.map { prod ->
                     val store = storeMap[prod.store_id]
                     val category = categoryMap[prod.category_id]
                     DisplayProduct(
@@ -1744,7 +2038,8 @@ class CustomerHomeActivity : AppCompatActivity() {
                         storeId = prod.store_id,
                         storeName = store?.name ?: "Unknown Store",
                         storeLocation = store?.branch ?: "Main Branch",
-                        categoryName = category?.name ?: "PRICELIST"
+                        categoryName = category?.name ?: "PRICELIST",
+                        isPresyohan = store?.is_standard_store ?: false
                     )
                 }.shuffled()
 
@@ -1809,17 +2104,24 @@ class CustomerHomeActivity : AppCompatActivity() {
     }
 
     private fun matchesProduct(tokens: List<String>, product: DisplayProduct): Boolean {
+        val name = product.name.lowercase(Locale.getDefault())
+        val desc = (product.description ?: "").lowercase(Locale.getDefault())
+        val cat = product.categoryName.lowercase(Locale.getDefault())
+        val store = product.storeName.lowercase(Locale.getDefault())
+        val unit = (product.unit ?: "").lowercase(Locale.getDefault())
+
         for (token in tokens) {
             if (token.isEmpty()) continue
+            val t = token.lowercase(Locale.getDefault())
 
-            val matchesName = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, product.name)
-            val matchesDesc = product.description?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
-            val matchesCategory = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, product.categoryName)
-            val matchesStore = com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, product.storeName)
-            val matchesUnit = product.unit?.let { com.presyohan.app.helper.SearchHelper.isFuzzyMatch(token, it) } ?: false
-            val matchesPrice = com.presyohan.app.helper.SearchHelper.matchPrice(token, product.price)
+            val matchesName = name.contains(t)
+            val matchesDesc = desc.contains(t)
+            val matchesCat = cat.contains(t)
+            val matchesStore = store.contains(t)
+            val matchesUnit = unit.contains(t)
+            val matchesPrice = com.presyohan.app.helper.SearchHelper.matchPrice(t, product.price)
 
-            if (!matchesName && !matchesDesc && !matchesCategory && !matchesStore && !matchesUnit && !matchesPrice) {
+            if (!matchesName && !matchesDesc && !matchesCat && !matchesStore && !matchesUnit && !matchesPrice) {
                 return false
             }
         }
@@ -1827,13 +2129,43 @@ class CustomerHomeActivity : AppCompatActivity() {
     }
 
     private fun calculateMatchScore(query: String, product: DisplayProduct): Double {
-        return com.presyohan.app.helper.SearchHelper.calculateProductScore(
-            query = query,
-            name = product.name,
-            description = product.description,
-            categoryName = product.categoryName,
-            storeName = product.storeName
-        )
+        val q = query.lowercase(Locale.getDefault()).trim()
+        if (q.isEmpty()) return 0.0
+
+        val name = product.name.lowercase(Locale.getDefault()).trim()
+        val desc = (product.description ?: "").lowercase(Locale.getDefault()).trim()
+        val cat = product.categoryName.lowercase(Locale.getDefault()).trim()
+        val store = product.storeName.lowercase(Locale.getDefault()).trim()
+
+        var score = 0.0
+
+        // Tier 1: Product Name Exact / Start / Substring Match (HIGHEST PRIORITY)
+        if (name == q) {
+            score += 10000.0
+        } else if (name.startsWith(q)) {
+            score += 5000.0
+        } else if (name.contains(q)) {
+            score += 2000.0
+        }
+
+        val tokens = q.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        for (token in tokens) {
+            if (name.contains(token)) {
+                score += 1000.0
+            }
+            if (desc.contains(token)) {
+                score += 300.0
+            }
+            // Tier 3: Category match (Lower priority than direct product name match)
+            if (cat.contains(token)) {
+                score += 100.0
+            }
+            if (store.contains(token)) {
+                score += 50.0
+            }
+        }
+
+        return score
     }
 
     private fun matchesCategoryName(query: String, categoryName: String): Boolean {
@@ -1875,177 +2207,162 @@ class CustomerHomeActivity : AppCompatActivity() {
                 if (isInternetPriceSearchMode) {
                     return@launch
                 }
-                // Render Prices/Products Tab
-                val searchItems = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                    val storeMap = snapshotStores.associateBy { it.id }
+                
+                updateFilterTabVisibility()
+                
+                // If query is empty, render default prices tab
+                if (query.isEmpty()) {
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                    rvCustomerPrices.visibility = View.VISIBLE
 
-                    // 1. Extract price range
-                    var maxPrice: Double? = null
-                    val priceRangeRegex = Regex("(?i)price\\s+range:\\s*(\\d+(?:\\.\\d+)?)")
-                    val priceRangeMatch = priceRangeRegex.find(query)
-                    var cleanQuery = query
-                    if (priceRangeMatch != null) {
-                        maxPrice = priceRangeMatch.groupValues[1].toDoubleOrNull()
-                        cleanQuery = query.replace(priceRangeMatch.value, "").trim()
-                    }
-
-                    val cleanQueryLower = cleanQuery.lowercase(Locale.getDefault())
-
-                    // 2. Parse category queries
-                    var storeNameQuery: String? = null
-                    var categoryNameQuery: String? = null
-                    var isAllCategoriesQuery = false
-
-                    val storeCategoriesRegex = Regex("(?i)(.+?)\\s+categories:\\s*(.*)")
-                    val storeCategoriesMatch = storeCategoriesRegex.matchEntire(cleanQuery)
-
-                    if (storeCategoriesMatch != null) {
-                        storeNameQuery = storeCategoriesMatch.groupValues[1].trim()
-                        categoryNameQuery = storeCategoriesMatch.groupValues[2].trim()
-                    } else {
-                        val categoryRegex = Regex("(?i)^category:\\s*(.*)")
-                        val categoryRegex2 = Regex("(?i)^category\\s+(.*)")
-                        val categoryMatch = categoryRegex.matchEntire(cleanQuery) ?: categoryRegex2.matchEntire(cleanQuery)
-                        if (categoryMatch != null) {
-                            categoryNameQuery = categoryMatch.groupValues[1].trim()
-                        } else {
-                            isAllCategoriesQuery = cleanQueryLower == "category" ||
-                                    (cleanQueryLower.length >= 6 && levenshteinDistance(cleanQueryLower, "category") <= 2)
-                        }
-                    }
-
-                    val isStoreQuery = cleanQueryLower == "store" ||
-                            (cleanQueryLower.length >= 4 && levenshteinDistance(cleanQueryLower, "store") <= 1)
-
-                    // 3. Filter categories
-                    val matchingCategories = if (isAllCategoriesQuery) {
-                        snapshotCategories
-                    } else if (storeNameQuery != null) {
-                        val matchedStores = snapshotStores.filter { isFuzzyMatch(storeNameQuery, it.name) }
-                        val storeIds = matchedStores.map { it.id }.toSet()
-                        if (categoryNameQuery.isNullOrBlank()) {
-                            snapshotCategories.filter { it.store_id in storeIds }
-                        } else {
-                            snapshotCategories.filter { it.store_id in storeIds && matchesCategoryTokens(categoryNameQuery, it.name) }
-                        }
-                    } else if (categoryNameQuery != null) {
-                        if (categoryNameQuery.isBlank()) {
-                            snapshotCategories
-                        } else {
-                            snapshotCategories.filter { matchesCategoryTokens(categoryNameQuery, it.name) }
-                        }
-                    } else {
-                        if (cleanQuery.isNotEmpty() && !isStoreQuery) {
-                            snapshotCategories.filter { matchesCategoryTokens(cleanQuery, it.name) }
-                        } else {
-                            emptyList()
-                        }
-                    }
-
-                    val displayCategories = matchingCategories.map { cat ->
-                        val store = storeMap[cat.store_id]
-                        val itemCount = snapshotProducts.count { it.category_id == cat.id }
-                        DisplayCategory(
-                            categoryId = cat.id,
-                            categoryName = cat.name,
-                            storeId = cat.store_id,
-                            storeName = store?.name ?: "Unknown Store",
-                            storeLocation = store?.branch ?: "Main Branch",
-                            itemCount = itemCount
-                        )
-                    }.filter { it.itemCount > 0 }
-
-                    // 4. Filter products
-                    val filteredProducts = if (isAllCategoriesQuery) {
+                    val searchItems: List<SearchItem> = if (snapshotStores.isEmpty()) {
                         emptyList()
-                    } else if (storeNameQuery != null) {
-                        val matchedStores = snapshotStores.filter { isFuzzyMatch(storeNameQuery, it.name) }
-                        val storeIds = matchedStores.map { it.id }.toSet()
-                        if (categoryNameQuery.isNullOrBlank()) {
+                    } else {
+                        val defaultHeader = SearchItem.DefaultHeader(
+                            stores = snapshotStores.shuffled(),
+                            categories = snapshotCategories,
+                            products = snapshotProducts,
+                            storeProductCounts = storeProductCounts
+                        )
+                        val filteredBaseProducts = when (activePillFilterId) {
+                            R.id.chipFilterPresyohan -> snapshotBaseProducts.filter { it.isPresyohan }
+                            R.id.chipFilterSuki -> snapshotBaseProducts.filter { searchAdapter.linkedStoreIds.contains(it.storeId) && !it.isPresyohan }
+                            else -> snapshotBaseProducts
+                        }
+                        val limitedProducts = filteredBaseProducts.take(visibleProductsLimit).map { SearchItem.Product(it) }
+                        val loadMore = if (filteredBaseProducts.size > visibleProductsLimit) {
+                            listOf(SearchItem.LoadMorePrices(isLoadMoreLoading))
+                        } else {
                             emptyList()
-                        } else {
-                            snapshotBaseProducts.filter { prod ->
-                                prod.storeId in storeIds && matchesCategoryTokens(categoryNameQuery, prod.categoryName)
-                            }
                         }
-                    } else if (categoryNameQuery != null) {
-                        if (categoryNameQuery.isBlank()) {
-                            snapshotBaseProducts
-                        } else {
-                            snapshotBaseProducts.filter { prod ->
-                                matchesCategoryTokens(categoryNameQuery, prod.categoryName)
-                            }
-                        }
-                    } else {
-                        val cleanTokens = cleanQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                        if (cleanTokens.isEmpty() || isStoreQuery) {
-                            snapshotBaseProducts
-                        } else {
-                            snapshotBaseProducts.filter { matchesProduct(cleanTokens, it) }
-                        }
+                        val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+                        val internetCard = if (enableInternetSearch) listOf(SearchItem.InternetSearchCard("")) else emptyList()
+                        listOf(defaultHeader) + limitedProducts + loadMore + internetCard
                     }
 
-                    // 5. Apply price range filter and sort
-                    val finalProducts = if (maxPrice != null) {
-                        filteredProducts
-                            .filter { it.price <= maxPrice }
-                            .sortedByDescending { it.price }
-                    } else {
-                        if (cleanQuery.isEmpty()) {
-                            filteredProducts
-                        } else {
-                            filteredProducts.sortedByDescending { calculateMatchScore(cleanQuery, it) }
-                        }
-                    }
+                    searchAdapter.updateList(searchItems)
+                    toggleEmptyState(false, "")
+                    return@launch
+                }
 
-                    val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+                // If query is NOT empty: dynamically fetch products & categories from Supabase and render matching items
+                val publicProductsResult: List<DisplayProduct> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    try {
+                        val pattern = "%$query%"
 
-                    if (query.isEmpty()) {
-                        val publicStores = snapshotStores.filter { it.is_public || it.is_standard_store }
-                        if (publicStores.isEmpty()) {
-                            emptyList<SearchItem>()
-                        } else {
-                            val defaultHeader = SearchItem.DefaultHeader(
-                                stores = publicStores.shuffled(),
-                                categories = snapshotCategories,
-                                products = snapshotProducts,
-                                storeProductCounts = storeProductCounts
+                        // 1. Direct product query by name or description
+                        val directProducts = SupabaseProvider.client.postgrest["products"].select {
+                            filter {
+                                or {
+                                    ilike("name", pattern)
+                                    ilike("description", pattern)
+                                }
+                            }
+                            limit(200)
+                        }.decodeList<ProductDetailRow>()
+
+                        // 2. Category query by name
+                        val matchingCategories = SupabaseProvider.client.postgrest["categories"].select {
+                            filter {
+                                ilike("name", pattern)
+                            }
+                            limit(100)
+                        }.decodeList<CategoryDetailRow>()
+
+                        val categoryProductIds = if (matchingCategories.isNotEmpty()) {
+                            val catIds = matchingCategories.map { it.id }
+                            SupabaseProvider.client.postgrest["products"].select {
+                                filter {
+                                    isIn("category_id", catIds)
+                                }
+                                limit(200)
+                            }.decodeList<ProductDetailRow>()
+                        } else emptyList()
+
+                        val combinedProducts = (directProducts + categoryProductIds).distinctBy { it.id }
+                        if (combinedProducts.isEmpty()) return@withContext emptyList()
+
+                        // 3. Fetch store and category metadata ONLY for matching product IDs (ultra-fast & lightweight)
+                        val storeIds = combinedProducts.map { it.store_id }.distinct()
+                        val categoryIds = combinedProducts.mapNotNull { it.category_id }.distinct()
+
+                        val fetchedStores = if (storeIds.isNotEmpty()) {
+                            SupabaseProvider.client.postgrest["stores"].select {
+                                filter { isIn("id", storeIds) }
+                            }.decodeList<StoreDetailRow>()
+                        } else emptyList()
+
+                        val fetchedCategories = if (categoryIds.isNotEmpty()) {
+                            SupabaseProvider.client.postgrest["categories"].select {
+                                filter { isIn("id", categoryIds) }
+                            }.decodeList<CategoryDetailRow>()
+                        } else emptyList()
+
+                        val combinedStoreMap = (fetchedStores + snapshotStores).distinctBy { it.id }.associateBy { it.id }
+                        val combinedCategoryMap = (fetchedCategories + snapshotCategories).distinctBy { it.id }.associateBy { it.id }
+
+                        combinedProducts.map { prod ->
+                            val st = combinedStoreMap[prod.store_id]
+                            val cat = combinedCategoryMap[prod.category_id]
+                            DisplayProduct(
+                                id = prod.id,
+                                name = prod.name,
+                                description = prod.description,
+                                price = prod.price,
+                                unit = prod.unit,
+                                storeId = prod.store_id,
+                                storeName = st?.name ?: "Unknown Store",
+                                storeLocation = st?.branch ?: "Main Branch",
+                                categoryName = cat?.name ?: "PRICELIST",
+                                isPresyohan = st?.is_standard_store ?: false
                             )
-                            val limitedProducts = finalProducts.take(visibleProductsLimit).map { SearchItem.Product(it) }
-                            val loadMore = if (finalProducts.size > visibleProductsLimit) {
-                                listOf(SearchItem.LoadMorePrices(isLoadMoreLoading))
-                            } else {
-                                emptyList()
-                            }
-                            val internetCard = if (enableInternetSearch) listOf(SearchItem.InternetSearchCard("")) else emptyList()
-                            listOf(defaultHeader) + limitedProducts + loadMore + internetCard
                         }
-                    } else {
-                        val localResults = displayCategories.map { SearchItem.Category(it) } + finalProducts.map { SearchItem.Product(it) }
-                        val internetCard = if (enableInternetSearch) listOf(SearchItem.InternetSearchCard(query)) else emptyList()
-                        localResults + internetCard
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        snapshotBaseProducts
                     }
                 }
+
+                val cleanTokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                
+                val hasSukiStores = searchAdapter.linkedStoreIds.isNotEmpty()
+                val filteredByPill = if (!hasSukiStores) {
+                    publicProductsResult
+                } else {
+                    when (activePillFilterId) {
+                        R.id.chipFilterPresyohan -> publicProductsResult.filter { it.isPresyohan }
+                        R.id.chipFilterSuki -> publicProductsResult.filter { searchAdapter.linkedStoreIds.contains(it.storeId) }
+                        else -> publicProductsResult
+                    }
+                }
+
+                val matchedProducts = filteredByPill.filter { prod ->
+                    matchesProduct(cleanTokens, prod)
+                }.sortedByDescending { calculateMatchScore(query, it) }
+
+                val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+                val limitedProducts = matchedProducts.take(visibleProductsLimit).map { SearchItem.Product(it) }
+                val loadMore = if (matchedProducts.size > visibleProductsLimit) {
+                    listOf(SearchItem.LoadMorePrices(isLoadMoreLoading))
+                } else {
+                    emptyList()
+                }
+                val internetCard = if (enableInternetSearch) listOf(SearchItem.InternetSearchCard(query)) else emptyList()
+                val searchItems = limitedProducts + loadMore + internetCard
 
                 searchAdapter.updateList(searchItems)
                 findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
                 rvCustomerPrices.visibility = View.VISIBLE
-                val emptyMessage = if (snapshotStores.isEmpty() && query.isEmpty()) {
-                    "No products yet."
-                } else if (query.isEmpty()) {
-                    "No products found."
-                } else {
-                    "No products found matching \"$query\""
-                }
-                val hasActualResults = searchItems.any { it is SearchItem.Product || it is SearchItem.Category }
-                toggleEmptyState(query.isNotEmpty() && !hasActualResults || searchItems.isEmpty(), emptyMessage)
+                val emptyMessage = "No products found matching \"$query\""
+                val hasActualResults = limitedProducts.isNotEmpty()
+                toggleEmptyState(!hasActualResults, emptyMessage)
             } else {
-                // Render Stores Tab
+                // Render Stores Tab (Displays ONLY Suki stores)
                 val filteredStores = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     val tokens = query.split(Regex("\\s+")).filter { it.isNotEmpty() }
                     
                     val displayStores = snapshotStores.map { store ->
-                        val productCount = if (store.is_public || store.is_standard_store) (storeProductCounts[store.id] ?: 0) else 0
+                        val productCount = (storeProductCounts[store.id] ?: 0)
                         val isPresyohan = store.is_standard_store
                         val typeTag = if (isPresyohan) "Presyohan" else if (store.is_public) "Public" else "Private"
 
@@ -2107,41 +2424,38 @@ class CustomerHomeActivity : AppCompatActivity() {
     }
 
     private fun toggleEmptyState(isEmpty: Boolean, message: String) {
+        if (isPricesTabActive && !isInternetPriceSearchMode && currentSearchQuery.isBlank()) {
+            layoutEmptyState.visibility = View.GONE
+            return
+        }
+
         if (isEmpty) {
             layoutEmptyState.visibility = View.VISIBLE
             emptyStateMessage.text = message
             emptyStateMessage.setTextColor(android.graphics.Color.parseColor("#B3B3B3"))
-            if (isInternetPriceSearchMode) {
-                when {
-                    message.contains("Connection lost", ignoreCase = true) -> {
-                        val base = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.icon_internet)
-                        if (base != null) {
-                            val tintColor = android.graphics.Color.parseColor("#B3B3B3")
-                            val wrapped = androidx.core.graphics.drawable.DrawableCompat.wrap(base.mutate())
-                            androidx.core.graphics.drawable.DrawableCompat.setTint(wrapped, tintColor)
-                            val density = resources.displayMetrics.density
-                            ivEmptyStateIcon.setImageDrawable(SlashDrawable(wrapped, tintColor, density))
-                        } else {
-                            ivEmptyStateIcon.setImageResource(R.drawable.icon_internet)
-                            ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
-                        }
-                    }
-                    message.contains("No items found", ignoreCase = true) || message.contains("No products found", ignoreCase = true) -> {
-                        ivEmptyStateIcon.setImageResource(R.drawable.icon_searching)
-                        ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
-                    }
-                    else -> {
-                        ivEmptyStateIcon.setImageResource(R.drawable.icon_internet)
-                        ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
-                    }
-                }
-            } else {
-                ivEmptyStateIcon.setImageResource(R.drawable.icon_store)
-                ivEmptyStateIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#B3B3B3"))
-            }
+            ivEmptyStateIcon.visibility = View.GONE
         } else {
             layoutEmptyState.visibility = View.GONE
         }
+    }
+
+    private fun showReusableDialog(
+        title: String,
+        message: String,
+        positiveButtonText: String = "OK",
+        positiveAction: (() -> Unit)? = null,
+        negativeButtonText: String? = null,
+        negativeAction: (() -> Unit)? = null
+    ) {
+        ReusableDialogHelper.showCustomDialog(
+            context = this,
+            title = title,
+            message = message,
+            positiveButtonText = positiveButtonText,
+            positiveAction = positiveAction,
+            negativeButtonText = negativeButtonText,
+            negativeAction = negativeAction
+        )
     }
 
     private class SlashDrawable(private val baseDrawable: android.graphics.drawable.Drawable, private val strokeColor: Int, private val density: Float) : android.graphics.drawable.Drawable() {
@@ -2315,8 +2629,18 @@ class CustomerHomeActivity : AppCompatActivity() {
         private val onViewAllClick: () -> Unit,
         private val onInternetSearchClick: (String) -> Unit,
         private val onLoadMoreClick: () -> Unit,
-        private val onBackToLocalClick: () -> Unit
+        private val onBackToLocalClick: () -> Unit,
+        private val onSukiRequestClick: ((storeId: String, storeName: String) -> Unit)? = null,
+        private val onProductClick: ((DisplayProduct) -> Unit)? = null,
+        private val getStoreRelationship: ((String) -> String?)? = null
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+        var linkedStoreIds: Set<String> = emptySet()
+
+        fun updateLinkedStores(storeIds: Set<String>) {
+            linkedStoreIds = storeIds
+            notifyDataSetChanged()
+        }
 
         companion object {
             private const val TYPE_CATEGORY = 0
@@ -2344,6 +2668,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             val tvProductDescription: TextView = view.findViewById(R.id.tvProductDescription)
             val tvProductUnits: TextView = view.findViewById(R.id.tvProductUnits)
             val tvProductPrice: TextView = view.findViewById(R.id.tvProductPrice)
+            val btnRequestSuki: TextView? = view.findViewById(R.id.btnRequestSuki)
         }
 
         class DefaultHeaderViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
@@ -2469,6 +2794,20 @@ class CustomerHomeActivity : AppCompatActivity() {
                     prodHolder.tvProductPrice.text = String.format(Locale.US, "₱ %,.2f", data.price)
                     prodHolder.tvProductCategory.setOnClickListener {
                         onProductCategoryClick(data)
+                    }
+                    prodHolder.itemView.setOnClickListener {
+                        onProductClick?.invoke(data)
+                    }
+
+                    val relationship = getStoreRelationship?.invoke(data.storeId)
+                    if (relationship != null) {
+                        prodHolder.btnRequestSuki?.visibility = View.VISIBLE
+                        prodHolder.btnRequestSuki?.background = null
+                        prodHolder.btnRequestSuki?.text = relationship
+                        prodHolder.btnRequestSuki?.setTextColor(ContextCompat.getColor(prodHolder.view.context, R.color.presyo_teal))
+                        prodHolder.btnRequestSuki?.setTypeface(null, android.graphics.Typeface.BOLD)
+                    } else {
+                        prodHolder.btnRequestSuki?.visibility = View.GONE
                     }
                 }
                 is SearchItem.InternetSearchCard -> {
@@ -2658,6 +2997,102 @@ class CustomerHomeActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun showProductDetailModal(product: DisplayProduct) {
+        val dialog = Dialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_customer_product_detail, null)
+        dialog.setContentView(view)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        val width = (resources.displayMetrics.widthPixels * 0.90).toInt()
+        dialog.window?.setLayout(width, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+
+        val tvCategory = view.findViewById<TextView>(R.id.tvModalCategory)
+        val tvProductName = view.findViewById<TextView>(R.id.tvModalProductName)
+        val tvDescription = view.findViewById<TextView>(R.id.tvModalDescription)
+        val tvPrice = view.findViewById<TextView>(R.id.tvModalPrice)
+        val tvUnit = view.findViewById<TextView>(R.id.tvModalUnit)
+        val tvStoreName = view.findViewById<TextView>(R.id.tvModalStoreName)
+        val tvStoreLocation = view.findViewById<TextView>(R.id.tvModalStoreLocation)
+        val btnAction = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnModalAction)
+        val btnClose = view.findViewById<ImageView>(R.id.btnCloseDialog)
+
+        tvCategory.text = product.categoryName.uppercase(Locale.getDefault())
+        tvProductName.text = product.name
+        if (product.description.isNullOrBlank()) {
+            tvDescription.visibility = View.GONE
+        } else {
+            tvDescription.visibility = View.VISIBLE
+            tvDescription.text = product.description
+        }
+        tvPrice.text = String.format(Locale.US, "₱ %,.2f", product.price)
+        tvUnit.text = if (product.unit.isNullOrBlank()) "" else "/ ${product.unit}"
+        tvStoreName.text = product.storeName
+        tvStoreLocation.text = product.storeLocation
+
+        val tvStoreRelationship = view.findViewById<TextView>(R.id.tvModalStoreRelationship)
+        val relationship = getStoreRelationship(product.storeId)
+
+        if (relationship != null) {
+            tvStoreRelationship?.visibility = View.VISIBLE
+            tvStoreRelationship?.text = "Relationship: $relationship"
+        } else {
+            tvStoreRelationship?.visibility = View.GONE
+        }
+
+        val isSukiOrYourStore = relationship != null
+        btnAction?.setBackgroundResource(R.drawable.button_round)
+
+        if (isSukiOrYourStore) {
+            btnAction?.text = "View Store"
+            androidx.core.view.ViewCompat.setBackgroundTintList(
+                btnAction!!,
+                androidx.core.content.ContextCompat.getColorStateList(this, R.color.presyo_teal)
+            )
+            btnAction?.setOnClickListener {
+                dialog.dismiss()
+                val intent = Intent(this, StoreViewActivity::class.java).apply {
+                    putExtra("STORE_ID", product.storeId)
+                    putExtra("STORE_NAME", product.storeName)
+                    putExtra("STORE_BRANCH", product.storeLocation)
+                }
+                startActivity(intent)
+            }
+        } else {
+            androidx.core.view.ViewCompat.setBackgroundTintList(
+                btnAction!!,
+                androidx.core.content.ContextCompat.getColorStateList(this, R.color.presyo_orange)
+            )
+            if (product.isPresyohan) {
+                btnAction?.text = "Add Presyohan"
+                btnAction?.setOnClickListener {
+                    dialog.dismiss()
+                    handleAddPresyohanStore(product.storeId, product.storeName)
+                }
+            } else {
+                btnAction?.text = "Request Suki"
+                btnAction?.setOnClickListener {
+                    dialog.dismiss()
+                    handleSendSukiRequest(product.storeId, product.storeName)
+                }
+            }
+        }
+
+        btnClose.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun getStoreRelationship(storeId: String): String? {
+        val currentUserId = SupabaseProvider.client.auth.currentUserOrNull()?.id
+        val store = allStores.find { it.id == storeId }
+        if (store?.owner_id != null && currentUserId != null && store.owner_id == currentUserId) {
+            return "Your Store"
+        }
+        val isSuki = searchAdapter.linkedStoreIds.contains(storeId) || allStores.any { it.id == storeId }
+        if (isSuki) {
+            return "Suki"
+        }
+        return null
     }
 
     private fun confirmRemoveStore(store: DisplayStore) {

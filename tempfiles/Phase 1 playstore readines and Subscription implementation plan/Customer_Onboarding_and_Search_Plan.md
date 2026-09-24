@@ -2,8 +2,8 @@
 
 **Project:** Presyohan Mobile & Supabase Backend  
 **Document Location:** `tempfiles/Phase 1 playstore readines and Subscription implementation plan/Customer_Onboarding_and_Search_Plan.md`  
-**Last Updated:** September 22, 2026  
-**Status:** Approved Feature Plan  
+**Last Updated:** September 24, 2026  
+**Status:** Implemented ✅  
 
 ---
 
@@ -49,12 +49,29 @@ The onboarding sequence retains the standard **3-Step Layout** ending with the *
 
 When a customer enters the home screen via **Card A**:
 
-1. **Zero Random Product Dumping**:
-   * The home screen will **not** display a chaotic feed of random items by default.
-2. **Search-Centric Hero UI**:
-   * The top focal point is a **Prominent Global Search Bar** (`EditText`) with quick trending chips (`[🥚 Eggs]`, `[🍚 Rice]`, `[🥤 Softdrinks]`, `[🥩 Pork]`).
-3. **Global Public Item Search**:
-   * Customers can type any keyword (e.g. *"Rice"*, *"Coke 1.5L"*, *"Egg"*).
+1. **Header Layout Scoping**:
+   * Header container strictly contains ONLY: Presyohan logo, title, notifications icon, profile avatar, and search bar.
+2. **Prices Tab Main Content Quick-Search Cards**:
+   * **2-Column Minimalist Quick-Search Grid Cards** (Clean text-only design without emojis/icons) are located at the top of the Prices tab main content area:
+     ```
+     ┌───────────────────────────┐  ┌───────────────────────────┐
+     │           Rice            │  │        Softdrinks         │
+     └───────────────────────────┘  └───────────────────────────┘
+     ┌───────────────────────────┐  ┌───────────────────────────┐
+     │       Canned Goods        │  │       Mineral Water       │
+     └───────────────────────────┘  └───────────────────────────┘
+     ┌───────────────────────────┐  ┌───────────────────────────┐
+     │      Instant Noodles      │  │          Coffee           │
+     └───────────────────────────┘  └───────────────────────────┘
+     ┌───────────────────────────┐  ┌───────────────────────────┐
+     │       Powdered Milk       │  │         Biscuits          │
+     └───────────────────────────┘  └───────────────────────────┘
+     ```
+   * Tapping any of the 8 cards instantly populates the search bar and executes the search query.
+3. **Dynamic Card Visibility Rules**:
+   * Cards are **VISIBLE ONLY WHEN**: User has zero Suki partners (`linkedStoreIds.isEmpty()`) **AND** search query is empty (inactive search).
+   * Cards are **HIDDEN WHEN**: User has 1+ linked Suki stores **OR** search is active (query typed in search bar).
+4. **Global Public Item Search**:
    * Search queries execute against **ALL public items (`is_public = true`) across ALL public stores** in the Supabase database—**zero store partnership required!**
 
 ---

@@ -25,3 +25,16 @@
 -keep class javax.xml.stream.** { *; }
 -keep class com.fasterxml.aalto.** { *; }
 -keep class org.codehaus.stax2.** { *; }
+-keep class org.dhatim.fastexcel.** { *; }
+
+## Kotlinx Serialization & Supabase
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keepclassmembers class * {
+    @kotlinx.serialization.SerialName <fields>;
+    @kotlinx.serialization.Serializable <fields>;
+}
+-keepclassmembers class * $$serializer {
+    public static final $$serializer INSTANCE;
+}
+-keep class io.github.jan.supabase.** { *; }
+-keep class io.ktor.** { *; }

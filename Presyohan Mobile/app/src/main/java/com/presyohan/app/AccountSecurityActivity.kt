@@ -91,6 +91,17 @@ class AccountSecurityActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        val btnDeleteAccount = findViewById<View>(R.id.btnDeleteAccount)
+        btnDeleteAccount.setOnClickListener {
+            handleDeleteAccountAction()
+        }
+
+        val lblOnlineDeletion = findViewById<View>(R.id.lblOnlineDeletion)
+        lblOnlineDeletion.setOnClickListener {
+            val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://presyohan.com/delete-account"))
+            startActivity(browserIntent)
+        }
+
         btnUpdate.setOnClickListener {
             handleUpdateAction()
         }
@@ -295,6 +306,54 @@ class AccountSecurityActivity : AppCompatActivity() {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 startActivity(intent)
                 finish()
+            }
+        }
+    }
+
+    private fun handleDeleteAccountAction() {
+        showReusableDialog(
+            title = "Delete Account?",
+            message = "Are you sure you want to permanently delete your account? All your personal data and store memberships will be purged. This action cannot be undone.",
+            positiveButtonText = "Delete Permanently",
+            positiveAction = {
+                executeAccountDeletion()
+            },
+            negativeButtonText = "Cancel"
+        )
+    }
+
+    private fun executeAccountDeletion() {
+        LoadingOverlayHelper.show(loadingOverlay)
+        lifecycleScope.launch {
+            try {
+                val response = SupabaseProvider.client.postgrest.rpc("delete_user_account")
+                var isSuccess = true
+                var errorMessage = ""
+
+                try {
+                    val jsonObj = response.decodeAs<JsonObject>()
+                    isSuccess = jsonObj["success"]?.jsonPrimitive?.booleanOrNull ?: true
+                    errorMessage = jsonObj["error"]?.jsonPrimitive?.contentOrNull ?: "Unknown error"
+                } catch (_: Exception) {}
+
+                if (!isSuccess) {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                    Toast.makeText(this@AccountSecurityActivity, "Failed to delete account: $errorMessage", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+
+                SupabaseAuthService.signOut()
+
+                LoadingOverlayHelper.hide(loadingOverlay)
+                Toast.makeText(this@AccountSecurityActivity, "Account successfully deleted.", Toast.LENGTH_LONG).show()
+
+                val intent = Intent(this@AccountSecurityActivity, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            } catch (e: Exception) {
+                LoadingOverlayHelper.hide(loadingOverlay)
+                Toast.makeText(this@AccountSecurityActivity, "Error deleting account: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
         }
     }

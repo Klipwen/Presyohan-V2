@@ -551,13 +551,13 @@ class OnboardingActivity : AppCompatActivity() {
                 }
             }
             UserRole.CUSTOMER -> {
+                destinationIntent = Intent(this, CustomerHomeActivity::class.java)
                 if (selectedSukiPref == SukiPreference.YES) {
-                    destinationIntent = Intent(this, CustomerHomeActivity::class.java)
+                    destinationIntent.putExtra("extra_open_add_store_sheet", true)
                     editor.putString("onboarding_action_pending", "add_suki")
                 } else {
-                    // Direct browse
-                    destinationIntent = Intent(this, SelectPresyohanActivity::class.java)
-                    editor.putString("onboarding_action_pending", "select_presyohan")
+                    destinationIntent.putExtra("extra_pure_search_mode", true)
+                    editor.putString("onboarding_action_pending", "direct_search")
                 }
             }
             else -> {}

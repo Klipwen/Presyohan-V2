@@ -55,13 +55,36 @@ android {
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = rootProject.file("release.keystore")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = project.findProperty("KEYSTORE_PASSWORD") as? String 
+                    ?: System.getenv("KEYSTORE_PASSWORD") 
+                    ?: ""
+                keyAlias = project.findProperty("KEY_ALIAS") as? String 
+                    ?: System.getenv("KEY_ALIAS") 
+                    ?: ""
+                keyPassword = project.findProperty("KEY_PASSWORD") as? String 
+                    ?: System.getenv("KEY_PASSWORD") 
+                    ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val releaseSigningConfig = signingConfigs.findByName("release")
+            if (releaseSigningConfig?.storeFile?.exists() == true) {
+                signingConfig = releaseSigningConfig
+            }
         }
     }
     compileOptions {

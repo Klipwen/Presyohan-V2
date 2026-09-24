@@ -288,6 +288,56 @@
 
             </LinearLayout>
 
+            <!-- Account Actions: Delete Account -->
+            <LinearLayout
+                android:id="@+id/cardDangerZone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_unselected"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:layout_marginTop="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Account Management"
+                    android:textColor="#334155"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Permanently delete your account, personal data, and store memberships."
+                    android:textColor="#64748B"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="16dp" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btnDeleteAccount"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:text="Delete Account"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/bg_outline_button_orange" />
+
+                <TextView
+                    android:id="@+id/lblOnlineDeletion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="12dp"
+                    android:text="Request deletion online (Web)"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="12sp"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>

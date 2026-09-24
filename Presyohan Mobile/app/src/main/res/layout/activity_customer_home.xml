@@ -226,6 +226,73 @@
 
             </LinearLayout>
 
+            <!-- Filter Tabs (Segmented Control Layout with sliding indicator) -->
+            <FrameLayout
+                android:id="@+id/tabContainerFilter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="0dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_segmented_control"
+                android:padding="3dp"
+                android:visibility="gone">
+
+                <!-- Sliding Selection Indicator View -->
+                <View
+                    android:id="@+id/tabIndicatorFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:background="@drawable/bg_segmented_tab_selected" />
+
+                <!-- Text Tabs Container -->
+                <LinearLayout
+                    android:id="@+id/tabsLinearLayoutFilter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!-- Tab: All -->
+                    <TextView
+                        android:id="@+id/chipFilterAll"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:paddingVertical="8dp"
+                        android:text="All"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <!-- Tab: Presyohan -->
+                    <TextView
+                        android:id="@+id/chipFilterPresyohan"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:paddingVertical="8dp"
+                        android:text="Presyohan"
+                        android:textColor="@color/edittext_hint"
+                        android:textSize="14sp" />
+
+                    <!-- Tab: Suki -->
+                    <TextView
+                        android:id="@+id/chipFilterSuki"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:paddingVertical="8dp"
+                        android:text="Suki"
+                        android:textColor="@color/edittext_hint"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+            </FrameLayout>
+
         </LinearLayout>
 
         <!-- Top Back to Local Stores Button (Visible only in Internet search mode) -->
@@ -345,15 +412,202 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
-                <!-- Prices Tab View -->
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvCustomerPrices"
+                <!-- Prices Tab Container -->
+                <LinearLayout
+                    android:id="@+id/layoutPricesTabContainer"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:clipToPadding="false"
-                    android:paddingBottom="120dp"
-                    android:scrollbars="vertical"
-                    tools:listitem="@layout/item_customer_product" />
+                    android:orientation="vertical">
+
+                    <!-- 2-Column Minimalist Quick Search Cards (Text-Only Mockup Style) -->
+                    <LinearLayout
+                        android:id="@+id/layoutQuickSearchCards"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="12dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Suggested Searches"
+                            android:textColor="#374151"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <!-- Row 1: Rice & Softdrinks -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:weightSum="2"
+                            android:layout_marginBottom="10dp">
+
+                            <TextView
+                                android:id="@+id/cardSearchRice"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Rice"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+
+                            <TextView
+                                android:id="@+id/cardSearchSoftdrinks"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Softdrinks"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+                        </LinearLayout>
+
+                        <!-- Row 2: Canned Goods & Mineral Water -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:weightSum="2"
+                            android:layout_marginBottom="10dp">
+
+                            <TextView
+                                android:id="@+id/cardSearchCannedGoods"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Canned Goods"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+
+                            <TextView
+                                android:id="@+id/cardSearchMineralWater"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Mineral Water"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+                        </LinearLayout>
+
+                        <!-- Row 3: Instant Noodles & Coffee -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:weightSum="2"
+                            android:layout_marginBottom="10dp">
+
+                            <TextView
+                                android:id="@+id/cardSearchNoodles"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Instant Noodles"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+
+                            <TextView
+                                android:id="@+id/cardSearchCoffee"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Coffee"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+                        </LinearLayout>
+
+                        <!-- Row 4: Powdered Milk & Biscuits -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:weightSum="2">
+
+                            <TextView
+                                android:id="@+id/cardSearchMilk"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Powdered Milk"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+
+                            <TextView
+                                android:id="@+id/cardSearchBiscuits"
+                                android:layout_width="0dp"
+                                android:layout_height="72dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="5dp"
+                                android:background="@drawable/bg_suggested_search_card"
+                                android:gravity="center"
+                                android:text="Biscuits"
+                                android:textColor="#374151"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:clickable="true"
+                                android:focusable="true" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Prices Tab View -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvCustomerPrices"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:clipToPadding="false"
+                        android:paddingBottom="120dp"
+                        android:scrollbars="vertical"
+                        tools:listitem="@layout/item_customer_product" />
+
+                </LinearLayout>
 
                 <!-- Searching Loading State -->
                 <LinearLayout

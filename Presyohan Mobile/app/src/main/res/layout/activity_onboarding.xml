@@ -320,7 +320,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Do you have a any suking tindahan?"
+                        android:text="How would you like to start?"
                         android:textColor="@color/presyo_orange"
                         android:textSize="18sp"
                         android:textStyle="bold"
@@ -337,7 +337,7 @@
                         android:clipToPadding="false">
 
                         <LinearLayout
-                            android:id="@+id/cardSukiYes"
+                            android:id="@+id/cardSukiNo"
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
@@ -352,56 +352,12 @@
                             android:focusable="true">
 
                             <TextView
-                                android:id="@+id/txtTitleSukiYes"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="Yes"
-                                android:textColor="@color/presyo_orange"
-                                android:textSize="20sp"
-                                android:textStyle="bold"
-                                android:gravity="center"
-                                android:layout_marginBottom="10dp" />
-
-                            <ImageView
-                                android:id="@+id/imgSukiYes"
-                                android:layout_width="48dp"
-                                android:layout_height="48dp"
-                                android:src="@drawable/icon_store"
-                                android:layout_marginBottom="10dp"
-                                app:tint="@color/presyo_teal" />
-
-                            <TextView
-                                android:id="@+id/txtDescSukiYes"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="I want to follow my suking tindahan to track their prices anytime."
-                                android:textColor="@color/presyo_darkblue"
-                                android:textSize="12sp"
-                                android:gravity="center" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/cardSukiNo"
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:background="@drawable/bg_card_unselected_teal"
-                            android:paddingHorizontal="12dp"
-                            android:paddingTop="30dp"
-                            android:paddingBottom="30dp"
-                            android:gravity="center_horizontal"
-                            android:layout_marginStart="6dp"
-                            android:clickable="true"
-                            android:focusable="true">
-
-                            <TextView
                                 android:id="@+id/txtTitleSukiNo"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="No"
+                                android:text="Direct Price Search"
                                 android:textColor="@color/presyo_orange"
-                                android:textSize="20sp"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:gravity="center"
                                 android:layout_marginBottom="10dp" />
@@ -418,7 +374,51 @@
                                 android:id="@+id/txtDescSukiNo"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="I just want to check standard prices so I have a reliable basis."
+                                android:text="Search and compare prices across all public stores immediately."
+                                android:textColor="@color/presyo_darkblue"
+                                android:textSize="12sp"
+                                android:gravity="center" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/cardSukiYes"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_unselected_teal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingTop="30dp"
+                            android:paddingBottom="30dp"
+                            android:gravity="center_horizontal"
+                            android:layout_marginStart="6dp"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <TextView
+                                android:id="@+id/txtTitleSukiYes"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Become a Suki"
+                                android:textColor="@color/presyo_orange"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:gravity="center"
+                                android:layout_marginBottom="10dp" />
+
+                            <ImageView
+                                android:id="@+id/imgSukiYes"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:src="@drawable/icon_store"
+                                android:layout_marginBottom="10dp"
+                                app:tint="@color/presyo_teal" />
+
+                            <TextView
+                                android:id="@+id/txtDescSukiYes"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Partner with local stores to view their full catalogs &amp; get price updates."
                                 android:textColor="@color/presyo_darkblue"
                                 android:textSize="12sp"
                                 android:gravity="center" />
