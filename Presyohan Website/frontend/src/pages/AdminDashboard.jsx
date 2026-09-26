@@ -7,8 +7,8 @@ import UserManagement from '../components/admin/UserManagement.jsx';
 import StoreDirectory from '../components/admin/StoreDirectory.jsx';
 import StandardPriceStores from '../components/admin/StandardPriceStores.jsx';
 import AppReleases from '../components/admin/AppReleases.jsx';
-import Announcements from '../components/admin/Announcements.jsx';
 import FeedbackSupport from '../components/admin/FeedbackSupport.jsx';
+import SubscriptionManagement from '../components/admin/SubscriptionManagement.jsx';
 import '../styles/AdminDashboard.css';
 
 export default function AdminDashboard() {
@@ -41,6 +41,16 @@ export default function AdminDashboard() {
           <line x1="18" y1="20" x2="18" y2="10" />
           <line x1="12" y1="20" x2="12" y2="4" />
           <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      )
+    },
+    {
+      id: 'subscriptions',
+      label: 'Subscriptions & Tiers',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+          <line x1="1" y1="10" x2="23" y2="10" />
         </svg>
       )
     },
@@ -113,6 +123,16 @@ export default function AdminDashboard() {
     switch (activeTab) {
       case 'analytics':
         return <AnalyticsOverview setActiveTab={setActiveTab} />;
+      case 'subscriptions':
+        return (
+          <div className="admin-card">
+            <h3 style={{ marginBottom: '6px' }}>Subscription Plan Manager &amp; Manual Overrides</h3>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>
+              Administer live tier pricing, trial days, feature limits, and grant manual subscription overrides.
+            </p>
+            <SubscriptionManagement />
+          </div>
+        );
       case 'users':
         return (
           <div className="admin-card">

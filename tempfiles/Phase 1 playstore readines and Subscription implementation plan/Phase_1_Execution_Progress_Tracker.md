@@ -13,8 +13,8 @@
 | :--- | :---: | :---: | :---: |
 | **Sprint 1: Google Play Store & Technical Blockers** | 5 | 5 | ✅ Completed |
 | **Sprint 2: Customer Search-First UX & Onboarding** | 6 | 6 | ✅ Completed |
-| **Sprint 3: Subscription Engine & Database Tiering** | 6 | 0 | ⚪ Queued |
-| **Total** | **17** | **11** | **65% Completed** |
+| **Sprint 3: Subscription Engine & Database Tiering** | 7 | 2 | 🟡 In Progress |
+| **Total** | **18** | **13** | **72% Completed** |
 
 ---
 
@@ -85,35 +85,40 @@
 
 ### 💳 Sprint 3: Subscription Engine & Database Tiering
 
-- [ ] **Task 3.1: Database Schema Migration for Subscriptions**
+- [ ] **Task 3.1: Database Schema Migration & Dynamic Subscription Tiers Table**
   - **Target Location:** Supabase SQL Migrations
-  - **Details:** Add `billing_owner_id`, `subscription_tier`, and `subscription_expires_at` to `public.stores` and `public.app_users`.
+  - **Details:** Create `public.subscription_tiers` configuration table (storing limits, prices, trial days, `merchant_benefits`, `customer_benefits` JSONB, and feature flags). Add `billing_owner_id`, `subscription_tier`, and `subscription_expires_at` to `public.stores` and `public.app_users`. Create `ai_daily_usage` table and `check_expiring_subscriptions()` cron RPC.
   - **Status:** Pending
 
-- [ ] **Task 3.2: Subscription Capacity Validator Helper**
-  - **Target Location:** Kotlin Backend Utility / Store Repository
-  - **Details:** Check tier capacity limits (Free: 1 Store, 3 Members, 10 Categories, 100 Items) before insert operations.
+- [ ] **Task 3.2: Capacity & Feature Gating Validator (Mobile & Web)**
+  - **Target Location:** `SubscriptionManager.kt` / Store Repository / Web Helpers
+  - **Details:** Dynamically query `subscription_tiers` for limits (stores, members, categories, items, public items, sukis) and feature gates (Excel Export, PDF Export, Price Cloning).
   - **Status:** Pending
 
-- [ ] **Task 3.3: Soft Lock / Read-Only Downgrade Handler**
-  - **Target Location:** Store Management View System
-  - **Details:** Prevent data deletion on sub expiry; disable "Add Item / Add Staff" buttons when over-limit.
+- [ ] **Task 3.3: Soft Lock UI & Read-Only / Archived Store Handler**
+  - **Target Location:** Mobile & Web Store Management Views
+  - **Details:** Never delete user data on sub expiry; present sleek non-intrusive "Tier Capacity Reached" bottom sheet and mark secondary stores as Archived on downgrade.
   - **Status:** Pending
 
-- [ ] **Task 3.4: Google Play In-App Billing Integration**
-  - **Target Location:** Android Play Billing Library (v6/v7)
-  - **Details:** Integrate billing client for PRO (₱99/mo) and VIP (₱299/mo) SKUs.
+- [ ] **Task 3.4: Google Play In-App Billing Integration & Purchase Verification**
+  - **Target Location:** `build.gradle.kts`, `PlayBillingHelper.kt`, `SubscriptionManager.kt`, Supabase Edge Function (`verify-play-purchase`)
+  - **Details:** Add `com.android.billingclient:billing-ktx:6.2.1` to Android project. Implement `PlayBillingHelper.kt` for `presyohan_pro_monthly` and `presyohan_vip_monthly` subscription SKUs. Build dual-mode fallback in `SubscriptionManager.kt` (Local Dev Mode updates Supabase directly for unreleased app testing; Production Mode launches Google Play Billing bottom sheet). Implement receipt token verification with Supabase Edge Functions.
+  - **Status:** 📋 Documented & Ready for Implementation
+
+- [ ] **Task 3.5: AI Usage & Internet Search Daily Quota Enforcement**
+  - **Target Location:** `AiParserService.kt` & Rate Limiter RPCs
+  - **Details:** Enforce daily AI parser caps and public internet search quotas based on `subscription_tiers` configuration.
   - **Status:** Pending
 
-- [ ] **Task 3.5: AI Usage Daily Quota Enforcement (Fair Use Cap)**
-  - **Target Location:** AI Parser Service & Supabase Rate Limiter
-  - **Details:** Enforce daily caps (Free: 3/day, PRO: 10/day, VIP: 50/day).
-  - **Status:** Pending
+- [x] **Task 3.6: Settings Entry Point, Subscription Status UI & Paywall Modal**
+  - **Target Location:** [`SettingsActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SettingsActivity.kt), [`activity_settings.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_settings.xml), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt), [`activity_subscription_status.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_subscription_status.xml), [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt)
+  - **Details:** Subscriptions card added to `activity_settings.xml` under Account section using `icon_subscriptions.png` with live active tier badge. Wired `SettingsActivity.kt` to launch `SubscriptionStatusActivity.kt` displaying active plan, live capacity usage progress bars, and Free (₱0), PRO (₱99/mo with `icon_pro.png`), and VIP (₱299/mo with `icon_vip.png`) plan cards. Integrated paywall upgrade confirmation dialogs and Supabase tier syncing.
+  - **Status:** ✅ Completed
 
-- [ ] **Task 3.6: Subscription Status Management Screen**
-  - **Target File:** `ManageStoreActivity.kt` / Store Settings
-  - **Details:** Display current subscription tier badge, renewal date, and upgrade CTA buttons.
-  - **Status:** Pending
+- [x] **Task 3.7: Web Admin Portal Subscription Plan Manager & Manual Overrides**
+  - **Target Location:** [`AdminDashboard.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/pages/AdminDashboard.jsx), [`SubscriptionManagement.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/components/admin/SubscriptionManagement.jsx), [`20260925_000000_subscription_tiers_and_admin.sql`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/supabase/migrations/20260925_000000_subscription_tiers_and_admin.sql)
+  - **Details:** Built Subscription Tier Configuration Manager (Admin can edit prices, trial days, limits, merchant & customer bullet lists dynamically without app releases), Manual User & Store Tier Override Modal (granting PRO ⭐ or VIP 💎 access to beta testers / manual subscribers), and AI Usage monitor.
+  - **Status:** ✅ Completed
 
 ---
 
@@ -132,6 +137,8 @@
 | 2026-09-24 17:06 | **Task 2.4** | Created SQL Migration for `products_public_search_idx` GIN index on public products | `20260924_010000_add_products_public_search_idx.sql` | ✅ Completed | SQL Schema Audit |
 | 2026-09-24 17:07 | **Task 2.5** | Added `btnRequestSuki` UI component to customer product list items for unpartnered stores | `item_customer_product.xml`, `CustomerHomeActivity.kt` | ✅ Completed | Code & Layout Audit |
 | 2026-09-24 17:08 | **Task 2.6** | Wired Supabase RPC `send_suki_request(store_id)` for search-to-suki conversion | `CustomerHomeActivity.kt` | ✅ Completed | Code Audit |
+| 2026-09-25 19:05 | **Task 3.6** | Implemented Subscriptions Settings Card and SubscriptionStatusActivity UI screen with plan comparison cards, live capacity progress bars & paywall upgrade modals | `activity_settings.xml`, `SettingsActivity.kt`, `SubscriptionManager.kt`, `SubscriptionStatusActivity.kt`, `activity_subscription_status.xml` | ✅ Completed | Gradle Build & Code Audit |
+| 2026-09-25 21:54 | **Task 3.7** | Built Web Admin Portal Subscription Plan Manager & Manual Overrides | `AdminDashboard.jsx`, `SubscriptionManagement.jsx`, `20260925_000000_subscription_tiers_and_admin.sql` | ✅ Completed | Vite Production Build |
 
 ---
 

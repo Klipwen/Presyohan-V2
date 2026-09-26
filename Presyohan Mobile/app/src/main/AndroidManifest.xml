@@ -111,6 +111,9 @@
             android:name=".SettingsActivity"
             android:exported="false" />
         <activity
+            android:name=".SubscriptionStatusActivity"
+            android:exported="false" />
+        <activity
             android:name=".EditProfileActivity"
             android:exported="false" />
         <activity
@@ -123,6 +126,9 @@
             android:name=".ContactUsActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".SubscriptionPaywallActivity"
+            android:exported="false" />
         <activity
             android:name=".CustomScannerActivity"
             android:exported="false"

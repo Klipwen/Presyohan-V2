@@ -236,6 +236,83 @@
 
             </LinearLayout>
 
+            <!-- Subscriptions Card -->
+            <LinearLayout
+                android:id="@+id/btnSubscriptions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_card_unselected"
+                android:padding="16dp"
+                android:layout_marginBottom="12dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_rounded_grey"
+                    android:padding="12dp">
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/icon_subscriptions"
+                        app:tint="@color/presyo_orange" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Subscriptions"
+                        android:textColor="#757575"
+                        android:textSize="15sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/tvSubscriptionSubtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Manage subscription tier &amp; limits"
+                        android:textColor="#9CA3AF"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:id="@+id/tvSubscriptionBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Free"
+                        android:textColor="#64748B"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:background="@null" />
+
+                    <ImageView
+                        android:id="@+id/imgSubscriptionIcon"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:contentDescription="Subscription Tier Icon"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+            </LinearLayout>
+
             <!-- Memberships Card -->
             <LinearLayout
                 android:id="@+id/btnMemberships"
