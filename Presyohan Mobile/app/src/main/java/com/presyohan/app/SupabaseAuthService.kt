@@ -435,7 +435,9 @@ data class AppUserRow(
     val email: String? = null,
     val user_code: String? = null,
     val avatar_url: String? = null,
-    val role: String? = "user"
+    val role: String? = "user",
+    val subscription_tier: String? = "free",
+    val subscription_expires_at: String? = null
 )
 
 @kotlinx.serialization.Serializable

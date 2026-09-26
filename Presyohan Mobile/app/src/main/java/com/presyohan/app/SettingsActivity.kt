@@ -24,6 +24,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var settingsUserAvatar: ImageView
     private lateinit var btnEditProfile: ImageView
     private lateinit var btnAccountSecurity: View
+    private lateinit var btnSubscriptions: View
+    private lateinit var tvSubscriptionBadge: TextView
+    private lateinit var imgSubscriptionIcon: ImageView
     private lateinit var btnMemberships: View
     private lateinit var btnAtongPresyohan: View
     private lateinit var btnSupport: View
@@ -48,6 +51,9 @@ class SettingsActivity : AppCompatActivity() {
         settingsUserAvatar = findViewById(R.id.settingsUserAvatar)
         btnEditProfile = findViewById(R.id.btnEditProfile)
         btnAccountSecurity = findViewById(R.id.btnAccountSecurity)
+        btnSubscriptions = findViewById(R.id.btnSubscriptions)
+        tvSubscriptionBadge = findViewById(R.id.tvSubscriptionBadge)
+        imgSubscriptionIcon = findViewById(R.id.imgSubscriptionIcon)
         btnMemberships = findViewById(R.id.btnMemberships)
         btnAtongPresyohan = findViewById(R.id.btnAtongPresyohan)
         btnSupport = findViewById(R.id.btnSupport)
@@ -71,6 +77,12 @@ class SettingsActivity : AppCompatActivity() {
         // Account Security
         btnAccountSecurity.setOnClickListener {
             val intent = Intent(this, AccountSecurityActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Subscriptions
+        btnSubscriptions.setOnClickListener {
+            val intent = Intent(this, SubscriptionStatusActivity::class.java)
             startActivity(intent)
         }
 
@@ -236,6 +248,28 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun applySubscriptionDisplay(tierId: String) {
+        when (tierId.lowercase()) {
+            "pro" -> {
+                tvSubscriptionBadge.visibility = View.GONE
+                imgSubscriptionIcon.visibility = View.VISIBLE
+                imgSubscriptionIcon.setImageResource(R.drawable.icon_pro)
+            }
+            "vip" -> {
+                tvSubscriptionBadge.visibility = View.GONE
+                imgSubscriptionIcon.visibility = View.VISIBLE
+                imgSubscriptionIcon.setImageResource(R.drawable.icon_vip)
+            }
+            else -> { // free
+                imgSubscriptionIcon.visibility = View.GONE
+                tvSubscriptionBadge.visibility = View.VISIBLE
+                tvSubscriptionBadge.text = "Free"
+                tvSubscriptionBadge.background = null
+                tvSubscriptionBadge.setTextColor(Color.parseColor("#64748B"))
+            }
+        }
+    }
+
     private fun loadUserProfile() {
         // Fallback display email immediately
         val currentUser = SupabaseProvider.client.auth.currentUserOrNull()
@@ -244,6 +278,9 @@ class SettingsActivity : AppCompatActivity() {
         settingsUserId.visibility = View.GONE
         settingsUserAvatar.setImageResource(R.drawable.avatar_default)
         settingsUserAvatar.clearColorFilter()
+
+        val cachedTier = SubscriptionManager.getCachedTier(this)
+        applySubscriptionDisplay(cachedTier.id)
 
         lifecycleScope.launch {
             val profile = SupabaseAuthService.getUserProfile()
@@ -264,6 +301,9 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
             }
+
+            val liveTier = SubscriptionManager.fetchUserTier(this@SettingsActivity)
+            applySubscriptionDisplay(liveTier.id)
         }
     }
 
