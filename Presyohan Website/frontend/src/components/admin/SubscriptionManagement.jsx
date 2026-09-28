@@ -145,8 +145,8 @@ const DEFAULT_TIERS = [
     has_price_cloning: false,
     has_customer_pairing: false,
     has_priority_support: false,
-    merchant_benefits: ["1 Store Branch", "3 Staffs / Store", "10 Categories / Store", "100 Items / Store", "3 AI Parses / day", "3 Photo Scans / day", "Convert as Notes"],
-    customer_benefits: ["5 Suking Tindahan", "5 Presyohan Stores", "3 Internet Searches / day"]
+    merchant_benefits: ["1 Store Branch", "3 Staffs / Store", "10 Categories / Store", "100 Items / Store", "3 AI Parses / day", "Convert as Notes"],
+    customer_benefits: ["Suking Tindahan Partners: 5 Partners", "Presyohan Store Limit: 5 Stores", "Internet Search Quota: 3 Searches / day"]
   },
   {
     tier_id: 'pro',
@@ -177,8 +177,8 @@ const DEFAULT_TIERS = [
     has_price_cloning: true,
     has_customer_pairing: true,
     has_priority_support: false,
-    merchant_benefits: ["Up to 10 Stores", "10 Staffs / Store", "25 Categories / Store", "500 Items / Store", "10 AI Parses / day", "10 Photo Scans / day", "Store Items Cloning", "Customer Pairing", "Convert to Excel & PDF"],
-    customer_benefits: ["15 Suking Tindahan", "15 Presyohan Stores", "15 Internet Searches / day"]
+    merchant_benefits: ["Up to 10 Stores", "10 Staffs / Store", "25 Categories / Store", "500 Items / Store", "10 AI Parses / day", "Unlocked Customer Pairing (suki)", "Convert to PDF", "Convert to Excel", "Price Cloning & Export"],
+    customer_benefits: ["Suking Tindahan Partners: 15 Partners", "Presyohan Store Limit: 15 Stores", "Internet Search Quota: 15 Searches / day"]
   },
   {
     tier_id: 'vip',
@@ -209,8 +209,8 @@ const DEFAULT_TIERS = [
     has_price_cloning: true,
     has_customer_pairing: true,
     has_priority_support: true,
-    merchant_benefits: ["Unlimited Stores", "Unlimited Staff / Store", "Unlimited Categories / Store", "Unlimited Items / Store", "50 AI Parses / day", "50 Photo Scans / day", "Unlimited Cloning & Export", "Unlimited Customer Pairing"],
-    customer_benefits: ["Unlimited Suking Tindahan", "Unlimited Presyohan Stores", "Unlimited Internet Search"]
+    merchant_benefits: ["Unlimited Stores", "Unlimited Staff / Store", "Unlimited Categories / Store", "Unlimited Items / Store", "50 AI Parses / day", "Unlimited Customer Pairing (suki)", "Unlimited PDF & Excel Exports", "Unlimited Price Cloning", "24/7 VIP Priority Support"],
+    customer_benefits: ["Unlimited Suking Tindahan Partners", "Unlimited Presyohan Stores", "Unlimited Internet Search Quota"]
   }
 ];
 
@@ -231,8 +231,10 @@ export default function SubscriptionManagement() {
   const [overrideDuration, setOverrideDuration] = useState('30'); // '7' | '30' | '90' | '365' | 'permanent'
   const [mutating, setMutating] = useState(false);
 
-  // New Benefit Item Inputs in Edit Modal
-  const [newMerchantBenefit, setNewMerchantBenefit] = useState('');
+  // Categorized Benefit Management State in Edit Modal
+  const [newBenefitCategory, setNewBenefitCategory] = useState('merchant'); // 'merchant' | 'customer'
+  const [newBenefitText, setNewBenefitText] = useState('');
+  const [benefitTabFilter, setBenefitTabFilter] = useState('all'); // 'all' | 'merchant' | 'customer'
 
   useEffect(() => {
     loadTiersAndData();
@@ -350,23 +352,59 @@ export default function SubscriptionManagement() {
     }
   };
 
-  const handleAddMerchantBenefit = () => {
-    if (!newMerchantBenefit.trim() || !editingTier) return;
-    const updated = {
+  const handleAddBenefit = (side, text) => {
+    const benefitText = (text !== undefined && text !== null ? text : newBenefitText).trim();
+    if (!benefitText || !editingTier) return;
+    const targetKey = side === 'customer' ? 'customer_benefits' : 'merchant_benefits';
+    const currentList = editingTier[targetKey] || [];
+    if (currentList.includes(benefitText)) return;
+    setEditingTier({
       ...editingTier,
-      merchant_benefits: [...(editingTier.merchant_benefits || []), newMerchantBenefit.trim()]
-    };
-    setEditingTier(updated);
-    setNewMerchantBenefit('');
+      [targetKey]: [...currentList, benefitText]
+    });
+    if (text === undefined || text === null) {
+      setNewBenefitText('');
+    }
   };
 
-  const handleRemoveMerchantBenefit = (index) => {
+  const handleRemoveBenefit = (side, index) => {
     if (!editingTier) return;
-    const updated = {
+    const targetKey = side === 'customer' ? 'customer_benefits' : 'merchant_benefits';
+    const updated = (editingTier[targetKey] || []).filter((_, i) => i !== index);
+    setEditingTier({ ...editingTier, [targetKey]: updated });
+  };
+
+  const handleMoveBenefitSide = (fromSide, index) => {
+    if (!editingTier) return;
+    const fromKey = fromSide === 'customer' ? 'customer_benefits' : 'merchant_benefits';
+    const toKey = fromSide === 'customer' ? 'merchant_benefits' : 'customer_benefits';
+    const item = (editingTier[fromKey] || [])[index];
+    if (!item) return;
+    const updatedFrom = (editingTier[fromKey] || []).filter((_, i) => i !== index);
+    const updatedTo = [...(editingTier[toKey] || []), item];
+    setEditingTier({
       ...editingTier,
-      merchant_benefits: (editingTier.merchant_benefits || []).filter((_, i) => i !== index)
-    };
-    setEditingTier(updated);
+      [fromKey]: updatedFrom,
+      [toKey]: updatedTo
+    });
+  };
+
+  const handleReorderBenefit = (side, fromIdx, toIdx) => {
+    if (!editingTier) return;
+    const targetKey = side === 'customer' ? 'customer_benefits' : 'merchant_benefits';
+    const arr = [...(editingTier[targetKey] || [])];
+    if (fromIdx < 0 || fromIdx >= arr.length || toIdx < 0 || toIdx >= arr.length) return;
+    const [moved] = arr.splice(fromIdx, 1);
+    arr.splice(toIdx, 0, moved);
+    setEditingTier({ ...editingTier, [targetKey]: arr });
+  };
+
+  const handleUpdateBenefitText = (side, index, value) => {
+    if (!editingTier) return;
+    const targetKey = side === 'customer' ? 'customer_benefits' : 'merchant_benefits';
+    const arr = [...(editingTier[targetKey] || [])];
+    arr[index] = value;
+    setEditingTier({ ...editingTier, [targetKey]: arr });
   };
 
   const applyPresetDiscount = (pct, badgeLabel) => {
@@ -620,13 +658,32 @@ export default function SubscriptionManagement() {
 
               <div style={{ height: '1px', backgroundColor: '#FED7AA', margin: '8px 0' }} />
 
-              {/* Merchant Benefits */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-                {(proInfo.merchant_benefits || ["Up to 10 Stores", "500 items / store", "10 staff accounts"]).map((b, i) => {
+              {/* Store & Merchant Features */}
+              <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#C2410C', textTransform: 'uppercase', marginBottom: '4px' }}>
+                Store &amp; Merchant Features
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '8px' }}>
+                {(proInfo.merchant_benefits || ["Up to 10 Stores", "10 Staffs / Store", "25 Categories / Store", "500 Items / Store", "10 AI Parses / day", "Unlocked Customer Pairing (suki)", "Convert to PDF", "Convert to Excel", "Price Cloning & Export"]).slice(0, 6).map((b, i) => {
                   const cleanText = b.replace(/^[^a-zA-Z0-9]+/, '').trim();
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9.5px', color: '#1F2937' }}>
-                      <div style={{ width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#FB8500', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6.5px', fontWeight: 900, flexShrink: 0 }}>✓</div>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: '#1F2937' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#FB8500', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: 900, flexShrink: 0 }}>✓</div>
+                      <span>{cleanText}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Customer & Suki Features */}
+              <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#C2410C', textTransform: 'uppercase', marginBottom: '4px' }}>
+                Customer &amp; Suki Partner Features
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '10px' }}>
+                {(proInfo.customer_benefits || ["Suking Tindahan Partners: 15 Partners", "Presyohan Store Limit: 15 Stores", "Internet Search Quota: 15 Searches / day"]).slice(0, 6).map((b, i) => {
+                  const cleanText = b.replace(/^[^a-zA-Z0-9]+/, '').trim();
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: '#1F2937' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#FB8500', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: 900, flexShrink: 0 }}>✓</div>
                       <span>{cleanText}</span>
                     </div>
                   );
@@ -711,13 +768,32 @@ export default function SubscriptionManagement() {
 
               <div style={{ height: '1px', backgroundColor: '#99F6E4', margin: '8px 0' }} />
 
-              {/* Merchant Benefits */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-                {(vipInfo.merchant_benefits || ["Unlimited Stores", "Unlimited items", "Unlimited staff"]).map((b, i) => {
+              {/* Store & Merchant Features */}
+              <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#0F766E', textTransform: 'uppercase', marginBottom: '4px' }}>
+                Store &amp; Merchant Features
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '8px' }}>
+                {(vipInfo.merchant_benefits || ["Unlimited Stores", "Unlimited Staff / Store", "Unlimited Categories / Store", "Unlimited Items / Store", "50 AI Parses / day", "Unlimited Customer Pairing (suki)", "Unlimited PDF & Excel Exports", "Unlimited Price Cloning", "24/7 VIP Priority Support"]).slice(0, 6).map((b, i) => {
                   const cleanText = b.replace(/^[^a-zA-Z0-9]+/, '').trim();
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9.5px', color: '#064E3B', fontWeight: 600 }}>
-                      <div style={{ width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#219EBC', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6.5px', fontWeight: 900, flexShrink: 0 }}>✓</div>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: '#064E3B', fontWeight: 600 }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#219EBC', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: 900, flexShrink: 0 }}>✓</div>
+                      <span>{cleanText}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Customer & Suki Features */}
+              <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#0F766E', textTransform: 'uppercase', marginBottom: '4px' }}>
+                Customer &amp; Suki Partner Features
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '10px' }}>
+                {(vipInfo.customer_benefits || ["Unlimited Suking Tindahan Partners", "Unlimited Presyohan Stores", "Unlimited Internet Search Quota"]).slice(0, 6).map((b, i) => {
+                  const cleanText = b.replace(/^[^a-zA-Z0-9]+/, '').trim();
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: '#064E3B', fontWeight: 600 }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#219EBC', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: 900, flexShrink: 0 }}>✓</div>
                       <span>{cleanText}</span>
                     </div>
                   );
@@ -784,13 +860,32 @@ export default function SubscriptionManagement() {
 
               <div style={{ height: '1px', backgroundColor: '#E5E7EB', margin: '8px 0' }} />
 
-              {/* Merchant Benefits */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-                {(freeInfo.merchant_benefits || ["1 Store Branch", "50 Items / Store", "1 Staff Account"]).map((b, i) => {
+              {/* Store & Merchant Features */}
+              <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>
+                Store &amp; Merchant Features
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '8px' }}>
+                {(freeInfo.merchant_benefits || ["1 Store Branch", "3 Staffs / Store", "10 Categories / Store", "100 Items / Store", "3 AI Parses / day", "Convert as Notes"]).slice(0, 6).map((b, i) => {
                   const cleanText = b.replace(/^[^a-zA-Z0-9]+/, '').trim();
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9.5px', color: '#374151' }}>
-                      <div style={{ width: '11px', height: '11px', borderRadius: '50%', backgroundColor: '#6B7280', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6.5px', fontWeight: 900, flexShrink: 0 }}>✓</div>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: '#374151' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#6B7280', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: 900, flexShrink: 0 }}>✓</div>
+                      <span>{cleanText}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Customer & Suki Features */}
+              <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>
+                Customer &amp; Suki Partner Features
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '10px' }}>
+                {(freeInfo.customer_benefits || ["Suking Tindahan Partners: 5 Partners", "Presyohan Store Limit: 5 Stores", "Internet Search Quota: 3 Searches / day"]).slice(0, 6).map((b, i) => {
+                  const cleanText = b.replace(/^[^a-zA-Z0-9]+/, '').trim();
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: '#374151' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#6B7280', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', fontWeight: 900, flexShrink: 0 }}>✓</div>
                       <span>{cleanText}</span>
                     </div>
                   );
@@ -1119,18 +1214,43 @@ export default function SubscriptionManagement() {
                         </div>
                       </div>
 
-                      {/* Merchant Benefits Preview */}
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-                        Key Features &amp; Perks
+                      {/* Categorized Features Preview */}
+                      <div style={{ marginBottom: '14px' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 800, color: isVip ? '#00897B' : isPro ? '#C2410C' : '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                          🏬 Store &amp; Merchant Features ({(tier.merchant_benefits || []).length})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {(tier.merchant_benefits || []).slice(0, 4).map((b, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#334155', fontWeight: 500 }}>
+                              <span style={{ color: isVip ? '#00897B' : isPro ? '#FB8500' : '#64748B', fontWeight: 800, flexShrink: 0 }}>✓</span>
+                              <span>{b}</span>
+                            </div>
+                          ))}
+                          {(tier.merchant_benefits || []).length > 4 && (
+                            <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 700, paddingLeft: '14px' }}>
+                              + {(tier.merchant_benefits || []).length - 4} more merchant features
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
-                        {(tier.merchant_benefits || []).map((b, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#334155', fontWeight: 500 }}>
-                            <span style={{ color: isVip ? '#00897B' : isPro ? '#FB8500' : '#64748B', fontWeight: 800, flexShrink: 0 }}>✓</span>
-                            <span>{b}</span>
-                          </div>
-                        ))}
+                      <div style={{ marginBottom: '16px' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 800, color: isVip ? '#00897B' : isPro ? '#C2410C' : '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                          🤝 Customer &amp; Suki Features ({(tier.customer_benefits || []).length})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {(tier.customer_benefits || []).slice(0, 3).map((b, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#334155', fontWeight: 500 }}>
+                              <span style={{ color: isVip ? '#00897B' : isPro ? '#FB8500' : '#64748B', fontWeight: 800, flexShrink: 0 }}>✓</span>
+                              <span>{b}</span>
+                            </div>
+                          ))}
+                          {(tier.customer_benefits || []).length > 3 && (
+                            <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 700, paddingLeft: '14px' }}>
+                              + {(tier.customer_benefits || []).length - 3} more suki features
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <button
@@ -2218,7 +2338,7 @@ export default function SubscriptionManagement() {
                         </div>
                       </div>
 
-                      {/* Section 4: 📋 MOBILE PAYWALL BENEFIT BULLET POINTS (DRAGGABLE & REORDERABLE) */}
+                      {/* Section 4: 📋 CATEGORIZED BENEFIT BULLET POINTS (MERCHANT VS CUSTOMER/SUKI) */}
                       <div 
                         id="modal-sec-benefits"
                         style={{ 
@@ -2230,216 +2350,436 @@ export default function SubscriptionManagement() {
                           boxShadow: '0 8px 24px rgba(251, 133, 0, 0.05)'
                         }}
                       >
-                        <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#C2410C', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>📋 Mobile Paywall Benefit Bullets</span>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#C2410C', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>📋 Categorized Plan Feature Bullets</span>
                           <span style={{ fontSize: '0.75rem', color: '#EA580C', fontWeight: 800 }}>
                             🖐️ Drag &amp; Drop or ⬆️⬇️ to Re-order
                           </span>
                         </div>
-
-                        {/* Quick Preset Benefits Bar */}
-                        <div style={{ backgroundColor: '#FFFFFF', padding: '12px 14px', borderRadius: '14px', marginBottom: '14px', border: '1px solid #FED7AA' }}>
-                          <div style={{ fontSize: '0.7rem', color: '#9A3412', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
-                            ⚡ Quick Add Common Benefits:
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            {[
-                              'Unlimited Price Catalog Exports',
-                              '24/7 VIP Priority Phone Support',
-                              'Store Items & Price Cloning',
-                              'Multi-Branch Inventory Sync',
-                              'Customer Pairing & Ledger'
-                            ].map(presetBenefit => (
-                              <button
-                                key={presetBenefit}
-                                type="button"
-                                onClick={() => {
-                                  if ((editingTier.merchant_benefits || []).includes(presetBenefit)) return;
-                                  setEditingTier({
-                                    ...editingTier,
-                                    merchant_benefits: [...(editingTier.merchant_benefits || []), presetBenefit]
-                                  });
-                                }}
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: '8px',
-                                  backgroundColor: '#FFF7ED',
-                                  border: '1px solid #FDBA74',
-                                  color: '#EA580C',
-                                  fontWeight: 800,
-                                  fontSize: '0.72rem',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                + {presetBenefit}
-                              </button>
-                            ))}
-                          </div>
+                        <div style={{ fontSize: '0.8rem', color: '#7C2D12', marginBottom: '16px', fontWeight: 600 }}>
+                          Features are grouped into <strong>Store &amp; Merchant</strong> and <strong>Customer &amp; Suki Partner</strong> sections on mobile tier cards and paywall.
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
-                          {(editingTier.merchant_benefits || []).map((b, idx, arr) => (
-                            <div 
-                              key={idx}
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('text/plain', idx);
-                                e.currentTarget.style.opacity = '0.5';
-                              }}
-                              onDragEnd={(e) => {
-                                e.currentTarget.style.opacity = '1';
-                              }}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
-                                if (!isNaN(fromIdx) && fromIdx !== idx) {
-                                  const updated = [...arr];
-                                  const [movedItem] = updated.splice(fromIdx, 1);
-                                  updated.splice(idx, 0, movedItem);
-                                  setEditingTier({ ...editingTier, merchant_benefits: updated });
+                        {/* Unified Add Feature Input with Category Selector */}
+                        <div style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '18px', marginBottom: '18px', border: '1.5px solid #FED7AA', boxShadow: '0 4px 12px rgba(251, 133, 0, 0.06)' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#9A3412', textTransform: 'uppercase', marginBottom: '10px' }}>
+                            ➕ Add New Feature Bullet:
+                          </div>
+
+                          {/* Category Choice Pills */}
+                          <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              borderRadius: '10px',
+                              backgroundColor: newBenefitCategory === 'merchant' ? '#FFF7ED' : '#F8FAFC',
+                              border: newBenefitCategory === 'merchant' ? '2px solid #FB8500' : '1px solid #CBD5E1',
+                              color: newBenefitCategory === 'merchant' ? '#C2410C' : '#64748B',
+                              fontWeight: 800,
+                              fontSize: '0.82rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}>
+                              <input 
+                                type="radio" 
+                                name="benefitCategoryRadio" 
+                                checked={newBenefitCategory === 'merchant'} 
+                                onChange={() => setNewBenefitCategory('merchant')}
+                                style={{ accentColor: '#FB8500' }}
+                              />
+                              <span>🏬 Store &amp; Merchant Feature</span>
+                            </label>
+
+                            <label style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              borderRadius: '10px',
+                              backgroundColor: newBenefitCategory === 'customer' ? '#F0FDFA' : '#F8FAFC',
+                              border: newBenefitCategory === 'customer' ? '2px solid #00897B' : '1px solid #CBD5E1',
+                              color: newBenefitCategory === 'customer' ? '#0F766E' : '#64748B',
+                              fontWeight: 800,
+                              fontSize: '0.82rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}>
+                              <input 
+                                type="radio" 
+                                name="benefitCategoryRadio" 
+                                checked={newBenefitCategory === 'customer'} 
+                                onChange={() => setNewBenefitCategory('customer')}
+                                style={{ accentColor: '#00897B' }}
+                              />
+                              <span>🤝 Customer &amp; Suki Feature</span>
+                            </label>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <input
+                              type="text"
+                              className="admin-search-input"
+                              placeholder={newBenefitCategory === 'merchant' ? "Type merchant feature (e.g. 'Unlocked Customer Pairing (suki)', 'Convert to PDF')..." : "Type suki feature (e.g. 'Suking Tindahan Partners: 15 Partners', 'Presyohan Store Limit: 15 Stores')..."}
+                              value={newBenefitText}
+                              onChange={(e) => setNewBenefitText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddBenefit(newBenefitCategory);
                                 }
                               }}
+                              style={{ flex: 1, fontWeight: 700, borderRadius: '12px', padding: '10px 14px', border: '1.5px solid #FED7AA', fontSize: '0.88rem' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleAddBenefit(newBenefitCategory)}
                               style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'space-between', 
-                                backgroundColor: '#FFFFFF', 
-                                padding: '12px 16px', 
-                                borderRadius: '14px', 
-                                border: '1.5px solid #FED7AA', 
-                                boxShadow: '0 2px 8px rgba(251, 133, 0, 0.06)',
-                                cursor: 'grab',
+                                backgroundColor: newBenefitCategory === 'customer' ? '#00897B' : '#FB8500', 
+                                color: '#FFFFFF', 
+                                border: 'none', 
+                                padding: '10px 22px', 
+                                borderRadius: '12px', 
+                                fontWeight: 900, 
+                                cursor: 'pointer', 
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
+                                fontSize: '0.88rem',
                                 transition: 'all 0.15s ease'
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, marginRight: '10px' }}>
-                                {/* Drag Grip Handle */}
-                                <span 
-                                  title="Drag to reorder" 
-                                  style={{ fontSize: '1.2rem', color: '#FB8500', cursor: 'grab', userSelect: 'none', fontWeight: 900 }}
-                                >
-                                  ⋮⋮
-                                </span>
-                                <span style={{ fontWeight: 900, color: '#FB8500', fontSize: '0.9rem' }}>✓</span>
-                                {/* Inline Editable Input */}
-                                <input
-                                  type="text"
-                                  className="admin-search-input"
-                                  style={{
-                                    flex: 1,
-                                    padding: '8px 12px',
-                                    fontSize: '0.88rem',
-                                    fontWeight: 800,
-                                    border: '1.5px solid #FED7AA',
-                                    borderRadius: '10px',
-                                    backgroundColor: '#FFFBF7',
-                                    color: '#0F172A'
-                                  }}
-                                  value={b}
-                                  onChange={(e) => {
-                                    const updated = [...arr];
-                                    updated[idx] = e.target.value;
-                                    setEditingTier({ ...editingTier, merchant_benefits: updated });
-                                  }}
-                                  placeholder="Type benefit text..."
-                                />
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {/* Move Up Button */}
-                                <button
-                                  type="button"
-                                  disabled={idx === 0}
-                                  onClick={() => {
-                                    if (idx === 0) return;
-                                    const updated = [...arr];
-                                    const temp = updated[idx - 1];
-                                    updated[idx - 1] = updated[idx];
-                                    updated[idx] = temp;
-                                    setEditingTier({ ...editingTier, merchant_benefits: updated });
-                                  }}
-                                  style={{ 
-                                    background: idx === 0 ? '#F1F5F9' : '#FFF7ED', 
-                                    border: '1px solid #FED7AA', 
-                                    color: idx === 0 ? '#CBD5E1' : '#EA580C', 
-                                    width: '28px', 
-                                    height: '28px', 
-                                    borderRadius: '8px', 
-                                    fontWeight: 900, 
-                                    cursor: idx === 0 ? 'not-allowed' : 'pointer', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'center',
-                                    fontSize: '0.8rem'
-                                  }}
-                                  title="Move Up"
-                                >
-                                  ▲
-                                </button>
-
-                                {/* Move Down Button */}
-                                <button
-                                  type="button"
-                                  disabled={idx === arr.length - 1}
-                                  onClick={() => {
-                                    if (idx === arr.length - 1) return;
-                                    const updated = [...arr];
-                                    const temp = updated[idx + 1];
-                                    updated[idx + 1] = updated[idx];
-                                    updated[idx] = temp;
-                                    setEditingTier({ ...editingTier, merchant_benefits: updated });
-                                  }}
-                                  style={{ 
-                                    background: idx === arr.length - 1 ? '#F1F5F9' : '#FFF7ED', 
-                                    border: '1px solid #FED7AA', 
-                                    color: idx === arr.length - 1 ? '#CBD5E1' : '#EA580C', 
-                                    width: '28px', 
-                                    height: '28px', 
-                                    borderRadius: '8px', 
-                                    fontWeight: 900, 
-                                    cursor: idx === arr.length - 1 ? 'not-allowed' : 'pointer', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'center',
-                                    fontSize: '0.8rem'
-                                  }}
-                                  title="Move Down"
-                                >
-                                  ▼
-                                </button>
-
-                                {/* Delete Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveMerchantBenefit(idx)}
-                                  style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', width: '28px', height: '28px', borderRadius: '50%', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', marginLeft: '4px' }}
-                                  title="Remove Bullet"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                              + Add to {newBenefitCategory === 'customer' ? 'Customer' : 'Merchant'}
+                            </button>
+                          </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <input
-                            type="text"
-                            className="admin-search-input"
-                            placeholder="Add benefit bullet (e.g. 'Unlimited Price Catalog Exports')..."
-                            value={newMerchantBenefit}
-                            onChange={(e) => setNewMerchantBenefit(e.target.value)}
-                            style={{ flex: 1, fontWeight: 700, borderRadius: '12px', padding: '10px 14px' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddMerchantBenefit}
-                            style={{ backgroundColor: '#FB8500', color: '#FFFFFF', border: 'none', padding: '10px 20px', borderRadius: '12px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 4px 12px rgba(251,133,0,0.25)', fontSize: '0.85rem' }}
-                          >
-                            + Add Bullet
-                          </button>
+                        {/* SUB-SECTION 1: 🏬 STORE & MERCHANT FEATURES */}
+                        <div style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '18px', marginBottom: '18px', border: '1.5px solid #FED7AA' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '1rem', fontWeight: 900, color: '#C2410C', textTransform: 'uppercase' }}>
+                                🏬 Store &amp; Merchant Features
+                              </span>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 900, backgroundColor: '#FFF7ED', color: '#EA580C', padding: '2px 8px', borderRadius: '8px', border: '1px solid #FED7AA' }}>
+                                {(editingTier.merchant_benefits || []).length} items
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Quick Presets for Merchant */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{ fontSize: '0.68rem', color: '#9A3412', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
+                              ⚡ Quick Add Merchant Presets:
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {[
+                                'Unlocked Customer Pairing (suki)',
+                                'Convert to PDF',
+                                'Convert to Excel',
+                                'Price Cloning & Export',
+                                'Multi-Branch Inventory Sync',
+                                'AI Daily Price Scanner',
+                                '24/7 VIP Priority Support'
+                              ].map(preset => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => handleAddBenefit('merchant', preset)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#FFF7ED',
+                                    border: '1px solid #FDBA74',
+                                    color: '#EA580C',
+                                    fontWeight: 800,
+                                    fontSize: '0.72rem',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  + {preset}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Draggable Merchant Benefits List */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {(editingTier.merchant_benefits || []).length === 0 ? (
+                              <div style={{ padding: '12px', textAlign: 'center', color: '#94A3B8', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                No custom merchant features yet. Uses default limits on mobile.
+                              </div>
+                            ) : (
+                              (editingTier.merchant_benefits || []).map((b, idx, arr) => (
+                                <div 
+                                  key={idx}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', idx);
+                                    e.currentTarget.style.opacity = '0.5';
+                                  }}
+                                  onDragEnd={(e) => {
+                                    e.currentTarget.style.opacity = '1';
+                                  }}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                                    if (!isNaN(fromIdx) && fromIdx !== idx) {
+                                      handleReorderBenefit('merchant', fromIdx, idx);
+                                    }
+                                  }}
+                                  style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between', 
+                                    backgroundColor: '#FFFBF7', 
+                                    padding: '10px 14px', 
+                                    borderRadius: '12px', 
+                                    border: '1px solid #FED7AA', 
+                                    boxShadow: '0 2px 6px rgba(251, 133, 0, 0.04)',
+                                    cursor: 'grab'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, marginRight: '8px' }}>
+                                    <span style={{ fontSize: '1.1rem', color: '#FB8500', cursor: 'grab', userSelect: 'none', fontWeight: 900 }}>⋮⋮</span>
+                                    <span style={{ fontWeight: 900, color: '#FB8500', fontSize: '0.85rem' }}>✓</span>
+                                    <input
+                                      type="text"
+                                      className="admin-search-input"
+                                      style={{
+                                        flex: 1,
+                                        padding: '6px 10px',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 700,
+                                        border: '1px solid #FED7AA',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#FFFFFF',
+                                        color: '#0F172A'
+                                      }}
+                                      value={b}
+                                      onChange={(e) => handleUpdateBenefitText('merchant', idx, e.target.value)}
+                                      placeholder="Type feature text..."
+                                    />
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    {/* Move to Customer Side Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveBenefitSide('merchant', idx)}
+                                      style={{
+                                        padding: '4px 8px',
+                                        backgroundColor: '#F0FDFA',
+                                        border: '1px solid #99F6E4',
+                                        color: '#0F766E',
+                                        borderRadius: '6px',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Move feature to Customer & Suki section"
+                                    >
+                                      🤝 Move to Suki
+                                    </button>
+
+                                    {/* Up / Down */}
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={() => handleReorderBenefit('merchant', idx, idx - 1)}
+                                      style={{ background: idx === 0 ? '#F1F5F9' : '#FFF7ED', border: '1px solid #FED7AA', color: idx === 0 ? '#CBD5E1' : '#EA580C', width: '26px', height: '26px', borderRadius: '6px', fontWeight: 900, cursor: idx === 0 ? 'not-allowed' : 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      title="Move Up"
+                                    >
+                                      ▲
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={idx === arr.length - 1}
+                                      onClick={() => handleReorderBenefit('merchant', idx, idx + 1)}
+                                      style={{ background: idx === arr.length - 1 ? '#F1F5F9' : '#FFF7ED', border: '1px solid #FED7AA', color: idx === arr.length - 1 ? '#CBD5E1' : '#EA580C', width: '26px', height: '26px', borderRadius: '6px', fontWeight: 900, cursor: idx === arr.length - 1 ? 'not-allowed' : 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      title="Move Down"
+                                    >
+                                      ▼
+                                    </button>
+
+                                    {/* Delete */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveBenefit('merchant', idx)}
+                                      style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', width: '26px', height: '26px', borderRadius: '50%', fontWeight: 900, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      title="Remove Feature"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        {/* SUB-SECTION 2: 🤝 CUSTOMER & SUKI PARTNER FEATURES */}
+                        <div style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '18px', border: '1.5px solid #CCFBF1' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '1rem', fontWeight: 900, color: '#0F766E', textTransform: 'uppercase' }}>
+                                🤝 Customer &amp; Suki Partner Features
+                              </span>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 900, backgroundColor: '#F0FDFA', color: '#0D9488', padding: '2px 8px', borderRadius: '8px', border: '1px solid #99F6E4' }}>
+                                {(editingTier.customer_benefits || []).length} items
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Quick Presets for Customer / Suki */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{ fontSize: '0.68rem', color: '#115E59', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
+                              ⚡ Quick Add Suki Presets:
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {[
+                                'Suking Tindahan Partners: 15 Partners',
+                                'Presyohan Store Limit: 15 Stores',
+                                'Internet Search Quota: 15 Searches / day',
+                                'Unlimited Suking Tindahan Partners',
+                                'Unlimited Presyohan Stores',
+                                'Unlimited Internet Search Quota'
+                              ].map(preset => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => handleAddBenefit('customer', preset)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#F0FDFA',
+                                    border: '1px solid #99F6E4',
+                                    color: '#0F766E',
+                                    fontWeight: 800,
+                                    fontSize: '0.72rem',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  + {preset}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Draggable Customer Benefits List */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {(editingTier.customer_benefits || []).length === 0 ? (
+                              <div style={{ padding: '12px', textAlign: 'center', color: '#94A3B8', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                No custom customer/suki features yet. Uses default limits on mobile.
+                              </div>
+                            ) : (
+                              (editingTier.customer_benefits || []).map((b, idx, arr) => (
+                                <div 
+                                  key={idx}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData('text/plain', idx);
+                                    e.currentTarget.style.opacity = '0.5';
+                                  }}
+                                  onDragEnd={(e) => {
+                                    e.currentTarget.style.opacity = '1';
+                                  }}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                                    if (!isNaN(fromIdx) && fromIdx !== idx) {
+                                      handleReorderBenefit('customer', fromIdx, idx);
+                                    }
+                                  }}
+                                  style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between', 
+                                    backgroundColor: '#F0FDFA', 
+                                    padding: '10px 14px', 
+                                    borderRadius: '12px', 
+                                    border: '1px solid #99F6E4', 
+                                    boxShadow: '0 2px 6px rgba(15, 118, 110, 0.04)',
+                                    cursor: 'grab'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, marginRight: '8px' }}>
+                                    <span style={{ fontSize: '1.1rem', color: '#00897B', cursor: 'grab', userSelect: 'none', fontWeight: 900 }}>⋮⋮</span>
+                                    <span style={{ fontWeight: 900, color: '#00897B', fontSize: '0.85rem' }}>✓</span>
+                                    <input
+                                      type="text"
+                                      className="admin-search-input"
+                                      style={{
+                                        flex: 1,
+                                        padding: '6px 10px',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 700,
+                                        border: '1px solid #99F6E4',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#FFFFFF',
+                                        color: '#0F172A'
+                                      }}
+                                      value={b}
+                                      onChange={(e) => handleUpdateBenefitText('customer', idx, e.target.value)}
+                                      placeholder="Type suki feature text..."
+                                    />
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    {/* Move to Merchant Side Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveBenefitSide('customer', idx)}
+                                      style={{
+                                        padding: '4px 8px',
+                                        backgroundColor: '#FFF7ED',
+                                        border: '1px solid #FDBA74',
+                                        color: '#C2410C',
+                                        borderRadius: '6px',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Move feature to Store & Merchant section"
+                                    >
+                                      🏬 Move to Merchant
+                                    </button>
+
+                                    {/* Up / Down */}
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={() => handleReorderBenefit('customer', idx, idx - 1)}
+                                      style={{ background: idx === 0 ? '#F1F5F9' : '#E0F2FE', border: '1px solid #99F6E4', color: idx === 0 ? '#CBD5E1' : '#0F766E', width: '26px', height: '26px', borderRadius: '6px', fontWeight: 900, cursor: idx === 0 ? 'not-allowed' : 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      title="Move Up"
+                                    >
+                                      ▲
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={idx === arr.length - 1}
+                                      onClick={() => handleReorderBenefit('customer', idx, idx + 1)}
+                                      style={{ background: idx === arr.length - 1 ? '#F1F5F9' : '#E0F2FE', border: '1px solid #99F6E4', color: idx === arr.length - 1 ? '#CBD5E1' : '#0F766E', width: '26px', height: '26px', borderRadius: '6px', fontWeight: 900, cursor: idx === arr.length - 1 ? 'not-allowed' : 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      title="Move Down"
+                                    >
+                                      ▼
+                                    </button>
+
+                                    {/* Delete */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveBenefit('customer', idx)}
+                                      style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', width: '26px', height: '26px', borderRadius: '50%', fontWeight: 900, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      title="Remove Feature"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
                         </div>
                       </div>
 

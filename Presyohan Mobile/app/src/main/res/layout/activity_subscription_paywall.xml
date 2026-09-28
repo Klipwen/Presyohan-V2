@@ -48,7 +48,7 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="2dp"
             android:text="Level up your"
-            android:textColor="#0284C7"
+            android:textColor="@color/presyo_teal"
             android:textSize="20sp"
             android:textStyle="bold" />
 

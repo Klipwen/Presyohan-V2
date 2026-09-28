@@ -118,47 +118,81 @@ class PaywallCardAdapter(
             val context = itemView.context
             layoutCardBenefitsContainer.removeAllViews()
 
-            val rawList = mutableListOf<String>()
-            if (tier.merchantBenefits.isNotEmpty() || tier.customerBenefits.isNotEmpty()) {
-                rawList.addAll(tier.merchantBenefits)
-                rawList.addAll(tier.customerBenefits)
-            } else {
-                rawList.add(if (tier.storeLimit > 900) "Unlimited Stores" else "Up to ${tier.storeLimit} Stores")
-                rawList.add(if (tier.itemsPerStoreLimit > 9000) "Unlimited items / store" else "${tier.itemsPerStoreLimit} items / store")
-                rawList.add(if (tier.categoriesPerStoreLimit > 900) "Unlimited Categories" else "${tier.categoriesPerStoreLimit} categories / store")
-                rawList.add(if (tier.membersPerStoreLimit > 900) "Unlimited staff / store" else "${tier.membersPerStoreLimit} staff / store")
-                rawList.add("${tier.aiQuotaDaily} AI parses / day")
-                if (tier.allowPriceCloning) rawList.add("Price Cloning & Export")
-                if (tier.allowCustomerPairing) rawList.add("Customer Pairing (suki)")
-                if (tier.allowExcelExport) rawList.add("Convert to Excel & PDF")
-                if (tier.sukiLimit > 0) rawList.add(if (tier.sukiLimit > 900) "Unlimited Suki Partners" else "${tier.sukiLimit} Suki Partners")
-                if (tier.internetSearchQuota > 0) rawList.add("${tier.internetSearchQuota} Internet Searches / day")
-                if (tier.hasPrioritySupport || isVip) rawList.add("24/7 VIP Priority Support")
-            }
-
-            // Clean leading emojis, bullets, and whitespace from admin strings
-            val cleanList = rawList.mapNotNull { raw ->
-                val clean = raw.replace(Regex("^[\\p{So}\\p{Sk}\\p{Sm}\\p{Sc}\\s•\\-]+"), "").trim()
-                if (clean.isNotEmpty()) clean else null
-            }.take(14) // Max 14 items to cleanly fit the card layout
-
+            val primaryColor = ContextCompat.getColor(context, if (isVip) R.color.presyo_teal else R.color.presyo_orange)
             val checkIconRes = if (isVip) R.drawable.ic_check_circle_teal else R.drawable.ic_check_circle_orange
             val density = context.resources.displayMetrics.density
 
-            cleanList.forEachIndexed { index, benefitText ->
+            // 1. Gather Merchant Benefits (up to 6 max)
+            val rawMerchant = mutableListOf<String>()
+            if (tier.merchantBenefits.isNotEmpty()) {
+                rawMerchant.addAll(tier.merchantBenefits)
+            } else {
+                rawMerchant.add(if (tier.storeLimit > 900) "Unlimited Stores" else "Up to ${tier.storeLimit} Stores")
+                rawMerchant.add(if (tier.itemsPerStoreLimit > 9000) "Unlimited items / store" else "${tier.itemsPerStoreLimit} items / store")
+                rawMerchant.add(if (tier.categoriesPerStoreLimit > 900) "Unlimited Categories" else "${tier.categoriesPerStoreLimit} categories / store")
+                rawMerchant.add(if (tier.membersPerStoreLimit > 900) "Unlimited staff / store" else "${tier.membersPerStoreLimit} staff / store")
+                rawMerchant.add("${tier.aiQuotaDaily} AI parses / day")
+                if (tier.allowCustomerPairing) rawMerchant.add("Unlocked Customer Pairing (suki)")
+                if (tier.allowPdfExport) rawMerchant.add("Convert to PDF")
+                if (tier.allowExcelExport) rawMerchant.add("Convert to Excel")
+                if (tier.allowPriceCloning) rawMerchant.add("Price Cloning & Export")
+            }
+
+            val merchantList = rawMerchant.mapNotNull { raw ->
+                val clean = raw.replace(Regex("^[\\p{So}\\p{Sk}\\p{Sm}\\p{Sc}\\s•\\-]+"), "").trim()
+                if (clean.isNotEmpty()) clean else null
+            }.take(6) // Max 6 merchant benefits
+
+            // 2. Gather Customer & Suki Partner Benefits (up to 6 max)
+            val rawCustomer = mutableListOf<String>()
+            if (tier.customerBenefits.isNotEmpty()) {
+                rawCustomer.addAll(tier.customerBenefits)
+            } else {
+                rawCustomer.add(if (tier.sukiLimit > 900) "Unlimited Suking Tindahan Partners" else "Suking Tindahan Partners: ${tier.sukiLimit} Partners")
+                rawCustomer.add(if (tier.presyohanStoresLimit > 900) "Unlimited Presyohan Stores" else "Presyohan Store Limit: ${tier.presyohanStoresLimit} Stores")
+                if (tier.internetSearchQuota > 0) {
+                    rawCustomer.add(if (tier.internetSearchQuota > 900) "Unlimited Internet Search Quota" else "Internet Search Quota: ${tier.internetSearchQuota} Searches / day")
+                }
+            }
+
+            val customerList = rawCustomer.mapNotNull { raw ->
+                val clean = raw.replace(Regex("^[\\p{So}\\p{Sk}\\p{Sm}\\p{Sc}\\s•\\-]+"), "").trim()
+                if (clean.isNotEmpty()) clean else null
+            }.take(6) // Max 6 customer benefits
+
+            fun addSectionHeader(title: String, isFirstSection: Boolean) {
+                val tvHeader = TextView(context).apply {
+                    text = title
+                    setTextColor(primaryColor)
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = if (isFirstSection) 0 else (8 * density).toInt()
+                        bottomMargin = (4 * density).toInt()
+                    }
+                    layoutParams = lp
+                }
+                layoutCardBenefitsContainer.addView(tvHeader)
+            }
+
+            fun addBenefitRow(benefitText: String) {
                 val rowLayout = LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                     val lp = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                    if (index > 0) lp.topMargin = (5 * density).toInt()
+                    ).apply {
+                        topMargin = (3 * density).toInt()
+                    }
                     layoutParams = lp
                 }
 
                 val checkIcon = ImageView(context).apply {
-                    val iconSize = (16 * density).toInt()
+                    val iconSize = (15 * density).toInt()
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
                     setImageResource(checkIconRes)
                 }
@@ -182,6 +216,18 @@ class PaywallCardAdapter(
                 rowLayout.addView(checkIcon)
                 rowLayout.addView(textView)
                 layoutCardBenefitsContainer.addView(rowLayout)
+            }
+
+            // Render Merchant Features Section
+            if (merchantList.isNotEmpty()) {
+                addSectionHeader("Store & Merchant Features", isFirstSection = true)
+                merchantList.forEach { addBenefitRow(it) }
+            }
+
+            // Render Customer Features Section
+            if (customerList.isNotEmpty()) {
+                addSectionHeader("Customer & Suki Partner Features", isFirstSection = merchantList.isEmpty())
+                customerList.forEach { addBenefitRow(it) }
             }
         }
     }

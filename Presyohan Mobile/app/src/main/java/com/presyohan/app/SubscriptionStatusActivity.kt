@@ -319,39 +319,89 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         container.removeAllViews()
 
         val info = SubscriptionManager.getTierInfo(tierId)
-        val benefitsList = mutableListOf<String>()
-
-        if (info.merchantBenefits.isNotEmpty()) {
-            benefitsList.addAll(info.merchantBenefits)
+        val isVip = tierId == "vip"
+        val isPro = tierId == "pro"
+        val tierLabelColor = if (isVip) {
+            ContextCompat.getColor(this, R.color.presyo_teal)
+        } else if (isPro) {
+            ContextCompat.getColor(this, R.color.presyo_orange)
         } else {
-            benefitsList.add(if (info.storeLimit > 900) "Unlimited Stores" else "Up to ${info.storeLimit} Stores")
-            benefitsList.add(if (info.membersPerStoreLimit > 900) "Unlimited staff / store" else "${info.membersPerStoreLimit} staff / store")
-            benefitsList.add(if (info.itemsPerStoreLimit > 9000) "Unlimited items / store" else "${info.itemsPerStoreLimit} items / store")
-            benefitsList.add("${info.aiQuotaDaily} AI parses / day")
-            if (info.allowPriceCloning) benefitsList.add("Store Price Cloning")
-            if (info.allowExcelExport) benefitsList.add("Excel & PDF Export")
-            if (info.sukiLimit > 0) benefitsList.add(if (info.sukiLimit > 900) "Unlimited Suki Partners" else "${info.sukiLimit} Suki Partners")
+            Color.parseColor("#4B5563")
+        }
+
+        // 1. Merchant Features
+        val rawMerchant = mutableListOf<String>()
+        if (info.merchantBenefits.isNotEmpty()) {
+            rawMerchant.addAll(info.merchantBenefits)
+        } else {
+            rawMerchant.add(if (info.storeLimit > 900) "Unlimited Stores" else "Up to ${info.storeLimit} Stores")
+            rawMerchant.add(if (info.membersPerStoreLimit > 900) "Unlimited staff / store" else "${info.membersPerStoreLimit} staff / store")
+            rawMerchant.add(if (info.itemsPerStoreLimit > 9000) "Unlimited items / store" else "${info.itemsPerStoreLimit} items / store")
+            rawMerchant.add(if (info.categoriesPerStoreLimit > 900) "Unlimited Categories" else "${info.categoriesPerStoreLimit} categories / store")
+            rawMerchant.add("${info.aiQuotaDaily} AI parses / day")
+            if (info.allowCustomerPairing) rawMerchant.add("Unlocked Customer Pairing (suki)")
+            if (info.allowPdfExport) rawMerchant.add("Convert to PDF")
+            if (info.allowExcelExport) rawMerchant.add("Convert to Excel")
+            if (info.allowPriceCloning) rawMerchant.add("Price Cloning & Export")
+        }
+
+        val merchantList = rawMerchant.mapNotNull { raw ->
+            val clean = raw.replace(Regex("^[\\p{So}\\p{Sk}\\p{Sm}\\p{Sc}\\s•\\-]+"), "").trim()
+            if (clean.isNotEmpty()) clean else null
+        }
+
+        // 2. Customer & Suki Features
+        val rawCustomer = mutableListOf<String>()
+        if (info.customerBenefits.isNotEmpty()) {
+            rawCustomer.addAll(info.customerBenefits)
+        } else {
+            rawCustomer.add(if (info.sukiLimit > 900) "Suking Tindahan Partners: Unlimited Partners" else "Suking Tindahan Partners: ${info.sukiLimit} Partners")
+            rawCustomer.add(if (info.presyohanStoresLimit > 900) "Presyohan Store Limit: Unlimited Stores" else "Presyohan Store Limit: ${info.presyohanStoresLimit} Stores")
+            if (info.internetSearchQuota > 0) {
+                rawCustomer.add(if (info.internetSearchQuota > 900) "Internet Search Quota: Unlimited Searches" else "Internet Search Quota: ${info.internetSearchQuota} Searches / day")
+            }
+        }
+
+        val customerList = rawCustomer.mapNotNull { raw ->
+            val clean = raw.replace(Regex("^[\\p{So}\\p{Sk}\\p{Sm}\\p{Sc}\\s•\\-]+"), "").trim()
+            if (clean.isNotEmpty()) clean else null
         }
 
         val density = resources.displayMetrics.density
-        benefitsList.forEachIndexed { idx, rawFeatureText ->
-            // Clean leading bullet characters/emojis if any exist in data
-            val featureText = rawFeatureText.replace(Regex("^[^a-zA-Z0-9]+"), "").trim()
-            if (featureText.isEmpty()) return@forEachIndexed
 
+        fun addSectionHeader(title: String, isFirst: Boolean) {
+            val tvHeader = TextView(this).apply {
+                text = title
+                setTextColor(tierLabelColor)
+                textSize = 12f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = if (isFirst) 0 else (12 * density).toInt()
+                    bottomMargin = (4 * density).toInt()
+                }
+                layoutParams = params
+            }
+            container.addView(tvHeader)
+        }
+
+        fun addBenefitRow(featureText: String) {
             val rowLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
                 val params = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                if (idx > 0) params.topMargin = (8 * density).toInt()
+                ).apply {
+                    topMargin = (6 * density).toInt()
+                }
                 layoutParams = params
             }
 
             val checkIcon = ImageView(this).apply {
-                val iconSize = (18 * density).toInt()
+                val iconSize = (17 * density).toInt()
                 layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
                 setImageResource(checkIconRes)
             }
@@ -361,13 +411,13 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    marginStart = (10 * density).toInt()
+                    marginStart = (9 * density).toInt()
                 }
                 layoutParams = tvParams
                 text = featureText
                 setTextColor(textColor)
                 textSize = 13f
-                if (featureText.contains("Unlimited", ignoreCase = true) || tierId == "vip") {
+                if (featureText.contains("Unlimited", ignoreCase = true) || isVip) {
                     typeface = android.graphics.Typeface.DEFAULT_BOLD
                 }
             }
@@ -375,6 +425,16 @@ class SubscriptionStatusActivity : AppCompatActivity() {
             rowLayout.addView(checkIcon)
             rowLayout.addView(tv)
             container.addView(rowLayout)
+        }
+
+        if (merchantList.isNotEmpty()) {
+            addSectionHeader("Store & Merchant Features", isFirst = true)
+            merchantList.forEach { addBenefitRow(it) }
+        }
+
+        if (customerList.isNotEmpty()) {
+            addSectionHeader("Customer & Suki Partner Features", isFirst = merchantList.isEmpty())
+            customerList.forEach { addBenefitRow(it) }
         }
     }
 
