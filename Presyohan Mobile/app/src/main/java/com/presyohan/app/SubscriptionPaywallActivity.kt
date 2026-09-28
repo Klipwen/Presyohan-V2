@@ -84,12 +84,18 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
             tvCustomerSukiSub.text = info.customerBenefits.getOrNull(0) ?: (if (info.sukiLimit > 900) "Unlimited partner stores" else "${info.sukiLimit} partner stores")
             tvCustomerStoresSub.text = info.customerBenefits.getOrNull(1) ?: (if (info.sukiLimit > 900) "Unlimited Presyohan Stores" else "${info.sukiLimit} Presyohan Stores")
 
-            tvPaywallPrice.text = "₱${info.priceValue.toInt()} / month"
-            tvPaywallPriceSubtitle.text = if (info.trialDays > 0) "Includes ${info.trialDays}-Day Free Trial" else if (info.hasPrioritySupport || tier == "vip") "Includes Priority VIP Support" else "Cancel Anytime"
+            val expText = info.promoExpirationText
+            tvPaywallPriceSubtitle.text = when {
+                !expText.isNullOrBlank() -> expText
+                !info.effectiveBadgeText.isNullOrBlank() -> info.effectiveBadgeText
+                info.trialDays > 0 -> "Includes ${info.trialDays}-Day Free Trial"
+                info.hasPrioritySupport || tier == "vip" -> "Includes Priority VIP Support"
+                else -> "Cancel Anytime"
+            }
             btnStartTrial.text = if (info.trialDays > 0) {
                 "START ${info.trialDays}-DAY TRIAL FOR ${info.name.uppercase()}"
             } else {
-                "UPGRADE TO ${info.name.uppercase()} (${info.priceText}/MO)"
+                "UPGRADE TO ${info.name.uppercase()} (${info.effectivePriceText}/MO)"
             }
 
             val isVip = tier == "vip"
@@ -152,7 +158,7 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
                 val success = SubscriptionManager.updateUserSubscription(this@SubscriptionPaywallActivity, selectedTier)
                 if (success) {
                     val tierInfo = SubscriptionManager.getTierInfo(selectedTier)
-                    Toast.makeText(this@SubscriptionPaywallActivity, "🎉 Welcome to Presyohan ${tierInfo.name}!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@SubscriptionPaywallActivity, "Welcome to Presyohan ${tierInfo.name}!", Toast.LENGTH_LONG).show()
                     setResult(Activity.RESULT_OK, Intent().putExtra("SUBSCRIBED_TIER", selectedTier))
                     finish()
                 } else {

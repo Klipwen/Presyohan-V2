@@ -97,12 +97,19 @@ object SubscriptionPaywallDialog {
             tvCustomerSukiSub.text = info.customerBenefits.getOrNull(0) ?: (if (info.sukiLimit > 900) "Unlimited partner stores" else "${info.sukiLimit} partner stores")
             tvCustomerStoresSub.text = info.customerBenefits.getOrNull(1) ?: (if (info.sukiLimit > 900) "Unlimited Presyohan Stores" else "${info.sukiLimit} Presyohan Stores")
 
-            tvPaywallPrice.text = "₱${info.priceValue.toInt()}.00 / month"
-            tvPaywallPriceSubtitle.text = if (info.trialDays > 0) "Includes ${info.trialDays}-Day Free Trial" else if (info.hasPrioritySupport || tier == "vip") "Includes Priority VIP Support" else "Cancel Anytime"
+            tvPaywallPrice.text = "${info.effectivePriceText} / month"
+            val expText = info.promoExpirationText
+            tvPaywallPriceSubtitle.text = when {
+                !expText.isNullOrBlank() -> expText
+                !info.effectiveBadgeText.isNullOrBlank() -> info.effectiveBadgeText
+                info.trialDays > 0 -> "Includes ${info.trialDays}-Day Free Trial"
+                info.hasPrioritySupport || tier == "vip" -> "Includes Priority VIP Support"
+                else -> "Cancel Anytime"
+            }
             btnStartTrial.text = if (info.trialDays > 0) {
                 "START ${info.trialDays}-DAY TRIAL FOR ${info.name.uppercase()}"
             } else {
-                "UPGRADE TO ${info.name.uppercase()} (${info.priceText}/MO)"
+                "UPGRADE TO ${info.name.uppercase()} (${info.effectivePriceText}/MO)"
             }
 
             val isVip = tier == "vip"
@@ -166,7 +173,7 @@ object SubscriptionPaywallDialog {
                 val success = SubscriptionManager.updateUserSubscription(context, selectedTier)
                 if (success) {
                     val tierInfo = SubscriptionManager.getTierInfo(selectedTier)
-                    Toast.makeText(context, "🎉 Welcome to Presyohan ${tierInfo.name}!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Welcome to Presyohan ${tierInfo.name}!", Toast.LENGTH_LONG).show()
                     onSubscribed?.invoke(selectedTier)
                     dialog.dismiss()
                 } else {

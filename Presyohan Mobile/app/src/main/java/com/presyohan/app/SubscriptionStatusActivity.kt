@@ -133,9 +133,88 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         val proInfo = SubscriptionManager.getTierInfo("pro")
         val vipInfo = SubscriptionManager.getTierInfo("vip")
 
-        findViewById<TextView>(R.id.tvCardPriceFree)?.text = freeInfo.priceText
-        findViewById<TextView>(R.id.tvCardPricePro)?.text = proInfo.priceText
-        findViewById<TextView>(R.id.tvCardPriceVip)?.text = vipInfo.priceText
+        // Dynamic Title, Prices, Periods & Descriptions from Admin Config
+        findViewById<TextView>(R.id.tvCardTitlePro)?.text = proInfo.name
+        findViewById<TextView>(R.id.tvCardPricePro)?.text = proInfo.effectivePriceText
+        findViewById<TextView>(R.id.tvCardPeriodPro)?.text = proInfo.periodText
+        findViewById<TextView>(R.id.tvCardDescPro)?.text = proInfo.description
+
+        val tvOrigPro = findViewById<TextView>(R.id.tvCardOriginalPricePro)
+        if (proInfo.originalPriceText != null) {
+            tvOrigPro?.text = proInfo.originalPriceText
+            tvOrigPro?.paintFlags = (tvOrigPro?.paintFlags ?: 0) or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
+            tvOrigPro?.visibility = View.VISIBLE
+        } else {
+            tvOrigPro?.visibility = View.GONE
+        }
+
+        val promoBadgePro = findViewById<TextView>(R.id.tvPromoBadgePro)
+        if (!proInfo.effectiveBadgeText.isNullOrBlank()) {
+            promoBadgePro?.text = proInfo.effectiveBadgeText
+            promoBadgePro?.visibility = View.VISIBLE
+        } else {
+            promoBadgePro?.visibility = View.GONE
+        }
+
+        val tvPromoExpPro = findViewById<TextView>(R.id.tvPromoExpirationPro)
+        if (!proInfo.promoExpirationText.isNullOrBlank()) {
+            tvPromoExpPro?.text = proInfo.promoExpirationText
+            tvPromoExpPro?.visibility = View.VISIBLE
+        } else {
+            tvPromoExpPro?.visibility = View.GONE
+        }
+
+        findViewById<TextView>(R.id.tvCardTitleVip)?.text = vipInfo.name
+        findViewById<TextView>(R.id.tvCardPriceVip)?.text = vipInfo.effectivePriceText
+        findViewById<TextView>(R.id.tvCardPeriodVip)?.text = vipInfo.periodText
+        findViewById<TextView>(R.id.tvCardDescVip)?.text = vipInfo.description
+
+        val tvOrigVip = findViewById<TextView>(R.id.tvCardOriginalPriceVip)
+        if (vipInfo.originalPriceText != null) {
+            tvOrigVip?.text = vipInfo.originalPriceText
+            tvOrigVip?.paintFlags = (tvOrigVip?.paintFlags ?: 0) or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
+            tvOrigVip?.visibility = View.VISIBLE
+        } else {
+            tvOrigVip?.visibility = View.GONE
+        }
+
+        val promoBadgeVip = findViewById<TextView>(R.id.tvPromoBadgeVip)
+        if (!vipInfo.effectiveBadgeText.isNullOrBlank()) {
+            promoBadgeVip?.text = vipInfo.effectiveBadgeText
+            promoBadgeVip?.visibility = View.VISIBLE
+        } else {
+            promoBadgeVip?.visibility = View.GONE
+        }
+
+        val tvPromoExpVip = findViewById<TextView>(R.id.tvPromoExpirationVip)
+        if (!vipInfo.promoExpirationText.isNullOrBlank()) {
+            tvPromoExpVip?.text = vipInfo.promoExpirationText
+            tvPromoExpVip?.visibility = View.VISIBLE
+        } else {
+            tvPromoExpVip?.visibility = View.GONE
+        }
+
+        findViewById<TextView>(R.id.tvCardTitleFree)?.text = freeInfo.name
+        findViewById<TextView>(R.id.tvCardPriceFree)?.text = freeInfo.effectivePriceText
+        findViewById<TextView>(R.id.tvCardPeriodFree)?.text = freeInfo.periodText
+        findViewById<TextView>(R.id.tvCardDescFree)?.text = freeInfo.description
+
+        val tvOrigFree = findViewById<TextView>(R.id.tvCardOriginalPriceFree)
+        if (freeInfo.originalPriceText != null) {
+            tvOrigFree?.text = freeInfo.originalPriceText
+            tvOrigFree?.paintFlags = (tvOrigFree?.paintFlags ?: 0) or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
+            tvOrigFree?.visibility = View.VISIBLE
+        } else {
+            tvOrigFree?.visibility = View.GONE
+        }
+
+        val promoBadgeFree = findViewById<TextView>(R.id.tvPromoBadgeFree)
+        if (!freeInfo.effectiveBadgeText.isNullOrBlank()) {
+            promoBadgeFree?.text = freeInfo.effectiveBadgeText
+            promoBadgeFree?.visibility = View.VISIBLE
+        } else {
+            promoBadgeFree?.visibility = View.GONE
+        }
 
         when (tier.id) {
             "pro" -> {
@@ -146,7 +225,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 tvActiveTierName.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectFree.isEnabled = true
-                btnSelectFree.text = "DOWNGRADE TO FREE"
+                btnSelectFree.text = freeInfo.ctaButtonText ?: "DOWNGRADE TO FREE"
                 btnSelectFree.setBackgroundResource(R.drawable.bg_btn_done_outline)
                 btnSelectFree.setTextColor(Color.parseColor("#6B7280"))
 
@@ -156,7 +235,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 btnSelectPro.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectVip.isEnabled = true
-                btnSelectVip.text = "UPGRADE TO VIP (${vipInfo.priceText}/MO)"
+                btnSelectVip.text = vipInfo.ctaButtonText ?: "UPGRADE TO VIP (${vipInfo.effectivePriceText}/MO)"
                 btnSelectVip.setBackgroundResource(R.drawable.bg_button_rect_teal)
                 btnSelectVip.setTextColor(Color.WHITE)
             }
@@ -168,12 +247,12 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 tvActiveTierName.setTextColor(ContextCompat.getColor(this, R.color.presyo_teal))
 
                 btnSelectFree.isEnabled = true
-                btnSelectFree.text = "SWITCH TO FREE"
+                btnSelectFree.text = freeInfo.ctaButtonText ?: "SWITCH TO FREE"
                 btnSelectFree.setBackgroundResource(R.drawable.bg_btn_done_outline)
                 btnSelectFree.setTextColor(Color.parseColor("#6B7280"))
 
                 btnSelectPro.isEnabled = true
-                btnSelectPro.text = "SWITCH TO PRO"
+                btnSelectPro.text = proInfo.ctaButtonText ?: "SWITCH TO PRO"
                 btnSelectPro.setBackgroundResource(R.drawable.bg_btn_orange_outline)
                 btnSelectPro.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
@@ -188,29 +267,29 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 tvActiveTierName.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectFree.isEnabled = false
-                btnSelectFree.text = "CURRENT ACTIVE PLAN"
+                btnSelectFree.text = freeInfo.ctaButtonText ?: "CURRENT ACTIVE PLAN"
                 btnSelectFree.setBackgroundResource(R.drawable.bg_btn_orange_outline)
                 btnSelectFree.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectPro.isEnabled = true
-                btnSelectPro.text = "UPGRADE TO PRO (${proInfo.priceText}/MO)"
+                btnSelectPro.text = proInfo.ctaButtonText ?: "UPGRADE TO PRO (${proInfo.effectivePriceText}/MO)"
                 btnSelectPro.setBackgroundResource(R.drawable.bg_solid_button_orange)
                 btnSelectPro.setTextColor(Color.WHITE)
 
                 btnSelectVip.isEnabled = true
-                btnSelectVip.text = "UPGRADE TO VIP (${vipInfo.priceText}/MO)"
+                btnSelectVip.text = vipInfo.ctaButtonText ?: "UPGRADE TO VIP (${vipInfo.effectivePriceText}/MO)"
                 btnSelectVip.setBackgroundResource(R.drawable.bg_button_rect_teal)
                 btnSelectVip.setTextColor(Color.WHITE)
             }
         }
         layoutActiveHeader.layoutParams = params
 
-        renderTierFeatures(R.id.featuresFree, "free", "•", Color.parseColor("#374151"))
-        renderTierFeatures(R.id.featuresPro, "pro", "✓", Color.parseColor("#1F2937"))
-        renderTierFeatures(R.id.featuresVip, "vip", "★", Color.parseColor("#064E3B"))
+        renderTierFeatures(R.id.featuresPro, "pro", R.drawable.ic_check_circle_orange, Color.parseColor("#1F2937"))
+        renderTierFeatures(R.id.featuresVip, "vip", R.drawable.ic_check_circle_teal, Color.parseColor("#064E3B"))
+        renderTierFeatures(R.id.featuresFree, "free", R.drawable.ic_check_circle_grey, Color.parseColor("#374151"))
     }
 
-    private fun renderTierFeatures(containerId: Int, tierId: String, symbol: String, textColor: Int) {
+    private fun renderTierFeatures(containerId: Int, tierId: String, checkIconRes: Int, textColor: Int) {
         val container = findViewById<LinearLayout>(containerId) ?: return
         container.removeAllViews()
 
@@ -230,21 +309,47 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         }
 
         val density = resources.displayMetrics.density
-        benefitsList.forEachIndexed { idx, featureText ->
-            val tv = TextView(this)
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            if (idx > 0) params.topMargin = (6 * density).toInt()
-            tv.layoutParams = params
-            tv.text = "$symbol $featureText"
-            tv.setTextColor(textColor)
-            tv.textSize = 13f
-            if (symbol == "★" || featureText.contains("Unlimited", ignoreCase = true)) {
-                tv.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        benefitsList.forEachIndexed { idx, rawFeatureText ->
+            // Clean leading bullet characters/emojis if any exist in data
+            val featureText = rawFeatureText.replace(Regex("^[^a-zA-Z0-9]+"), "").trim()
+            if (featureText.isEmpty()) return@forEachIndexed
+
+            val rowLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                if (idx > 0) params.topMargin = (8 * density).toInt()
+                layoutParams = params
             }
-            container.addView(tv)
+
+            val checkIcon = ImageView(this).apply {
+                val iconSize = (18 * density).toInt()
+                layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                setImageResource(checkIconRes)
+            }
+
+            val tv = TextView(this).apply {
+                val tvParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginStart = (10 * density).toInt()
+                }
+                layoutParams = tvParams
+                text = featureText
+                setTextColor(textColor)
+                textSize = 13f
+                if (featureText.contains("Unlimited", ignoreCase = true) || tierId == "vip") {
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                }
+            }
+
+            rowLayout.addView(checkIcon)
+            rowLayout.addView(tv)
+            container.addView(rowLayout)
         }
     }
 
@@ -288,29 +393,6 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-    }
-
-    private fun showUpgradeDialog(targetTier: SubscriptionTierInfo) {
-        val message = "Upgrade your Presyohan account to ${targetTier.name} for ${targetTier.priceText}${targetTier.periodText}!\n\n" +
-                "Features Unlocked:\n" +
-                "• ${SubscriptionManager.formatLimitText(targetTier.storeLimit)} Owned Stores & Branches\n" +
-                "• ${SubscriptionManager.formatLimitText(targetTier.membersPerStoreLimit)} Staff Members per Store\n" +
-                "• ${SubscriptionManager.formatLimitText(targetTier.itemsPerStoreLimit)} Items per Store\n" +
-                "• ${targetTier.aiQuotaDaily} Daily AI Scans & Invoice Imports\n" +
-                (if (targetTier.allowPriceCloning) "• Store Price Cloning & Catalog Imports\n" else "") +
-                (if (targetTier.allowExcelExport) "• Convert Pricelists to Excel & PDF\n" else "") +
-                "\nWould you like to activate this subscription plan now?"
-
-        ReusableDialogHelper.showCustomDialog(
-            context = this,
-            title = "Confirm Subscription Upgrade",
-            message = message,
-            positiveButtonText = "Subscribe Now (${targetTier.priceText})",
-            positiveAction = {
-                processSubscriptionChange(targetTier.id)
-            },
-            negativeButtonText = "Cancel"
-        )
     }
 
     private fun showDowngradeDialog(targetTierId: String) {
