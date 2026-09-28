@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="4dp">
+
+    <LinearLayout
+        android:id="@+id/cardContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:background="@drawable/bg_paywall_card_pro"
+        android:elevation="3dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
+
+        <!-- Top Header Row: Icon, Title, Price, Period, Expiration & Promo Badge -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/imgCardTierIcon"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:contentDescription="Tier Icon"
+                android:src="@drawable/icon_pro" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvCardTierTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    tools:text="PRO Tier" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tvCardEffectivePrice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        tools:text="₱50" />
+
+                    <TextView
+                        android:id="@+id/tvCardOriginalPrice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:textColor="#94A3B8"
+                        android:textSize="13sp"
+                        android:visibility="gone"
+                        tools:text="₱99" />
+
+                    <TextView
+                        android:id="@+id/tvCardPeriod"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="/ month"
+                        android:textColor="#64748B"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvCardPromoExpiration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:textColor="#64748B"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="Special offer valid until Nov 30, 2026" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvCardPromoBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_promo_chip_orange"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:textColor="@color/presyo_orange"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="+ 50% OFF" />
+        </LinearLayout>
+
+        <!-- Description -->
+        <TextView
+            android:id="@+id/tvCardDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="#475569"
+            android:textSize="11.5sp"
+            tools:text="Ideal for growing single &amp; multi-branch retail stores." />
+
+        <!-- Card Divider -->
+        <View
+            android:id="@+id/dividerCard"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#FED7AA" />
+
+        <!-- Benefits Checkmarks List Container -->
+        <LinearLayout
+            android:id="@+id/layoutCardBenefitsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <!-- Dynamically populated up to 14 checks -->
+        </LinearLayout>
+
+        <!-- View Full Benefits Button -->
+        <TextView
+            android:id="@+id/btnCardViewFullBenefits"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_paywall_btn_view_benefits"
+            android:gravity="center"
+            android:text="View full benefits"
+            android:textColor="#475569"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+</FrameLayout>

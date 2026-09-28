@@ -4,17 +4,18 @@ import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.AppCompatButton
 import androidx.core.content.ContextCompat
+import androidx.viewpager2.widget.ViewPager2
+import com.presyohan.app.adapter.PaywallCardAdapter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 object SubscriptionPaywallDialog {
 
@@ -24,7 +25,7 @@ object SubscriptionPaywallDialog {
         onSubscribed: ((String) -> Unit)? = null
     ): Dialog {
         val dialog = Dialog(context, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen)
-        val view = LayoutInflater.from(context).inflate(R.layout.dialog_subscription_paywall, null)
+        val view = LayoutInflater.from(context).inflate(R.layout.activity_subscription_paywall, null)
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.window?.let { window ->
@@ -42,133 +43,95 @@ object SubscriptionPaywallDialog {
         val btnClose = view.findViewById<FrameLayout>(R.id.btnClosePaywall)
         val btnTabPro = view.findViewById<TextView>(R.id.btnTabPro)
         val btnTabVip = view.findViewById<TextView>(R.id.btnTabVip)
-
-        val tvMerchantStoresSub = view.findViewById<TextView>(R.id.tvMerchantStoresSub)
-        val tvMerchantItemsSub = view.findViewById<TextView>(R.id.tvMerchantItemsSub)
-        val tvMerchantStaffSub = view.findViewById<TextView>(R.id.tvMerchantStaffSub)
-        val tvMerchantAiSub = view.findViewById<TextView>(R.id.tvMerchantAiSub)
-        val tvMerchantPhotoSub = view.findViewById<TextView>(R.id.tvMerchantPhotoSub)
-
-        val tvCustomerSukiSub = view.findViewById<TextView>(R.id.tvCustomerSukiSub)
-        val tvCustomerStoresSub = view.findViewById<TextView>(R.id.tvCustomerStoresSub)
-
-        val btnViewFullBenefits = view.findViewById<TextView>(R.id.btnViewFullBenefits)
-        val layoutFullBenefits = view.findViewById<LinearLayout>(R.id.layoutFullBenefits)
-
-        val tvPaywallPrice = view.findViewById<TextView>(R.id.tvPaywallPrice)
-        val tvPaywallPriceSubtitle = view.findViewById<TextView>(R.id.tvPaywallPriceSubtitle)
-        val tvCurrentPlanDropdown = view.findViewById<TextView>(R.id.tvCurrentPlanDropdown)
-        val btnStartTrial = view.findViewById<AppCompatButton>(R.id.btnStartTrial)
-
-        val cardPaywallMerchant = view.findViewById<LinearLayout>(R.id.cardPaywallMerchant)
-        val cardPaywallCustomer = view.findViewById<LinearLayout>(R.id.cardPaywallCustomer)
-        val tvMerchantSectionHeader = view.findViewById<TextView>(R.id.tvMerchantSectionHeader)
-        val tvCustomerSectionHeader = view.findViewById<TextView>(R.id.tvCustomerSectionHeader)
-
-        val checkViews = listOf(
-            R.id.tvCheckMerchant1, R.id.tvCheckMerchant2, R.id.tvCheckMerchant3,
-            R.id.tvCheckMerchant4, R.id.tvCheckMerchant5, R.id.tvCheckMerchant6,
-            R.id.tvCheckCustomer1, R.id.tvCheckCustomer2, R.id.tvCheckCustomer3
-        ).mapNotNull { view.findViewById<TextView>(it) }
-
-        val titleViews = listOf(
-            R.id.tvMerchantStoresTitle, R.id.tvMerchantItemsTitle, R.id.tvMerchantStaffTitle,
-            R.id.tvMerchantAiTitle, R.id.tvMerchantPhotoTitle, R.id.tvMerchantSukiTitle,
-            R.id.tvCustomerSukiTitle, R.id.tvCustomerStoresTitle, R.id.tvCustomerAiSearchTitle
-        ).mapNotNull { view.findViewById<TextView>(it) }
-
-        val subViews = listOf(
-            tvMerchantStoresSub, tvMerchantItemsSub, tvMerchantStaffSub,
-            tvMerchantAiSub, tvMerchantPhotoSub, tvCustomerSukiSub, tvCustomerStoresSub
-        )
+        val viewPagerCards = view.findViewById<ViewPager2>(R.id.viewPagerCards)
+        val btnPaywallCta = view.findViewById<AppCompatButton>(R.id.btnPaywallCta)
+        val tvPaywallFooterSubtitle = view.findViewById<TextView>(R.id.tvPaywallFooterSubtitle)
 
         var selectedTier = if (initialTierId.lowercase() == "vip") "vip" else "pro"
 
-        fun updateUiForTier(tier: String) {
-            selectedTier = tier
-            val info = SubscriptionManager.getTierInfo(tier)
+        val proTier = SubscriptionManager.getTierInfo("pro")
+        val vipTier = SubscriptionManager.getTierInfo("vip")
+        val adapter = PaywallCardAdapter(listOf(proTier, vipTier)) { tierId ->
+            PlanBenefitsDialog.show(context, tierId)
+        }
 
-            tvMerchantStoresSub.text = info.merchantBenefits.getOrNull(0) ?: (if (info.storeLimit > 900) "Unlimited Stores" else "Up to ${info.storeLimit} Stores")
-            tvMerchantItemsSub.text = info.merchantBenefits.getOrNull(1) ?: (if (info.itemsPerStoreLimit > 9000) "Unlimited items / store" else "${info.itemsPerStoreLimit} items / store branch")
-            tvMerchantStaffSub.text = info.merchantBenefits.getOrNull(2) ?: (if (info.membersPerStoreLimit > 900) "Unlimited staff / store" else "${info.membersPerStoreLimit} staffs / store branch")
-            tvMerchantAiSub.text = info.merchantBenefits.getOrNull(3) ?: "${info.aiQuotaDaily} AI parses / day"
-            tvMerchantPhotoSub.text = info.merchantBenefits.getOrNull(4) ?: "${info.aiQuotaDaily} photo scans / day"
+        viewPagerCards.adapter = adapter
+        viewPagerCards.offscreenPageLimit = 1
 
-            tvCustomerSukiSub.text = info.customerBenefits.getOrNull(0) ?: (if (info.sukiLimit > 900) "Unlimited partner stores" else "${info.sukiLimit} partner stores")
-            tvCustomerStoresSub.text = info.customerBenefits.getOrNull(1) ?: (if (info.sukiLimit > 900) "Unlimited Presyohan Stores" else "${info.sukiLimit} Presyohan Stores")
-
-            tvPaywallPrice.text = "${info.effectivePriceText} / month"
-            val expText = info.promoExpirationText
-            tvPaywallPriceSubtitle.text = when {
-                !expText.isNullOrBlank() -> expText
-                !info.effectiveBadgeText.isNullOrBlank() -> info.effectiveBadgeText
-                info.trialDays > 0 -> "Includes ${info.trialDays}-Day Free Trial"
-                info.hasPrioritySupport || tier == "vip" -> "Includes Priority VIP Support"
-                else -> "Cancel Anytime"
-            }
-            btnStartTrial.text = if (info.trialDays > 0) {
-                "START ${info.trialDays}-DAY TRIAL FOR ${info.name.uppercase()}"
+        // Custom Scale Transformer: Selected card 1.0x, inactive side card 0.88x with smooth peek
+        viewPagerCards.setPageTransformer { page, position ->
+            val absPos = abs(position)
+            if (absPos >= 1) {
+                page.scaleY = 0.88f
+                page.scaleX = 0.88f
+                page.alpha = 0.75f
             } else {
-                "UPGRADE TO ${info.name.uppercase()} (${info.effectivePriceText}/MO)"
+                val scale = 0.88f + (1 - absPos) * 0.12f
+                page.scaleY = scale
+                page.scaleX = scale
+                page.alpha = 0.75f + (1 - absPos) * 0.25f
             }
+        }
 
-            val isVip = tier == "vip"
-            val accentColor = if (isVip) Color.parseColor("#0D9488") else Color.parseColor("#D97706")
-            val subColor = if (isVip) Color.parseColor("#0F766E") else Color.parseColor("#92400E")
-            val cardBg = if (isVip) R.drawable.bg_paywall_vip_card else R.drawable.bg_paywall_merchant_card
+        fun updateSelectedState(position: Int) {
+            selectedTier = if (position == 0) "pro" else "vip"
+            val tierInfo = SubscriptionManager.getTierInfo(selectedTier)
 
-            cardPaywallMerchant?.setBackgroundResource(cardBg)
-            cardPaywallCustomer?.setBackgroundResource(cardBg)
-            tvMerchantSectionHeader?.setTextColor(accentColor)
-            tvCustomerSectionHeader?.setTextColor(accentColor)
-            checkViews.forEach { it.setTextColor(accentColor) }
-            titleViews.forEach { it.setTextColor(accentColor) }
-            subViews.forEach { it.setTextColor(subColor) }
-
-            if (tier == "pro") {
-                btnTabPro.setBackgroundResource(R.drawable.bg_btn_orange_outline)
+            if (position == 0) { // PRO Tier Selected
+                btnTabPro.setBackgroundResource(R.drawable.bg_paywall_tab_active_orange)
                 btnTabPro.setTextColor(ContextCompat.getColor(context, R.color.presyo_orange))
 
-                btnTabVip.setBackgroundResource(R.drawable.bg_rounded_grey)
-                btnTabVip.setTextColor(Color.parseColor("#475569"))
-            } else {
-                btnTabVip.setBackgroundResource(R.drawable.bg_button_round_teal_pill)
-                btnTabVip.setTextColor(Color.WHITE)
+                btnTabVip.setBackgroundResource(0)
+                btnTabVip.setTextColor(Color.parseColor("#64748B"))
 
-                btnTabPro.setBackgroundResource(R.drawable.bg_rounded_grey)
-                btnTabPro.setTextColor(Color.parseColor("#475569"))
+                btnPaywallCta.backgroundTintList = ContextCompat.getColorStateList(context, R.color.presyo_orange)
+            } else { // VIP Tier Selected
+                btnTabVip.setBackgroundResource(R.drawable.bg_paywall_tab_active_teal)
+                btnTabVip.setTextColor(ContextCompat.getColor(context, R.color.presyo_teal))
+
+                btnTabPro.setBackgroundResource(0)
+                btnTabPro.setTextColor(Color.parseColor("#64748B"))
+
+                btnPaywallCta.backgroundTintList = ContextCompat.getColorStateList(context, R.color.presyo_teal)
             }
+
+            // Dynamic CTA Button Text from Admin configuration
+            val adminCta = tierInfo.ctaButtonText?.trim()
+            btnPaywallCta.text = if (!adminCta.isNullOrBlank()) {
+                adminCta
+            } else if (tierInfo.trialDays > 0) {
+                "START ${tierInfo.trialDays}-DAY FREE TRIAL"
+            } else {
+                "UPGRADE TO ${tierInfo.name.uppercase()} (${tierInfo.effectivePriceText}/MO)"
+            }
+
+            tvPaywallFooterSubtitle.text = "Cancel Anytime"
         }
 
-        // Set initial state
-        updateUiForTier(selectedTier)
+        val initialPosition = if (selectedTier == "vip") 1 else 0
+        viewPagerCards.setCurrentItem(initialPosition, false)
+        updateSelectedState(initialPosition)
 
-        CoroutineScope(Dispatchers.Main).launch {
-            SubscriptionManager.fetchLiveTierConfigs()
-            updateUiForTier(selectedTier)
-        }
-
-        val cachedTier = SubscriptionManager.getCachedTier(context)
-        tvCurrentPlanDropdown.text = "Current plan: ${cachedTier.name} ∨"
+        viewPagerCards.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                updateSelectedState(position)
+            }
+        })
 
         btnTabPro.setOnClickListener {
-            updateUiForTier("pro")
+            viewPagerCards.setCurrentItem(0, true)
         }
 
         btnTabVip.setOnClickListener {
-            updateUiForTier("vip")
-        }
-
-        btnViewFullBenefits.text = "View Full Benefits"
-        btnViewFullBenefits.setOnClickListener {
-            PlanBenefitsDialog.show(context, selectedTier)
+            viewPagerCards.setCurrentItem(1, true)
         }
 
         btnClose.setOnClickListener {
             dialog.dismiss()
         }
 
-        btnStartTrial.setOnClickListener {
+        btnPaywallCta.setOnClickListener {
             CoroutineScope(Dispatchers.Main).launch {
                 val success = SubscriptionManager.updateUserSubscription(context, selectedTier)
                 if (success) {
@@ -179,6 +142,18 @@ object SubscriptionPaywallDialog {
                 } else {
                     Toast.makeText(context, "Subscription request failed.", Toast.LENGTH_SHORT).show()
                 }
+            }
+        }
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                SubscriptionManager.fetchLiveTierConfigs()
+                val livePro = SubscriptionManager.getTierInfo("pro")
+                val liveVip = SubscriptionManager.getTierInfo("vip")
+                adapter.updateTiers(listOf(livePro, liveVip))
+                updateSelectedState(viewPagerCards.currentItem)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
 

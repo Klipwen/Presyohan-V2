@@ -16,6 +16,10 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
 
+import androidx.core.widget.NestedScrollView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.facebook.shimmer.ShimmerFrameLayout
+
 class SubscriptionStatusActivity : AppCompatActivity() {
 
     private lateinit var btnBack: ImageView
@@ -37,6 +41,10 @@ class SubscriptionStatusActivity : AppCompatActivity() {
     private lateinit var btnSelectPro: AppCompatButton
     private lateinit var btnSelectVip: AppCompatButton
     private lateinit var loadingOverlay: View
+
+    private lateinit var shimmerContainer: ShimmerFrameLayout
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
+    private lateinit var scrollViewContent: NestedScrollView
 
     private var currentTierInfo: SubscriptionTierInfo = SubscriptionManager.TIER_FREE
 
@@ -65,6 +73,15 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         btnSelectPro = findViewById(R.id.btnSelectPro)
         btnSelectVip = findViewById(R.id.btnSelectVip)
 
+        shimmerContainer = findViewById(R.id.shimmerContainer)
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
+        scrollViewContent = findViewById(R.id.scrollViewContent)
+
+        swipeRefreshLayout.setColorSchemeResources(R.color.presyo_orange)
+        swipeRefreshLayout.setOnRefreshListener {
+            loadSubscriptionData(showShimmer = false)
+        }
+
         btnBack.setOnClickListener {
             finish()
         }
@@ -82,7 +99,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 Toast.makeText(this, "You are currently on the PRO Plan.", Toast.LENGTH_SHORT).show()
             } else {
                 SubscriptionPaywallDialog.show(this, "pro") { newTier ->
-                    loadSubscriptionData()
+                    loadSubscriptionData(showShimmer = false)
                 }
             }
         }
@@ -92,24 +109,25 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 Toast.makeText(this, "You are currently on the VIP Plan.", Toast.LENGTH_SHORT).show()
             } else {
                 SubscriptionPaywallDialog.show(this, "vip") { newTier ->
-                    loadSubscriptionData()
+                    loadSubscriptionData(showShimmer = false)
                 }
             }
         }
 
-        loadSubscriptionData()
+        loadSubscriptionData(showShimmer = true)
     }
 
-    private fun loadSubscriptionData() {
+    private fun loadSubscriptionData(showShimmer: Boolean = true) {
         val user = SupabaseProvider.client.auth.currentUserOrNull()
         tvBillingEmail.text = "Primary Billing Account: ${user?.email ?: "Guest"}"
 
-        // Set fast cached tier first
-        currentTierInfo = SubscriptionManager.getCachedTier(this)
-        applyTierToUi(currentTierInfo)
+        if (showShimmer) {
+            shimmerContainer.visibility = View.VISIBLE
+            shimmerContainer.startShimmer()
+            scrollViewContent.visibility = View.GONE
+        }
 
         lifecycleScope.launch {
-            LoadingOverlayHelper.show(loadingOverlay)
             try {
                 SubscriptionManager.fetchLiveTierConfigs()
                 currentTierInfo = SubscriptionManager.fetchUserTier(this@SubscriptionStatusActivity)
@@ -117,8 +135,15 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 fetchLiveCapacityUsage(currentTierInfo)
             } catch (e: Exception) {
                 e.printStackTrace()
+                currentTierInfo = SubscriptionManager.getCachedTier(this@SubscriptionStatusActivity)
+                applyTierToUi(currentTierInfo)
             } finally {
-                LoadingOverlayHelper.hide(loadingOverlay)
+                swipeRefreshLayout.isRefreshing = false
+                if (showShimmer) {
+                    shimmerContainer.stopShimmer()
+                    shimmerContainer.visibility = View.GONE
+                    scrollViewContent.visibility = View.VISIBLE
+                }
             }
         }
     }

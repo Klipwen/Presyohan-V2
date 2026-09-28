@@ -3,7 +3,8 @@ package com.presyohan.app
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -11,7 +12,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatButton
 import androidx.core.content.ContextCompat
@@ -20,216 +20,187 @@ object PlanBenefitsDialog {
 
     fun show(context: Context, tierId: String): Dialog {
         val dialog = Dialog(context, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen)
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_plan_benefits, null)
+        dialog.setContentView(view)
+        dialog.setCancelable(true)
+
+        dialog.window?.let { window ->
+            window.setLayout(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            window.setBackgroundDrawableResource(android.R.color.transparent)
+        }
+
+        val rootLayout = view as FrameLayout
+        rootLayout.setOnClickListener { dialog.dismiss() }
+
+        val cardDialogContainer = view.findViewById<LinearLayout>(R.id.cardDialogContainer)
+        cardDialogContainer.setOnClickListener { /* Prevent dismiss when clicking the card */ }
+
         val info = SubscriptionManager.getTierInfo(tierId)
-
-        val rootLayout = FrameLayout(context).apply {
-            setBackgroundColor(Color.parseColor("#99000000")) // Semi-transparent dim background
-            setOnClickListener { dialog.dismiss() }
-        }
-
-        val cardDensity = context.resources.displayMetrics.density
-
-        // Card Container
-        val cardView = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            val bgDrawable = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = 20 * cardDensity
-            }
-            background = bgDrawable
-            setPadding(
-                (20 * cardDensity).toInt(),
-                (20 * cardDensity).toInt(),
-                (20 * cardDensity).toInt(),
-                (20 * cardDensity).toInt()
-            )
-            setOnClickListener { /* prevent dismiss on clicking card */ }
-        }
-
-        val cardLayoutParams = FrameLayout.LayoutParams(
-            (context.resources.displayMetrics.widthPixels * 0.90).toInt(),
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.CENTER
-        }
-
-        // Header Section
         val isVip = tierId.lowercase() == "vip"
-        val isPro = tierId.lowercase() == "pro"
+        val primaryColor = ContextCompat.getColor(context, if (isVip) R.color.presyo_teal else R.color.presyo_orange)
+        val checkIconRes = if (isVip) R.drawable.ic_check_circle_teal else R.drawable.ic_check_circle_orange
 
-        val primaryColor = when {
-            isVip -> ContextCompat.getColor(context, R.color.presyo_teal)
-            isPro -> ContextCompat.getColor(context, R.color.presyo_orange)
-            else -> Color.parseColor("#64748B")
+        // Header Views
+        val imgTierIcon = view.findViewById<ImageView>(R.id.imgTierIcon)
+        val tvTierTitle = view.findViewById<TextView>(R.id.tvTierTitle)
+        val tvEffectivePrice = view.findViewById<TextView>(R.id.tvEffectivePrice)
+        val tvOriginalPrice = view.findViewById<TextView>(R.id.tvOriginalPrice)
+        val tvPromoBadge = view.findViewById<TextView>(R.id.tvPromoBadge)
+        val tvPromoExpiration = view.findViewById<TextView>(R.id.tvPromoExpiration)
+        val tvTierDescription = view.findViewById<TextView>(R.id.tvTierDescription)
+        val layoutBenefitsContainer = view.findViewById<LinearLayout>(R.id.layoutBenefitsContainer)
+        val btnGotIt = view.findViewById<AppCompatButton>(R.id.btnGotIt)
+
+        // Bind Header Data
+        imgTierIcon.setImageResource(if (isVip) R.drawable.icon_vip else R.drawable.icon_pro)
+        imgTierIcon.clearColorFilter()
+
+        tvTierTitle.text = "${info.name} Full Benefits"
+        tvTierTitle.setTextColor(primaryColor)
+
+        tvEffectivePrice.text = "${info.effectivePriceText} ${info.periodText}"
+        tvEffectivePrice.setTextColor(primaryColor)
+
+        if (info.originalPriceText != null) {
+            tvOriginalPrice.text = info.originalPriceText
+            tvOriginalPrice.paintFlags = tvOriginalPrice.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+            tvOriginalPrice.visibility = View.VISIBLE
+        } else {
+            tvOriginalPrice.visibility = View.GONE
         }
 
-        val headerLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        if (!info.effectiveBadgeText.isNullOrBlank()) {
+            tvPromoBadge.text = info.effectiveBadgeText
+            tvPromoBadge.setBackgroundResource(if (isVip) R.drawable.bg_promo_chip_teal else R.drawable.bg_promo_chip_orange)
+            tvPromoBadge.setTextColor(primaryColor)
+            tvPromoBadge.visibility = View.VISIBLE
+        } else {
+            tvPromoBadge.visibility = View.GONE
         }
 
-        val iconRes = when {
-            isVip -> R.drawable.icon_vip
-            isPro -> R.drawable.icon_pro
-            else -> 0
+        if (!info.promoExpirationText.isNullOrBlank()) {
+            tvPromoExpiration.text = info.promoExpirationText
+            tvPromoExpiration.visibility = View.VISIBLE
+        } else {
+            tvPromoExpiration.visibility = View.GONE
         }
 
-        if (iconRes != 0) {
-            val imgIcon = ImageView(context).apply {
-                setImageResource(iconRes)
-                layoutParams = LinearLayout.LayoutParams((32 * cardDensity).toInt(), (32 * cardDensity).toInt()).apply {
-                    marginEnd = (12 * cardDensity).toInt()
-                }
-            }
-            headerLayout.addView(imgIcon)
-        }
+        tvTierDescription.text = info.description
 
-        val headerTextLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-        }
+        btnGotIt.backgroundTintList = ContextCompat.getColorStateList(context, if (isVip) R.color.presyo_teal else R.color.presyo_orange)
+        btnGotIt.setOnClickListener { dialog.dismiss() }
 
-        val tvTitle = TextView(context).apply {
-            text = "${info.name} Full Benefits"
-            setTextColor(primaryColor)
-            textSize = 18f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-        }
-
-        val tvSubtitle = TextView(context).apply {
-            text = "${info.priceText} ${info.periodText} • ${if (info.trialDays > 0) "${info.trialDays}-Day Trial" else "Instant Access"}"
-            setTextColor(Color.parseColor("#64748B"))
-            textSize = 12f
-        }
-
-        headerTextLayout.addView(tvTitle)
-        headerTextLayout.addView(tvSubtitle)
-        headerLayout.addView(headerTextLayout)
-        cardView.addView(headerLayout)
-
-        // Divider
-        val divider = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (1 * cardDensity).toInt()
-            ).apply {
-                setMargins(0, (14 * cardDensity).toInt(), 0, (14 * cardDensity).toInt())
-            }
-            setBackgroundColor(Color.parseColor("#E2E8F0"))
-        }
-        cardView.addView(divider)
-
-        // Scrollable Content
-        val scrollView = ScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (context.resources.displayMetrics.heightPixels * 0.50).toInt()
-            )
-        }
-
-        val contentLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-        }
+        // Populate Dynamic Benefits from Admin input
+        layoutBenefitsContainer.removeAllViews()
+        val density = context.resources.displayMetrics.density
 
         fun addSectionHeader(title: String) {
             val tvHeader = TextView(context).apply {
                 text = title
                 setTextColor(primaryColor)
                 textSize = 13f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
+                typeface = Typeface.DEFAULT_BOLD
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, (10 * cardDensity).toInt(), 0, (6 * cardDensity).toInt())
+                    setMargins(0, (12 * density).toInt(), 0, (6 * density).toInt())
                 }
+                layoutParams = lp
             }
-            contentLayout.addView(tvHeader)
+            layoutBenefitsContainer.addView(tvHeader)
         }
 
-        fun addBulletPoint(itemText: String, isAvailable: Boolean = true) {
-            val itemLayout = LinearLayout(context).apply {
+        fun addBenefitRow(benefitText: String) {
+            val rowLayout = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
+                gravity = Gravity.CENTER_VERTICAL
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    topMargin = (4 * cardDensity).toInt()
+                    topMargin = (6 * density).toInt()
                 }
+                layoutParams = lp
             }
 
-            val tvSymbol = TextView(context).apply {
-                this.text = if (isAvailable) "✓ " else "✗ "
-                setTextColor(if (isAvailable) primaryColor else Color.parseColor("#94A3B8"))
-                textSize = 12f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            val checkIcon = ImageView(context).apply {
+                val iconSize = (16 * density).toInt()
+                layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                setImageResource(checkIconRes)
             }
 
             val tvText = TextView(context).apply {
-                this.text = itemText
-                setTextColor(if (isAvailable) Color.parseColor("#1E293B") else Color.parseColor("#94A3B8"))
+                val tvLp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginStart = (8 * density).toInt()
+                }
+                layoutParams = tvLp
+                text = benefitText
+                setTextColor(Color.parseColor("#1E293B"))
                 textSize = 12f
+                if (benefitText.contains("Unlimited", ignoreCase = true) || isVip) {
+                    typeface = Typeface.DEFAULT_BOLD
+                }
             }
 
-            itemLayout.addView(tvSymbol)
-            itemLayout.addView(tvText)
-            contentLayout.addView(itemLayout)
+            rowLayout.addView(checkIcon)
+            rowLayout.addView(tvText)
+            layoutBenefitsContainer.addView(rowLayout)
         }
 
-        // Section 1: Merchant Benefits
-        addSectionHeader("🏪 Store & Merchant Features")
-        if (info.merchantBenefits.isNotEmpty()) {
-            info.merchantBenefits.forEach { addBulletPoint(it) }
+        val hasCustomMerchant = info.merchantBenefits.isNotEmpty()
+        val hasCustomCustomer = info.customerBenefits.isNotEmpty()
+
+        if (hasCustomMerchant || hasCustomCustomer) {
+            // Render exact Admin Inputted Merchant Benefits
+            if (hasCustomMerchant) {
+                addSectionHeader("Store & Merchant Features")
+                info.merchantBenefits.forEach { raw ->
+                    val clean = raw.replace(Regex("^[\\p{So}\\p{Sk}\\p{Sm}\\p{Sc}\\s•\\-]+"), "").trim()
+                    if (clean.isNotEmpty()) addBenefitRow(clean)
+                }
+            }
+
+            // Render exact Admin Inputted Customer Benefits
+            if (hasCustomCustomer) {
+                addSectionHeader("Customer & Suki Partner Features")
+                info.customerBenefits.forEach { raw ->
+                    val clean = raw.replace(Regex("^[\\p{So}\\p{Sk}\\p{Sm}\\p{Sc}\\s•\\-]+"), "").trim()
+                    if (clean.isNotEmpty()) addBenefitRow(clean)
+                }
+            }
         } else {
-            addBulletPoint(if (info.storeLimit > 900) "Unlimited Store Branches" else "Up to ${info.storeLimit} Store Branches")
-            addBulletPoint(if (info.itemsPerStoreLimit > 9000) "Unlimited Items per Store" else "${info.itemsPerStoreLimit} Items / Store Catalog")
-            addBulletPoint(if (info.membersPerStoreLimit > 900) "Unlimited Staff Accounts" else "${info.membersPerStoreLimit} Staff Accounts / Store")
-            addBulletPoint("${info.aiQuotaDaily} AI Price Parses per Day")
-        }
+            // Fallback: Synthesized dynamic database limits
+            addSectionHeader("Store & Merchant Features")
+            addBenefitRow(if (info.storeLimit > 900) "Unlimited Store Branches" else "Up to ${info.storeLimit} Store Branches")
+            addBenefitRow(if (info.itemsPerStoreLimit > 9000) "Unlimited Items per Store" else "${info.itemsPerStoreLimit} Items / Store Catalog")
+            addBenefitRow(if (info.categoriesPerStoreLimit > 900) "Unlimited Categories per Store" else "${info.categoriesPerStoreLimit} Categories / Store")
+            addBenefitRow(if (info.membersPerStoreLimit > 900) "Unlimited Staff Accounts" else "${info.membersPerStoreLimit} Staff Accounts / Store")
+            addBenefitRow("${info.aiQuotaDaily} Daily AI Price Parses")
+            if (info.allowPriceCloning) addBenefitRow("Store Catalog Price Cloning")
+            if (info.allowExcelExport) addBenefitRow("Export Pricelists to Excel (.xlsx)")
+            if (info.allowPdfExport) addBenefitRow("Export Pricelists to PDF")
+            if (info.allowNotesExport) addBenefitRow("Export Pricelists as Notes")
 
-        // Section 2: Customer Benefits
-        addSectionHeader("🤝 Customer & Suki Partner Features")
-        if (info.customerBenefits.isNotEmpty()) {
-            info.customerBenefits.forEach { addBulletPoint(it) }
-        } else {
-            addBulletPoint(if (info.sukiLimit > 900) "Unlimited Suking Tindahan Partners" else "${info.sukiLimit} Suking Tindahan Partners")
-            addBulletPoint("AI Online Price Search")
-        }
+            addSectionHeader("Customer & Suki Partner Features")
+            addBenefitRow(if (info.sukiLimit > 900) "Unlimited Suking Tindahan Partners" else "${info.sukiLimit} Suking Tindahan Partners")
+            addBenefitRow(if (info.presyohanStoresLimit > 900) "Unlimited Presyohan Stores" else "${info.presyohanStoresLimit} Presyohan Stores")
+            if (info.internetSearchQuota > 0) addBenefitRow("${info.internetSearchQuota} Daily Internet Price Searches")
+            if (info.allowCustomerPairing) addBenefitRow("Customer Price Pairing")
 
-        // Section 3: Advanced Unlocks
-        addSectionHeader("⚡ Platform Capabilities & Unlocks")
-        addBulletPoint("Store Catalog Price Cloning", info.allowPriceCloning)
-        addBulletPoint("Export Pricelists to Excel (.xlsx)", info.allowExcelExport)
-        addBulletPoint("Export Pricelists to PDF", info.allowPdfExport)
-        addBulletPoint("24/7 VIP Priority Support & Fast Parsing", info.hasPrioritySupport || isVip)
-
-        scrollView.addView(contentLayout)
-        cardView.addView(scrollView)
-
-        // Close Button
-        val btnClose = AppCompatButton(context).apply {
-            text = "GOT IT"
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            val btnBg = GradientDrawable().apply {
-                setColor(primaryColor)
-                cornerRadius = 10 * cardDensity
+            if (info.hasPrioritySupport || isVip) {
+                addSectionHeader("Priority Unlocks")
+                addBenefitRow("24/7 VIP Priority Support & Fast Parsing")
             }
-            background = btnBg
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (44 * cardDensity).toInt()
-            ).apply {
-                topMargin = (16 * cardDensity).toInt()
-            }
-            setOnClickListener { dialog.dismiss() }
         }
-        cardView.addView(btnClose)
 
-        rootLayout.addView(cardView, cardLayoutParams)
-        dialog.setContentView(rootLayout)
         dialog.show()
-
         return dialog
     }
 }

@@ -46,12 +46,39 @@
             app:tint="@color/white" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Main Content Scroll -->
-    <androidx.core.widget.NestedScrollView
+    <!-- Content Area with Shimmer Skeleton and Pull-to-Refresh -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingBottom="24dp">
+        android:layout_height="match_parent">
+
+        <!-- Shimmer Skeleton Loading Container -->
+        <com.facebook.shimmer.ShimmerFrameLayout
+            android:id="@+id/shimmerContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            app:shimmer_auto_start="true"
+            app:shimmer_base_alpha="0.4"
+            app:shimmer_duration="1200"
+            app:shimmer_highlight_alpha="1.0"
+            tools:ignore="MissingClass">
+
+            <include layout="@layout/layout_subscription_shimmer" />
+
+        </com.facebook.shimmer.ShimmerFrameLayout>
+
+        <!-- Main Content Scroll with Pull to Refresh -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/scrollViewContent"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="24dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -751,9 +778,10 @@
                     android:textColor="@color/presyo_orange"
                     android:textSize="13sp"
                     android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+        </androidx.core.widget.NestedScrollView>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+</FrameLayout>
 
 </LinearLayout>

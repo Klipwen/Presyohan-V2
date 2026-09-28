@@ -1,0 +1,761 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="24dp">
+
+        <!-- Card 1: Active Subscription Overview Skeleton -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card_unselected"
+            android:elevation="1dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Top Header Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="#E5E7EB" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+
+                    <!-- "YOUR ACTIVE SUBSCRIPTION" label -->
+                    <View
+                        android:layout_width="140dp"
+                        android:layout_height="11dp"
+                        android:background="#E5E7EB" />
+
+                    <!-- Tier Name placeholder -->
+                    <View
+                        android:layout_width="100dp"
+                        android:layout_height="20dp"
+                        android:layout_marginTop="6dp"
+                        android:background="#D1D5DB" />
+
+                    <!-- Billing Email placeholder -->
+                    <View
+                        android:layout_width="180dp"
+                        android:layout_height="12dp"
+                        android:layout_marginTop="6dp"
+                        android:background="#E5E7EB" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:background="#E5E7EB" />
+
+            <!-- Capacity Header placeholder -->
+            <View
+                android:layout_width="160dp"
+                android:layout_height="14dp"
+                android:layout_marginTop="14dp"
+                android:background="#D1D5DB" />
+
+            <!-- Stat 1: Owned Stores -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="85dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E7EB" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <View
+                        android:layout_width="36dp"
+                        android:layout_height="12dp"
+                        android:background="#FED7AA" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB" />
+            </LinearLayout>
+
+            <!-- Stat 2: Items per Store -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="95dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E7EB" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <View
+                        android:layout_width="45dp"
+                        android:layout_height="12dp"
+                        android:background="#FED7AA" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB" />
+            </LinearLayout>
+
+            <!-- Stat 3: Staff Members -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="130dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E7EB" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="12dp"
+                        android:background="#FED7AA" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB" />
+            </LinearLayout>
+
+            <!-- Stat 4: AI Scans -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="140dp"
+                        android:layout_height="12dp"
+                        android:background="#E5E7EB" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <View
+                        android:layout_width="80dp"
+                        android:layout_height="12dp"
+                        android:background="#FED7AA" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="6dp"
+                    android:background="#E5E7EB" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Section Divider: Choose Plan -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#D1D5DB" />
+
+            <View
+                android:layout_width="140dp"
+                android:layout_height="13dp"
+                android:layout_marginHorizontal="12dp"
+                android:background="#D1D5DB" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#D1D5DB" />
+        </LinearLayout>
+
+        <!-- Card 2: PRO Tier Skeleton Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/bg_card_selected_orange"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Top Row: Icon, Title & Promo Chip -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="#FED7AA" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <View
+                        android:layout_width="90dp"
+                        android:layout_height="20dp"
+                        android:background="#FED7AA" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="70dp"
+                            android:layout_height="24dp"
+                            android:background="#FED7AA" />
+
+                        <View
+                            android:layout_width="50dp"
+                            android:layout_height="13dp"
+                            android:layout_marginStart="6dp"
+                            android:background="#FED7AA" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="170dp"
+                        android:layout_height="11dp"
+                        android:layout_marginTop="4dp"
+                        android:background="#FED7AA" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="80dp"
+                    android:layout_height="22dp"
+                    android:background="@drawable/bg_promo_chip_orange" />
+            </LinearLayout>
+
+            <!-- Description placeholder -->
+            <View
+                android:layout_width="240dp"
+                android:layout_height="13dp"
+                android:layout_marginTop="10dp"
+                android:background="#FED7AA" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="14dp"
+                android:background="#FED7AA" />
+
+            <!-- Feature item 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#FED7AA" />
+
+                <View
+                    android:layout_width="120dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#FED7AA" />
+            </LinearLayout>
+
+            <!-- Feature item 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#FED7AA" />
+
+                <View
+                    android:layout_width="160dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#FED7AA" />
+            </LinearLayout>
+
+            <!-- Feature item 3 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#FED7AA" />
+
+                <View
+                    android:layout_width="140dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#FED7AA" />
+            </LinearLayout>
+
+            <!-- Feature item 4 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#FED7AA" />
+
+                <View
+                    android:layout_width="150dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#FED7AA" />
+            </LinearLayout>
+
+            <!-- Button Skeleton -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="20dp"
+                android:alpha="0.4"
+                android:background="@drawable/bg_solid_button_orange" />
+        </LinearLayout>
+
+        <!-- Card 3: VIP Tier Skeleton Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/bg_card_selected_teal"
+            android:elevation="2dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Top Row: Icon, Title & Promo Chip -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="#99F6E4" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <View
+                        android:layout_width="85dp"
+                        android:layout_height="20dp"
+                        android:background="#99F6E4" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="75dp"
+                            android:layout_height="24dp"
+                            android:background="#99F6E4" />
+
+                        <View
+                            android:layout_width="50dp"
+                            android:layout_height="13dp"
+                            android:layout_marginStart="6dp"
+                            android:background="#99F6E4" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="170dp"
+                        android:layout_height="11dp"
+                        android:layout_marginTop="4dp"
+                        android:background="#99F6E4" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="85dp"
+                    android:layout_height="22dp"
+                    android:background="@drawable/bg_promo_chip_teal" />
+            </LinearLayout>
+
+            <!-- Description placeholder -->
+            <View
+                android:layout_width="260dp"
+                android:layout_height="13dp"
+                android:layout_marginTop="10dp"
+                android:background="#99F6E4" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="14dp"
+                android:background="#99F6E4" />
+
+            <!-- Feature item 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#99F6E4" />
+
+                <View
+                    android:layout_width="130dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#99F6E4" />
+            </LinearLayout>
+
+            <!-- Feature item 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#99F6E4" />
+
+                <View
+                    android:layout_width="150dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#99F6E4" />
+            </LinearLayout>
+
+            <!-- Feature item 3 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#99F6E4" />
+
+                <View
+                    android:layout_width="140dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#99F6E4" />
+            </LinearLayout>
+
+            <!-- Feature item 4 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#99F6E4" />
+
+                <View
+                    android:layout_width="160dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#99F6E4" />
+            </LinearLayout>
+
+            <!-- Feature item 5 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#99F6E4" />
+
+                <View
+                    android:layout_width="135dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#99F6E4" />
+            </LinearLayout>
+
+            <!-- Button Skeleton -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="20dp"
+                android:alpha="0.4"
+                android:background="@drawable/bg_button_rect_teal" />
+        </LinearLayout>
+
+        <!-- Card 4: Free Plan Skeleton Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_card_unselected"
+            android:elevation="1dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Top Header Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <View
+                        android:layout_width="80dp"
+                        android:layout_height="20dp"
+                        android:background="#E0E0E0" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="40dp"
+                            android:layout_height="24dp"
+                            android:background="#E0E0E0" />
+
+                        <View
+                            android:layout_width="50dp"
+                            android:layout_height="13dp"
+                            android:layout_marginStart="6dp"
+                            android:background="#E0E0E0" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="75dp"
+                    android:layout_height="22dp"
+                    android:background="@drawable/bg_promo_chip_grey" />
+            </LinearLayout>
+
+            <!-- Description placeholder -->
+            <View
+                android:layout_width="210dp"
+                android:layout_height="13dp"
+                android:layout_marginTop="10dp"
+                android:background="#E5E7EB" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="14dp"
+                android:background="#E5E7EB" />
+
+            <!-- Feature item 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#E0E0E0" />
+
+                <View
+                    android:layout_width="110dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+
+            <!-- Feature item 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#E0E0E0" />
+
+                <View
+                    android:layout_width="130dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+
+            <!-- Feature item 3 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#E0E0E0" />
+
+                <View
+                    android:layout_width="140dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+
+            <!-- Feature item 4 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="#E0E0E0" />
+
+                <View
+                    android:layout_width="120dp"
+                    android:layout_height="13dp"
+                    android:layout_marginStart="10dp"
+                    android:background="#E0E0E0" />
+            </LinearLayout>
+
+            <!-- Button Skeleton -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_btn_done_outline" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
