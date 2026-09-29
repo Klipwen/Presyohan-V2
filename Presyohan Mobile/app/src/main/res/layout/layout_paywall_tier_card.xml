@@ -5,13 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingHorizontal="4dp"
-    android:paddingVertical="4dp">
+    android:paddingTop="0dp"
+    android:paddingBottom="8dp">
 
     <LinearLayout
         android:id="@+id/cardContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
+        android:layout_gravity="top"
         android:background="@drawable/bg_paywall_card_pro"
         android:elevation="3dp"
         android:orientation="vertical"
