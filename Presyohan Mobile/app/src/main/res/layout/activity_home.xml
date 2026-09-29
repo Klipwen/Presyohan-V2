@@ -211,6 +211,9 @@
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
+                <!-- Subscription Expiration / Expired Notice Banner -->
+                <include layout="@layout/layout_subscription_notice_banner" />
+
                 <!-- Category Tabs Bar Container -->
                 <FrameLayout
                     android:id="@+id/containerControls"

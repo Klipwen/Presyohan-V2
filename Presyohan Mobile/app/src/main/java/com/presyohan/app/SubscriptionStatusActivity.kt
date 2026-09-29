@@ -15,6 +15,9 @@ import androidx.lifecycle.lifecycleScope
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 import androidx.core.widget.NestedScrollView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -28,6 +31,19 @@ class SubscriptionStatusActivity : AppCompatActivity() {
     private lateinit var tvActiveTierBadge: TextView
     private lateinit var imgActiveTierIcon: ImageView
 
+    // Status Pill & Expired Alert
+    private lateinit var layoutActiveStatusPill: LinearLayout
+    private lateinit var imgActiveStatusIcon: ImageView
+    private lateinit var tvActiveSubscriptionStatus: TextView
+    private lateinit var layoutExpiredNoticeBox: LinearLayout
+    private lateinit var tvExpiredNoticeMessage: TextView
+
+    // Active Card Action Buttons
+    private lateinit var layoutActiveCardActions: LinearLayout
+    private lateinit var btnActiveUpgradeAction: AppCompatButton
+    private lateinit var btnActiveCancelAction: AppCompatButton
+
+    // Capacity Stats
     private lateinit var tvStatStoresVal: TextView
     private lateinit var progressStores: ProgressBar
     private lateinit var tvStatItemsVal: TextView
@@ -37,6 +53,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
     private lateinit var tvStatAiVal: TextView
     private lateinit var progressAi: ProgressBar
 
+    // Plan Selection Buttons
     private lateinit var btnSelectFree: AppCompatButton
     private lateinit var btnSelectPro: AppCompatButton
     private lateinit var btnSelectVip: AppCompatButton
@@ -46,7 +63,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var scrollViewContent: NestedScrollView
 
-    private var currentTierInfo: SubscriptionTierInfo = SubscriptionManager.TIER_FREE
+    private var currentDetails: UserSubscriptionDetails = SubscriptionManager.calculateSubscriptionDetails("free", null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +76,16 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         tvBillingEmail = findViewById(R.id.tvBillingEmail)
         tvActiveTierBadge = findViewById(R.id.tvActiveTierBadge)
         imgActiveTierIcon = findViewById(R.id.imgActiveTierIcon)
+
+        layoutActiveStatusPill = findViewById(R.id.layoutActiveStatusPill)
+        imgActiveStatusIcon = findViewById(R.id.imgActiveStatusIcon)
+        tvActiveSubscriptionStatus = findViewById(R.id.tvActiveSubscriptionStatus)
+        layoutExpiredNoticeBox = findViewById(R.id.layoutExpiredNoticeBox)
+        tvExpiredNoticeMessage = findViewById(R.id.tvExpiredNoticeMessage)
+
+        layoutActiveCardActions = findViewById(R.id.layoutActiveCardActions)
+        btnActiveUpgradeAction = findViewById(R.id.btnActiveUpgradeAction)
+        btnActiveCancelAction = findViewById(R.id.btnActiveCancelAction)
 
         tvStatStoresVal = findViewById(R.id.tvStatStoresVal)
         progressStores = findViewById(R.id.progressStores)
@@ -87,28 +114,28 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         }
 
         btnSelectFree.setOnClickListener {
-            if (currentTierInfo.id == "free") {
+            if (currentDetails.tierId == "free") {
                 Toast.makeText(this, "You are currently on the Free Plan.", Toast.LENGTH_SHORT).show()
             } else {
-                showDowngradeDialog("free")
+                showCancelSubscriptionDialog(currentDetails)
             }
         }
 
         btnSelectPro.setOnClickListener {
-            if (currentTierInfo.id == "pro") {
+            if (currentDetails.tierId == "pro") {
                 Toast.makeText(this, "You are currently on the PRO Plan.", Toast.LENGTH_SHORT).show()
             } else {
-                SubscriptionPaywallDialog.show(this, "pro") { newTier ->
+                SubscriptionPaywallDialog.show(this, "pro") {
                     loadSubscriptionData(showShimmer = false)
                 }
             }
         }
 
         btnSelectVip.setOnClickListener {
-            if (currentTierInfo.id == "vip") {
+            if (currentDetails.tierId == "vip") {
                 Toast.makeText(this, "You are currently on the VIP Plan.", Toast.LENGTH_SHORT).show()
             } else {
-                SubscriptionPaywallDialog.show(this, "vip") { newTier ->
+                SubscriptionPaywallDialog.show(this, "vip") {
                     loadSubscriptionData(showShimmer = false)
                 }
             }
@@ -119,7 +146,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
 
     private fun loadSubscriptionData(showShimmer: Boolean = true) {
         val user = SupabaseProvider.client.auth.currentUserOrNull()
-        tvBillingEmail.text = "Primary Billing Account: ${user?.email ?: "Guest"}"
+        tvBillingEmail.text = "Account: ${user?.email ?: "Guest"}"
 
         if (showShimmer) {
             shimmerContainer.visibility = View.VISIBLE
@@ -130,13 +157,13 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 SubscriptionManager.fetchLiveTierConfigs()
-                currentTierInfo = SubscriptionManager.fetchUserTier(this@SubscriptionStatusActivity)
-                applyTierToUi(currentTierInfo)
-                fetchLiveCapacityUsage(currentTierInfo)
+                currentDetails = SubscriptionManager.fetchUserSubscriptionDetails(this@SubscriptionStatusActivity)
+                applyDetailsToUi(currentDetails)
+                fetchLiveCapacityUsage(currentDetails.tierInfo)
             } catch (e: Exception) {
                 e.printStackTrace()
-                currentTierInfo = SubscriptionManager.getCachedTier(this@SubscriptionStatusActivity)
-                applyTierToUi(currentTierInfo)
+                currentDetails = SubscriptionManager.getCachedSubscriptionDetails(this@SubscriptionStatusActivity)
+                applyDetailsToUi(currentDetails)
             } finally {
                 swipeRefreshLayout.isRefreshing = false
                 if (showShimmer) {
@@ -148,7 +175,8 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyTierToUi(tier: SubscriptionTierInfo) {
+    private fun applyDetailsToUi(details: UserSubscriptionDetails) {
+        val tier = details.tierInfo
         tvActiveTierName.text = tier.name
 
         val layoutActiveHeader = findViewById<View>(R.id.layoutActiveHeader)
@@ -158,7 +186,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         val proInfo = SubscriptionManager.getTierInfo("pro")
         val vipInfo = SubscriptionManager.getTierInfo("vip")
 
-        // Dynamic Title, Prices, Periods & Descriptions from Admin Config
+        // 1. Dynamic Plan Cards Config (Name, Price, Period, Badges, Promo text)
         findViewById<TextView>(R.id.tvCardTitlePro)?.text = proInfo.name
         findViewById<TextView>(R.id.tvCardPricePro)?.text = proInfo.effectivePriceText
         findViewById<TextView>(R.id.tvCardPeriodPro)?.text = proInfo.periodText
@@ -241,7 +269,49 @@ class SubscriptionStatusActivity : AppCompatActivity() {
             promoBadgeFree?.visibility = View.GONE
         }
 
-        when (tier.id) {
+        // 2. Set Active Subscription Header & Status Pill
+        tvActiveSubscriptionStatus.text = details.statusText
+
+        when (details.statusType) {
+            SubscriptionStatusType.TIME_BOUND_TRIAL -> {
+                layoutActiveStatusPill.setBackgroundResource(R.drawable.bg_subscription_status_pill_orange)
+                imgActiveStatusIcon.visibility = View.VISIBLE
+                imgActiveStatusIcon.setImageResource(R.drawable.ic_calendar_clock)
+                imgActiveStatusIcon.setColorFilter(ContextCompat.getColor(this, R.color.presyo_orange))
+                tvActiveSubscriptionStatus.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
+                layoutExpiredNoticeBox.visibility = View.GONE
+            }
+            SubscriptionStatusType.AUTO_RENEW -> {
+                layoutActiveStatusPill.setBackgroundResource(R.drawable.bg_subscription_status_pill_teal)
+                imgActiveStatusIcon.visibility = View.GONE
+                tvActiveSubscriptionStatus.setTextColor(Color.parseColor("#0E7490"))
+                layoutExpiredNoticeBox.visibility = View.GONE
+            }
+            SubscriptionStatusType.LIFETIME -> {
+                layoutActiveStatusPill.setBackgroundResource(R.drawable.bg_subscription_status_pill_orange)
+                imgActiveStatusIcon.visibility = View.GONE
+                tvActiveSubscriptionStatus.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
+                layoutExpiredNoticeBox.visibility = View.GONE
+            }
+            SubscriptionStatusType.EXPIRED -> {
+                layoutActiveStatusPill.setBackgroundResource(R.drawable.bg_subscription_status_pill_grey)
+                imgActiveStatusIcon.visibility = View.GONE
+                tvActiveSubscriptionStatus.setTextColor(Color.parseColor("#475569"))
+
+                val expiredName = details.expiredTierName ?: "PRO"
+                tvExpiredNoticeMessage.text = "Your $expiredName trial has expired. Renew to continue with higher limits."
+                layoutExpiredNoticeBox.visibility = View.VISIBLE
+            }
+            SubscriptionStatusType.FREE_TIER -> {
+                layoutActiveStatusPill.setBackgroundResource(R.drawable.bg_subscription_status_pill_grey)
+                imgActiveStatusIcon.visibility = View.GONE
+                tvActiveSubscriptionStatus.setTextColor(Color.parseColor("#475569"))
+                layoutExpiredNoticeBox.visibility = View.GONE
+            }
+        }
+
+        // 3. Quick Action Buttons on Active Card
+        when (details.tierId) {
             "pro" -> {
                 imgActiveTierIcon.visibility = View.VISIBLE
                 imgActiveTierIcon.setImageResource(R.drawable.icon_pro)
@@ -249,14 +319,32 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 params?.marginStart = (12 * resources.displayMetrics.density).toInt()
                 tvActiveTierName.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
+                btnActiveUpgradeAction.visibility = View.VISIBLE
+                btnActiveUpgradeAction.text = "UPGRADE TO VIP"
+                btnActiveUpgradeAction.setBackgroundResource(R.drawable.bg_button_rect_teal)
+                btnActiveUpgradeAction.setTextColor(Color.WHITE)
+                btnActiveUpgradeAction.setOnClickListener {
+                    SubscriptionPaywallDialog.show(this, "vip") {
+                        loadSubscriptionData(showShimmer = false)
+                    }
+                }
+
+                btnActiveCancelAction.visibility = View.VISIBLE
+                btnActiveCancelAction.text = "CANCEL SUBSCRIPTION"
+                btnActiveCancelAction.setBackgroundResource(R.drawable.bg_button_rect_outline_orange)
+                btnActiveCancelAction.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
+                btnActiveCancelAction.setOnClickListener {
+                    showCancelSubscriptionDialog(details)
+                }
+
                 btnSelectFree.isEnabled = true
-                btnSelectFree.text = freeInfo.ctaButtonText ?: "DOWNGRADE TO FREE"
-                btnSelectFree.setBackgroundResource(R.drawable.bg_btn_done_outline)
-                btnSelectFree.setTextColor(Color.parseColor("#6B7280"))
+                btnSelectFree.text = "SWITCH TO FREE"
+                btnSelectFree.setBackgroundResource(R.drawable.bg_button_rect_outline_orange)
+                btnSelectFree.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectPro.isEnabled = false
-                btnSelectPro.text = "CURRENT ACTIVE PLAN"
-                btnSelectPro.setBackgroundResource(R.drawable.bg_btn_orange_outline)
+                btnSelectPro.text = "CURRENT PLAN"
+                btnSelectPro.setBackgroundResource(R.drawable.bg_button_rect_outline_orange)
                 btnSelectPro.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectVip.isEnabled = true
@@ -271,18 +359,27 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 params?.marginStart = (12 * resources.displayMetrics.density).toInt()
                 tvActiveTierName.setTextColor(ContextCompat.getColor(this, R.color.presyo_teal))
 
+                btnActiveUpgradeAction.visibility = View.GONE
+                btnActiveCancelAction.visibility = View.VISIBLE
+                btnActiveCancelAction.text = "CANCEL SUBSCRIPTION"
+                btnActiveCancelAction.setBackgroundResource(R.drawable.bg_button_rect_outline_orange)
+                btnActiveCancelAction.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
+                btnActiveCancelAction.setOnClickListener {
+                    showCancelSubscriptionDialog(details)
+                }
+
                 btnSelectFree.isEnabled = true
-                btnSelectFree.text = freeInfo.ctaButtonText ?: "SWITCH TO FREE"
-                btnSelectFree.setBackgroundResource(R.drawable.bg_btn_done_outline)
-                btnSelectFree.setTextColor(Color.parseColor("#6B7280"))
+                btnSelectFree.text = "SWITCH TO FREE"
+                btnSelectFree.setBackgroundResource(R.drawable.bg_button_rect_outline_orange)
+                btnSelectFree.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectPro.isEnabled = true
                 btnSelectPro.text = proInfo.ctaButtonText ?: "SWITCH TO PRO"
-                btnSelectPro.setBackgroundResource(R.drawable.bg_btn_orange_outline)
+                btnSelectPro.setBackgroundResource(R.drawable.bg_button_rect_outline_orange)
                 btnSelectPro.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectVip.isEnabled = false
-                btnSelectVip.text = "CURRENT ACTIVE PLAN"
+                btnSelectVip.text = "CURRENT PLAN"
                 btnSelectVip.setBackgroundResource(R.drawable.bg_button_rect_outline_teal)
                 btnSelectVip.setTextColor(ContextCompat.getColor(this, R.color.presyo_teal))
             }
@@ -291,9 +388,20 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 params?.marginStart = 0
                 tvActiveTierName.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
+                btnActiveUpgradeAction.visibility = View.VISIBLE
+                btnActiveUpgradeAction.text = if (details.isExpired) "RENEW PLAN" else "UPGRADE PLAN"
+                btnActiveUpgradeAction.setBackgroundResource(R.drawable.bg_solid_button_orange)
+                btnActiveUpgradeAction.setTextColor(Color.WHITE)
+                btnActiveUpgradeAction.setOnClickListener {
+                    SubscriptionPaywallDialog.show(this, "pro") {
+                        loadSubscriptionData(showShimmer = false)
+                    }
+                }
+                btnActiveCancelAction.visibility = View.GONE
+
                 btnSelectFree.isEnabled = false
-                btnSelectFree.text = freeInfo.ctaButtonText ?: "CURRENT ACTIVE PLAN"
-                btnSelectFree.setBackgroundResource(R.drawable.bg_btn_orange_outline)
+                btnSelectFree.text = freeInfo.ctaButtonText ?: "CURRENT PLAN"
+                btnSelectFree.setBackgroundResource(R.drawable.bg_button_rect_outline_orange)
                 btnSelectFree.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
                 btnSelectPro.isEnabled = true
@@ -309,9 +417,9 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         }
         layoutActiveHeader.layoutParams = params
 
-        renderTierFeatures(R.id.featuresPro, "pro", R.drawable.ic_check_circle_orange, Color.parseColor("#1F2937"))
-        renderTierFeatures(R.id.featuresVip, "vip", R.drawable.ic_check_circle_teal, Color.parseColor("#064E3B"))
-        renderTierFeatures(R.id.featuresFree, "free", R.drawable.ic_check_circle_grey, Color.parseColor("#374151"))
+        renderTierFeatures(R.id.featuresPro, "pro", R.drawable.ic_check_circle_orange, Color.parseColor("#374151"))
+        renderTierFeatures(R.id.featuresVip, "vip", R.drawable.ic_check_circle_teal, Color.parseColor("#1E293B"))
+        renderTierFeatures(R.id.featuresFree, "free", R.drawable.ic_check_circle_grey, Color.parseColor("#4B5563"))
     }
 
     private fun renderTierFeatures(containerId: Int, tierId: String, checkIconRes: Int, textColor: Int) {
@@ -441,78 +549,120 @@ class SubscriptionStatusActivity : AppCompatActivity() {
     private suspend fun fetchLiveCapacityUsage(tier: SubscriptionTierInfo) {
         val uid = SupabaseAuthService.getCurrentUserId() ?: return
         try {
-            // Count owned stores
-            val ownedStoresCount = try {
+            var ownedStoresCount = 0
+            var maxItemsInAStore = 0
+            var maxStaffInAStore = 1
+
+            try {
                 val stores = SupabaseProvider.client.postgrest["stores"].select {
                     filter { eq("owner_id", uid) }
-                }.decodeList<kotlinx.serialization.json.JsonObject>()
-                stores.size
+                }.decodeList<JsonObject>()
+
+                ownedStoresCount = stores.size
+                val storeIds = stores.mapNotNull { it["id"]?.jsonPrimitive?.contentOrNull }
+
+                for (sId in storeIds) {
+                    try {
+                        val products = SupabaseProvider.client.postgrest["products"].select {
+                            filter { eq("store_id", sId) }
+                        }.decodeList<JsonObject>()
+                        if (products.size > maxItemsInAStore) {
+                            maxItemsInAStore = products.size
+                        }
+                    } catch (_: Exception) {}
+
+                    try {
+                        val members = SupabaseProvider.client.postgrest["store_members"].select {
+                            filter { eq("store_id", sId) }
+                        }.decodeList<JsonObject>()
+                        val count = members.size.coerceAtLeast(1)
+                        if (count > maxStaffInAStore) {
+                            maxStaffInAStore = count
+                        }
+                    } catch (_: Exception) {}
+                }
             } catch (e: Exception) {
-                1
+                ownedStoresCount = 1
             }
 
+            // 1. Owned Stores
             val storeLimitStr = SubscriptionManager.formatLimitText(tier.storeLimit)
             tvStatStoresVal.text = "$ownedStoresCount / $storeLimitStr"
-            if (tier.storeLimit != Int.MAX_VALUE) {
+            if (tier.storeLimit != Int.MAX_VALUE && tier.storeLimit > 0) {
                 val pct = ((ownedStoresCount.toFloat() / tier.storeLimit) * 100).toInt().coerceIn(0, 100)
                 progressStores.progress = pct
             } else {
-                progressStores.progress = 10
+                progressStores.progress = if (ownedStoresCount > 0) 10 else 0
             }
 
+            // 2. Items per Store
             val itemsLimitStr = SubscriptionManager.formatLimitText(tier.itemsPerStoreLimit)
-            tvStatItemsVal.text = "0 / $itemsLimitStr"
-            progressItems.progress = 0
+            tvStatItemsVal.text = "$maxItemsInAStore / $itemsLimitStr"
+            if (tier.itemsPerStoreLimit != Int.MAX_VALUE && tier.itemsPerStoreLimit > 0) {
+                val pct = ((maxItemsInAStore.toFloat() / tier.itemsPerStoreLimit) * 100).toInt().coerceIn(0, 100)
+                progressItems.progress = pct
+            } else {
+                progressItems.progress = if (maxItemsInAStore > 0) 10 else 0
+            }
 
+            // 3. Staff Members per Store
             val membersLimitStr = SubscriptionManager.formatLimitText(tier.membersPerStoreLimit)
-            tvStatMembersVal.text = "1 / $membersLimitStr"
-            if (tier.membersPerStoreLimit != Int.MAX_VALUE) {
-                val pct = ((1f / tier.membersPerStoreLimit) * 100).toInt().coerceIn(0, 100)
+            tvStatMembersVal.text = "$maxStaffInAStore / $membersLimitStr"
+            if (tier.membersPerStoreLimit != Int.MAX_VALUE && tier.membersPerStoreLimit > 0) {
+                val pct = ((maxStaffInAStore.toFloat() / tier.membersPerStoreLimit) * 100).toInt().coerceIn(0, 100)
                 progressMembers.progress = pct
             } else {
-                progressMembers.progress = 10
+                progressMembers.progress = if (maxStaffInAStore > 0) 10 else 0
             }
 
-            tvStatAiVal.text = "${tier.aiQuotaDaily} / ${tier.aiQuotaDaily} remaining"
+            // 4. Daily AI Quota
+            val aiQuotaStr = SubscriptionManager.formatLimitText(tier.aiQuotaDaily)
+            tvStatAiVal.text = "$aiQuotaStr / $aiQuotaStr remaining"
             progressAi.progress = 100
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun showDowngradeDialog(targetTierId: String) {
+    private fun showCancelSubscriptionDialog(details: UserSubscriptionDetails) {
+        val tierName = details.tierInfo.name
+        val message = if (details.isAutoRenew) {
+            "Cancel auto-renewal for $tierName?\n\nYour account will switch to Free tier limits. Your stores and catalog items will remain safe."
+        } else {
+            "Cancel your $tierName plan?\n\nYour account will switch to Free tier limits. Your stores and catalog items will remain safe."
+        }
+
         ReusableDialogHelper.showCustomDialog(
             context = this,
-            title = "Downgrade Subscription",
-            message = "Are you sure you want to switch to the Free Tier? Note: Your data will never be deleted, but adding new stores or items beyond Free limits will be paused.",
-            positiveButtonText = "Confirm Switch",
+            title = "Cancel Subscription",
+            message = message,
+            positiveButtonText = "Confirm",
             positiveAction = {
-                processSubscriptionChange(targetTierId)
+                processSubscriptionCancel()
             },
-            negativeButtonText = "Cancel"
+            negativeButtonText = "Keep Plan"
         )
     }
 
-    private fun processSubscriptionChange(newTierId: String) {
+    private fun processSubscriptionCancel() {
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
-                val success = SubscriptionManager.updateUserSubscription(this@SubscriptionStatusActivity, newTierId)
+                val success = SubscriptionManager.cancelSubscription(this@SubscriptionStatusActivity)
                 if (success) {
-                    val updatedTier = SubscriptionManager.getTierInfo(newTierId)
-                    currentTierInfo = updatedTier
-                    applyTierToUi(updatedTier)
-                    fetchLiveCapacityUsage(updatedTier)
+                    currentDetails = SubscriptionManager.calculateSubscriptionDetails("free", null)
+                    applyDetailsToUi(currentDetails)
+                    fetchLiveCapacityUsage(currentDetails.tierInfo)
                     Toast.makeText(
                         this@SubscriptionStatusActivity,
-                        "🎉 Presyohan plan updated to ${updatedTier.name}!",
-                        Toast.LENGTH_LONG
+                        "Subscription cancelled. Switched to Free tier.",
+                        Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    Toast.makeText(this@SubscriptionStatusActivity, "Failed to update subscription.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SubscriptionStatusActivity, "Failed to cancel subscription.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@SubscriptionStatusActivity, "Error updating subscription: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@SubscriptionStatusActivity, "Error cancelling subscription: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }

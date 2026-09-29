@@ -138,7 +138,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Owner: loading..."
+                            android:text="Account: loading..."
                             android:textColor="#757575"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -149,6 +149,101 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:visibility="gone" />
+
+                <!-- Dynamic Subscription Status Pill / Deadline Box -->
+                <LinearLayout
+                    android:id="@+id/layoutActiveStatusPill"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_subscription_status_pill_orange"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="9dp">
+
+                    <ImageView
+                        android:id="@+id/imgActiveStatusIcon"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginEnd="8dp"
+                        android:src="@drawable/ic_calendar_clock"
+                        app:tint="@color/presyo_orange" />
+
+                    <TextView
+                        android:id="@+id/tvActiveSubscriptionStatus"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Expires on Oct 6, 2026 (5 days remaining)"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Expired Banner Alert Box (when recent fallback happened) -->
+                <LinearLayout
+                    android:id="@+id/layoutExpiredNoticeBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_subscription_notice_expired"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/icon_subscriptions"
+                        app:tint="@color/presyo_orange" />
+
+                    <TextView
+                        android:id="@+id/tvExpiredNoticeMessage"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="Your PRO trial has expired. Renew to continue with higher limits."
+                        android:textColor="#4B5563"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Active Card Quick Action Buttons (Upgrade / Cancel) -->
+                <LinearLayout
+                    android:id="@+id/layoutActiveCardActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnActiveUpgradeAction"
+                        android:layout_width="0dp"
+                        android:layout_height="38dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_solid_button_orange"
+                        android:text="Upgrade Plan"
+                        android:textColor="@color/white"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnActiveCancelAction"
+                        android:layout_width="0dp"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_button_rect_outline_orange"
+                        android:text="Cancel Subscription"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+                </LinearLayout>
 
                 <View
                     android:id="@+id/dividerActive"
@@ -769,12 +864,12 @@
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:layout_marginTop="20dp"
-                    android:background="@drawable/bg_btn_orange_outline"
+                    android:background="@drawable/bg_button_rect_outline_orange"
                     android:enabled="false"
                     android:gravity="center"
                     android:includeFontPadding="false"
                     android:padding="0dp"
-                    android:text="CURRENT ACTIVE PLAN"
+                    android:text="CURRENT PLAN"
                     android:textColor="@color/presyo_orange"
                     android:textSize="13sp"
                     android:textStyle="bold" />

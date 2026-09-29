@@ -872,6 +872,17 @@ class HomeActivity : AppCompatActivity() {
         }
 
         loadNotifBadge()
+        checkSubscriptionNotice()
+    }
+
+    private fun checkSubscriptionNotice() {
+        val bannerCard = findViewById<androidx.cardview.widget.CardView>(R.id.cardSubscriptionBannerRoot) ?: return
+        lifecycleScope.launch {
+            try {
+                val details = SubscriptionManager.fetchUserSubscriptionDetails(this@HomeActivity)
+                SubscriptionNoticeHelper.bindBanner(this@HomeActivity, bannerCard, details)
+            } catch (_: Exception) {}
+        }
     }
 
     // --- Helper Methods ---
@@ -1980,6 +1991,7 @@ class HomeActivity : AppCompatActivity() {
         SessionManager.markStoreHome(this, currentStoreId, currentStoreName)
         reloadProductsFn?.invoke()
         loadNotifBadge()
+        checkSubscriptionNotice()
         lifecycleScope.launch {
             try {
                 SupabaseAuthService.updateUserHeartbeat()

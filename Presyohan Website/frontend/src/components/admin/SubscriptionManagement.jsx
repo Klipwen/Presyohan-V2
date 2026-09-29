@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabaseClient';
+import SubscriptionOverrideModal from './SubscriptionOverrideModal.jsx';
 
 export const isPromoActive = (tier) => {
   if (!tier) return false;
@@ -223,12 +224,12 @@ export default function SubscriptionManagement() {
 
   // Manual Override State
   const [searchQuery, setSearchQuery] = useState('');
-  const [tierFilter, setTierFilter] = useState('all'); // 'all' | 'free' | 'pro' | 'vip'
+  const [tierFilter, setTierFilter] = useState('all'); // 'all' | 'free' | 'pro' | 'vip' | 'lifetime' | 'active_override'
   const [users, setUsers] = useState([]);
-  const [stores, setStores] = useState([]);
-  const [selectedEntity, setSelectedEntity] = useState(null); // { type: 'user' | 'store', item: obj }
-  const [overrideTier, setOverrideTier] = useState('pro');
-  const [overrideDuration, setOverrideDuration] = useState('30'); // '7' | '30' | '90' | '365' | 'permanent'
+  const [storeMembers, setStoreMembers] = useState([]);
+  const [selectedUserForOverride, setSelectedUserForOverride] = useState(null);
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [overrideActionLoading, setOverrideActionLoading] = useState(null);
   const [mutating, setMutating] = useState(false);
 
   // Categorized Benefit Management State in Edit Modal
@@ -274,12 +275,23 @@ export default function SubscriptionManagement() {
 
       setTiers(mergedTiers);
 
-      // Load Users & Stores for overrides console
+      // Load Users & Store Memberships for overrides console
       const { data: userData } = await supabase.from('app_users').select('*').limit(200);
       setUsers(userData || []);
 
-      const { data: storeData } = await supabase.from('stores').select('*').limit(200);
-      setStores(storeData || []);
+      const { data: memberData } = await supabase
+        .from('store_members')
+        .select(`
+          store_id,
+          user_id,
+          role,
+          stores (
+            id,
+            name,
+            branch
+          )
+        `);
+      setStoreMembers(memberData || []);
 
     } catch (err) {
       console.error('Subscription management load error:', err);
@@ -2845,28 +2857,446 @@ export default function SubscriptionManagement() {
       )}
 
       {/* TAB 2: MANUAL TIER OVERRIDES */}
-      {subTab === 'overrides' && (
-        <div>
-          <div style={{ 
-            backgroundColor: '#EFF6FF', 
-            border: '1px solid #BFDBFE', 
-            borderRadius: '20px', 
-            padding: '18px 24px', 
-            marginBottom: '28px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
-            <div style={{ fontSize: '1.8rem' }}>👑</div>
-            <div>
-              <div style={{ fontWeight: 800, color: '#1E40AF', fontSize: '1rem' }}>Fail-Proof Subscription Override Console</div>
-              <div style={{ color: '#3B82F6', fontSize: '0.85rem', marginTop: '2px' }}>
-                Grant instant PRO or VIP tier access to any merchant account or store branch without requiring payment.
+      {subTab === 'overrides' && (() => {
+        // Compute metrics
+        const now = new Date();
+        const vipCount = users.filter(u => (u.subscription_tier || '').toLowerCase() === 'vip').length;
+        const proCount = users.filter(u => (u.subscription_tier || '').toLowerCase() === 'pro').length;
+        const activeTrialsCount = users.filter(u => {
+          const tier = (u.subscription_tier || 'free').toLowerCase();
+          if (tier === 'free') return false;
+          if (!u.subscription_expires_at) return false;
+          return new Date(u.subscription_expires_at) > now;
+        }).length;
+        const lifetimeCount = users.filter(u => {
+          const tier = (u.subscription_tier || 'free').toLowerCase();
+          return tier !== 'free' && !u.subscription_expires_at;
+        }).length;
+        const freeCount = users.filter(u => (u.subscription_tier || 'free').toLowerCase() === 'free').length;
+
+        // Quick 1-click override helper
+        const handleQuickGrant = async (targetUser, newTier, durationDays) => {
+          setOverrideActionLoading(targetUser.id);
+          try {
+            let expiresAt = null;
+            if (durationDays !== null && durationDays > 0) {
+              const d = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+              expiresAt = d.toISOString();
+            }
+
+            let rpcSuccess = false;
+            try {
+              const { error: rpcErr } = await supabase.rpc('override_subscription_tier', {
+                target_user_id: targetUser.id,
+                new_tier: newTier,
+                expires_at: expiresAt
+              });
+              if (!rpcErr) rpcSuccess = true;
+            } catch (err) {
+              console.warn('RPC quick grant error:', err);
+            }
+
+            if (!rpcSuccess) {
+              await supabase
+                .from('app_users')
+                .update({
+                  subscription_tier: newTier,
+                  subscription_expires_at: expiresAt
+                })
+                .eq('id', targetUser.id);
+
+              const userStoreIds = storeMembers
+                .filter(sm => sm.user_id === targetUser.id)
+                .map(sm => sm.store_id);
+
+              if (userStoreIds.length > 0) {
+                await supabase
+                  .from('stores')
+                  .update({
+                    subscription_tier: newTier,
+                    subscription_expires_at: expiresAt,
+                    updated_at: new Date().toISOString()
+                  })
+                  .in('id', userStoreIds);
+              }
+            }
+
+            // Update local state
+            setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, subscription_tier: newTier, subscription_expires_at: expiresAt } : u));
+          } catch (err) {
+            console.error('Failed quick grant:', err);
+            alert('Failed to apply quick override: ' + err.message);
+          } finally {
+            setOverrideActionLoading(null);
+          }
+        };
+
+        // Filter users
+        const filteredOverrideUsers = users.filter(u => {
+          const matchesSearch =
+            (u.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (u.email || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+          const tier = (u.subscription_tier || 'free').toLowerCase();
+          const exp = u.subscription_expires_at ? new Date(u.subscription_expires_at) : null;
+          const isExpired = exp && exp < now;
+
+          let matchesTier = true;
+          if (tierFilter === 'vip') matchesTier = tier === 'vip';
+          else if (tierFilter === 'pro') matchesTier = tier === 'pro';
+          else if (tierFilter === 'free') matchesTier = tier === 'free';
+          else if (tierFilter === 'lifetime') matchesTier = tier !== 'free' && !exp;
+          else if (tierFilter === 'active_override') matchesTier = tier !== 'free' && (!exp || exp >= now);
+          else if (tierFilter === 'expired') matchesTier = isExpired;
+
+          return matchesSearch && matchesTier;
+        });
+
+        return (
+          <div>
+            {/* Header Banner */}
+            <div style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(0, 0, 0, 0.05)',
+              borderRadius: '20px',
+              padding: '22px 28px',
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 4px 20px -4px rgba(0,0,0,0.03)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(255, 140, 0, 0.1)',
+                  color: '#FF8C00',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '1.1rem' }}>
+                    User Subscription Override Console
+                  </div>
+                  <div style={{ color: '#64748B', fontSize: '0.85rem', marginTop: '2px' }}>
+                    Grant custom VIP or PRO access, 7-day trials, lifetime passes, or revert plans instantly.
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Metrics Overview Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#EA580C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VIP Subscribers</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A' }}>{vipCount}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Accounts with VIP access</div>
+              </div>
+
+              <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0891B2', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PRO Subscribers</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A' }}>{proCount}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Accounts with PRO access</div>
+              </div>
+
+              <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Lifetime Passes</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A' }}>{lifetimeCount}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Permanent no-expiry overrides</div>
+              </div>
+
+              <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active Trials / Days</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A' }}>{activeTrialsCount}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Time-bound active passes</div>
+              </div>
+
+              <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Free Users</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A' }}>{freeCount}</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Standard quota tier</div>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="admin-table-controls">
+              <div className="admin-search-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  className="admin-search-input"
+                  placeholder="Search accounts to override by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <select
+                  className="admin-select"
+                  value={tierFilter}
+                  onChange={(e) => setTierFilter(e.target.value)}
+                >
+                  <option value="all">All Plans &amp; Tiers</option>
+                  <option value="vip">VIP Tier</option>
+                  <option value="pro">PRO Tier</option>
+                  <option value="free">Free Tier</option>
+                  <option value="lifetime">Lifetime Access</option>
+                  <option value="active_override">Active Paid / Trials</option>
+                  <option value="expired">Expired Overrides</option>
+                </select>
+              </div>
+            </div>
+
+            {/* User Override Accounts Table */}
+            <div className="admin-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Account Holder</th>
+                    <th>Current Plan</th>
+                    <th>Access Validity</th>
+                    <th>Stores Owned</th>
+                    <th>Override Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOverrideUsers.map((targetUser) => {
+                    const tier = (targetUser.subscription_tier || 'free').toLowerCase();
+                    const exp = targetUser.subscription_expires_at ? new Date(targetUser.subscription_expires_at) : null;
+                    const isExpired = exp && exp < now;
+                    const userStoreMembers = storeMembers.filter(sm => sm.user_id === targetUser.id);
+                    const ownedStores = userStoreMembers.filter(sm => sm.role === 'owner');
+                    const displayStores = ownedStores.length > 0 ? ownedStores : userStoreMembers;
+                    const storeCount = displayStores.length;
+                    const storeNames = displayStores
+                      .map(sm => sm.stores?.name ? `${sm.stores.name}${sm.stores.branch ? ` (${sm.stores.branch})` : ''}` : null)
+                      .filter(Boolean);
+
+                    let validityText = 'Standard Ongoing Access';
+                    if (tier !== 'free') {
+                      if (!exp) {
+                        validityText = 'Lifetime Access (No Expiry)';
+                      } else if (isExpired) {
+                        validityText = `Expired on ${exp.toLocaleDateString()}`;
+                      } else {
+                        const diffHours = Math.round((exp - now) / (1000 * 60 * 60));
+                        const diffDays = Math.ceil(diffHours / 24);
+                        validityText = diffHours < 24 ? `Expires in ${diffHours}h` : `Expires in ${diffDays}d (${exp.toLocaleDateString()})`;
+                      }
+                    }
+
+                    return (
+                      <tr key={targetUser.id}>
+                        <td>
+                          <div className="admin-table-user">
+                            <div
+                              className="admin-table-avatar"
+                              style={{
+                                backgroundImage: targetUser.avatar_url ? `url(${targetUser.avatar_url})` : 'none',
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                color: targetUser.avatar_url ? 'transparent' : '#ff8c00',
+                                backgroundColor: targetUser.avatar_url ? 'transparent' : 'rgba(255, 140, 0, 0.08)'
+                              }}
+                            >
+                              {!targetUser.avatar_url && (targetUser.name || targetUser.email || 'U').slice(0, 2).toUpperCase()}
+                            </div>
+                            <div className="admin-table-user-info">
+                              <span className="admin-table-user-name">{targetUser.name || 'Anonymous User'}</span>
+                              <span className="admin-table-user-email">{targetUser.email}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '4px 10px',
+                              borderRadius: '20px',
+                              fontSize: '0.76rem',
+                              fontWeight: 800,
+                              backgroundColor:
+                                tier === 'vip'
+                                  ? 'rgba(255, 140, 0, 0.12)'
+                                  : tier === 'pro'
+                                  ? 'rgba(0, 188, 212, 0.12)'
+                                  : 'rgba(100, 116, 139, 0.08)',
+                              color:
+                                isExpired
+                                  ? '#DC2626'
+                                  : tier === 'vip'
+                                  ? '#EA580C'
+                                  : tier === 'pro'
+                                  ? '#0891B2'
+                                  : '#475569',
+                              border:
+                                isExpired
+                                  ? '1px solid rgba(239, 68, 68, 0.2)'
+                                  : tier === 'vip'
+                                  ? '1px solid rgba(255, 140, 0, 0.25)'
+                                  : tier === 'pro'
+                                  ? '1px solid rgba(0, 188, 212, 0.25)'
+                                  : '1px solid rgba(100, 116, 139, 0.15)'
+                            }}
+                          >
+                            {tier.toUpperCase()}
+                            {isExpired && ' (EXPIRED)'}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span style={{ fontSize: '0.82rem', color: isExpired ? '#DC2626' : '#475569', fontWeight: 600 }}>
+                            {validityText}
+                          </span>
+                        </td>
+
+                        <td>
+                          {storeCount > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0F172A' }}>
+                                {storeCount} {storeCount === 1 ? 'Store' : 'Stores'}
+                              </span>
+                              {storeNames.length > 0 && (
+                                <span 
+                                  style={{ fontSize: '0.74rem', color: '#64748B', maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  title={storeNames.join(', ')}
+                                >
+                                  {storeNames.join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.82rem', color: '#94A3B8' }}>0 Stores</span>
+                          )}
+                        </td>
+
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            {/* Detailed Custom Override Modal Button */}
+                            <button
+                              type="button"
+                              className="admin-btn-action"
+                              style={{
+                                backgroundColor: '#FFF7ED',
+                                color: '#EA580C',
+                                borderColor: '#FED7AA',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              onClick={() => {
+                                setSelectedUserForOverride(targetUser);
+                                setIsOverrideModalOpen(true);
+                              }}
+                              title="Open full subscription override configuration"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                              </svg>
+                              Custom Override...
+                            </button>
+
+                            {/* 1-Click Quick: Grant 7-Day PRO */}
+                            <button
+                              type="button"
+                              className="admin-btn-action"
+                              style={{
+                                backgroundColor: '#F0FDFA',
+                                color: '#0891B2',
+                                borderColor: '#A5F3FC',
+                                fontWeight: 700,
+                                fontSize: '0.76rem'
+                              }}
+                              disabled={overrideActionLoading === targetUser.id}
+                              onClick={() => handleQuickGrant(targetUser, 'pro', 7)}
+                              title="Grant 7 days of PRO tier immediately"
+                            >
+                              {overrideActionLoading === targetUser.id ? 'Applying...' : '+ 7d PRO'}
+                            </button>
+
+                            {/* 1-Click Quick: Grant Lifetime VIP */}
+                            <button
+                              type="button"
+                              className="admin-btn-action"
+                              style={{
+                                backgroundColor: '#FEF3C7',
+                                color: '#B45309',
+                                borderColor: '#FDE68A',
+                                fontWeight: 800,
+                                fontSize: '0.76rem'
+                              }}
+                              disabled={overrideActionLoading === targetUser.id}
+                              onClick={() => handleQuickGrant(targetUser, 'vip', null)}
+                              title="Grant Lifetime VIP tier immediately"
+                            >
+                              {overrideActionLoading === targetUser.id ? 'Applying...' : 'Lifetime VIP'}
+                            </button>
+
+                            {/* Reset to Free */}
+                            {tier !== 'free' && (
+                              <button
+                                type="button"
+                                className="admin-btn-action"
+                                style={{
+                                  backgroundColor: '#F8FAFC',
+                                  color: '#64748B',
+                                  borderColor: '#E2E8F0',
+                                  fontWeight: 600,
+                                  fontSize: '0.76rem'
+                                }}
+                                disabled={overrideActionLoading === targetUser.id}
+                                onClick={() => handleQuickGrant(targetUser, 'free', null)}
+                                title="Reset user back to Free tier"
+                              >
+                                Reset Free
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {filteredOverrideUsers.length === 0 && (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', color: '#94a3b8', padding: '36px' }}>
+                        No user accounts found matching your search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal instance */}
+            <SubscriptionOverrideModal
+              user={selectedUserForOverride}
+              isOpen={isOverrideModalOpen}
+              onClose={() => {
+                setIsOverrideModalOpen(false);
+                setSelectedUserForOverride(null);
+              }}
+              onSuccess={(updatedUser) => {
+                setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+              }}
+            />
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

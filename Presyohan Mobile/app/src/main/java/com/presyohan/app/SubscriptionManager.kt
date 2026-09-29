@@ -16,6 +16,13 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
 
 @Serializable
 data class SubscriptionTierDbRow(
@@ -107,7 +114,7 @@ data class SubscriptionTierInfo(
     val effectivePriceText: String
         get() {
             val fp = finalPriceValue
-            return if (fp % 1.0 == 0.0) "₱${fp.toInt()}" else "₱%.2f".format(fp)
+            return if (fp % 1.0 == 0.0) "₱${fp.toInt()}" else "₱%.2f".format(Locale.US, fp)
         }
 
     val originalPriceText: String?
@@ -135,6 +142,28 @@ data class SubscriptionTierInfo(
         }
 }
 
+enum class SubscriptionStatusType {
+    FREE_TIER,
+    TIME_BOUND_TRIAL,
+    AUTO_RENEW,
+    LIFETIME,
+    EXPIRED
+}
+
+data class UserSubscriptionDetails(
+    val tierId: String,
+    val tierInfo: SubscriptionTierInfo,
+    val expiresAtIso: String?,
+    val isAutoRenew: Boolean,
+    val statusText: String,
+    val statusType: SubscriptionStatusType,
+    val daysRemaining: Long?,
+    val isExpiringSoon: Boolean,
+    val isExpired: Boolean,
+    val formattedExpiryDate: String? = null,
+    val expiredTierName: String? = null
+)
+
 object SubscriptionManager {
 
     var liveTierConfigs: Map<String, SubscriptionTierDbRow> = emptyMap()
@@ -142,12 +171,12 @@ object SubscriptionManager {
     fun parseIsoToEpochMs(isoString: String?): Long? {
         if (isoString.isNullOrBlank()) return null
         return try {
-            java.time.Instant.parse(isoString).toEpochMilli()
+            Instant.parse(isoString).toEpochMilli()
         } catch (e: Exception) {
             try {
                 val cleanDate = isoString.substringBefore("T").substringBefore(" ")
-                val date = java.time.LocalDate.parse(cleanDate)
-                date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val date = LocalDate.parse(cleanDate)
+                date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             } catch (e2: Exception) {
                 null
             }
@@ -157,14 +186,14 @@ object SubscriptionManager {
     fun formatIsoToShortDate(isoString: String?): String? {
         if (isoString.isNullOrBlank()) return null
         return try {
-            val instant = java.time.Instant.parse(isoString)
-            val zdt = instant.atZone(java.time.ZoneId.systemDefault())
-            java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy").format(zdt)
+            val instant = Instant.parse(isoString)
+            val zdt = instant.atZone(ZoneId.systemDefault())
+            DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US).format(zdt)
         } catch (e: Exception) {
             try {
                 val cleanDate = isoString.substringBefore("T").substringBefore(" ")
-                val date = java.time.LocalDate.parse(cleanDate)
-                java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy").format(date)
+                val date = LocalDate.parse(cleanDate)
+                DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US).format(date)
             } catch (e2: Exception) {
                 null
             }
@@ -257,6 +286,11 @@ object SubscriptionManager {
         }
     }
 
+    fun sanitizeLimit(value: Int?, defaultVal: Int = 1): Int {
+        val v = value ?: defaultVal
+        return if (v > 90000) Int.MAX_VALUE else v
+    }
+
     val TIER_FREE: SubscriptionTierInfo
         get() {
             val db = liveTierConfigs["free"]
@@ -265,15 +299,15 @@ object SubscriptionManager {
                 name = db?.name ?: "Free Tier",
                 priceText = "₱${db?.price?.toInt() ?: 0}",
                 periodText = "forever",
-                storeLimit = db?.max_stores ?: 1,
-                membersPerStoreLimit = db?.max_staff_per_store ?: 3,
-                categoriesPerStoreLimit = db?.max_categories_per_store ?: 10,
-                itemsPerStoreLimit = db?.max_items_per_store ?: 100,
-                aiQuotaDaily = db?.max_ai_parses_per_day ?: 3,
-                sukiLimit = db?.max_suki_partners ?: 5,
-                presyohanStoresLimit = db?.max_presyohan_stores ?: 5,
+                storeLimit = sanitizeLimit(db?.max_stores, 1),
+                membersPerStoreLimit = sanitizeLimit(db?.max_staff_per_store, 3),
+                categoriesPerStoreLimit = sanitizeLimit(db?.max_categories_per_store, 10),
+                itemsPerStoreLimit = sanitizeLimit(db?.max_items_per_store, 100),
+                aiQuotaDaily = sanitizeLimit(db?.max_ai_parses_per_day, 3),
+                sukiLimit = sanitizeLimit(db?.max_suki_partners, 5),
+                presyohanStoresLimit = sanitizeLimit(db?.max_presyohan_stores, 5),
                 publicItemsLimit = 5,
-                internetSearchQuota = db?.max_internet_searches_per_day ?: 3,
+                internetSearchQuota = sanitizeLimit(db?.max_internet_searches_per_day, 3),
                 allowPriceCloning = db?.has_price_cloning ?: false,
                 allowCustomerPairing = db?.has_customer_pairing ?: false,
                 allowExcelExport = db?.has_excel_export ?: false,
@@ -304,15 +338,15 @@ object SubscriptionManager {
                 name = db?.name ?: "PRO Tier",
                 priceText = "₱${db?.price?.toInt() ?: 99}",
                 periodText = "/ month",
-                storeLimit = db?.max_stores ?: 10,
-                membersPerStoreLimit = db?.max_staff_per_store ?: 10,
-                categoriesPerStoreLimit = db?.max_categories_per_store ?: 25,
-                itemsPerStoreLimit = db?.max_items_per_store ?: 500,
-                aiQuotaDaily = db?.max_ai_parses_per_day ?: 10,
-                sukiLimit = db?.max_suki_partners ?: 15,
-                presyohanStoresLimit = db?.max_presyohan_stores ?: 15,
+                storeLimit = sanitizeLimit(db?.max_stores, 10),
+                membersPerStoreLimit = sanitizeLimit(db?.max_staff_per_store, 10),
+                categoriesPerStoreLimit = sanitizeLimit(db?.max_categories_per_store, 25),
+                itemsPerStoreLimit = sanitizeLimit(db?.max_items_per_store, 500),
+                aiQuotaDaily = sanitizeLimit(db?.max_ai_parses_per_day, 10),
+                sukiLimit = sanitizeLimit(db?.max_suki_partners, 15),
+                presyohanStoresLimit = sanitizeLimit(db?.max_presyohan_stores, 15),
                 publicItemsLimit = 15,
-                internetSearchQuota = db?.max_internet_searches_per_day ?: 15,
+                internetSearchQuota = sanitizeLimit(db?.max_internet_searches_per_day, 15),
                 allowPriceCloning = db?.has_price_cloning ?: true,
                 allowCustomerPairing = db?.has_customer_pairing ?: true,
                 allowExcelExport = db?.has_excel_export ?: true,
@@ -343,15 +377,15 @@ object SubscriptionManager {
                 name = db?.name ?: "VIP Tier",
                 priceText = "₱${db?.price?.toInt() ?: 299}",
                 periodText = "/ month",
-                storeLimit = if ((db?.max_stores ?: 999999) > 90000) Int.MAX_VALUE else (db?.max_stores ?: 999999),
-                membersPerStoreLimit = if ((db?.max_staff_per_store ?: 999999) > 90000) Int.MAX_VALUE else (db?.max_staff_per_store ?: 999999),
-                categoriesPerStoreLimit = if ((db?.max_categories_per_store ?: 999999) > 90000) Int.MAX_VALUE else (db?.max_categories_per_store ?: 999999),
-                itemsPerStoreLimit = if ((db?.max_items_per_store ?: 999999) > 90000) Int.MAX_VALUE else (db?.max_items_per_store ?: 999999),
-                aiQuotaDaily = db?.max_ai_parses_per_day ?: 50,
-                sukiLimit = if ((db?.max_suki_partners ?: 999999) > 90000) Int.MAX_VALUE else (db?.max_suki_partners ?: 999999),
-                presyohanStoresLimit = if ((db?.max_presyohan_stores ?: 999999) > 90000) Int.MAX_VALUE else (db?.max_presyohan_stores ?: 999999),
+                storeLimit = sanitizeLimit(db?.max_stores, 999999),
+                membersPerStoreLimit = sanitizeLimit(db?.max_staff_per_store, 999999),
+                categoriesPerStoreLimit = sanitizeLimit(db?.max_categories_per_store, 999999),
+                itemsPerStoreLimit = sanitizeLimit(db?.max_items_per_store, 999999),
+                aiQuotaDaily = sanitizeLimit(db?.max_ai_parses_per_day, 50),
+                sukiLimit = sanitizeLimit(db?.max_suki_partners, 999999),
+                presyohanStoresLimit = sanitizeLimit(db?.max_presyohan_stores, 999999),
                 publicItemsLimit = Int.MAX_VALUE,
-                internetSearchQuota = if ((db?.max_internet_searches_per_day ?: 999999) > 90000) Int.MAX_VALUE else (db?.max_internet_searches_per_day ?: 999999),
+                internetSearchQuota = sanitizeLimit(db?.max_internet_searches_per_day, 999999),
                 allowPriceCloning = db?.has_price_cloning ?: true,
                 allowCustomerPairing = db?.has_customer_pairing ?: true,
                 allowExcelExport = db?.has_excel_export ?: true,
@@ -382,46 +416,348 @@ object SubscriptionManager {
         }
     }
 
+    /**
+     * Compute full status text, remaining days, and status type based on tier and expiration metadata.
+     */
+    fun calculateSubscriptionDetails(
+        tierId: String,
+        expiresAtIso: String?,
+        isAutoRenew: Boolean = false,
+        wasRecentlyExpired: Boolean = false,
+        expiredTierName: String? = null
+    ): UserSubscriptionDetails {
+        val sanitizedTier = tierId.lowercase()
+        val tierInfo = getTierInfo(sanitizedTier)
+        val now = System.currentTimeMillis()
+        val expMs = parseIsoToEpochMs(expiresAtIso)
+        val formattedDate = formatIsoToShortDate(expiresAtIso)
+
+        // Case 1: Free Tier
+        if (sanitizedTier == "free") {
+            if (wasRecentlyExpired && !expiredTierName.isNullOrBlank()) {
+                return UserSubscriptionDetails(
+                    tierId = "free",
+                    tierInfo = TIER_FREE,
+                    expiresAtIso = null,
+                    isAutoRenew = false,
+                    statusText = "Standard quota limits (No expiration)",
+                    statusType = SubscriptionStatusType.EXPIRED,
+                    daysRemaining = null,
+                    isExpiringSoon = false,
+                    isExpired = true,
+                    formattedExpiryDate = null,
+                    expiredTierName = expiredTierName
+                )
+            }
+            return UserSubscriptionDetails(
+                tierId = "free",
+                tierInfo = TIER_FREE,
+                expiresAtIso = null,
+                isAutoRenew = false,
+                statusText = "Standard quota limits (No expiration)",
+                statusType = SubscriptionStatusType.FREE_TIER,
+                daysRemaining = null,
+                isExpiringSoon = false,
+                isExpired = false,
+                formattedExpiryDate = null
+            )
+        }
+
+        // Case 2: Permanent / Lifetime Access (PRO or VIP without expiration)
+        if (expMs == null || expMs <= 0L) {
+            return UserSubscriptionDetails(
+                tierId = sanitizedTier,
+                tierInfo = tierInfo,
+                expiresAtIso = null,
+                isAutoRenew = false,
+                statusText = "Permanent Access (Never Expires)",
+                statusType = SubscriptionStatusType.LIFETIME,
+                daysRemaining = null,
+                isExpiringSoon = false,
+                isExpired = false,
+                formattedExpiryDate = null
+            )
+        }
+
+        // Check if expiration timestamp has passed
+        if (now >= expMs) {
+            return UserSubscriptionDetails(
+                tierId = "free",
+                tierInfo = TIER_FREE,
+                expiresAtIso = expiresAtIso,
+                isAutoRenew = false,
+                statusText = "Standard quota limits (No expiration)",
+                statusType = SubscriptionStatusType.EXPIRED,
+                daysRemaining = 0L,
+                isExpiringSoon = false,
+                isExpired = true,
+                formattedExpiryDate = formattedDate,
+                expiredTierName = tierInfo.name
+            )
+        }
+
+        // Active with expiration
+        val diffMs = expMs - now
+        val days = Math.ceil(diffMs.toDouble() / (1000.0 * 60 * 60 * 24)).toLong().coerceAtLeast(0)
+        val isExpiringSoon = days in 0..3
+
+        // Case 3: Auto-Renewing Subscriptions (e.g. Monthly Google Play / Store Billing)
+        if (isAutoRenew) {
+            val monthlyPriceFormatted = if (tierInfo.finalPriceValue % 1.0 == 0.0) {
+                "₱%.2f/mo".format(Locale.US, tierInfo.finalPriceValue)
+            } else {
+                "₱%.2f/mo".format(Locale.US, tierInfo.finalPriceValue)
+            }
+            val statusText = "Renews automatically on $formattedDate ($monthlyPriceFormatted)"
+
+            return UserSubscriptionDetails(
+                tierId = sanitizedTier,
+                tierInfo = tierInfo,
+                expiresAtIso = expiresAtIso,
+                isAutoRenew = true,
+                statusText = statusText,
+                statusType = SubscriptionStatusType.AUTO_RENEW,
+                daysRemaining = days,
+                isExpiringSoon = false, // Auto-renew handles payment automatically
+                isExpired = false,
+                formattedExpiryDate = formattedDate
+            )
+        }
+
+        // Case 4: Free Trial or Time-Bound Access (e.g., 7-Day PRO Trial / Admin Override)
+        val remainingPart = when {
+            days <= 0 -> "(Expires today)"
+            days == 1L -> "(1 day remaining)"
+            else -> "($days days remaining)"
+        }
+        val statusText = "Expires on $formattedDate $remainingPart"
+
+        return UserSubscriptionDetails(
+            tierId = sanitizedTier,
+            tierInfo = tierInfo,
+            expiresAtIso = expiresAtIso,
+            isAutoRenew = false,
+            statusText = statusText,
+            statusType = SubscriptionStatusType.TIME_BOUND_TRIAL,
+            daysRemaining = days,
+            isExpiringSoon = isExpiringSoon,
+            isExpired = false,
+            formattedExpiryDate = formattedDate
+        )
+    }
+
     fun getCachedTier(context: Context): SubscriptionTierInfo {
         val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
         val tierId = prefs.getString("user_subscription_tier", "free") ?: "free"
         return getTierInfo(tierId)
     }
 
-    fun saveCachedTier(context: Context, tierId: String) {
+    fun getCachedSubscriptionDetails(context: Context): UserSubscriptionDetails {
         val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putString("user_subscription_tier", tierId.lowercase()).apply()
+        val tierId = prefs.getString("user_subscription_tier", "free") ?: "free"
+        val expiresAt = prefs.getString("user_subscription_expires_at", null)
+        val isAutoRenew = prefs.getBoolean("user_subscription_auto_renew", false)
+        val wasExpired = prefs.getBoolean("user_subscription_was_expired", false)
+        val expiredTierName = prefs.getString("user_subscription_expired_tier_name", null)
+
+        return calculateSubscriptionDetails(
+            tierId = tierId,
+            expiresAtIso = expiresAt,
+            isAutoRenew = isAutoRenew,
+            wasRecentlyExpired = wasExpired,
+            expiredTierName = expiredTierName
+        )
     }
 
-    suspend fun fetchUserTier(context: Context): SubscriptionTierInfo = withContext(Dispatchers.IO) {
-        val userId = SupabaseAuthService.getCurrentUserId() ?: return@withContext getCachedTier(context)
+    fun saveCachedDetails(
+        context: Context,
+        tierId: String,
+        expiresAt: String?,
+        isAutoRenew: Boolean = false,
+        wasExpired: Boolean = false,
+        expiredTierName: String? = null
+    ) {
+        val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("user_subscription_tier", tierId.lowercase())
+            .putString("user_subscription_expires_at", expiresAt)
+            .putBoolean("user_subscription_auto_renew", isAutoRenew)
+            .putBoolean("user_subscription_was_expired", wasExpired)
+            .putString("user_subscription_expired_tier_name", expiredTierName)
+            .apply()
+    }
+
+    fun clearExpiredNotice(context: Context) {
+        val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("user_subscription_was_expired", false)
+            .putString("user_subscription_expired_tier_name", null)
+            .apply()
+    }
+
+    suspend fun fetchUserTier(context: Context): SubscriptionTierInfo {
+        val details = fetchUserSubscriptionDetails(context)
+        return details.tierInfo
+    }
+
+    /**
+     * Fetches user profile, calculates detailed status, and handles graceful expiration fallback if needed.
+     */
+    suspend fun fetchUserSubscriptionDetails(context: Context): UserSubscriptionDetails = withContext(Dispatchers.IO) {
+        val userId = SupabaseAuthService.getCurrentUserId() ?: return@withContext getCachedSubscriptionDetails(context)
         try {
             val profile = SupabaseAuthService.getUserProfile()
-            val tierId = profile?.subscription_tier ?: "free"
-            saveCachedTier(context, tierId)
-            return@withContext getTierInfo(tierId)
+            val rawTier = profile?.subscription_tier ?: "free"
+            val rawExpiresAt = profile?.subscription_expires_at
+            val rawAutoRenew = profile?.subscription_auto_renew ?: false
+
+            val details = calculateSubscriptionDetails(
+                tierId = rawTier,
+                expiresAtIso = rawExpiresAt,
+                isAutoRenew = rawAutoRenew
+            )
+
+            // Graceful Expiration Fallback: If expired, downgrade user in Supabase to free without deleting stores/products
+            if (details.isExpired && rawTier != "free") {
+                val expiredTierInfo = getTierInfo(rawTier)
+                try {
+                    val payload = buildJsonObject {
+                        put("subscription_tier", "free")
+                        put("subscription_expires_at", kotlinx.serialization.json.JsonNull)
+                        put("subscription_auto_renew", false)
+                    }
+                    SupabaseProvider.client.postgrest["app_users"].update(payload) {
+                        filter { eq("id", userId) }
+                    }
+                    // Sync stores owned by this user to free as well
+                    val storePayload = buildJsonObject {
+                        put("subscription_tier", "free")
+                        put("subscription_expires_at", kotlinx.serialization.json.JsonNull)
+                        put("subscription_auto_renew", false)
+                    }
+                    SupabaseProvider.client.postgrest["stores"].update(storePayload) {
+                        filter { eq("owner_id", userId) }
+                    }
+                } catch (ex: Exception) {
+                    Log.w("SubscriptionManager", "Note: Graceful expiration sync failed: ${ex.message}")
+                }
+
+                saveCachedDetails(
+                    context = context,
+                    tierId = "free",
+                    expiresAt = null,
+                    isAutoRenew = false,
+                    wasExpired = true,
+                    expiredTierName = expiredTierInfo.name
+                )
+
+                return@withContext details.copy(
+                    tierId = "free",
+                    tierInfo = TIER_FREE,
+                    statusType = SubscriptionStatusType.EXPIRED,
+                    expiredTierName = expiredTierInfo.name
+                )
+            }
+
+            saveCachedDetails(
+                context = context,
+                tierId = details.tierId,
+                expiresAt = details.expiresAtIso,
+                isAutoRenew = details.isAutoRenew,
+                wasExpired = false,
+                expiredTierName = null
+            )
+            return@withContext details
         } catch (e: Exception) {
-            return@withContext getCachedTier(context)
+            Log.e("SubscriptionManager", "Error fetching user subscription: ${e.message}", e)
+            return@withContext getCachedSubscriptionDetails(context)
         }
     }
 
-    suspend fun updateUserSubscription(context: Context, newTierId: String): Boolean = withContext(Dispatchers.IO) {
+    /**
+     * Updates the user's subscription tier.
+     * When upgrading to PRO/VIP, sets duration & auto-renew automatically based on tier configs if not explicitly specified.
+     */
+    suspend fun updateUserSubscription(
+        context: Context,
+        newTierId: String,
+        durationDays: Int? = null,
+        isAutoRenew: Boolean = false
+    ): Boolean = withContext(Dispatchers.IO) {
         val userId = SupabaseAuthService.getCurrentUserId() ?: return@withContext false
         val sanitizedTier = newTierId.lowercase()
+        val targetInfo = getTierInfo(sanitizedTier)
+
         try {
+            val expiresAtIso: String? = when {
+                sanitizedTier == "free" -> null
+                durationDays != null -> {
+                    val expMs = System.currentTimeMillis() + (durationDays.toLong() * 24 * 60 * 60 * 1000)
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date(expMs))
+                }
+                targetInfo.trialDays > 0 -> {
+                    val expMs = System.currentTimeMillis() + (targetInfo.trialDays.toLong() * 24 * 60 * 60 * 1000)
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date(expMs))
+                }
+                else -> {
+                    // Default monthly subscription (30 days) with auto-renew
+                    val expMs = System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000)
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date(expMs))
+                }
+            }
+
+            val autoRenewFlag = if (sanitizedTier == "free") false else (isAutoRenew || (targetInfo.trialDays == 0 && durationDays == null))
+
             val payload = buildJsonObject {
                 put("subscription_tier", sanitizedTier)
+                if (expiresAtIso != null) {
+                    put("subscription_expires_at", expiresAtIso)
+                } else {
+                    put("subscription_expires_at", kotlinx.serialization.json.JsonNull)
+                }
+                put("subscription_auto_renew", autoRenewFlag)
             }
+
             SupabaseProvider.client.postgrest["app_users"].update(payload) {
                 filter { eq("id", userId) }
             }
-            saveCachedTier(context, sanitizedTier)
+
+            // Sync stores owned by this user
+            try {
+                SupabaseProvider.client.postgrest["stores"].update(payload) {
+                    filter { eq("owner_id", userId) }
+                }
+            } catch (_: Exception) {}
+
+            saveCachedDetails(
+                context = context,
+                tierId = sanitizedTier,
+                expiresAt = expiresAtIso,
+                isAutoRenew = autoRenewFlag,
+                wasExpired = false,
+                expiredTierName = null
+            )
             true
         } catch (e: Exception) {
             e.printStackTrace()
-            saveCachedTier(context, sanitizedTier)
+            saveCachedDetails(
+                context = context,
+                tierId = sanitizedTier,
+                expiresAt = null,
+                isAutoRenew = false,
+                wasExpired = false,
+                expiredTierName = null
+            )
             true
         }
+    }
+
+    /**
+     * Cancels an active subscription / auto-renewal and downgrades the user to the Free tier.
+     * All stores and items remain completely preserved.
+     */
+    suspend fun cancelSubscription(context: Context): Boolean = withContext(Dispatchers.IO) {
+        updateUserSubscription(context, "free")
     }
 
     fun formatLimitText(limit: Int): String {

@@ -333,6 +333,7 @@ class StoreActivity : AppCompatActivity() {
         fetchStores(showShimmer = isFirstLoad)
         isFirstLoad = false
         loadNotifBadge()
+        checkSubscriptionNotice()
         lifecycleScope.launch {
             try {
                 SupabaseAuthService.updateUserHeartbeat()
@@ -354,6 +355,16 @@ class StoreActivity : AppCompatActivity() {
                     fetchStores(showShimmer = true)
                 }
             }
+        }
+    }
+
+    private fun checkSubscriptionNotice() {
+        val bannerCard = findViewById<androidx.cardview.widget.CardView>(R.id.cardSubscriptionBannerRoot) ?: return
+        lifecycleScope.launch {
+            try {
+                val details = SubscriptionManager.fetchUserSubscriptionDetails(this@StoreActivity)
+                SubscriptionNoticeHelper.bindBanner(this@StoreActivity, bannerCard, details)
+            } catch (_: Exception) {}
         }
     }
 
