@@ -19,6 +19,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.io.File
@@ -62,6 +64,21 @@ class StoreQrActivity : AppCompatActivity() {
 
         // QR Code Content Schema
         qrContent = "presyohan://partner?sid=$displayId&uuid=$storeId"
+
+        // Verify that the store's active subscription tier permits customer pairing & QR code sharing
+        if (storeId.isNotEmpty()) {
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(storeId)
+                if (!tierInfo.allowCustomerPairing) {
+                    SubscriptionManager.showFeatureGatedDialog(
+                        activity = this@StoreQrActivity,
+                        featureName = "Store QR Code & Customer Pairing",
+                        requiredTier = "pro",
+                        onDismiss = { finish() }
+                    )
+                }
+            }
+        }
 
         // Initialize Views
         btnBack = findViewById(R.id.btnBack)
@@ -164,11 +181,11 @@ class StoreQrActivity : AppCompatActivity() {
             if (uri != null) {
                 Toast.makeText(this, "QR Card downloaded to Gallery/Pictures!", Toast.LENGTH_LONG).show()
             } else {
-                Toast.makeText(this, "Failed to save QR Card.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Unable to save QR Card. Please try again.", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Error generating card: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Unable to generate QR Card. Please try again.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -198,11 +215,11 @@ class StoreQrActivity : AppCompatActivity() {
                 }
                 startActivity(Intent.createChooser(intent, "Share QR Card via"))
             } else {
-                Toast.makeText(this, "Failed to build Share link.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Unable to share QR Card.", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Error sharing card: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Unable to share QR Card. Please try again.", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -981,28 +981,60 @@ class HomeActivity : AppCompatActivity() {
             // OWNER SPECIFIC BINDINGS
             view.findViewById<View>(R.id.layoutConvert)?.setOnClickListener {
                 dialog.dismiss()
-                exportPricelistToExcel()
+                lifecycleScope.launch {
+                    val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                    if (!tierInfo.canExportExcel && !tierInfo.canExportPdf) {
+                        SubscriptionManager.showFeatureGatedDialog(this@HomeActivity, "Pricelist Export", "pro")
+                    } else {
+                        exportPricelistToExcel()
+                    }
+                }
             }
 
             view.findViewById<View>(R.id.layoutInvite)?.setOnClickListener {
                 dialog.dismiss()
-                showInviteStaffWithCode(sId)
+                lifecycleScope.launch {
+                    val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                    val members = try {
+                        supabase.postgrest.rpc(
+                            "get_store_members",
+                            buildJsonObject { put("p_store_id", sId) }
+                        ).decodeList<StoreMemberUser>()
+                    } catch (_: Exception) { emptyList() }
+
+                    if (members.size >= tierInfo.membersPerStoreLimit) {
+                        SubscriptionManager.showCapacityReachedDialog(this@HomeActivity, "Staff Member", tierInfo.membersPerStoreLimit, "pro")
+                    } else {
+                        showInviteStaffWithCode(sId)
+                    }
+                }
             }
 
             view.findViewById<View>(R.id.layoutQRCode)?.setOnClickListener {
                 dialog.dismiss()
-                val intent = Intent(this@HomeActivity, StoreQrActivity::class.java).apply {
-                    putExtra("storeId", sId)
-                    putExtra("storeName", sName)
-                    putExtra("displayId", view.findViewById<TextView>(R.id.dialogStoreId)?.text?.toString() ?: sId)
-                    putExtra("storeLocation", currentBranchName ?: "Main Branch")
+                lifecycleScope.launch {
+                    val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                    if (!tierInfo.allowCustomerPairing) {
+                        SubscriptionManager.showFeatureGatedDialog(
+                            activity = this@HomeActivity,
+                            featureName = "Store QR Code & Customer Pairing",
+                            requiredTier = "pro"
+                        )
+                        return@launch
+                    }
+                    val intent = Intent(this@HomeActivity, StoreQrActivity::class.java).apply {
+                        putExtra("storeId", sId)
+                        putExtra("storeName", sName)
+                        putExtra("displayId", view.findViewById<TextView>(R.id.dialogStoreId)?.text?.toString() ?: sId)
+                        putExtra("storeLocation", currentBranchName ?: "Main Branch")
+                    }
+                    val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                        this@HomeActivity,
+                        R.anim.slide_in_up,
+                        R.anim.stay
+                    )
+                    startActivity(intent, options.toBundle())
                 }
-                val options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
-                    this@HomeActivity,
-                    R.anim.slide_in_up,
-                    R.anim.stay
-                )
-                startActivity(intent, options.toBundle())
             }
 
             view.findViewById<View>(R.id.layoutSettings)?.setOnClickListener {
@@ -1093,9 +1125,6 @@ class HomeActivity : AppCompatActivity() {
                 val employeesCount = members.count { it.role.equals("employee", ignoreCase = true) }
                 val totalMembers = members.size
 
-                txtCategoriesCount?.text = categoriesCount.toString()
-                txtItemsCount?.text = productsCount.toString()
-                txtMembersCount?.text = totalMembers.toString()
                 txtOwnersCount?.text = ownersCount.toString()
                 txtManagersCount?.text = managersCount.toString()
                 txtEmployeesCount?.text = employeesCount.toString()
@@ -1111,15 +1140,32 @@ class HomeActivity : AppCompatActivity() {
                 }
                 txtSukiCount?.text = sukiCount.toString()
 
+                val userDetails = try {
+                    SubscriptionManager.fetchUserSubscriptionDetails(this@HomeActivity)
+                } catch (_: Exception) {
+                    SubscriptionManager.getCachedSubscriptionDetails(this@HomeActivity)
+                }
+
                 // 4. Fetch store details for staff/owner
                 @Serializable
-                data class StoreDetailsRow(val id: String, val display_id: String? = null, val created_at: String? = null, val is_public: Boolean = false, val invite_code: String? = null, val invite_code_created_at: String? = null)
+                data class StoreDetailsRow(val id: String, val display_id: String? = null, val created_at: String? = null, val is_public: Boolean = false, val invite_code: String? = null, val invite_code_created_at: String? = null, val subscription_tier: String? = null)
                 val rows = supabase.postgrest["stores"].select {
                     filter { eq("id", sId) }
                     limit(1)
                 }.decodeList<StoreDetailsRow>()
                 
                 val storeRow = rows.firstOrNull()
+                val tierInfo = try {
+                    SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                } catch (_: Exception) {
+                    SubscriptionManager.TIER_FREE
+                }
+                val isVip = tierInfo.id.equals("vip", ignoreCase = true) || tierInfo.categoriesPerStoreLimit >= 90000
+
+                txtCategoriesCount?.text = SubscriptionManager.formatCountWithLimit(categoriesCount, tierInfo.categoriesPerStoreLimit, isVip)
+                txtItemsCount?.text = SubscriptionManager.formatCountWithLimit(productsCount, tierInfo.itemsPerStoreLimit, isVip)
+                txtMembersCount?.text = SubscriptionManager.formatCountWithLimit(totalMembers, tierInfo.membersPerStoreLimit, isVip)
+
                 if (storeRow != null) {
                     txtStoreId?.text = storeRow.display_id ?: storeRow.id
                     // format created_at date
@@ -1528,31 +1574,46 @@ class HomeActivity : AppCompatActivity() {
             val roleIdx = rolesDisplay.indexOf(roleText).coerceAtLeast(0)
             val selectedRole = rolesValue.getOrElse(roleIdx) { "employee" }
 
-            ReusableDialogHelper.checkSukiAndInvite(
-                context = this@HomeActivity,
-                coroutineScope = lifecycleScope,
-                userId = user.id,
-                userName = user.name ?: "Unnamed User",
-                userEmail = user.email ?: "",
-                storeId = sId,
-                selectedRoleValue = selectedRole,
-                onStartInviting = {
-                    btnInvite.text = "Inviting..."
-                    btnInvite.isEnabled = false
-                },
-                onInvitationSent = {
-                    Toast.makeText(this@HomeActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
-                    dialog.dismiss()
-                },
-                onInvitationFailed = { error ->
-                    if (error.isNotEmpty()) {
-                        inviteErrorText.text = if (error.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
-                        inviteErrorText.visibility = View.VISIBLE
-                    }
-                    btnInvite.text = "Invite"
-                    btnInvite.isEnabled = true
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                val members = try {
+                    supabase.postgrest.rpc(
+                        "get_store_members",
+                        buildJsonObject { put("p_store_id", sId) }
+                    ).decodeList<StoreMemberUser>()
+                } catch (_: Exception) { emptyList() }
+
+                if (members.size >= tierInfo.membersPerStoreLimit) {
+                    SubscriptionManager.showCapacityReachedDialog(this@HomeActivity, "Staff Member", tierInfo.membersPerStoreLimit, "pro")
+                    return@launch
                 }
-            )
+
+                ReusableDialogHelper.checkSukiAndInvite(
+                    context = this@HomeActivity,
+                    coroutineScope = lifecycleScope,
+                    userId = user.id,
+                    userName = user.name ?: "Unnamed User",
+                    userEmail = user.email ?: "",
+                    storeId = sId,
+                    selectedRoleValue = selectedRole,
+                    onStartInviting = {
+                        btnInvite.text = "Inviting..."
+                        btnInvite.isEnabled = false
+                    },
+                    onInvitationSent = {
+                        Toast.makeText(this@HomeActivity, "Invitation sent to ${user.name}", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                    },
+                    onInvitationFailed = { error ->
+                        if (error.isNotEmpty()) {
+                            inviteErrorText.text = if (error.contains("already a member", ignoreCase = true)) "User is already a member." else "Failed to send invitation."
+                            inviteErrorText.visibility = View.VISIBLE
+                        }
+                        btnInvite.text = "Invite"
+                        btnInvite.isEnabled = true
+                    }
+                )
+            }
         }
 
         dialog.setOnDismissListener { inviteCodeCountdownJob?.cancel() }
@@ -1989,6 +2050,8 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         SessionManager.markStoreHome(this, currentStoreId, currentStoreName)
+        val profileIconContainer = findViewById<View>(R.id.profileIconContainer)
+        AvatarStatusHelper.applyCachedStatusBorder(profileIconContainer, this)
         reloadProductsFn?.invoke()
         loadNotifBadge()
         checkSubscriptionNotice()
@@ -2171,10 +2234,17 @@ class HomeActivity : AppCompatActivity() {
         btnBack.setOnClickListener { dialog.dismiss() }
 
         btnConvert.setOnClickListener {
+            val sId = currentStoreId ?: return@setOnClickListener
             when (selectedMode) {
                 1 -> {
-                    dialog.dismiss()
                     lifecycleScope.launch {
+                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                        if (!tierInfo.canExportExcel) {
+                            dialog.dismiss()
+                            SubscriptionManager.showFeatureGatedDialog(this@HomeActivity, "Excel Export", "pro")
+                            return@launch
+                        }
+                        dialog.dismiss()
                         LoadingOverlayHelper.show(loadingOverlay)
                         try {
                             performPricelistExport(rows)
@@ -2196,24 +2266,32 @@ class HomeActivity : AppCompatActivity() {
                         Toast.makeText(this, "Please choose a paper size.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    dialog.dismiss()
-                    val pdfItems = rows.map { r ->
-                        PdfPriceItem(
-                            category    = r.category?.trim() ?: "General",
-                            name        = r.name?.trim() ?: "",
-                            price       = r.price ?: 0.0,
-                            unit        = r.units?.trim() ?: "",
-                            description = r.description?.trim() ?: ""
+                    lifecycleScope.launch {
+                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                        if (!tierInfo.canExportPdf) {
+                            dialog.dismiss()
+                            SubscriptionManager.showFeatureGatedDialog(this@HomeActivity, "PDF Export", "pro")
+                            return@launch
+                        }
+                        dialog.dismiss()
+                        val pdfItems = rows.map { r ->
+                            PdfPriceItem(
+                                category    = r.category?.trim() ?: "General",
+                                name        = r.name?.trim() ?: "",
+                                price       = r.price ?: 0.0,
+                                unit        = r.units?.trim() ?: "",
+                                description = r.description?.trim() ?: ""
+                            )
+                        }
+                        PdfPreviewDialogHelper.show(
+                            activity    = this@HomeActivity,
+                            items       = pdfItems,
+                            storeName   = currentStoreName ?: "",
+                            branchName  = currentBranchName ?: "",
+                            pageSize    = size,
+                            onBack      = { showExportConfirmationDialog(rows) }
                         )
                     }
-                    PdfPreviewDialogHelper.show(
-                        activity    = this,
-                        items       = pdfItems,
-                        storeName   = currentStoreName ?: "",
-                        branchName  = currentBranchName ?: "",
-                        pageSize    = size,
-                        onBack      = { showExportConfirmationDialog(rows) }
-                    )
                 }
                 else -> Toast.makeText(this, "Please select a format.", Toast.LENGTH_SHORT).show()
             }

@@ -79,16 +79,24 @@ This document serves as the master blueprint for completing **Phase 1** of Presy
 
 ## 🧠 Section 3: Subscription Edge Case Rules & Architecture Solutions
 
-### Rule 1: The "Primary Billing Owner" Principle (Owner Promotion Scenario)
-* **Question:** *What happens if a Free owner invites a PRO user and promotes them to Co-Owner?*
-* **Architecture Solution:** Store limits are calculated **STRICTLY by the Store's Primary Billing Owner (`stores.billing_owner_id`)**, NOT co-owners.
+### Rule 1: The "Role Cap on Store Ownership" (Option 1 - Promotion Rule)
+* **Question:** *What happens if a Free tier user (P2) is invited and promoted to `owner` in Store A by P1, and then promoted to `owner` in Store B by P3?*
+* **Architecture Solution:** 
+  * In Presyohan's role hierarchy (`sales staff`, `manager`, `owner`), holding the **`owner`** role directly consumes a store slot on that user's subscription tier.
+  * A **Free Tier user can hold the `owner` role in at most 1 store** across the entire platform.
+  * If another store attempts to promote P2 to `owner`, the backend RPC (`update_store_member_role`) **blocks the promotion** with an informative error.
+  * **Manager Alternative:** The store owner can promote P2 to **`manager`** instead. Managers possess complete operational capabilities (managing products, prices, categories, and staff) without consuming a store ownership quota.
+  * To be an `owner` of multiple stores, P2 must upgrade to PRO (up to 10 stores) or VIP (unlimited).
 
-### Rule 2: The "Soft Lock / Read-Only Over-Limit" Principle (Subscription Expiry)
-* **Question:** *What happens to items (>100), categories (>10), members (>3), and suki (>5) when a PRO owner's subscription expires?*
-* **Golden Rule:** **NEVER DELETE USER DATA.** Existing data remains accessible in sales mode, but adding *new* items/staff/categories is blocked until renewed.
+### Rule 2: The "Soft Lock / Read-Only Over-Limit" Principle (Owner Departure & Downgrade)
+* **Question:** *What happens when a PRO owner (P1) leaves a store with >100 items or >3 staff, leaving a Free user (P2) as the sole owner?*
+* **Golden Rule:** **NEVER DELETE USER DATA.** 
+  * The store status resets to **Free Tier** limits.
+  * Existing products and staff remain 100% active and searchable for cashiering/POS.
+  * Adding *new* items, categories, or staff is **soft-locked** until P2 upgrades to PRO or reduces counts below Free tier limits.
 
 ### Rule 3: Multiple Store Downgrade Handling
-* **Behavior:** When dropping from PRO to Free (limit 1 store), the designated Primary Store remains active; the remaining secondary stores switch to **Archived / Read-Only** mode.
+* **Behavior:** When dropping from PRO to Free (limit 1 store), the designated Primary Store remains active; the remaining secondary stores switch to **Archived / Read-Only** mode until re-subscribed.
 
 ---
 

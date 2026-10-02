@@ -44,6 +44,17 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
         btnPaywallCta = findViewById(R.id.btnPaywallCta)
         tvPaywallFooterSubtitle = findViewById(R.id.tvPaywallFooterSubtitle)
 
+        // Adjust only the close button top margin to safely sit below the phone status bar
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(btnClosePaywall) { view, insets ->
+            val statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
+            val params = view.layoutParams as? android.view.ViewGroup.MarginLayoutParams
+            if (params != null && statusBarHeight > 0) {
+                params.topMargin = statusBarHeight + (8 * resources.displayMetrics.density).toInt()
+                view.layoutParams = params
+            }
+            insets
+        }
+
         setupCarousel()
 
         btnClosePaywall.setOnClickListener {
@@ -165,10 +176,11 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
                     setResult(Activity.RESULT_OK, Intent().putExtra("SUBSCRIBED_TIER", selectedTier))
                     finish()
                 } else {
-                    Toast.makeText(this@SubscriptionPaywallActivity, "Subscription request failed.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SubscriptionPaywallActivity, "Unable to complete subscription. Please try again.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@SubscriptionPaywallActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                if (e is kotlinx.coroutines.CancellationException) return@launch
+                Toast.makeText(this@SubscriptionPaywallActivity, "Unable to process subscription. Please try again.", Toast.LENGTH_SHORT).show()
             }
         }
     }

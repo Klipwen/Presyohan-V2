@@ -40,7 +40,7 @@ class AddMultipleItemsViewModel(application: Application) : AndroidViewModel(app
             val session = if (sessionId != null) {
                 withContext(Dispatchers.IO) {
                     draftStore.loadSession(sessionId)
-                } ?: withContext(Dispatchers.IO) {
+                }?.takeIf { it.storeId == storeId } ?: withContext(Dispatchers.IO) {
                     draftStore.createSession(storeId, storeName)
                 }
             } else {
@@ -85,9 +85,16 @@ class AddMultipleItemsViewModel(application: Application) : AndroidViewModel(app
                 // Fetch Products for Update Detection
                 @Serializable data class ProdRow(val name: String)
                 val prods = withContext(Dispatchers.IO) {
-                    SupabaseProvider.client.postgrest["products"]
-                        .select(Columns.list("name")) { filter { eq("store_id", storeId) } }
-                        .decodeList<ProdRow>()
+                    try {
+                        SupabaseProvider.client.postgrest.rpc(
+                            "get_store_products",
+                            buildJsonObject { put("p_store_id", storeId) }
+                        ).decodeList<ProdRow>()
+                    } catch (_: Exception) {
+                        SupabaseProvider.client.postgrest["products"]
+                            .select(Columns.list("name")) { filter { eq("store_id", storeId) } }
+                            .decodeList<ProdRow>()
+                    }
                 }
                 val prodSet = prods.map { it.name.lowercase() }.toSet()
                 _existingProductNames.value = prodSet

@@ -43,12 +43,26 @@ object DrawerHelper {
         val emailT = root.findViewById<TextView>(R.id.drawerUserEmail)
         val codeT = root.findViewById<TextView>(R.id.drawerUserCode)
         val img = root.findViewById<ImageView>(R.id.drawerUserIcon)
+        val statusBadge = root.findViewById<TextView>(R.id.drawerUserStatusBadge)
  
         val toolbarAvatar = activity.findViewById<ImageView>(R.id.profileIcon)
+        val toolbarAvatarContainer = activity.findViewById<View>(R.id.profileIconContainer)
  
         uT.text = "User"
         emailT.text = ""
         codeT?.visibility = View.GONE
+
+        val cachedDetails = SubscriptionManager.getCachedSubscriptionDetails(activity)
+        val cachedTier = if (cachedDetails.isExpired) "free" else cachedDetails.tierId
+        AvatarStatusHelper.applyStatusBorder(toolbarAvatarContainer, cachedTier)
+
+        if (!cachedDetails.isExpired && (cachedDetails.tierId.equals("pro", ignoreCase = true) || cachedDetails.tierId.equals("vip", ignoreCase = true))) {
+            statusBadge?.text = cachedDetails.tierId.uppercase()
+            statusBadge?.visibility = View.VISIBLE
+        } else {
+            statusBadge?.visibility = View.GONE
+        }
+
         img.load(R.drawable.avatar_default) {
             transformations(CircleCropTransformation())
         }
@@ -196,7 +210,7 @@ object DrawerHelper {
                         val lineVerticalBottom = storeView.findViewById<View>(R.id.lineVerticalBottom)
 
                         txtName.text = row.name
-                        val subtitle = if (!row.branch.isNullOrBlank()) row.branch else (row.type ?: "Search Prices")
+                        val subtitle = if (!row.branch.isNullOrBlank()) row.branch else (row.type ?: "Search Prices Globally")
                         txtBranch.text = subtitle
                         txtBranch.visibility = View.VISIBLE
 
@@ -311,7 +325,20 @@ object DrawerHelper {
         val emailT = root.findViewById<TextView>(R.id.drawerUserEmail) ?: return
         val codeT = root.findViewById<TextView>(R.id.drawerUserCode)
         val img = root.findViewById<ImageView>(R.id.drawerUserIcon) ?: return
+        val statusBadge = root.findViewById<TextView>(R.id.drawerUserStatusBadge)
         val toolbarAvatar = activity.findViewById<ImageView>(R.id.profileIcon)
+        val toolbarAvatarContainer = activity.findViewById<View>(R.id.profileIconContainer)
+
+        val cachedDetails = SubscriptionManager.getCachedSubscriptionDetails(activity)
+        val cachedTier = if (cachedDetails.isExpired) "free" else cachedDetails.tierId
+        AvatarStatusHelper.applyStatusBorder(toolbarAvatarContainer, cachedTier)
+
+        if (!cachedDetails.isExpired && (cachedDetails.tierId.equals("pro", ignoreCase = true) || cachedDetails.tierId.equals("vip", ignoreCase = true))) {
+            statusBadge?.text = cachedDetails.tierId.uppercase()
+            statusBadge?.visibility = View.VISIBLE
+        } else {
+            statusBadge?.visibility = View.GONE
+        }
 
         activity.lifecycleScope.launch {
             try {
@@ -349,6 +376,22 @@ object DrawerHelper {
                             error(R.drawable.avatar_default)
                         }
                     }
+
+                    // Update live subscription status (PRO / VIP)
+                    val details = SubscriptionManager.calculateSubscriptionDetails(
+                        tierId = profile.subscription_tier ?: "free",
+                        expiresAtIso = profile.subscription_expires_at,
+                        isAutoRenew = profile.subscription_auto_renew ?: false
+                    )
+                    val liveTier = if (details.isExpired) "free" else details.tierId
+                    AvatarStatusHelper.applyStatusBorder(toolbarAvatarContainer, liveTier)
+
+                    if (!details.isExpired && (details.tierId.equals("pro", ignoreCase = true) || details.tierId.equals("vip", ignoreCase = true))) {
+                        statusBadge?.text = details.tierId.uppercase()
+                        statusBadge?.visibility = View.VISIBLE
+                    } else {
+                        statusBadge?.visibility = View.GONE
+                    }
                 } else {
                     val simpleName = SupabaseAuthService.getDisplayName()
                     if (!simpleName.isNullOrBlank()) uT.text = simpleName.uppercase()
@@ -356,6 +399,8 @@ object DrawerHelper {
                     if (currentUser != null && !currentUser.email.isNullOrBlank()) {
                         emailT.text = currentUser.email
                     }
+                    AvatarStatusHelper.applyStatusBorder(toolbarAvatarContainer, "free")
+                    statusBadge?.visibility = View.GONE
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DrawerHelper", "Error refreshing drawer header profile", e)

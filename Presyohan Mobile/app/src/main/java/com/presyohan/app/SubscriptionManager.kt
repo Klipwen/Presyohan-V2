@@ -16,6 +16,11 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import android.graphics.Color
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -140,6 +145,10 @@ data class SubscriptionTierInfo(
             val formattedEnd = SubscriptionManager.formatIsoToShortDate(promoEndAt)
             return if (!formattedEnd.isNullOrBlank()) "Special offer valid until $formattedEnd" else null
         }
+
+    val canExportExcel: Boolean get() = allowExcelExport
+    val canExportPdf: Boolean get() = allowPdfExport
+    val canClonePrices: Boolean get() = allowPriceCloning
 }
 
 enum class SubscriptionStatusType {
@@ -200,7 +209,26 @@ object SubscriptionManager {
         }
     }
 
-    suspend fun fetchLiveTierConfigs(): Map<String, SubscriptionTierDbRow> = withContext(Dispatchers.IO) {
+    private fun saveCachedTierConfigs(context: Context, configs: Map<String, SubscriptionTierDbRow>) {
+        try {
+            val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+            val jsonStr = kotlinx.serialization.json.Json.encodeToString(configs.values.toList())
+            prefs.edit().putString("cached_live_tier_configs", jsonStr).apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun loadCachedTierConfigs(context: Context): Map<String, SubscriptionTierDbRow> {
+        try {
+            val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+            val jsonStr = prefs.getString("cached_live_tier_configs", null) ?: return emptyMap()
+            val list = kotlinx.serialization.json.Json.decodeFromString<List<SubscriptionTierDbRow>>(jsonStr)
+            return list.associateBy { it.tier_id.lowercase() }
+        } catch (_: Exception) {
+            return emptyMap()
+        }
+    }
+
+    suspend fun fetchLiveTierConfigs(context: Context? = null): Map<String, SubscriptionTierDbRow> = withContext(Dispatchers.IO) {
         try {
             val list = SupabaseProvider.client.postgrest["subscription_tiers"]
                 .select()
@@ -211,9 +239,19 @@ object SubscriptionManager {
             val resultMap = mutableMapOf<String, SubscriptionTierDbRow>()
             for (json in list) {
                 val tid = json["tier_id"]?.jsonPrimitive?.contentOrNull?.lowercase() ?: continue
+
+                val defStores = when (tid) { "vip" -> 999999; "pro" -> 10; else -> 1 }
+                val defItems = when (tid) { "vip" -> 999999; "pro" -> 500; else -> 100 }
+                val defStaff = when (tid) { "vip" -> 999999; "pro" -> 10; else -> 3 }
+                val defCats = when (tid) { "vip" -> 999999; "pro" -> 25; else -> 10 }
+                val defAi = when (tid) { "vip" -> 50; "pro" -> 10; else -> 3 }
+                val defSuki = when (tid) { "vip" -> 999999; "pro" -> 15; else -> 5 }
+                val defPresyohan = when (tid) { "vip" -> 999999; "pro" -> 15; else -> 5 }
+                val defSearches = when (tid) { "vip" -> 999999; "pro" -> 15; else -> 3 }
+
                 val priceVal = json["price"]?.jsonPrimitive?.doubleOrNull
                     ?: json["price"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
-                    ?: 0.0
+                    ?: if (tid == "vip") 299.0 else if (tid == "pro") 99.0 else 0.0
                 val discVal = json["discount_percent"]?.jsonPrimitive?.doubleOrNull
                     ?: json["discount_percent"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()
                     ?: 0.0
@@ -224,24 +262,45 @@ object SubscriptionManager {
                 val promoEndAtVal = json["promo_end_at"]?.jsonPrimitive?.contentOrNull
                 val promoExpiryLabelVal = json["promo_expiry_label"]?.jsonPrimitive?.contentOrNull
                 val ctaTextVal = json["cta_button_text"]?.jsonPrimitive?.contentOrNull
-                val nameVal = json["name"]?.jsonPrimitive?.contentOrNull ?: ""
-                val trialDaysVal = json["trial_days"]?.jsonPrimitive?.intOrNull ?: 0
-                val maxStoresVal = json["max_stores"]?.jsonPrimitive?.intOrNull ?: 1
-                val maxItemsVal = json["max_items_per_store"]?.jsonPrimitive?.intOrNull ?: 100
-                val maxStaffVal = json["max_staff_per_store"]?.jsonPrimitive?.intOrNull ?: 3
-                val maxCatVal = json["max_categories_per_store"]?.jsonPrimitive?.intOrNull ?: 10
-                val maxAiVal = json["max_ai_parses_per_day"]?.jsonPrimitive?.intOrNull ?: 3
-                val maxPhotoVal = json["max_photo_scans_per_day"]?.jsonPrimitive?.intOrNull ?: 3
-                val maxSukiVal = json["max_suki_partners"]?.jsonPrimitive?.intOrNull ?: 5
-                val maxPresyohanVal = json["max_presyohan_stores"]?.jsonPrimitive?.intOrNull ?: 5
-                val maxSearchVal = json["max_internet_searches_per_day"]?.jsonPrimitive?.intOrNull ?: 3
+                val nameVal = json["name"]?.jsonPrimitive?.contentOrNull ?: when (tid) { "vip" -> "VIP Tier"; "pro" -> "PRO Tier"; else -> "Free Tier" }
+                val trialDaysVal = json["trial_days"]?.jsonPrimitive?.intOrNull
+                    ?: json["trial_days"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: if (tid == "pro") 7 else 0
 
-                val hasExcelVal = json["has_excel_export"]?.jsonPrimitive?.booleanOrNull ?: false
-                val hasPdfVal = json["has_pdf_export"]?.jsonPrimitive?.booleanOrNull ?: false
+                val maxStoresVal = json["max_stores"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_stores"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defStores
+                val maxItemsVal = json["max_items_per_store"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_items_per_store"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defItems
+                val maxStaffVal = json["max_staff_per_store"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_staff_per_store"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defStaff
+                val maxCatVal = json["max_categories_per_store"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_categories_per_store"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defCats
+                val maxAiVal = json["max_ai_parses_per_day"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_ai_parses_per_day"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defAi
+                val maxPhotoVal = json["max_photo_scans_per_day"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_photo_scans_per_day"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defAi
+                val maxSukiVal = json["max_suki_partners"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_suki_partners"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defSuki
+                val maxPresyohanVal = json["max_presyohan_stores"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_presyohan_stores"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defPresyohan
+                val maxSearchVal = json["max_internet_searches_per_day"]?.jsonPrimitive?.intOrNull
+                    ?: json["max_internet_searches_per_day"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                    ?: defSearches
+
+                val hasExcelVal = json["has_excel_export"]?.jsonPrimitive?.booleanOrNull ?: (tid != "free")
+                val hasPdfVal = json["has_pdf_export"]?.jsonPrimitive?.booleanOrNull ?: (tid != "free")
                 val hasNotesVal = json["has_notes_export"]?.jsonPrimitive?.booleanOrNull ?: true
-                val hasPriceCloneVal = json["has_price_cloning"]?.jsonPrimitive?.booleanOrNull ?: false
-                val hasPairingVal = json["has_customer_pairing"]?.jsonPrimitive?.booleanOrNull ?: false
-                val hasPriorityVal = json["has_priority_support"]?.jsonPrimitive?.booleanOrNull ?: false
+                val hasPriceCloneVal = json["has_price_cloning"]?.jsonPrimitive?.booleanOrNull ?: (tid != "free")
+                val hasPairingVal = json["has_customer_pairing"]?.jsonPrimitive?.booleanOrNull ?: (tid != "free")
+                val hasPriorityVal = json["has_priority_support"]?.jsonPrimitive?.booleanOrNull ?: (tid == "vip")
 
                 val merchantBen = json["merchant_benefits"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
                 val customerBen = json["customer_benefits"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
@@ -279,16 +338,22 @@ object SubscriptionManager {
             }
             Log.d("SubscriptionManager", "Successfully loaded ${resultMap.size} subscription_tiers from Supabase live")
             liveTierConfigs = resultMap
+            if (context != null && resultMap.isNotEmpty()) {
+                saveCachedTierConfigs(context, resultMap)
+            }
             resultMap
         } catch (e: Exception) {
             Log.e("SubscriptionManager", "Error fetching subscription_tiers from Supabase: ${e.message}", e)
-            emptyMap()
+            if (context != null && liveTierConfigs.isEmpty()) {
+                liveTierConfigs = loadCachedTierConfigs(context)
+            }
+            liveTierConfigs
         }
     }
 
     fun sanitizeLimit(value: Int?, defaultVal: Int = 1): Int {
         val v = value ?: defaultVal
-        return if (v > 90000) Int.MAX_VALUE else v
+        return if (v >= 90000) 999999 else v
     }
 
     val TIER_FREE: SubscriptionTierInfo
@@ -604,6 +669,10 @@ object SubscriptionManager {
      * Fetches user profile, calculates detailed status, and handles graceful expiration fallback if needed.
      */
     suspend fun fetchUserSubscriptionDetails(context: Context): UserSubscriptionDetails = withContext(Dispatchers.IO) {
+        try {
+            fetchLiveTierConfigs(context)
+        } catch (_: Exception) {}
+
         val userId = SupabaseAuthService.getCurrentUserId() ?: return@withContext getCachedSubscriptionDetails(context)
         try {
             val profile = SupabaseAuthService.getUserProfile()
@@ -724,8 +793,20 @@ object SubscriptionManager {
 
             // Sync stores owned by this user
             try {
-                SupabaseProvider.client.postgrest["stores"].update(payload) {
-                    filter { eq("owner_id", userId) }
+                val storePayload = buildJsonObject {
+                    put("subscription_tier", sanitizedTier)
+                    if (expiresAtIso != null) {
+                        put("subscription_expires_at", expiresAtIso)
+                    } else {
+                        put("subscription_expires_at", kotlinx.serialization.json.JsonNull)
+                    }
+                    put("subscription_auto_renew", autoRenewFlag)
+                    if (!targetInfo.allowCustomerPairing) {
+                        put("is_public", false)
+                    }
+                }
+                SupabaseProvider.client.postgrest["stores"].update(storePayload) {
+                    filter { eq("billing_owner_id", userId) }
                 }
             } catch (_: Exception) {}
 
@@ -760,7 +841,198 @@ object SubscriptionManager {
         updateUserSubscription(context, "free")
     }
 
+    /**
+     * Fetches the live active subscription tier for a specific store.
+     * Looks up billing owner's active status and handles expiration.
+     */
+    suspend fun fetchStoreSubscriptionTier(storeId: String): SubscriptionTierInfo = withContext(Dispatchers.IO) {
+        try {
+            @Serializable
+            data class StoreBillingRow(
+                val id: String,
+                val billing_owner_id: String? = null,
+                val subscription_tier: String? = null,
+                val subscription_expires_at: String? = null,
+                val is_public: Boolean = false,
+                val is_public_preference: Boolean = false
+            )
+
+            val rows = SupabaseProvider.client.postgrest["stores"].select {
+                filter { eq("id", storeId) }
+                limit(1)
+            }.decodeList<StoreBillingRow>()
+
+            val store = rows.firstOrNull() ?: return@withContext TIER_FREE
+            var tierId = "free"
+            val expIso = store.subscription_expires_at
+
+            // 1. Resolve store owner ID (check billing_owner_id first, fallback to store_members)
+            var ownerId = store.billing_owner_id
+            if (ownerId.isNullOrBlank()) {
+                try {
+                    @Serializable
+                    data class MemberRow(val user_id: String, val role: String)
+                    val memberRows = SupabaseProvider.client.postgrest["store_members"].select {
+                        filter {
+                            eq("store_id", storeId)
+                            eq("role", "owner")
+                        }
+                        limit(1)
+                    }.decodeList<MemberRow>()
+                    ownerId = memberRows.firstOrNull()?.user_id
+                } catch (_: Exception) {}
+            }
+
+            // 2. Fetch the owner's active tier from app_users
+            if (!ownerId.isNullOrBlank()) {
+                try {
+                    @Serializable
+                    data class OwnerUserRow(
+                        val id: String,
+                        val subscription_tier: String? = null,
+                        val subscription_expires_at: String? = null
+                    )
+                    val ownerRows = SupabaseProvider.client.postgrest["app_users"].select {
+                        filter { eq("id", ownerId) }
+                        limit(1)
+                    }.decodeList<OwnerUserRow>()
+                    val owner = ownerRows.firstOrNull()
+                    if (owner != null) {
+                        val oTier = owner.subscription_tier?.lowercase()?.trim() ?: "free"
+                        val ownerExpIso = owner.subscription_expires_at
+                        val ownerExpMs = parseIsoToEpochMs(ownerExpIso)
+                        if (ownerExpMs != null && System.currentTimeMillis() >= ownerExpMs) {
+                            tierId = "free"
+                        } else {
+                            tierId = oTier
+                        }
+                    } else {
+                        tierId = "free"
+                    }
+                } catch (_: Exception) {
+                    tierId = "free"
+                }
+            } else {
+                // If no owner could be identified, check store record expiration
+                val sTier = store.subscription_tier?.lowercase()?.trim() ?: "free"
+                val expMs = parseIsoToEpochMs(expIso)
+                if (expMs != null && System.currentTimeMillis() >= expMs) {
+                    tierId = "free"
+                } else {
+                    tierId = sTier
+                }
+            }
+
+            val resolvedTierInfo = getTierInfo(tierId)
+            val targetIsPublic = if (resolvedTierInfo.allowCustomerPairing) store.is_public_preference else false
+
+            // 3. Keep stores table in sync asynchronously if stale or if public status does not match tier preference
+            if (store.subscription_tier?.lowercase()?.trim() != tierId || 
+                (store.billing_owner_id.isNullOrBlank() && !ownerId.isNullOrBlank()) ||
+                store.is_public != targetIsPublic) {
+                try {
+                    val updateObj = buildJsonObject {
+                        put("subscription_tier", tierId)
+                        if (!ownerId.isNullOrBlank()) {
+                            put("billing_owner_id", ownerId)
+                        }
+                        put("is_public", targetIsPublic)
+                    }
+                    SupabaseProvider.client.postgrest["stores"].update(updateObj) {
+                        filter { eq("id", storeId) }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            resolvedTierInfo
+        } catch (e: Exception) {
+            Log.e("SubscriptionManager", "Failed to fetch store subscription tier for $storeId: ${e.message}")
+            TIER_FREE
+        }
+    }
+
     fun formatLimitText(limit: Int): String {
-        return if (limit == Int.MAX_VALUE) "Unlimited" else limit.toString()
+        return if (limit == Int.MAX_VALUE || limit >= 90000) "Unlimited" else limit.toString()
+    }
+
+    fun formatCountWithLimit(count: Int, limit: Int, isVip: Boolean = false): CharSequence {
+        if (isVip || limit >= 90000 || limit <= 0 || limit == Int.MAX_VALUE) {
+            return count.toString()
+        }
+        val countStr = count.toString()
+        val limitStr = " /$limit"
+        val fullText = "$countStr$limitStr"
+        val spannable = SpannableString(fullText)
+        val start = countStr.length
+        val end = fullText.length
+        spannable.setSpan(
+            ForegroundColorSpan(Color.parseColor("#757575")),
+            start,
+            end,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spannable.setSpan(
+            RelativeSizeSpan(0.65f),
+            start,
+            end,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        return spannable
+    }
+
+    fun resolveEffectiveTier(userTier: String?, storeTier: String?): String {
+        val s = storeTier?.lowercase()?.trim()
+        if (!s.isNullOrBlank()) return s
+        val u = userTier?.lowercase()?.trim()
+        return if (!u.isNullOrBlank()) u else "free"
+    }
+
+    /**
+     * Shows a consistent, friendly paywall modal when a gated feature is tapped.
+     */
+    fun showFeatureGatedDialog(
+        activity: android.app.Activity,
+        featureName: String,
+        requiredTier: String = "pro",
+        onDismiss: (() -> Unit)? = null
+    ) {
+        val tierName = if (requiredTier.equals("vip", ignoreCase = true)) "VIP" else "PRO"
+        ReusableDialogHelper.showCustomDialog(
+            context = activity,
+            title = "Upgrade to $tierName",
+            message = "$featureName is available on the $tierName plan. Upgrade today to unlock this feature and enjoy more tools to grow your store.",
+            positiveButtonText = "UPGRADE",
+            positiveAction = {
+                onDismiss?.invoke()
+                SubscriptionPaywallActivity.launch(activity, requiredTier)
+            },
+            negativeButtonText = "Cancel",
+            negativeAction = {
+                onDismiss?.invoke()
+            }
+        )
+    }
+
+    /**
+     * Shows a consistent, friendly modal when a resource capacity limit is reached.
+     */
+    fun showCapacityReachedDialog(
+        activity: android.app.Activity,
+        resourceName: String,
+        limit: Int,
+        requiredTier: String = "pro"
+    ) {
+        val tierName = if (requiredTier.equals("vip", ignoreCase = true)) "VIP" else "PRO"
+        val word = if (limit == 1) resourceName else "${resourceName}s"
+        ReusableDialogHelper.showCustomDialog(
+            context = activity,
+            title = "Upgrade to $tierName",
+            message = "You have reached your limit of $limit $word on your current plan. Upgrade to $tierName to increase your capacity and add more $word.",
+            positiveButtonText = "UPGRADE",
+            positiveAction = {
+                SubscriptionPaywallActivity.launch(activity, requiredTier)
+            },
+            negativeButtonText = "Cancel"
+        )
     }
 }

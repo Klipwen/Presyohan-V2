@@ -302,7 +302,7 @@
                         android:layout_marginTop="6dp"
                         android:max="100"
                         android:progress="100"
-                        android:progressDrawable="@drawable/bg_indicator_active" />
+                        android:progressDrawable="@drawable/bg_progress_bar_capacity" />
                 </LinearLayout>
 
                 <!-- Items Limit Progress -->
@@ -344,7 +344,7 @@
                         android:layout_marginTop="6dp"
                         android:max="100"
                         android:progress="0"
-                        android:progressDrawable="@drawable/bg_indicator_active" />
+                        android:progressDrawable="@drawable/bg_progress_bar_capacity" />
                 </LinearLayout>
 
                 <!-- Members Limit Progress -->
@@ -386,7 +386,7 @@
                         android:layout_marginTop="6dp"
                         android:max="100"
                         android:progress="33"
-                        android:progressDrawable="@drawable/bg_indicator_active" />
+                        android:progressDrawable="@drawable/bg_progress_bar_capacity" />
                 </LinearLayout>
 
                 <!-- AI Parser Daily Quota -->
@@ -428,7 +428,7 @@
                         android:layout_marginTop="6dp"
                         android:max="100"
                         android:progress="100"
-                        android:progressDrawable="@drawable/bg_indicator_active" />
+                        android:progressDrawable="@drawable/bg_progress_bar_capacity" />
                 </LinearLayout>
 
             </LinearLayout>

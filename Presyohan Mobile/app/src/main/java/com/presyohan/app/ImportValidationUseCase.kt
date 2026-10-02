@@ -5,11 +5,13 @@ import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @Serializable
 data class DbProduct(
     val id: String,
-    val category_id: String,
+    val category_id: String? = null,
     val name: String,
     val description: String? = null,
     val price: Double = 0.0,
@@ -37,20 +39,47 @@ class ImportValidationUseCase {
 
     suspend fun fetchExistingProducts(storeId: String): List<DbProduct> = withContext(Dispatchers.IO) {
         try {
-            SupabaseProvider.client.postgrest["products"]
-                .select(Columns.list("id, category_id, name, description, price, unit")) {
-                    filter { eq("store_id", storeId) }
-                }
-                .decodeList<DbProduct>()
+            @Serializable
+            data class StoreProductCheck(
+                val product_id: String,
+                val store_id: String,
+                val name: String,
+                val description: String? = null,
+                val price: Double = 0.0,
+                val units: String? = null
+            )
+            val rpcProducts = SupabaseProvider.client.postgrest.rpc(
+                "get_store_products",
+                buildJsonObject { put("p_store_id", storeId) }
+            ).decodeList<StoreProductCheck>()
+
+            rpcProducts.map {
+                DbProduct(
+                    id = it.product_id,
+                    category_id = null,
+                    name = it.name,
+                    description = it.description,
+                    price = it.price,
+                    unit = it.units ?: ""
+                )
+            }
         } catch (e: Exception) {
-            emptyList()
+            try {
+                SupabaseProvider.client.postgrest["products"]
+                    .select(Columns.list("id", "category_id", "name", "description", "price", "unit")) {
+                        filter { eq("store_id", storeId) }
+                    }
+                    .decodeList<DbProduct>()
+            } catch (_: Exception) {
+                emptyList()
+            }
         }
     }
 
     suspend fun fetchExistingCategories(storeId: String): List<DbCategory> = withContext(Dispatchers.IO) {
         try {
             SupabaseProvider.client.postgrest["categories"]
-                .select(Columns.list("id, name")) {
+                .select(Columns.list("id", "name")) {
                     filter { eq("store_id", storeId) }
                 }
                 .decodeList<DbCategory>()

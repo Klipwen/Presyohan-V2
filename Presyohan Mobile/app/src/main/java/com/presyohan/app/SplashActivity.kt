@@ -39,6 +39,8 @@ private data class AppReleaseRow(
 class SplashActivity : Activity() {
     private var isForcedUpdateActive = false
     private var isCheckingUpdates = true
+    private var isNavigating = false
+    private var loadingAnimators = mutableListOf<android.animation.Animator>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -174,8 +176,51 @@ class SplashActivity : Activity() {
         }
     }
 
+    private fun startDotsAnimation() {
+        loadingAnimators.forEach { it.cancel() }
+        loadingAnimators.clear()
+
+        val dot1 = findViewById<View>(R.id.dot1) ?: return
+        val dot2 = findViewById<View>(R.id.dot2) ?: return
+        val dot3 = findViewById<View>(R.id.dot3) ?: return
+
+        val dots = listOf(dot1, dot2, dot3)
+        dots.forEachIndexed { index, dot ->
+            dot.translationY = 0f
+            val animator = android.animation.ObjectAnimator.ofFloat(dot, "translationY", 0f, -20f, 0f)
+            animator.duration = 600
+            animator.repeatMode = android.animation.ValueAnimator.REVERSE
+            animator.repeatCount = android.animation.ValueAnimator.INFINITE
+            animator.startDelay = index * 150L
+            animator.start()
+            loadingAnimators.add(animator)
+        }
+    }
+
+    private fun stopDotsAnimation() {
+        loadingAnimators.forEach { it.cancel() }
+        loadingAnimators.clear()
+        val dot1 = findViewById<View>(R.id.dot1)
+        val dot2 = findViewById<View>(R.id.dot2)
+        val dot3 = findViewById<View>(R.id.dot3)
+        listOfNotNull(dot1, dot2, dot3).forEach { it.translationY = 0f }
+    }
+
     private fun setupGetStartedNavigation(getStartedButton: Button) {
         getStartedButton.setOnClickListener {
+            if (isNavigating) return@setOnClickListener
+            isNavigating = true
+
+            // Disable button to prevent spamming
+            getStartedButton.isEnabled = false
+            getStartedButton.isClickable = false
+            getStartedButton.text = ""
+
+            // Show dancing dots
+            val loadingDotsContainer = findViewById<View>(R.id.loadingDotsContainer)
+            loadingDotsContainer?.visibility = View.VISIBLE
+            startDotsAnimation()
+
             runSplashNavigation()
         }
     }
@@ -224,7 +269,10 @@ class SplashActivity : Activity() {
         val topCurve = findViewById<View>(R.id.topCurve)
         val logo = findViewById<ImageView>(R.id.logo_presyohan)
         val rootLayout = topCurve.parent as View
+        val loadingDotsContainer = findViewById<View>(R.id.loadingDotsContainer)
 
+        loadingDotsContainer?.visibility = View.GONE
+        stopDotsAnimation()
         getStartedButton.isEnabled = false
 
         // 1. Exit button and subtext cleanly
@@ -333,5 +381,10 @@ class SplashActivity : Activity() {
         } else if (!isCheckingUpdates) {
             super.onBackPressed()
         }
+    }
+
+    override fun onDestroy() {
+        stopDotsAnimation()
+        super.onDestroy()
     }
 }

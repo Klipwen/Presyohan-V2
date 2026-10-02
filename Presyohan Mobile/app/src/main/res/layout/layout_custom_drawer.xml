@@ -21,25 +21,45 @@
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
 
-        <!-- Circular Avatar with Teal Border -->
-        <FrameLayout
-            android:id="@+id/drawerUserIconContainer"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:background="@drawable/bg_avatar_border"
-            android:padding="3dp"
+        <!-- Circular Avatar with White Border & Status Label -->
+        <LinearLayout
+            android:id="@+id/drawerAvatarContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <ImageView
-                android:id="@+id/drawerUserIcon"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@drawable/avatar_default"
-                android:scaleType="centerCrop"
-                android:contentDescription="User Icon" />
-        </FrameLayout>
+            <FrameLayout
+                android:id="@+id/drawerUserIconContainer"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:background="@drawable/bg_avatar_border"
+                android:padding="3dp">
+
+                <ImageView
+                    android:id="@+id/drawerUserIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/avatar_default"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="User Icon" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/drawerUserStatusBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="PRO"
+                android:textColor="#FFFFD0"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.04"
+                android:visibility="gone" />
+        </LinearLayout>
 
         <!-- User Info -->
         <LinearLayout
@@ -49,7 +69,7 @@
             android:orientation="vertical"
             android:layout_marginStart="12dp"
             android:layout_marginEnd="8dp"
-            app:layout_constraintStart_toEndOf="@id/drawerUserIconContainer"
+            app:layout_constraintStart_toEndOf="@id/drawerAvatarContainer"
             app:layout_constraintEnd_toStartOf="@id/drawerHeaderChevron"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent">
@@ -217,11 +237,11 @@
                 android:layout_marginVertical="8dp"
                 android:background="#E0E0E0" />
 
-            <!-- Item: Presyohan (Search Prices) -->
+            <!-- Item: Search Prices Globally -->
             <LinearLayout
                 android:id="@+id/drawerItemPresyohan"
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
+                android:layout_height="56dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="24dp"
@@ -234,30 +254,16 @@
                     android:layout_height="24dp"
                     android:src="@drawable/icon_globe"
                     app:tint="@color/presyo_orange"
-                    android:contentDescription="Presyohan" />
+                    android:contentDescription="Search Prices Globally" />
 
-                <LinearLayout
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="16dp"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Presyohan"
-                        android:textColor="@color/presyo_orange"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Search Prices"
-                        android:textColor="#FB8500"
-                        android:textSize="11sp"
-                        android:alpha="0.8" />
-                </LinearLayout>
+                    android:text="Search Prices Globally"
+                    android:textColor="@color/presyo_orange"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
             </LinearLayout>
 
