@@ -893,7 +893,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:background="@drawable/bg_button_round_teal_pill"
-                android:text="ADD PRESYOHAN"
+                android:text="SELECT PRESYOHAN"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"

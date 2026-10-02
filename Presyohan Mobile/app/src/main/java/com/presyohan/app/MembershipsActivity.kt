@@ -422,12 +422,13 @@ class MembershipsActivity : AppCompatActivity() {
                 ReusableDialogHelper.resetReloadCount()
 
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 e.printStackTrace()
                 val handled = ReusableDialogHelper.handleNetworkError(this@MembershipsActivity, e) {
                     fetchData(showShimmer)
                 }
                 if (!handled) {
-                    Toast.makeText(this@MembershipsActivity, "Failed to load: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MembershipsActivity, "Unable to load memberships. Please check your connection and try again.", Toast.LENGTH_SHORT).show()
                 }
             } finally {
                 shimmerContainer.stopShimmer()

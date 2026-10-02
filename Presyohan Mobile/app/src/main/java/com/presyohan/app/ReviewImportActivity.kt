@@ -33,6 +33,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
 import android.widget.Button
 
 class ReviewImportActivity : AppCompatActivity() {
@@ -456,9 +457,10 @@ class ReviewImportActivity : AppCompatActivity() {
                         showExportCompleteDialog()
                     }
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) return@launch
                     withContext(Dispatchers.Main) {
                         LoadingOverlayHelper.hide(loadingOverlay)
-                        Toast.makeText(this@ReviewImportActivity, "Clone failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@ReviewImportActivity, "Unable to clone store prices. Please try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -468,6 +470,45 @@ class ReviewImportActivity : AppCompatActivity() {
         LoadingOverlayHelper.show(loadingOverlay)
         lifecycleScope.launch {
             try {
+                val targetStoreId = storeId ?: run {
+                    LoadingOverlayHelper.hide(loadingOverlay)
+                    return@launch
+                }
+
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(targetStoreId)
+                val summary = ImportValidationUseCase().produceSummary(currentSession)
+
+                // 1. Soft-lock check for new categories capacity
+                if (summary.newCategoriesCount > 0) {
+                    val existingCats: List<JsonObject> = withContext(Dispatchers.IO) {
+                        try {
+                            SupabaseProvider.client.postgrest.rpc(
+                                "get_user_categories",
+                                buildJsonObject { put("p_store_id", targetStoreId) }
+                            ).decodeList<JsonObject>()
+                        } catch (_: Exception) {
+                            emptyList<JsonObject>()
+                        }
+                    }
+                    if (existingCats.size + summary.newCategoriesCount > tierInfo.categoriesPerStoreLimit) {
+                        LoadingOverlayHelper.hide(loadingOverlay)
+                        SubscriptionManager.showCapacityReachedDialog(this@ReviewImportActivity, "Category", tierInfo.categoriesPerStoreLimit)
+                        return@launch
+                    }
+                }
+
+                // 2. Soft-lock check for new items capacity
+                if (summary.newItemsCount > 0) {
+                    val existingProds = withContext(Dispatchers.IO) {
+                        ImportValidationUseCase().fetchExistingProducts(targetStoreId)
+                    }
+                    if (existingProds.size + summary.newItemsCount > tierInfo.itemsPerStoreLimit) {
+                        LoadingOverlayHelper.hide(loadingOverlay)
+                        SubscriptionManager.showCapacityReachedDialog(this@ReviewImportActivity, "Item", tierInfo.itemsPerStoreLimit)
+                        return@launch
+                    }
+                }
+
                 val repo = SupabaseImportRepository()
                 val manager = ImportManager(repo)
                 val categoryMap = mutableMapOf<String, String>()
@@ -495,9 +536,10 @@ class ReviewImportActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 withContext(Dispatchers.Main) {
                     LoadingOverlayHelper.hide(loadingOverlay)
-                    Toast.makeText(this@ReviewImportActivity, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@ReviewImportActivity, "Unable to import prices. Please check the file format and try again.", Toast.LENGTH_SHORT).show()
                 }
             }
         }

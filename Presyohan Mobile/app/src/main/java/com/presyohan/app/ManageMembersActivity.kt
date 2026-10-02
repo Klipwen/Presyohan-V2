@@ -102,9 +102,17 @@ class ManageMembersActivity : AppCompatActivity() {
 
         // Setup Invite Staff Button
         findViewById<View>(R.id.btnInviteStaff).setOnClickListener {
-            val expiryMillis = parseInviteCreatedMillis(inviteCodeCreatedAt)
-            val expiry = expiryMillis?.plus(86400000L) // Invite codes expire in 24 hours
-            showInviteStaffDialog(inviteCode, expiry)
+            val sId = storeId ?: return@setOnClickListener
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                if (adapter.itemCount >= tierInfo.membersPerStoreLimit) {
+                    SubscriptionManager.showCapacityReachedDialog(this@ManageMembersActivity, "Staff", tierInfo.membersPerStoreLimit)
+                } else {
+                    val expiryMillis = parseInviteCreatedMillis(inviteCodeCreatedAt)
+                    val expiry = expiryMillis?.plus(86400000L) // Invite codes expire in 24 hours
+                    showInviteStaffDialog(inviteCode, expiry)
+                }
+            }
         }
 
         // Setup Search Bottom Sheet
@@ -348,7 +356,7 @@ class ManageMembersActivity : AppCompatActivity() {
         view.findViewById<Button>(R.id.btnChange).setOnClickListener {
             val sId = storeId ?: return@setOnClickListener
 
-            val executeRoleChange = {
+            fun executeRoleChange() {
                 LoadingOverlayHelper.show(loadingOverlay)
                 lifecycleScope.launch {
                     try {
@@ -365,7 +373,22 @@ class ManageMembersActivity : AppCompatActivity() {
                         fetchMembers()
                         dialog.dismiss()
                     } catch (e: Exception) {
-                        Toast.makeText(this@ManageMembersActivity, "Unable to update role.", Toast.LENGTH_LONG).show()
+                        val msg = e.message ?: ""
+                        if (msg.contains("1 store", ignoreCase = true) || msg.contains("ownership limit", ignoreCase = true) || msg.contains("Free Tier", ignoreCase = true)) {
+                            ReusableDialogHelper.showCustomDialog(
+                                context = this@ManageMembersActivity,
+                                title = "Store Limit Reached",
+                                message = "${member.name} is on the Free Tier and has reached their limit of 1 owned store. You can assign them as Manager instead (granting full catalog & staff management), or ask them to upgrade to PRO.",
+                                positiveButtonText = "Assign Manager",
+                                positiveAction = {
+                                    selectedRole = "manager"
+                                    executeRoleChange()
+                                },
+                                negativeButtonText = "Cancel"
+                            )
+                        } else {
+                            Toast.makeText(this@ManageMembersActivity, "Unable to update role. ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
                     }
                     LoadingOverlayHelper.hide(loadingOverlay)
                 }

@@ -159,7 +159,8 @@ class CustomerHomeActivity : AppCompatActivity() {
         val is_public: Boolean = false,
         val is_standard_store: Boolean = false,
         val display_id: String? = null,
-        val owner_id: String? = null
+        val owner_id: String? = null,
+        val subscription_tier: String? = "free"
     )
 
     @Serializable
@@ -376,10 +377,12 @@ class CustomerHomeActivity : AppCompatActivity() {
             onMoreClick = { store ->
                 searchEditText.setText("${store.name} Categories: ")
                 searchEditText.setSelection(searchEditText.text.length)
+                searchEditText.requestFocus()
             },
             onViewAllClick = {
                 searchEditText.setText("Category: ")
                 searchEditText.setSelection(searchEditText.text.length)
+                searchEditText.requestFocus()
             },
             onInternetSearchClick = { query ->
                 enterInternetSearchMode(query)
@@ -515,6 +518,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                         searchEditText.setText("")
                         searchEditText.clearFocus()
                         imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+                        btnClearSearch.visibility = View.GONE
                         cancelInternetSearch()
                         updateFilterTabVisibility()
                     },
@@ -525,7 +529,14 @@ class CustomerHomeActivity : AppCompatActivity() {
                 searchEditText.setText("")
                 searchEditText.clearFocus()
                 imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+                btnClearSearch.visibility = View.GONE
+                updateQuickSearchCardsVisibility()
                 updateFilterTabVisibility()
+                if (!isInternetPriceSearchMode && isPricesTabActive) {
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                    rvCustomerPrices.visibility = View.VISIBLE
+                    filterAndRenderData(delayMillis = 0L)
+                }
             }
         }
 
@@ -537,7 +548,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                 val isQueryEmpty = currentSearchQuery.isEmpty()
                 
                 if (isSwitchingModes) {
-                    btnClearSearch.visibility = if (isQueryEmpty) View.GONE else View.VISIBLE
+                    btnClearSearch.visibility = if (isQueryEmpty && !searchEditText.hasFocus()) View.GONE else View.VISIBLE
                     wasSearchQueryEmpty = isQueryEmpty
                     return
                 }
@@ -548,7 +559,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                 }
 
                 wasSearchQueryEmpty = isQueryEmpty
-                btnClearSearch.visibility = if (isQueryEmpty) View.GONE else View.VISIBLE
+                btnClearSearch.visibility = if (isQueryEmpty && !searchEditText.hasFocus()) View.GONE else View.VISIBLE
                 updateInternetSearchButtonVisibility()
                 updateQuickSearchCardsVisibility()
                 updateFilterTabVisibility()
@@ -563,9 +574,14 @@ class CustomerHomeActivity : AppCompatActivity() {
                 
                 if (currentSearchQuery.isEmpty()) {
                     findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
-                    rvCustomerPrices.visibility = if (isPricesTabActive) View.VISIBLE else View.GONE
-                    rvCustomerStores.visibility = if (isPricesTabActive) View.GONE else View.VISIBLE
-                    filterAndRenderData(delayMillis = 0L)
+                    if (searchEditText.hasFocus()) {
+                        rvCustomerPrices.visibility = View.GONE
+                        rvCustomerStores.visibility = if (isPricesTabActive) View.GONE else View.VISIBLE
+                    } else {
+                        rvCustomerPrices.visibility = if (isPricesTabActive) View.VISIBLE else View.GONE
+                        rvCustomerStores.visibility = if (isPricesTabActive) View.GONE else View.VISIBLE
+                        filterAndRenderData(delayMillis = 0L)
+                    }
                 } else {
                     findViewById<View>(R.id.layoutSearchLoading).visibility = View.VISIBLE
                     rvCustomerPrices.visibility = View.GONE
@@ -578,23 +594,52 @@ class CustomerHomeActivity : AppCompatActivity() {
 
         // Expand/Collapse Search Bar Animation and Key Actions
         searchEditText.setOnClickListener {
+            btnClearSearch.visibility = View.VISIBLE
+            updateQuickSearchCardsVisibility()
             updateFilterTabVisibility()
+            if (!isInternetPriceSearchMode && isPricesTabActive && currentSearchQuery.isEmpty()) {
+                findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                rvCustomerPrices.visibility = View.GONE
+                toggleEmptyState(false, "")
+            }
         }
 
         searchEditText.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_UP) {
-                searchEditText.postDelayed({ updateFilterTabVisibility() }, 50)
+                searchEditText.postDelayed({ 
+                    btnClearSearch.visibility = View.VISIBLE
+                    updateQuickSearchCardsVisibility()
+                    updateFilterTabVisibility()
+                    if (!isInternetPriceSearchMode && isPricesTabActive && currentSearchQuery.isEmpty()) {
+                        findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                        rvCustomerPrices.visibility = View.GONE
+                        toggleEmptyState(false, "")
+                    }
+                }, 50)
             }
             false
         }
 
-        searchEditText.setOnFocusChangeListener { _, _ ->
+        searchEditText.setOnFocusChangeListener { _, hasFocus ->
             if (!isInternetPriceSearchMode) {
                 val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
                 android.transition.TransitionManager.beginDelayedTransition(curvedHeaderContainer)
             }
+            btnClearSearch.visibility = if (hasFocus || currentSearchQuery.isNotEmpty()) View.VISIBLE else View.GONE
             updateInternetSearchButtonVisibility()
+            updateQuickSearchCardsVisibility()
             updateFilterTabVisibility()
+
+            if (!isInternetPriceSearchMode && isPricesTabActive) {
+                if (hasFocus && currentSearchQuery.isEmpty()) {
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                    rvCustomerPrices.visibility = View.GONE
+                    toggleEmptyState(false, "")
+                } else if (!hasFocus && currentSearchQuery.isEmpty()) {
+                    rvCustomerPrices.visibility = View.VISIBLE
+                    filterAndRenderData(delayMillis = 0L)
+                }
+            }
         }
 
         searchEditText.setOnEditorActionListener { _, actionId, _ ->
@@ -673,16 +718,22 @@ class CustomerHomeActivity : AppCompatActivity() {
             return
         }
 
-        // 3. User must NOT have any Suki stores linked
-        val hasSukiPartners = searchAdapter.linkedStoreIds.isNotEmpty() || allStores.any { !it.is_standard_store }
-        if (hasSukiPartners) {
+        // 3. Search query must NOT be active (must be empty/blank)
+        val isSearchActive = currentSearchQuery.isNotBlank()
+        if (isSearchActive) {
             layoutQuickSearchCards.visibility = View.GONE
             return
         }
 
-        // 4. Search query must NOT be active (must be empty/blank)
-        val isSearchActive = currentSearchQuery.isNotBlank()
-        if (isSearchActive) {
+        // 4. If search bar is focused, ALWAYS show suggested searches (even if user has Suki stores)
+        if (searchEditText.hasFocus()) {
+            layoutQuickSearchCards.visibility = View.VISIBLE
+            return
+        }
+
+        // 5. If not focused, show quick search cards ONLY if user has NO Suki stores linked
+        val hasSukiPartners = searchAdapter.linkedStoreIds.isNotEmpty() || allStores.any { !it.is_standard_store }
+        if (hasSukiPartners) {
             layoutQuickSearchCards.visibility = View.GONE
             return
         }
@@ -696,7 +747,9 @@ class CustomerHomeActivity : AppCompatActivity() {
         val curvedHeaderContainer = findViewById<android.view.ViewGroup>(R.id.curvedHeaderContainer)
         val hasSukiStores = searchAdapter.linkedStoreIds.isNotEmpty() || allStores.any { !it.is_standard_store }
         val isSearching = searchEditText.hasFocus() || currentSearchQuery.isNotBlank()
-        val shouldShow = isPricesTabActive && !isInternetPriceSearchMode && hasSukiStores && isSearching
+        val isCategoryQuery = currentSearchQuery.contains("Categories", ignoreCase = true) || 
+                              currentSearchQuery.contains("Category", ignoreCase = true)
+        val shouldShow = isPricesTabActive && !isInternetPriceSearchMode && hasSukiStores && isSearching && !isCategoryQuery
 
         tabContainerFilter.animate().cancel()
 
@@ -890,7 +943,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         }
 
         // Apply internet search setting updates on resume
-        val enableInternetSearch = prefs.getBoolean("enable_internet_search", true)
+        val enableInternetSearch = prefs.getBoolean("enable_internet_search", false)
         if (!enableInternetSearch && isInternetPriceSearchMode) {
             exitInternetSearchMode()
         }
@@ -1035,7 +1088,7 @@ class CustomerHomeActivity : AppCompatActivity() {
         ivSearchInternetIcon.visibility = View.GONE
         btnInternetSearchAction.visibility = View.GONE
 
-        val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+        val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", false)
         val shouldShow = enableInternetSearch && isPricesTabActive && currentSearchQuery.isEmpty()
         
         btnInternetSearchMode.visibility = if (shouldShow) View.VISIBLE else View.GONE
@@ -1614,7 +1667,7 @@ class CustomerHomeActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 try {
                     val stores = SupabaseProvider.client.postgrest["stores"]
-                        .select(Columns.list("id", "name", "branch", "type", "is_public", "is_standard_store", "display_id")) {
+                        .select(Columns.list("id", "name", "branch", "type", "is_public", "is_standard_store", "display_id", "subscription_tier")) {
                             filter {
                                 eq("is_public", true)
                                 or {
@@ -1826,6 +1879,10 @@ class CustomerHomeActivity : AppCompatActivity() {
         profileIcon.setImageResource(R.drawable.avatar_default)
         profileIcon.clearColorFilter()
 
+        val cachedDetails = SubscriptionManager.getCachedSubscriptionDetails(this)
+        val cachedTier = if (cachedDetails.isExpired) "free" else cachedDetails.tierId
+        AvatarStatusHelper.applyStatusBorder(profileIconContainer, cachedTier)
+
         lifecycleScope.launch {
             try {
                 SupabaseAuthService.refreshSessionIfExpired()
@@ -1833,6 +1890,14 @@ class CustomerHomeActivity : AppCompatActivity() {
 
             val profile = SupabaseAuthService.getUserProfile()
             if (profile != null) {
+                val details = SubscriptionManager.calculateSubscriptionDetails(
+                    tierId = profile.subscription_tier ?: "free",
+                    expiresAtIso = profile.subscription_expires_at,
+                    isAutoRenew = profile.subscription_auto_renew ?: false
+                )
+                val liveTier = if (details.isExpired) "free" else details.tierId
+                AvatarStatusHelper.applyStatusBorder(profileIconContainer, liveTier)
+
                 if (!profile.avatar_url.isNullOrBlank()) {
                     profileIcon.clearColorFilter()
                     profileIcon.load(profile.avatar_url) {
@@ -1845,6 +1910,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                     profileIcon.clearColorFilter()
                 }
             } else {
+                AvatarStatusHelper.applyStatusBorder(profileIconContainer, "free")
                 profileIcon.setImageResource(R.drawable.avatar_default)
                 profileIcon.clearColorFilter()
             }
@@ -2197,10 +2263,12 @@ class CustomerHomeActivity : AppCompatActivity() {
         val snapshotProducts = allProducts
         val snapshotBaseProducts = baseProducts
 
+        val isCategoryQueryEarly = query.contains("Categories", ignoreCase = true) || query.contains("Category", ignoreCase = true)
         searchJob?.cancel()
         searchJob = lifecycleScope.launch {
-            if (delayMillis > 0) {
-                kotlinx.coroutines.delay(delayMillis)
+            val effectiveDelay = if (isCategoryQueryEarly) 0L else delayMillis
+            if (effectiveDelay > 0) {
+                kotlinx.coroutines.delay(effectiveDelay)
             }
 
             if (isPrices) {
@@ -2235,7 +2303,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                         } else {
                             emptyList()
                         }
-                        val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+                        val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", false)
                         val internetCard = if (enableInternetSearch) listOf(SearchItem.InternetSearchCard("")) else emptyList()
                         listOf(defaultHeader) + limitedProducts + loadMore + internetCard
                     }
@@ -2245,14 +2313,94 @@ class CustomerHomeActivity : AppCompatActivity() {
                     return@launch
                 }
 
+                // Handle Category Search (e.g. "Category: ", "StoreName Categories: ", etc.)
+                val isCategorySearch = query.contains("Categories:", ignoreCase = true) ||
+                        query.contains("Category:", ignoreCase = true) ||
+                        query.contains("Categories :", ignoreCase = true) ||
+                        query.contains("Category :", ignoreCase = true) ||
+                        query.equals("Categories", ignoreCase = true) ||
+                        query.equals("Category", ignoreCase = true) ||
+                        query.startsWith("Categories ", ignoreCase = true) ||
+                        query.startsWith("Category ", ignoreCase = true) ||
+                        query.endsWith("Categories", ignoreCase = true) ||
+                        query.endsWith("Category", ignoreCase = true) ||
+                        query.contains(" Categories ", ignoreCase = true) ||
+                        query.contains(" Category ", ignoreCase = true)
+
+                if (isCategorySearch) {
+                    val delimiterRegex = Regex("Categories:|Category:|Categories :|Category :|Categories|Category", RegexOption.IGNORE_CASE)
+                    val match = delimiterRegex.find(query)
+                    val (storePrefix, filterQuery) = if (match != null) {
+                        val prefix = query.substring(0, match.range.first).trim()
+                        val filter = query.substring(match.range.last + 1).trim().removePrefix(":").trim()
+                        Pair(prefix, filter)
+                    } else {
+                        Pair("", "")
+                    }
+
+                    val matchingStore = if (storePrefix.isNotEmpty()) {
+                        snapshotStores.find { it.name.equals(storePrefix, ignoreCase = true) }
+                            ?: snapshotStores.find { it.name.contains(storePrefix, ignoreCase = true) || isFuzzyMatch(storePrefix, it.name) }
+                    } else null
+
+                    val eligibleStores = if (storePrefix.isNotEmpty()) {
+                        if (matchingStore != null) listOf(matchingStore) else emptyList()
+                    } else {
+                        snapshotStores
+                    }
+
+                    val eligibleStoreIds = eligibleStores.map { it.id }.toSet()
+                    val storeMap = snapshotStores.associateBy { it.id }
+
+                    val matchingCategories = snapshotCategories.filter { cat ->
+                        eligibleStoreIds.contains(cat.store_id) &&
+                            (filterQuery.isEmpty() || cat.name.contains(filterQuery, ignoreCase = true) || isFuzzyMatch(filterQuery, cat.name))
+                    }
+
+                    val sortedCategories = matchingCategories.sortedWith(
+                        compareBy<CategoryDetailRow> { it.name.lowercase(Locale.getDefault()) }
+                            .thenBy { storeMap[it.store_id]?.name?.lowercase(Locale.getDefault()) ?: "" }
+                    )
+
+                    val categorySearchItems: List<SearchItem> = sortedCategories.mapNotNull { cat ->
+                        val store = storeMap[cat.store_id] ?: return@mapNotNull null
+                        val count = snapshotProducts.count { it.category_id == cat.id }
+                        val displayCat = DisplayCategory(
+                            categoryId = cat.id,
+                            categoryName = cat.name,
+                            storeId = store.id,
+                            storeName = store.name,
+                            storeLocation = store.branch ?: "Main Branch",
+                            itemCount = count
+                        )
+                        SearchItem.Category(displayCat)
+                    }
+
+                    searchAdapter.updateList(categorySearchItems)
+                    findViewById<View>(R.id.layoutSearchLoading).visibility = View.GONE
+                    rvCustomerPrices.visibility = View.VISIBLE
+                    rvCustomerStores.visibility = View.GONE
+
+                    val emptyMsg = when {
+                        storePrefix.isNotEmpty() && matchingStore == null -> "Store \"$storePrefix\" not found in your store list"
+                        matchingStore != null && filterQuery.isNotEmpty() -> "No categories matching \"$filterQuery\" in ${matchingStore.name}"
+                        matchingStore != null -> "No categories found for ${matchingStore.name}"
+                        filterQuery.isNotEmpty() -> "No categories matching \"$filterQuery\""
+                        else -> "No categories found"
+                    }
+                    toggleEmptyState(categorySearchItems.isEmpty(), emptyMsg)
+                    return@launch
+                }
+
                 // If query is NOT empty: dynamically fetch products & categories from Supabase and render matching items
                 val publicProductsResult: List<DisplayProduct> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     try {
                         val pattern = "%$query%"
 
-                        // 1. Direct product query by name or description
+                        // 1. Direct product query by name or description (ONLY public products)
                         val directProducts = SupabaseProvider.client.postgrest["products"].select {
                             filter {
+                                eq("is_public", true)
                                 or {
                                     ilike("name", pattern)
                                     ilike("description", pattern)
@@ -2273,6 +2421,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                             val catIds = matchingCategories.map { it.id }
                             SupabaseProvider.client.postgrest["products"].select {
                                 filter {
+                                    eq("is_public", true)
                                     isIn("category_id", catIds)
                                 }
                                 limit(200)
@@ -2301,7 +2450,16 @@ class CustomerHomeActivity : AppCompatActivity() {
                         val combinedStoreMap = (fetchedStores + snapshotStores).distinctBy { it.id }.associateBy { it.id }
                         val combinedCategoryMap = (fetchedCategories + snapshotCategories).distinctBy { it.id }.associateBy { it.id }
 
-                        combinedProducts.map { prod ->
+                        val eligibleProducts = combinedProducts.filter { prod ->
+                            if (!prod.is_public) return@filter false
+                            val st = combinedStoreMap[prod.store_id] ?: return@filter false
+                            val isSuki = searchAdapter.linkedStoreIds.contains(prod.store_id)
+                            val isStandard = st.is_standard_store
+                            val isStorePublic = st.is_public
+                            isSuki || isStandard || isStorePublic
+                        }
+
+                        eligibleProducts.map { prod ->
                             val st = combinedStoreMap[prod.store_id]
                             val cat = combinedCategoryMap[prod.category_id]
                             DisplayProduct(
@@ -2340,7 +2498,7 @@ class CustomerHomeActivity : AppCompatActivity() {
                     matchesProduct(cleanTokens, prod)
                 }.sortedByDescending { calculateMatchScore(query, it) }
 
-                val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", true)
+                val enableInternetSearch = getSharedPreferences("presyo_prefs", MODE_PRIVATE).getBoolean("enable_internet_search", false)
                 val limitedProducts = matchedProducts.take(visibleProductsLimit).map { SearchItem.Product(it) }
                 val loadMore = if (matchedProducts.size > visibleProductsLimit) {
                     listOf(SearchItem.LoadMorePrices(isLoadMoreLoading))
@@ -3014,7 +3172,8 @@ class CustomerHomeActivity : AppCompatActivity() {
         val tvUnit = view.findViewById<TextView>(R.id.tvModalUnit)
         val tvStoreName = view.findViewById<TextView>(R.id.tvModalStoreName)
         val tvStoreLocation = view.findViewById<TextView>(R.id.tvModalStoreLocation)
-        val btnAction = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnModalAction)
+        val btnStoreAction = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnModalStoreAction)
+        val btnCloseBottom = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnModalClose)
         val btnClose = view.findViewById<ImageView>(R.id.btnCloseDialog)
 
         tvCategory.text = product.categoryName.uppercase(Locale.getDefault())
@@ -3041,15 +3200,15 @@ class CustomerHomeActivity : AppCompatActivity() {
         }
 
         val isSukiOrYourStore = relationship != null
-        btnAction?.setBackgroundResource(R.drawable.button_round)
+        btnStoreAction?.setBackgroundResource(R.drawable.button_round)
 
         if (isSukiOrYourStore) {
-            btnAction?.text = "View Store"
+            btnStoreAction?.text = "View Store"
             androidx.core.view.ViewCompat.setBackgroundTintList(
-                btnAction!!,
+                btnStoreAction!!,
                 androidx.core.content.ContextCompat.getColorStateList(this, R.color.presyo_teal)
             )
-            btnAction?.setOnClickListener {
+            btnStoreAction?.setOnClickListener {
                 dialog.dismiss()
                 val intent = Intent(this, StoreViewActivity::class.java).apply {
                     putExtra("STORE_ID", product.storeId)
@@ -3060,24 +3219,25 @@ class CustomerHomeActivity : AppCompatActivity() {
             }
         } else {
             androidx.core.view.ViewCompat.setBackgroundTintList(
-                btnAction!!,
+                btnStoreAction!!,
                 androidx.core.content.ContextCompat.getColorStateList(this, R.color.presyo_orange)
             )
             if (product.isPresyohan) {
-                btnAction?.text = "Add Presyohan"
-                btnAction?.setOnClickListener {
+                btnStoreAction?.text = "+ Add Store"
+                btnStoreAction?.setOnClickListener {
                     dialog.dismiss()
                     handleAddPresyohanStore(product.storeId, product.storeName)
                 }
             } else {
-                btnAction?.text = "Request Suki"
-                btnAction?.setOnClickListener {
+                btnStoreAction?.text = "Request Suki"
+                btnStoreAction?.setOnClickListener {
                     dialog.dismiss()
                     handleSendSukiRequest(product.storeId, product.storeName)
                 }
             }
         }
 
+        btnCloseBottom?.setOnClickListener { dialog.dismiss() }
         btnClose.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }

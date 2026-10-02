@@ -98,7 +98,7 @@ class SettingsActivity : AppCompatActivity() {
         if (fromSide == "customer") {
             btnInternetPriceSearchSetting.visibility = View.VISIBLE
             val prefs = getSharedPreferences("presyo_prefs", MODE_PRIVATE)
-            switchInternetSearch.isChecked = prefs.getBoolean("enable_internet_search", true)
+            switchInternetSearch.isChecked = prefs.getBoolean("enable_internet_search", false)
             switchInternetSearch.setOnCheckedChangeListener { _, isChecked ->
                 prefs.edit().putBoolean("enable_internet_search", isChecked).apply()
             }
@@ -119,7 +119,7 @@ class SettingsActivity : AppCompatActivity() {
         if (fromSide == "tindiro") {
             lblGotoLabel.text = "Regular User Portal"
             lblGotoTitle.text = "Presyohan"
-            lblGotoDesc.text = "Search Prices"
+            lblGotoDesc.text = "Search Prices Globally"
             imgGotoIcon.setImageResource(R.drawable.icon_public_indacator)
             imgGotoIcon.setColorFilter(androidx.core.content.ContextCompat.getColor(this, R.color.presyo_orange))
             imgGotoIcon.rotation = 0f
@@ -279,8 +279,10 @@ class SettingsActivity : AppCompatActivity() {
         settingsUserAvatar.setImageResource(R.drawable.avatar_default)
         settingsUserAvatar.clearColorFilter()
 
+        val avatarContainer = findViewById<View>(R.id.avatarContainer)
         val cachedTier = SubscriptionManager.getCachedTier(this)
         applySubscriptionDisplay(cachedTier.id)
+        AvatarStatusHelper.applyStatusBorder(avatarContainer, cachedTier.id)
 
         lifecycleScope.launch {
             val profile = SupabaseAuthService.getUserProfile()
@@ -304,6 +306,7 @@ class SettingsActivity : AppCompatActivity() {
 
             val liveTier = SubscriptionManager.fetchUserTier(this@SettingsActivity)
             applySubscriptionDisplay(liveTier.id)
+            AvatarStatusHelper.applyStatusBorder(avatarContainer, liveTier.id)
         }
     }
 

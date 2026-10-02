@@ -13,8 +13,8 @@
 | :--- | :---: | :---: | :---: |
 | **Sprint 1: Google Play Store & Technical Blockers** | 5 | 5 | ✅ Completed |
 | **Sprint 2: Customer Search-First UX & Onboarding** | 6 | 6 | ✅ Completed |
-| **Sprint 3: Subscription Engine & Database Tiering** | 7 | 2 | 🟡 In Progress |
-| **Total** | **18** | **13** | **72% Completed** |
+| **Sprint 3: Subscription Engine & Database Tiering** | 7 | 5 | 🟡 In Progress |
+| **Total** | **18** | **16** | **89% Completed** |
 
 ---
 
@@ -85,20 +85,32 @@
 
 ### 💳 Sprint 3: Subscription Engine & Database Tiering
 
-- [ ] **Task 3.1: Database Schema Migration & Dynamic Subscription Tiers Table**
-  - **Target Location:** Supabase SQL Migrations
-  - **Details:** Create `public.subscription_tiers` configuration table (storing limits, prices, trial days, `merchant_benefits`, `customer_benefits` JSONB, and feature flags). Add `billing_owner_id`, `subscription_tier`, and `subscription_expires_at` to `public.stores` and `public.app_users`. Create `ai_daily_usage` table and `check_expiring_subscriptions()` cron RPC.
-  - **Status:** Pending
+#### 📐 Core Subscription & Role Ownership Rules:
+1. **Rule 1: Role Cap on Store Ownership (Option 1):**
+   - In Presyohan's role hierarchy (`sales staff`, `manager`, `owner`), the **`owner`** role directly consumes a store slot on the user's subscription tier.
+   - **Free Tier:** A user can hold the `owner` role in **at most 1 store** across the platform.
+   - **Promotion Blocker:** If Store A already has P2 as `owner`, and P3 attempts to promote P2 to `owner` in Store B, the backend RPC (`update_store_member_role`) **blocks the promotion** with a clear message: *"P2 has reached the 1-store limit for Free tier. Assign P2 as Manager instead or ask P2 to upgrade to PRO."*
+   - **Manager Role Alternative:** Managers have complete operational capabilities (managing items, categories, staff, and pricing) without consuming a store ownership slot.
+2. **Rule 2: Owner Departure & Free Tier Downgrade (Soft Lock Principle):**
+   - If a PRO owner (P1) leaves or transfers primary billing ownership of a PRO store to a Free user (P2), the store status resets to **Free Tier** limits (100 items, 10 categories, 3 staff).
+   - **Golden Rule (Never Delete Data):** If the store already has >100 items or >3 staff, existing data is **never deleted**. All products remain live for POS/sales and search, but adding *new* items/staff is soft-locked until P2 upgrades to PRO or reduces counts below Free tier limits.
+3. **Rule 3: Secondary Store Archival on Multi-Store Downgrade:**
+   - If a PRO owner with multiple stores downgrades to Free, their primary store stays active, while secondary stores transition to **Archived / Read-Only** mode until re-subscribed.
 
-- [ ] **Task 3.2: Capacity & Feature Gating Validator (Mobile & Web)**
-  - **Target Location:** `SubscriptionManager.kt` / Store Repository / Web Helpers
-  - **Details:** Dynamically query `subscription_tiers` for limits (stores, members, categories, items, public items, sukis) and feature gates (Excel Export, PDF Export, Price Cloning).
-  - **Status:** Pending
+- [x] **Task 3.1: Database Schema Migration & Dynamic Subscription Tiers Table**
+  - **Target Location:** [`20260930_000000_enforce_subscription_rules_and_quotas.sql`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/supabase/migrations/20260930_000000_enforce_subscription_rules_and_quotas.sql)
+  - **Details:** Created quota checks in `create_store()`, Role Cap enforcement in `update_store_member_role()`, billing owner re-assignment and tier synchronization in `leave_store()`, and automatic database trigger `trigger_sync_user_stores_tier` on `app_users`.
+  - **Status:** ✅ Completed
 
-- [ ] **Task 3.3: Soft Lock UI & Read-Only / Archived Store Handler**
-  - **Target Location:** Mobile & Web Store Management Views
-  - **Details:** Never delete user data on sub expiry; present sleek non-intrusive "Tier Capacity Reached" bottom sheet and mark secondary stores as Archived on downgrade.
-  - **Status:** Pending
+- [x] **Task 3.2: Capacity & Feature Gating Validator (Mobile & Web)**
+  - **Target Location:** [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt), [`StoreActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/StoreActivity.kt), [`ManageStoreActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/ManageStoreActivity.kt), [`ManageMembersActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/ManageMembersActivity.kt)
+  - **Details:** Implemented `fetchStoreSubscriptionTier()` to dynamically resolve active store tier & expiration. Added feature gating for Excel/PDF export and price cloning. Enforced staff capacity check on member invites and Role Cap handling on promotions.
+  - **Status:** ✅ Completed
+
+- [x] **Task 3.3: Soft Lock UI & Capacity Validator**
+  - **Target Location:** [`AddEditItemDialogHelper.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/AddEditItemDialogHelper.kt), [`ReviewImportActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/ReviewImportActivity.kt), [`CreateStoreDialogHelper.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/CreateStoreDialogHelper.kt)
+  - **Details:** Enforced soft-lock capacity checks on single item creation, category creation, and bulk draft import. Existing data is preserved unconditionally; creation past tier limit displays standard upgrade dialog without harsh colors or emojis.
+  - **Status:** ✅ Completed
 
 - [ ] **Task 3.4: Google Play In-App Billing Integration & Purchase Verification**
   - **Target Location:** `build.gradle.kts`, `PlayBillingHelper.kt`, `SubscriptionManager.kt`, Supabase Edge Function (`verify-play-purchase`)
@@ -139,6 +151,10 @@
 | 2026-09-24 17:08 | **Task 2.6** | Wired Supabase RPC `send_suki_request(store_id)` for search-to-suki conversion | `CustomerHomeActivity.kt` | ✅ Completed | Code Audit |
 | 2026-09-25 19:05 | **Task 3.6** | Implemented Subscriptions Settings Card and SubscriptionStatusActivity UI screen with plan comparison cards, live capacity progress bars & paywall upgrade modals | `activity_settings.xml`, `SettingsActivity.kt`, `SubscriptionManager.kt`, `SubscriptionStatusActivity.kt`, `activity_subscription_status.xml` | ✅ Completed | Gradle Build & Code Audit |
 | 2026-09-25 21:54 | **Task 3.7** | Built Web Admin Portal Subscription Plan Manager & Manual Overrides | `AdminDashboard.jsx`, `SubscriptionManagement.jsx`, `20260925_000000_subscription_tiers_and_admin.sql` | ✅ Completed | Vite Production Build |
+| 2026-09-30 21:40 | **Task 3.1** | Implemented Database Tier Quota & Role Cap Migration (create_store quota, update_store_member_role role cap, leave_store billing transfer & sync trigger) | `20260930_000000_enforce_subscription_rules_and_quotas.sql` | ✅ Completed | SQL Schema Audit |
+| 2026-09-30 21:45 | **Task 3.2** | Implemented dynamic store tier resolution (`fetchStoreSubscriptionTier`), feature gating (clone, export) and staff limit checks | `SubscriptionManager.kt`, `StoreActivity.kt`, `ManageStoreActivity.kt`, `ManageMembersActivity.kt` | ✅ Completed | Gradle Compile Build (0 errors) |
+| 2026-09-30 21:45 | **Task 3.3** | Implemented soft-lock capacity enforcement across item/category creation and bulk import with clean reusable dialogs | `AddEditItemDialogHelper.kt`, `ReviewImportActivity.kt`, `CreateStoreDialogHelper.kt` | ✅ Completed | Gradle Compile Build (0 errors) |
+| 2026-09-30 22:50 | **Task 3.2** | Implemented Store Publishing Gating (`allowCustomerPairing`), auto-private store mode on owner downgrade, and updated Publish Store confirmation copy | `ManageStoreActivity.kt`, `SubscriptionManager.kt`, `20260930_000000_enforce_subscription_rules_and_quotas.sql` | ✅ Completed | Gradle AssembleDebug (0 errors) |
 
 ---
 

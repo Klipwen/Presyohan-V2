@@ -1171,8 +1171,23 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 input.error = "Enter a category name"
                 return@setOnClickListener
             }
-            selectCategory(category)
-            dlg.dismiss()
+            val sId = storeId
+            if (sId != null) {
+                lifecycleScope.launch {
+                    val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                    val totalDistinctCats = (categoryIdByName.keys + localCategories.map { it.name.trim().uppercase() }).toSet().size
+                    if (totalDistinctCats >= tierInfo.categoriesPerStoreLimit) {
+                        dlg.dismiss()
+                        SubscriptionManager.showCapacityReachedDialog(this@AddMultipleItemsActivity, "Category", tierInfo.categoriesPerStoreLimit)
+                        return@launch
+                    }
+                    selectCategory(category)
+                    dlg.dismiss()
+                }
+            } else {
+                selectCategory(category)
+                dlg.dismiss()
+            }
         }
         dlg.show()
         dlg.window?.setLayout(

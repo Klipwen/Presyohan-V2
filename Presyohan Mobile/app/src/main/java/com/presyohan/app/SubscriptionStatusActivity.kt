@@ -144,6 +144,11 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         loadSubscriptionData(showShimmer = true)
     }
 
+    override fun onResume() {
+        super.onResume()
+        loadSubscriptionData(showShimmer = false)
+    }
+
     private fun loadSubscriptionData(showShimmer: Boolean = true) {
         val user = SupabaseProvider.client.auth.currentUserOrNull()
         tvBillingEmail.text = "Account: ${user?.email ?: "Guest"}"
@@ -554,12 +559,26 @@ class SubscriptionStatusActivity : AppCompatActivity() {
             var maxStaffInAStore = 1
 
             try {
-                val stores = SupabaseProvider.client.postgrest["stores"].select {
-                    filter { eq("owner_id", uid) }
-                }.decodeList<JsonObject>()
+                val userStores = try {
+                    SupabaseProvider.client.postgrest.rpc("get_user_stores").decodeList<JsonObject>()
+                } catch (_: Exception) {
+                    emptyList()
+                }
 
-                ownedStoresCount = stores.size
-                val storeIds = stores.mapNotNull { it["id"]?.jsonPrimitive?.contentOrNull }
+                val ownedUserStores = userStores.filter { 
+                    it["role"]?.jsonPrimitive?.contentOrNull?.equals("owner", ignoreCase = true) == true 
+                }
+
+                val storeIds = if (ownedUserStores.isNotEmpty()) {
+                    ownedStoresCount = ownedUserStores.size
+                    ownedUserStores.mapNotNull { it["store_id"]?.jsonPrimitive?.contentOrNull }
+                } else {
+                    val stores = SupabaseProvider.client.postgrest["stores"].select {
+                        filter { eq("owner_id", uid) }
+                    }.decodeList<JsonObject>()
+                    ownedStoresCount = stores.size
+                    stores.mapNotNull { it["id"]?.jsonPrimitive?.contentOrNull }
+                }
 
                 for (sId in storeIds) {
                     try {
@@ -582,37 +601,43 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                 }
             } catch (e: Exception) {
-                ownedStoresCount = 1
+                ownedStoresCount = 0
             }
 
             // 1. Owned Stores
-            val storeLimitStr = SubscriptionManager.formatLimitText(tier.storeLimit)
-            tvStatStoresVal.text = "$ownedStoresCount / $storeLimitStr"
-            if (tier.storeLimit != Int.MAX_VALUE && tier.storeLimit > 0) {
-                val pct = ((ownedStoresCount.toFloat() / tier.storeLimit) * 100).toInt().coerceIn(0, 100)
-                progressStores.progress = pct
+            val isStoreUnlimited = tier.storeLimit >= 999999 || tier.id.equals("vip", ignoreCase = true)
+            if (isStoreUnlimited) {
+                tvStatStoresVal.text = "$ownedStoresCount / Unlimited"
+                progressStores.progress = 100
             } else {
-                progressStores.progress = if (ownedStoresCount > 0) 10 else 0
+                tvStatStoresVal.text = "$ownedStoresCount / ${tier.storeLimit}"
+                val remainingStores = (tier.storeLimit - ownedStoresCount).coerceAtLeast(0)
+                val pct = if (tier.storeLimit > 0) ((remainingStores.toFloat() / tier.storeLimit) * 100).toInt().coerceIn(0, 100) else 0
+                progressStores.progress = pct
             }
 
             // 2. Items per Store
-            val itemsLimitStr = SubscriptionManager.formatLimitText(tier.itemsPerStoreLimit)
-            tvStatItemsVal.text = "$maxItemsInAStore / $itemsLimitStr"
-            if (tier.itemsPerStoreLimit != Int.MAX_VALUE && tier.itemsPerStoreLimit > 0) {
-                val pct = ((maxItemsInAStore.toFloat() / tier.itemsPerStoreLimit) * 100).toInt().coerceIn(0, 100)
-                progressItems.progress = pct
+            val isItemsUnlimited = tier.itemsPerStoreLimit >= 999999 || tier.id.equals("vip", ignoreCase = true)
+            if (isItemsUnlimited) {
+                tvStatItemsVal.text = "$maxItemsInAStore / Unlimited"
+                progressItems.progress = 100
             } else {
-                progressItems.progress = if (maxItemsInAStore > 0) 10 else 0
+                tvStatItemsVal.text = "$maxItemsInAStore / ${tier.itemsPerStoreLimit}"
+                val remainingItems = (tier.itemsPerStoreLimit - maxItemsInAStore).coerceAtLeast(0)
+                val pct = if (tier.itemsPerStoreLimit > 0) ((remainingItems.toFloat() / tier.itemsPerStoreLimit) * 100).toInt().coerceIn(0, 100) else 0
+                progressItems.progress = pct
             }
 
             // 3. Staff Members per Store
-            val membersLimitStr = SubscriptionManager.formatLimitText(tier.membersPerStoreLimit)
-            tvStatMembersVal.text = "$maxStaffInAStore / $membersLimitStr"
-            if (tier.membersPerStoreLimit != Int.MAX_VALUE && tier.membersPerStoreLimit > 0) {
-                val pct = ((maxStaffInAStore.toFloat() / tier.membersPerStoreLimit) * 100).toInt().coerceIn(0, 100)
-                progressMembers.progress = pct
+            val isMembersUnlimited = tier.membersPerStoreLimit >= 999999 || tier.id.equals("vip", ignoreCase = true)
+            if (isMembersUnlimited) {
+                tvStatMembersVal.text = "$maxStaffInAStore / Unlimited"
+                progressMembers.progress = 100
             } else {
-                progressMembers.progress = if (maxStaffInAStore > 0) 10 else 0
+                tvStatMembersVal.text = "$maxStaffInAStore / ${tier.membersPerStoreLimit}"
+                val remainingMembers = (tier.membersPerStoreLimit - maxStaffInAStore).coerceAtLeast(0)
+                val pct = if (tier.membersPerStoreLimit > 0) ((remainingMembers.toFloat() / tier.membersPerStoreLimit) * 100).toInt().coerceIn(0, 100) else 0
+                progressMembers.progress = pct
             }
 
             // 4. Daily AI Quota
@@ -659,10 +684,11 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    Toast.makeText(this@SubscriptionStatusActivity, "Failed to cancel subscription.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SubscriptionStatusActivity, "Unable to cancel subscription. Please try again later.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@SubscriptionStatusActivity, "Error cancelling subscription: ${e.message}", Toast.LENGTH_SHORT).show()
+                if (e is kotlinx.coroutines.CancellationException) return@launch
+                Toast.makeText(this@SubscriptionStatusActivity, "Unable to cancel subscription. Please try again later.", Toast.LENGTH_SHORT).show()
             } finally {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }

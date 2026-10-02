@@ -137,7 +137,7 @@ object PdfPreviewDialogHelper {
                 }
             } catch (e: Exception) {
                 progressBar.visibility = View.GONE
-                Toast.makeText(activity, "Failed to generate PDF: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(activity, "Unable to generate PDF. Please try again.", Toast.LENGTH_SHORT).show()
                 return@launch
             }
 
@@ -227,7 +227,7 @@ object PdfPreviewDialogHelper {
                     .build()
                 printManager.print("Presyohan Pricelist", adapter, printAttribs)
             } catch (e: Exception) {
-                Toast.makeText(activity, "Print failed: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(activity, "Unable to print PDF. Please try again.", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -247,7 +247,7 @@ object PdfPreviewDialogHelper {
                 }
                 activity.startActivity(Intent.createChooser(intent, "Share Pricelist PDF via"))
             } catch (e: Exception) {
-                Toast.makeText(activity, "Share failed: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(activity, "Unable to share PDF. Please try again.", Toast.LENGTH_SHORT).show()
             }
         }
 

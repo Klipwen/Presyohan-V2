@@ -330,6 +330,8 @@ class StoreActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         SessionManager.markStoreList(this)
+        val profileIconContainer = findViewById<View>(R.id.profileIconContainer)
+        AvatarStatusHelper.applyCachedStatusBorder(profileIconContainer, this)
         fetchStores(showShimmer = isFirstLoad)
         isFirstLoad = false
         loadNotifBadge()
@@ -674,9 +676,9 @@ class StoreActivity : AppCompatActivity() {
                     "get_user_categories",
                     buildJsonObject { put("p_store_id", store.id) }
                 ).decodeList<HomeActivity.UserCategoryRow>()
-                txtCategoriesCount.text = categories.size.toString()
+                val categoriesCount = categories.size
 
-                try {
+                val totalItemsCount = try {
                     @Serializable
                     data class StoreProductCountRow(val store_id: String, val total_count: Int, val public_count: Int)
                     
@@ -689,10 +691,9 @@ class StoreActivity : AppCompatActivity() {
                         }
                     ).decodeList<StoreProductCountRow>()
                     
-                    val countRow = counts.firstOrNull()
-                    txtItemsCount.text = (countRow?.total_count ?: 0).toString()
+                    counts.firstOrNull()?.total_count ?: 0
                 } catch (e: Exception) {
-                    txtItemsCount.text = "0"
+                    0
                 }
 
                 val members = SupabaseProvider.client.postgrest.rpc(
@@ -703,8 +704,8 @@ class StoreActivity : AppCompatActivity() {
                 val owners = members.count { it.role.equals("owner", ignoreCase = true) }
                 val managers = members.count { it.role.equals("manager", ignoreCase = true) }
                 val employees = members.count { it.role.equals("employee", ignoreCase = true) }
+                val membersCount = members.size
 
-                txtMembersCount.text = members.size.toString()
                 txtOwnersCount.text = owners.toString()
                 txtManagersCount.text = managers.toString()
                 txtEmployeesCount.text = employees.toString()
@@ -720,21 +721,36 @@ class StoreActivity : AppCompatActivity() {
                 }
                 txtSukiCount.text = sukiCount.toString()
 
+                val tierInfo = try {
+                    SubscriptionManager.fetchStoreSubscriptionTier(store.id)
+                } catch (_: Exception) {
+                    SubscriptionManager.TIER_FREE
+                }
+                val isVip = tierInfo.id.equals("vip", ignoreCase = true) || tierInfo.categoriesPerStoreLimit >= 90000
+
+                txtCategoriesCount.text = SubscriptionManager.formatCountWithLimit(categoriesCount, tierInfo.categoriesPerStoreLimit, isVip)
+                txtItemsCount.text = SubscriptionManager.formatCountWithLimit(totalItemsCount, tierInfo.itemsPerStoreLimit, isVip)
+                txtMembersCount.text = SubscriptionManager.formatCountWithLimit(membersCount, tierInfo.membersPerStoreLimit, isVip)
+                
                 @Serializable
-                data class StoreDetailsLite(
+                data class StoreDetailsRow(
                     val id: String,
                     val display_id: String? = null,
                     val created_at: String? = null,
                     val is_public: Boolean = false,
                     val invite_code: String? = null,
-                    val invite_code_created_at: String? = null
+                    val invite_code_created_at: String? = null,
+                    val subscription_tier: String? = null
                 )
-                val rows = SupabaseProvider.client.postgrest["stores"].select {
-                    filter { eq("id", store.id) }
-                    limit(1)
-                }.decodeList<StoreDetailsLite>()
-                
-                val storeRow = rows.firstOrNull()
+                val storeRow = try {
+                    SupabaseProvider.client.postgrest["stores"].select {
+                        filter { eq("id", store.id) }
+                        limit(1)
+                    }.decodeList<StoreDetailsRow>().firstOrNull()
+                } catch (_: Exception) {
+                    null
+                }
+
                 if (storeRow != null) {
                     txtStoreId.text = storeRow.display_id ?: storeRow.id
                     val rawDate = storeRow.created_at?.split("T")?.firstOrNull() ?: ""
@@ -758,11 +774,12 @@ class StoreActivity : AppCompatActivity() {
                     val createdMillis = parseInviteCreatedMillis(createdIso)
                     val isExpired = createdMillis == null || (System.currentTimeMillis() - createdMillis > 86400000L)
                     
-                    txtJoinCode.text = if (isExpired || inviteCode.isNullOrBlank()) {
+                    val joinCodeText: String = if (isExpired || inviteCode.isNullOrBlank()) {
                         "Expired"
                     } else {
                         inviteCode
                     }
+                    txtJoinCode.text = joinCodeText
                 }
             } catch (e: Exception) {
                 Log.e("StoreActivity", "Failed to load store details stats", e)
@@ -980,19 +997,40 @@ class StoreActivity : AppCompatActivity() {
         }
 
         // 2. Invite Staff
+        // 2. Invite Staff
         btnInviteStaff.setOnClickListener {
             dialog.dismiss()
-            showInviteStaffWithCode(store) // Updated to pass 'store' object
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(store.id)
+                val members = try {
+                    SupabaseProvider.client.postgrest.rpc(
+                        "get_store_members",
+                        buildJsonObject { put("p_store_id", store.id) }
+                    ).decodeList<StoreMemberUser>()
+                } catch (_: Exception) { emptyList() }
+                if (members.size >= tierInfo.membersPerStoreLimit) {
+                    SubscriptionManager.showCapacityReachedDialog(this@StoreActivity, "Staff", tierInfo.membersPerStoreLimit)
+                } else {
+                    showInviteStaffWithCode(store)
+                }
+            }
         }
 
         // 3. Clone Prices
         btnClonePrices.setOnClickListener {
-            ClonePricesDialogHelper.show(
-                activity = this,
-                storeId = store.id,
-                storeName = store.name
-            )
             dialog.dismiss()
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(store.id)
+                if (!tierInfo.allowPriceCloning) {
+                    SubscriptionManager.showFeatureGatedDialog(this@StoreActivity, "Store Items Cloning")
+                } else {
+                    ClonePricesDialogHelper.show(
+                        activity = this@StoreActivity,
+                        storeId = store.id,
+                        storeName = store.name
+                    )
+                }
+            }
         }
 
         // 4. Import Prices -> Show dialog with options
@@ -1222,8 +1260,8 @@ class StoreActivity : AppCompatActivity() {
 
                 LoadingOverlayHelper.hide(loadingOverlay)
                 overlayVisible = false
-                // Fix: Pass storeName and branch to dialog
-                showExportConfirmationDialog(sorted, storeName, branch)
+                // Fix: Pass storeId, storeName and branch to dialog
+                showExportConfirmationDialog(storeId, sorted, storeName, branch)
             } catch (e: Exception) {
                 Toast.makeText(this@StoreActivity, "Failed to export.", Toast.LENGTH_LONG).show()
             } finally {
@@ -1235,7 +1273,7 @@ class StoreActivity : AppCompatActivity() {
     }
 
     // Use dialog_convert_pricelist (same UI as ManageCategoryActivity)
-    private fun showExportConfirmationDialog(rows: List<StoreProductExportRow>, storeName: String, branch: String) {
+    private fun showExportConfirmationDialog(storeId: String, rows: List<StoreProductExportRow>, storeName: String, branch: String) {
         val catCount = rows.map { it.category?.trim()?.takeIf { c -> c.isNotBlank() } ?: "General" }.distinct().size
         val itemCount = rows.size
 
@@ -1338,8 +1376,14 @@ class StoreActivity : AppCompatActivity() {
         btnConvert.setOnClickListener {
             when (selectedMode) {
                 1 -> {
-                    dialog.dismiss()
                     lifecycleScope.launch {
+                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(storeId)
+                        if (!tierInfo.canExportExcel) {
+                            dialog.dismiss()
+                            SubscriptionManager.showFeatureGatedDialog(this@StoreActivity, "Excel Export", "pro")
+                            return@launch
+                        }
+                        dialog.dismiss()
                         LoadingOverlayHelper.show(loadingOverlay)
                         try {
                             performPricelistExport(rows, storeName, branch)
@@ -1361,24 +1405,32 @@ class StoreActivity : AppCompatActivity() {
                         Toast.makeText(this, "Please choose a paper size.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    dialog.dismiss()
-                    val pdfItems = rows.map { r ->
-                        PdfPriceItem(
-                            category    = r.category?.trim() ?: "General",
-                            name        = r.name?.trim() ?: "",
-                            price       = r.price ?: 0.0,
-                            unit        = r.units?.trim() ?: "",
-                            description = r.description?.trim() ?: ""
+                    lifecycleScope.launch {
+                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(storeId)
+                        if (!tierInfo.canExportPdf) {
+                            dialog.dismiss()
+                            SubscriptionManager.showFeatureGatedDialog(this@StoreActivity, "PDF Export", "pro")
+                            return@launch
+                        }
+                        dialog.dismiss()
+                        val pdfItems = rows.map { r ->
+                            PdfPriceItem(
+                                category    = r.category?.trim() ?: "General",
+                                name        = r.name?.trim() ?: "",
+                                price       = r.price ?: 0.0,
+                                unit        = r.units?.trim() ?: "",
+                                description = r.description?.trim() ?: ""
+                            )
+                        }
+                        PdfPreviewDialogHelper.show(
+                            activity    = this@StoreActivity,
+                            items       = pdfItems,
+                            storeName   = storeName,
+                            branchName  = branch,
+                            pageSize    = size,
+                            onBack      = { showExportConfirmationDialog(storeId, rows, storeName, branch) }
                         )
                     }
-                    PdfPreviewDialogHelper.show(
-                        activity    = this,
-                        items       = pdfItems,
-                        storeName   = storeName,
-                        branchName  = branch,
-                        pageSize    = size,
-                        onBack      = { showExportConfirmationDialog(rows, storeName, branch) }
-                    )
                 }
                 else -> Toast.makeText(this, "Please select a format.", Toast.LENGTH_SHORT).show()
             }
@@ -1464,7 +1516,7 @@ class StoreActivity : AppCompatActivity() {
             Toast.makeText(this, "Excel exported to Downloads.", Toast.LENGTH_SHORT).show()
             notifyExportSuccessOrRequest(filename)
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed to export: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Unable to export Excel file. Please try again.", Toast.LENGTH_SHORT).show()
         } finally {
             try { output.close() } catch (_: Exception) {}
         }

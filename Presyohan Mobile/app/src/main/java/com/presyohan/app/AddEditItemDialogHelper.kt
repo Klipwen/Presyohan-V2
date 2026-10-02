@@ -242,16 +242,8 @@ object AddEditItemDialogHelper {
                         dialog.dismiss()
                         onComplete?.invoke()
                     } else {
-                        // Check if the item already exists in the store list
-                        val existing = try {
-                            SupabaseProvider.client.postgrest["products"].select(
-                                Columns.list("id, category_id, name, description, price, unit")
-                            ) {
-                                filter { eq("store_id", storeId) }
-                            }.decodeList<DbProduct>()
-                        } catch (e: Exception) {
-                            emptyList<DbProduct>()
-                        }
+                        // Check if the item already exists in this specific store
+                        val existing = ImportValidationUseCase().fetchExistingProducts(storeId)
 
                         val targetKey = ImportDraftKeys.productKey(nameVal, descriptionVal, unitVal)
                         val matchedDbProduct = existing.find { 
@@ -320,6 +312,13 @@ object AddEditItemDialogHelper {
                                 )
                             }
                         } else {
+                            // Soft-lock quota check for new items
+                            val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(storeId)
+                            if (existing.size >= tierInfo.itemsPerStoreLimit) {
+                                SubscriptionManager.showCapacityReachedDialog(activity, "Item", tierInfo.itemsPerStoreLimit)
+                                return@launch
+                            }
+
                             val result = SupabaseProvider.client.postgrest.rpc(
                                 "add_product",
                                 buildJsonObject {
@@ -394,6 +393,14 @@ object AddEditItemDialogHelper {
             if (category.isNotEmpty()) {
                 activity.lifecycleScope.launch {
                     try {
+                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(storeId)
+                        val currentCategoryCount = categories.filter { it != "Add Category" }.size
+                        if (currentCategoryCount >= tierInfo.categoriesPerStoreLimit) {
+                            dialog.dismiss()
+                            SubscriptionManager.showCapacityReachedDialog(activity, "Category", tierInfo.categoriesPerStoreLimit)
+                            return@launch
+                        }
+
                         val inserted = SupabaseProvider.client.postgrest.rpc(
                             "add_category",
                             buildJsonObject {

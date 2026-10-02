@@ -151,8 +151,9 @@ class NotificationActivity : AppCompatActivity() {
                             applyTabFilter(getSelectedTabName())
                             dialog.dismiss()
                         } catch (e: Exception) {
+                            if (e is kotlinx.coroutines.CancellationException) return@launch
                             android.util.Log.e("NotificationActivity", "Failed to delete notification", e)
-                            Toast.makeText(this@NotificationActivity, "Failed to delete: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@NotificationActivity, "Unable to delete notification. Please try again.", Toast.LENGTH_SHORT).show()
                             adapter.notifyItemChanged(position)
                             dialog.dismiss()
                         }
@@ -268,8 +269,9 @@ class NotificationActivity : AppCompatActivity() {
                 
                 markAllNotificationsAsRead()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 android.util.Log.e("NotificationActivity", "Failed to load notifications", e)
-                Toast.makeText(this@NotificationActivity, "Failed to load: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@NotificationActivity, "Unable to load notifications. Please try again.", Toast.LENGTH_SHORT).show()
             }
             LoadingOverlayHelper.hide(loadingOverlay)
         }
@@ -1055,9 +1057,10 @@ class NotificationActivity : AppCompatActivity() {
                                     Toast.makeText(this@NotificationActivity, "Join request accepted", Toast.LENGTH_SHORT).show()
                                 }
                             } catch (e: Exception) {
+                                if (e is kotlinx.coroutines.CancellationException) return@launch
                                 android.util.Log.e("NotificationActivity", "Failed to accept join request", e)
                                 runOnUiThread {
-                                    Toast.makeText(this@NotificationActivity, "Failed to accept request: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(this@NotificationActivity, "Unable to accept request. Please try again.", Toast.LENGTH_SHORT).show()
                                 }
                             } finally {
                                 LoadingOverlayHelper.hide(loadingOverlay)
@@ -1110,9 +1113,10 @@ class NotificationActivity : AppCompatActivity() {
                             Toast.makeText(this@NotificationActivity, "Join request accepted", Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) return@launch
                         android.util.Log.e("NotificationActivity", "Failed to accept join request", e)
                         runOnUiThread {
-                            Toast.makeText(this@NotificationActivity, "Failed to accept request: ${e.localizedMessage ?: e.message}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this@NotificationActivity, "Unable to accept request. Please try again.", Toast.LENGTH_SHORT).show()
                         }
                     } finally {
                         LoadingOverlayHelper.hide(loadingOverlay)

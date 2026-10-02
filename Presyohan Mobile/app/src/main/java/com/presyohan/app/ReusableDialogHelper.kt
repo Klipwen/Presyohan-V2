@@ -24,6 +24,9 @@ import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.PostgresAction
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.Serializable
@@ -509,14 +512,25 @@ object ReusableDialogHelper {
                         val sId = homeAct?.getCurrentStoreId()
                         val sName = homeAct?.getCurrentStoreName()
                         val loc = homeAct?.getCurrentBranchName() ?: "Main Branch"
-                        if (!sId.isNullOrEmpty()) {
-                            val intent = Intent(context, StoreQrActivity::class.java).apply {
-                                putExtra("storeId", sId)
-                                putExtra("storeName", sName ?: "Store")
-                                putExtra("displayId", sId)
-                                putExtra("storeLocation", loc)
+                        if (!sId.isNullOrEmpty() && homeAct != null) {
+                            homeAct.lifecycleScope.launch {
+                                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                                if (!tierInfo.allowCustomerPairing) {
+                                    SubscriptionManager.showFeatureGatedDialog(
+                                        activity = homeAct,
+                                        featureName = "Store QR Code & Customer Pairing",
+                                        requiredTier = "pro"
+                                    )
+                                    return@launch
+                                }
+                                val intent = Intent(context, StoreQrActivity::class.java).apply {
+                                    putExtra("storeId", sId)
+                                    putExtra("storeName", sName ?: "Store")
+                                    putExtra("displayId", sId)
+                                    putExtra("storeLocation", loc)
+                                }
+                                context.startActivity(intent)
                             }
-                            context.startActivity(intent)
                         }
                     }
                     "manage_items" -> {

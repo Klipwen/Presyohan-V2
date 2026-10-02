@@ -376,13 +376,14 @@ class StoreViewActivity : AppCompatActivity() {
                     ReusableDialogHelper.resetReloadCount()
                 }
 
-            } catch (e: java.lang.Exception) {
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 e.printStackTrace()
                 val handled = ReusableDialogHelper.handleNetworkError(this@StoreViewActivity, e) {
                     loadStoreData()
                 }
                 if (!handled) {
-                    Toast.makeText(this@StoreViewActivity, "Failed to load store content: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@StoreViewActivity, "Unable to load store details. Please check your connection and try again.", Toast.LENGTH_SHORT).show()
                 }
             } finally {
                 shimmerContainer.stopShimmer()
@@ -440,8 +441,9 @@ class StoreViewActivity : AppCompatActivity() {
                 overridePendingTransition(0, 0)
                 finish()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 e.printStackTrace()
-                Toast.makeText(this@StoreViewActivity, "Subscription failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@StoreViewActivity, "Unable to add store as Suki. Please try again.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -574,8 +576,9 @@ class StoreViewActivity : AppCompatActivity() {
                 isSubscribed = false
                 finish()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 e.printStackTrace()
-                Toast.makeText(this@StoreViewActivity, "Failed to unsubscribe: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@StoreViewActivity, "Unable to remove store. Please try again.", Toast.LENGTH_SHORT).show()
             }
         }
     }

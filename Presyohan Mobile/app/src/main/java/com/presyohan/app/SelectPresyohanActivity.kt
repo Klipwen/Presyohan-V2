@@ -28,7 +28,7 @@ import java.util.Locale
 class SelectPresyohanActivity : AppCompatActivity() {
 
     private lateinit var btnBack: FrameLayout
-    private lateinit var btnInfo: FrameLayout
+    private lateinit var tvSelectionCounter: TextView
     private lateinit var etSearchPresyohan: EditText
     private lateinit var rvPresyohanStores: RecyclerView
     private lateinit var progressBar: View
@@ -36,8 +36,9 @@ class SelectPresyohanActivity : AppCompatActivity() {
     private lateinit var tvEmptyMessage: TextView
     private lateinit var btnAddPresyohan: androidx.appcompat.widget.AppCompatButton
     private lateinit var loadingOverlay: View
-    
 
+    // Subscription details
+    private var userDetails: UserSubscriptionDetails = SubscriptionManager.calculateSubscriptionDetails("free", null)
 
     // Data lists
     private var allPresyohanStores: List<StoreDetailRow> = emptyList()
@@ -49,8 +50,6 @@ class SelectPresyohanActivity : AppCompatActivity() {
 
     // Adapter
     private lateinit var storeAdapter: PresyohanSelectionAdapter
-
-
 
     @Serializable
     data class SukiRelationshipRow(val store_id: String)
@@ -107,13 +106,17 @@ class SelectPresyohanActivity : AppCompatActivity() {
 
         // Initialize Views
         btnBack = findViewById(R.id.btnBack)
-        btnInfo = findViewById(R.id.btnInfo)
+        tvSelectionCounter = findViewById(R.id.tvSelectionCounter)
         etSearchPresyohan = findViewById(R.id.etSearchPresyohan)
         rvPresyohanStores = findViewById(R.id.rvPresyohanStores)
         progressBar = findViewById(R.id.progressBar)
         layoutEmptyState = findViewById(R.id.layoutEmptyState)
         tvEmptyMessage = findViewById(R.id.tvEmptyMessage)
         btnAddPresyohan = findViewById(R.id.btnAddPresyohan)
+
+        // Set initial counter value based on cached details
+        userDetails = SubscriptionManager.getCachedSubscriptionDetails(this)
+        updateSelectionCounter()
 
         // Apply dynamic top padding to selectHeader matching status bar height
         val selectHeader = findViewById<View>(R.id.selectHeader)
@@ -127,18 +130,14 @@ class SelectPresyohanActivity : AppCompatActivity() {
             )
             insets
         }
-        
-
 
         // Setup Back Button
         btnBack.setOnClickListener {
             goBackToCustomerHome()
         }
 
-        // Setup Info Button
-        btnInfo.setOnClickListener {
-            showInfoDialog()
-        }
+        // Fetch user subscription details and live tier configs
+        refreshUserSubscriptionAndCounter()
 
 
 
@@ -197,6 +196,7 @@ class SelectPresyohanActivity : AppCompatActivity() {
                 val linkedStoreIds = sukiLinks.map { it.store_id }.toSet()
                 existingUserStoreIds.clear()
                 existingUserStoreIds.addAll(linkedStoreIds)
+                updateSelectionCounter()
 
                 // 2. Fetch all public standard stores
                 val standardStores = SupabaseProvider.client.postgrest["stores"]
@@ -232,12 +232,13 @@ class SelectPresyohanActivity : AppCompatActivity() {
                 ReusableDialogHelper.resetReloadCount()
 
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 e.printStackTrace()
                 val handled = ReusableDialogHelper.handleNetworkError(this@SelectPresyohanActivity, e) {
                     loadPresyohanStores()
                 }
                 if (!handled) {
-                    Toast.makeText(this@SelectPresyohanActivity, "Error loading stores: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@SelectPresyohanActivity, "Unable to load stores. Please check your connection and try again.", Toast.LENGTH_SHORT).show()
                 }
             } finally {
                 progressBar.visibility = View.GONE
@@ -318,19 +319,6 @@ class SelectPresyohanActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleSelection(storeId: String) {
-        if (existingUserStoreIds.contains(storeId)) return
-        if (selectedStoreIds.contains(storeId)) {
-            selectedStoreIds.remove(storeId)
-        } else {
-            selectedStoreIds.add(storeId)
-        }
-        storeAdapter.notifyDataSetChanged()
-        
-        // Enable Add button if at least one store is selected
-        btnAddPresyohan.isEnabled = selectedStoreIds.isNotEmpty()
-    }
-
     private fun addSelectedStoresToDashboard() {
         val userId = SupabaseProvider.client.auth.currentUserOrNull()?.id ?: return
         if (selectedStoreIds.isEmpty()) return
@@ -363,38 +351,103 @@ class SelectPresyohanActivity : AppCompatActivity() {
                 finish()
 
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 e.printStackTrace()
-                Toast.makeText(this@SelectPresyohanActivity, "Failed to add stores: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SelectPresyohanActivity, "Unable to add stores. Please try again.", Toast.LENGTH_SHORT).show()
             } finally {
                 LoadingOverlayHelper.hide(loadingOverlay)
             }
         }
     }
 
-    private fun showInfoDialog() {
-        val dialog = Dialog(this)
-        dialog.setContentView(R.layout.dialog_reusable_template)
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        dialog.window?.setLayout(
-            (resources.displayMetrics.widthPixels * 0.85).toInt(),
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+    override fun onResume() {
+        super.onResume()
+        refreshUserSubscriptionAndCounter()
+    }
 
-        val tvTitle = dialog.findViewById<TextView>(R.id.dialogTitle)
-        val tvMessage = dialog.findViewById<TextView>(R.id.confirmMessage)
-        val btnClose = dialog.findViewById<android.widget.Button>(R.id.btnCancel)
-        val btnAction = dialog.findViewById<android.widget.Button>(R.id.btnDelete)
+    private fun refreshUserSubscriptionAndCounter() {
+        lifecycleScope.launch {
+            try {
+                SubscriptionManager.fetchLiveTierConfigs()
+                userDetails = SubscriptionManager.fetchUserSubscriptionDetails(this@SelectPresyohanActivity)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
+                userDetails = SubscriptionManager.getCachedSubscriptionDetails(this@SelectPresyohanActivity)
+            } finally {
+                updateSelectionCounter()
+            }
+        }
+    }
 
-        tvTitle.text = "About Presyohan Lists"
-        tvMessage.text = "Presyohan lists are system-maintained price lists showing baseline market rates for various categories. Adding them allows you to compare store prices against standard reference values."
-        
-        btnClose.text = "Close"
-        btnClose.setOnClickListener {
-            dialog.dismiss()
+    private fun updateSelectionCounter() {
+        val isUnlimited = userDetails.tierId.equals("vip", ignoreCase = true) || userDetails.tierInfo.presyohanStoresLimit >= 999999
+        val totalSelected = existingUserStoreIds.size + selectedStoreIds.size
+        if (isUnlimited) {
+            tvSelectionCounter.text = "$totalSelected"
+        } else {
+            val maxLimit = userDetails.tierInfo.presyohanStoresLimit
+            tvSelectionCounter.text = "$totalSelected/$maxLimit"
+        }
+    }
+
+    private fun toggleSelection(storeId: String) {
+        if (existingUserStoreIds.contains(storeId)) return
+
+        if (selectedStoreIds.contains(storeId)) {
+            selectedStoreIds.remove(storeId)
+            updateSelectionCounter()
+            storeAdapter.notifyDataSetChanged()
+            btnAddPresyohan.isEnabled = selectedStoreIds.isNotEmpty()
+            return
         }
 
-        btnAction.visibility = View.GONE // Hide secondary action
-        dialog.show()
+        // Check if user has reached their allowed store selection limit
+        val isUnlimited = userDetails.tierId.equals("vip", ignoreCase = true) || userDetails.tierInfo.presyohanStoresLimit >= 999999
+        val totalSelected = existingUserStoreIds.size + selectedStoreIds.size
+        val maxLimit = userDetails.tierInfo.presyohanStoresLimit
+
+        if (!isUnlimited && totalSelected >= maxLimit) {
+            showLimitReachedDialog()
+            return
+        }
+
+        selectedStoreIds.add(storeId)
+        updateSelectionCounter()
+        storeAdapter.notifyDataSetChanged()
+        btnAddPresyohan.isEnabled = selectedStoreIds.isNotEmpty()
+    }
+
+    private fun showLimitReachedDialog() {
+        val currentTier = userDetails.tierId.lowercase()
+        val maxLimit = userDetails.tierInfo.presyohanStoresLimit
+
+        if (currentTier == "free") {
+            val proLimit = SubscriptionManager.TIER_PRO.presyohanStoresLimit
+            ReusableDialogHelper.showCustomDialog(
+                context = this,
+                title = "Upgrade to PRO",
+                message = "You have reached your limit of $maxLimit Presyohan stores on the Free plan. Upgrade to PRO to monitor up to $proLimit stores and enjoy more features!",
+                positiveButtonText = "UPGRADE",
+                positiveAction = {
+                    SubscriptionPaywallActivity.launch(this@SelectPresyohanActivity, "pro")
+                },
+                negativeButtonText = "Cancel",
+                negativeAction = null
+            )
+        } else {
+            // PRO tier (or any limited tier)
+            ReusableDialogHelper.showCustomDialog(
+                context = this,
+                title = "Upgrade to VIP",
+                message = "You have reached your PRO limit of $maxLimit Presyohan stores. Upgrade to VIP to monitor unlimited stores across all locations!",
+                positiveButtonText = "UPGRADE",
+                positiveAction = {
+                    SubscriptionPaywallActivity.launch(this@SelectPresyohanActivity, "vip")
+                },
+                negativeButtonText = "Cancel",
+                negativeAction = null
+            )
+        }
     }
 
     // RecyclerView Adapter
