@@ -72,6 +72,7 @@ data class SubscriptionTierInfo(
     val categoriesPerStoreLimit: Int,
     val itemsPerStoreLimit: Int,
     val aiQuotaDaily: Int,
+    val photoScansQuotaDaily: Int = 3,
     val sukiLimit: Int,
     val presyohanStoresLimit: Int,
     val publicItemsLimit: Int,
@@ -96,6 +97,7 @@ data class SubscriptionTierInfo(
     val promoExpiryLabel: String? = null,
     val ctaButtonText: String? = null
 ) {
+    val photoScansPerDay: Int get() = photoScansQuotaDaily
     val isPromoActive: Boolean
         get() {
             val hasPromoConfig = (discountPercent > 0.0) || (promoPrice != null && promoPrice > 0.0) || (trialDays > 0) || !promoBadge.isNullOrBlank()
@@ -369,6 +371,7 @@ object SubscriptionManager {
                 categoriesPerStoreLimit = sanitizeLimit(db?.max_categories_per_store, 10),
                 itemsPerStoreLimit = sanitizeLimit(db?.max_items_per_store, 100),
                 aiQuotaDaily = sanitizeLimit(db?.max_ai_parses_per_day, 3),
+                photoScansQuotaDaily = sanitizeLimit(db?.max_photo_scans_per_day, 3),
                 sukiLimit = sanitizeLimit(db?.max_suki_partners, 5),
                 presyohanStoresLimit = sanitizeLimit(db?.max_presyohan_stores, 5),
                 publicItemsLimit = 5,
@@ -408,6 +411,7 @@ object SubscriptionManager {
                 categoriesPerStoreLimit = sanitizeLimit(db?.max_categories_per_store, 25),
                 itemsPerStoreLimit = sanitizeLimit(db?.max_items_per_store, 500),
                 aiQuotaDaily = sanitizeLimit(db?.max_ai_parses_per_day, 10),
+                photoScansQuotaDaily = sanitizeLimit(db?.max_photo_scans_per_day, 10),
                 sukiLimit = sanitizeLimit(db?.max_suki_partners, 15),
                 presyohanStoresLimit = sanitizeLimit(db?.max_presyohan_stores, 15),
                 publicItemsLimit = 15,
@@ -447,6 +451,7 @@ object SubscriptionManager {
                 categoriesPerStoreLimit = sanitizeLimit(db?.max_categories_per_store, 999999),
                 itemsPerStoreLimit = sanitizeLimit(db?.max_items_per_store, 999999),
                 aiQuotaDaily = sanitizeLimit(db?.max_ai_parses_per_day, 50),
+                photoScansQuotaDaily = sanitizeLimit(db?.max_photo_scans_per_day, 50),
                 sukiLimit = sanitizeLimit(db?.max_suki_partners, 999999),
                 presyohanStoresLimit = sanitizeLimit(db?.max_presyohan_stores, 999999),
                 publicItemsLimit = Int.MAX_VALUE,
@@ -1033,6 +1038,160 @@ object SubscriptionManager {
                 SubscriptionPaywallActivity.launch(activity, requiredTier)
             },
             negativeButtonText = "Cancel"
+        )
+    }
+
+    // Daily Quota Tracking (with local midnight reset & bonus ad reward)
+    enum class DailyQuotaType {
+        AI_PARSE,
+        PHOTO_SCAN,
+        INTERNET_SEARCH
+    }
+
+    fun getTodayDateKey(): String {
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            sdf.format(Date())
+        } catch (e: Exception) {
+            "today"
+        }
+    }
+
+    private fun getUsagePrefKey(uid: String?, type: DailyQuotaType, dateKey: String): String {
+        val resolvedUid = uid ?: "guest"
+        return "quota_usage_${type.name}_${resolvedUid}_$dateKey"
+    }
+
+    private fun getBonusPrefKey(uid: String?, type: DailyQuotaType, dateKey: String): String {
+        val resolvedUid = uid ?: "guest"
+        return "quota_bonus_${type.name}_${resolvedUid}_$dateKey"
+    }
+
+    fun getDailyUsage(context: Context, uid: String?, type: DailyQuotaType): Int {
+        val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+        val dateKey = getTodayDateKey()
+        return prefs.getInt(getUsagePrefKey(uid, type, dateKey), 0)
+    }
+
+    fun getRemainingBaseQuota(context: Context, uid: String?, type: DailyQuotaType, tierLimit: Int): Int {
+        if (tierLimit >= 999999) return 999999
+        val usage = getDailyUsage(context, uid, type)
+        return (tierLimit - usage).coerceAtLeast(0)
+    }
+
+    fun getBonusQuota(context: Context, uid: String?, type: DailyQuotaType): Int {
+        val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+        val dateKey = getTodayDateKey()
+        return prefs.getInt(getBonusPrefKey(uid, type, dateKey), 0)
+    }
+
+    fun hasQuotaAvailable(context: Context, uid: String?, type: DailyQuotaType, tierLimit: Int): Boolean {
+        if (tierLimit >= 999999) return true
+        val baseRemaining = getRemainingBaseQuota(context, uid, type, tierLimit)
+        val adPasses = getBonusQuota(context, uid, type)
+        return (baseRemaining > 0 || adPasses > 0)
+    }
+
+    fun consumeQuota(context: Context, uid: String?, type: DailyQuotaType, tierLimit: Int = 1) {
+        val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+        val dateKey = getTodayDateKey()
+        val currentUsage = prefs.getInt(getUsagePrefKey(uid, type, dateKey), 0)
+        val currentAdPasses = prefs.getInt(getBonusPrefKey(uid, type, dateKey), 0)
+
+        if (currentUsage < tierLimit) {
+            // Consume from standard base daily tier limit
+            prefs.edit().putInt(getUsagePrefKey(uid, type, dateKey), currentUsage + 1).apply()
+        } else if (currentAdPasses > 0) {
+            // Consume 1 temporary ad pass
+            prefs.edit().putInt(getBonusPrefKey(uid, type, dateKey), currentAdPasses - 1).apply()
+        } else {
+            prefs.edit().putInt(getUsagePrefKey(uid, type, dateKey), currentUsage + 1).apply()
+        }
+    }
+
+    fun incrementDailyUsage(context: Context, uid: String?, type: DailyQuotaType, tierLimit: Int = 1) {
+        consumeQuota(context, uid, type, tierLimit)
+    }
+
+    fun grantBonusAccess(context: Context, uid: String?, type: DailyQuotaType, count: Int = 1) {
+        val prefs = context.getSharedPreferences("presyo_prefs", Context.MODE_PRIVATE)
+        val dateKey = getTodayDateKey()
+        val current = prefs.getInt(getBonusPrefKey(uid, type, dateKey), 0)
+        prefs.edit().putInt(getBonusPrefKey(uid, type, dateKey), current + count).apply()
+    }
+
+    /**
+     * Shows a friendly, non-technical soft gate dialog when daily quota is exhausted.
+     * Free Tier -> Upgrade to PRO with Watch Ad option
+     * PRO Tier -> Upgrade to VIP with Watch Ad option
+     */
+    fun showQuotaExhaustedDialog(
+        activity: android.app.Activity,
+        quotaType: DailyQuotaType,
+        currentTierId: String,
+        onBonusGranted: () -> Unit
+    ) {
+        val isPro = currentTierId.equals("pro", ignoreCase = true)
+        val isVip = currentTierId.equals("vip", ignoreCase = true)
+        val uid = SupabaseAuthService.getCurrentUserId()
+
+        val typeName = when (quotaType) {
+            DailyQuotaType.AI_PARSE -> "AI parsing"
+            DailyQuotaType.PHOTO_SCAN -> "photo scanning"
+            DailyQuotaType.INTERNET_SEARCH -> "internet search"
+        }
+
+        val bonusTypeName = when (quotaType) {
+            DailyQuotaType.AI_PARSE -> "AI parse"
+            DailyQuotaType.PHOTO_SCAN -> "photo scan"
+            DailyQuotaType.INTERNET_SEARCH -> "internet search"
+        }
+
+        val title: String
+        val message: String
+        val positiveBtnText: String
+        val positiveAction: () -> Unit
+
+        if (!isPro && !isVip) {
+            // Free Tier user
+            title = "Upgrade to PRO"
+            message = "You have used all your daily $typeName limit for today. You can watch a short ad to get 1 bonus access for $bonusTypeName right away, or upgrade to PRO for higher daily limits."
+            positiveBtnText = "UPGRADE"
+            positiveAction = {
+                SubscriptionPaywallDialog.show(activity, "pro")
+            }
+        } else if (isPro) {
+            // PRO Tier user
+            title = "Upgrade to VIP"
+            message = "You have used all your daily PRO limit for $typeName. You can watch a short ad to get 1 bonus access for $bonusTypeName right away, or upgrade to VIP for unlimited daily limits."
+            positiveBtnText = "UPGRADE"
+            positiveAction = {
+                SubscriptionPaywallDialog.show(activity, "vip")
+            }
+        } else {
+            // VIP Tier
+            title = "Daily Limit Reached"
+            message = "You have reached your daily $typeName limit. You can watch a short ad to get 1 bonus access for $bonusTypeName right away."
+            positiveBtnText = "Close"
+            positiveAction = {}
+        }
+
+        ReusableDialogHelper.showCustomDialog(
+            context = activity,
+            title = title,
+            message = message,
+            positiveButtonText = positiveBtnText,
+            positiveAction = positiveAction,
+            negativeButtonText = "Watch Ad",
+            negativeAction = {
+                grantBonusAccess(activity, uid, quotaType, 1)
+                android.widget.Toast.makeText(
+                    activity,
+                    "1 bonus access added for today.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                onBonusGranted.invoke()
+            }
         )
     }
 }

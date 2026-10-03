@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabaseClient';
 import StoreProductManager from './StoreProductManager';
+import StoreSukisModal from './StoreSukisModal';
 
 export default function StoreDirectory() {
   const [stores, setStores] = useState([]);
@@ -10,6 +11,7 @@ export default function StoreDirectory() {
   const [actionLoading, setActionLoading] = useState(null);
   const [openOwnerDropdownId, setOpenOwnerDropdownId] = useState(null);
   const [managingStore, setManagingStore] = useState(null);
+  const [viewingSukiStore, setViewingSukiStore] = useState(null);
 
   // Close the owner dropdown when clicking anywhere else
   useEffect(() => {
@@ -394,9 +396,27 @@ export default function StoreDirectory() {
 
                   {/* Statistics */}
                   <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.8rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem' }}>
                       <span><strong>Members:</strong> {store.memberCount}</span>
-                      <span><strong>Mga Suki:</strong> {store.sukiCount}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong>Mga Suki:</strong>
+                        <button
+                          onClick={() => setViewingSukiStore(store)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            color: '#00bcd4',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            fontSize: '0.8rem'
+                          }}
+                          title={`View all ${store.sukiCount} sukis`}
+                        >
+                          {store.sukiCount}
+                        </button>
+                      </div>
                       <span><strong>Categories:</strong> {store.categoryCount}</span>
                       <span><strong>Items:</strong> {store.productCount}</span>
                     </div>
@@ -440,6 +460,14 @@ export default function StoreDirectory() {
                     <div className="admin-actions-cell">
                       <button
                         className="admin-btn-action"
+                        style={{ color: '#00bcd4', borderColor: 'rgba(0, 188, 212, 0.25)', backgroundColor: 'rgba(0, 188, 212, 0.04)' }}
+                        onClick={() => setViewingSukiStore(store)}
+                        title={`View sukis of ${store.name}`}
+                      >
+                        Sukis ({store.sukiCount})
+                      </button>
+                      <button
+                        className="admin-btn-action"
                         style={{ color: '#ff8c00', borderColor: 'rgba(255, 140, 0, 0.2)' }}
                         onClick={() => setManagingStore(store)}
                       >
@@ -467,6 +495,16 @@ export default function StoreDirectory() {
           </tbody>
         </table>
       </div>
+
+      {/* Suki Customer Members Modal */}
+      {viewingSukiStore && (
+        <StoreSukisModal
+          store={viewingSukiStore}
+          isOpen={!!viewingSukiStore}
+          onClose={() => setViewingSukiStore(null)}
+          onSukiCountChanged={loadStores}
+        />
+      )}
     </div>
   );
 }

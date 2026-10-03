@@ -1284,6 +1284,23 @@ class CustomerHomeActivity : AppCompatActivity() {
             return
         }
 
+        // Check dynamic internet search quota
+        val uid = SupabaseAuthService.getCurrentUserId()
+        val userDetails = SubscriptionManager.getCachedSubscriptionDetails(this)
+        val userTier = userDetails.tierId
+        val tierInfo = userDetails.tierInfo
+        if (!SubscriptionManager.hasQuotaAvailable(this, uid, SubscriptionManager.DailyQuotaType.INTERNET_SEARCH, tierInfo.internetSearchQuota)) {
+            SubscriptionManager.showQuotaExhaustedDialog(
+                activity = this,
+                quotaType = SubscriptionManager.DailyQuotaType.INTERNET_SEARCH,
+                currentTierId = userTier,
+                onBonusGranted = {
+                    performInternetSearch(query)
+                }
+            )
+            return
+        }
+
         // Show loaders
         layoutInternetSearchProgress.visibility = View.VISIBLE
         startInternetSearchAnimations()
@@ -1295,25 +1312,10 @@ class CustomerHomeActivity : AppCompatActivity() {
         internetSearchJob = lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // Call Gemini search prices
-                val rawResults = GeminiParser.searchInternetPrices(query)
+                val results = GeminiParser.searchInternetPrices(query)
 
-                // Enrich missing product images concurrently using ProductImageResolver
-                val results = coroutineScope {
-                    rawResults.map { product ->
-                        async {
-                            if (ProductImageResolver.isValidImageUrl(product.imageUrl)) {
-                                product
-                            } else {
-                                val resolvedUrl = ProductImageResolver.resolveProductImage(product.itemName, product.sourceName)
-                                if (resolvedUrl != null) {
-                                    product.copy(imageUrl = resolvedUrl)
-                                } else {
-                                    product
-                                }
-                            }
-                        }
-                    }.awaitAll()
-                }
+                // Increment daily internet search usage
+                SubscriptionManager.consumeQuota(this@CustomerHomeActivity, uid, SubscriptionManager.DailyQuotaType.INTERNET_SEARCH, tierInfo.internetSearchQuota)
 
                 // Map results to SearchItem and append BackToLocalCard at the very bottom
                 val searchItems: List<SearchItem> = if (results.isNotEmpty()) {
