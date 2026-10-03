@@ -52,6 +52,10 @@ class SubscriptionStatusActivity : AppCompatActivity() {
     private lateinit var progressMembers: ProgressBar
     private lateinit var tvStatAiVal: TextView
     private lateinit var progressAi: ProgressBar
+    private lateinit var tvStatPhotoVal: TextView
+    private lateinit var progressPhoto: ProgressBar
+    private lateinit var tvStatSearchVal: TextView
+    private lateinit var progressSearch: ProgressBar
 
     // Plan Selection Buttons
     private lateinit var btnSelectFree: AppCompatButton
@@ -95,6 +99,10 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         progressMembers = findViewById(R.id.progressMembers)
         tvStatAiVal = findViewById(R.id.tvStatAiVal)
         progressAi = findViewById(R.id.progressAi)
+        tvStatPhotoVal = findViewById(R.id.tvStatPhotoVal)
+        progressPhoto = findViewById(R.id.progressPhoto)
+        tvStatSearchVal = findViewById(R.id.tvStatSearchVal)
+        progressSearch = findViewById(R.id.progressSearch)
 
         btnSelectFree = findViewById(R.id.btnSelectFree)
         btnSelectPro = findViewById(R.id.btnSelectPro)
@@ -640,10 +648,44 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 progressMembers.progress = pct
             }
 
-            // 4. Daily AI Quota
-            val aiQuotaStr = SubscriptionManager.formatLimitText(tier.aiQuotaDaily)
-            tvStatAiVal.text = "$aiQuotaStr / $aiQuotaStr remaining"
-            progressAi.progress = 100
+            // 4. Daily AI Parser Quota
+            val isAiUnlimited = tier.aiQuotaDaily >= 999999 || tier.id.equals("vip", ignoreCase = true)
+            if (isAiUnlimited) {
+                val usedAi = SubscriptionManager.getDailyUsage(this, uid, SubscriptionManager.DailyQuotaType.AI_PARSE)
+                tvStatAiVal.text = "$usedAi / Unlimited"
+                progressAi.progress = 100
+            } else {
+                val remainingAi = SubscriptionManager.getRemainingBaseQuota(this, uid, SubscriptionManager.DailyQuotaType.AI_PARSE, tier.aiQuotaDaily)
+                tvStatAiVal.text = "$remainingAi / ${tier.aiQuotaDaily} remaining"
+                val pct = if (tier.aiQuotaDaily > 0) ((remainingAi.toFloat() / tier.aiQuotaDaily) * 100).toInt().coerceIn(0, 100) else 0
+                progressAi.progress = pct
+            }
+
+            // 5. Photo Scans Quota
+            val isPhotoUnlimited = tier.photoScansQuotaDaily >= 999999 || tier.id.equals("vip", ignoreCase = true)
+            if (isPhotoUnlimited) {
+                val usedPhoto = SubscriptionManager.getDailyUsage(this, uid, SubscriptionManager.DailyQuotaType.PHOTO_SCAN)
+                tvStatPhotoVal.text = "$usedPhoto / Unlimited"
+                progressPhoto.progress = 100
+            } else {
+                val remainingPhoto = SubscriptionManager.getRemainingBaseQuota(this, uid, SubscriptionManager.DailyQuotaType.PHOTO_SCAN, tier.photoScansQuotaDaily)
+                tvStatPhotoVal.text = "$remainingPhoto / ${tier.photoScansQuotaDaily} remaining"
+                val pct = if (tier.photoScansQuotaDaily > 0) ((remainingPhoto.toFloat() / tier.photoScansQuotaDaily) * 100).toInt().coerceIn(0, 100) else 0
+                progressPhoto.progress = pct
+            }
+
+            // 6. Daily Internet Search Quota
+            val isSearchUnlimited = tier.internetSearchQuota >= 999999 || tier.id.equals("vip", ignoreCase = true)
+            if (isSearchUnlimited) {
+                val usedSearch = SubscriptionManager.getDailyUsage(this, uid, SubscriptionManager.DailyQuotaType.INTERNET_SEARCH)
+                tvStatSearchVal.text = "$usedSearch / Unlimited"
+                progressSearch.progress = 100
+            } else {
+                val remainingSearch = SubscriptionManager.getRemainingBaseQuota(this, uid, SubscriptionManager.DailyQuotaType.INTERNET_SEARCH, tier.internetSearchQuota)
+                tvStatSearchVal.text = "$remainingSearch / ${tier.internetSearchQuota} remaining"
+                val pct = if (tier.internetSearchQuota > 0) ((remainingSearch.toFloat() / tier.internetSearchQuota) * 100).toInt().coerceIn(0, 100) else 0
+                progressSearch.progress = pct
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

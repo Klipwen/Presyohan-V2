@@ -74,6 +74,23 @@ This document serves as the master blueprint for completing **Phase 1** of Presy
 | **Internet Search Quota** | 3 / day | 15 / day | Unlimited |
 
 > ⚠️ **Protection Note (Fair Use Cap):** VIP AI Parser and Photo Scans are set to **50/day** instead of uncapped "Unlimited" to protect your Google Gemini API costs from script/bot exploitation.
+> 
+> 🌐 **Dynamic Web Admin Control:** All numbers and quotas above (including daily AI parses, photo scans, store limits, and prices) are **100% dynamic and NOT hardcoded**. The mobile app continuously reads live values from the Supabase `subscription_tiers` database table, allowing administrators to update any tier's quotas in real-time directly from the **Web Admin Portal** without requiring app updates.
+
+### 💳 Payment Gateway Strategy: Customized Web Checkout with PayMongo (PH Local Priority)
+* **Primary Payment Gateway:** **PayMongo** is prioritized as the primary billing engine because it directly supports Philippine preferred payment channels:
+  * **E-Wallets:** GCash, Maya, GrabPay
+  * **Direct Banking & Cards:** Visa, Mastercard, JCB
+  * **Real-Time QR:** QR Ph
+* **Custom Web Checkout Architecture Workflow:**
+  1. **User Action (Mobile / Web):** User clicks "Upgrade / Pay" in `SubscriptionPaywallDialog.kt` or `SubscriptionStatusActivity.kt`.
+  2. **Custom Checkout Redirect:** Mobile app opens the branded, customized Presyohan Web Checkout page (e.g. `https://presyohan.com/checkout?tier=pro&uid=...`) via Android Chrome Custom Tabs / secure browser.
+  3. **Custom Checkout Experience:** The customized web page shows Presyohan branded order summary, tier features, active promotional discounts, buyer details, and payment options.
+  4. **PayMongo Processing:** PayMongo processes the transaction securely via GCash, Maya, QR Ph, or Card.
+  5. **Webhook Verification:** PayMongo sends `checkout_session.payment.paid` / `payment.paid` event to Supabase Edge Function `paymongo-webhook`.
+  6. **Instant Upgrade:** Webhook validates the signature, upgrades user's `subscription_tier` ('pro' or 'vip'), extends `subscription_expires_at` in `public.app_users`, and triggers store quota synchronization.
+  7. **Audit & Return to App:** Transaction is recorded in `public.subscription_payments`, and the success screen provides an automated deep link (`presyohan://subscription/success`) to return the user directly to the upgraded mobile app.
+* **Google Play In-App Billing (IAP):** Deferred to post-launch/subsequent phase.
 
 ---
 
@@ -146,12 +163,14 @@ WHERE is_public = true;
 ## 📅 Section 6: Master Execution Roadmap
 
 ```
-[ ] Step 1: Fix Manifest CAMERA Permission
-[ ] Step 2: Implement Account Deletion RPC & UI
-[ ] Step 3: Configure build.gradle.kts minification & signing
-[ ] Step 4: Apply Database Migrations (Subscriptions & Public Search Index)
-[ ] Step 5: Update OnboardingActivity.kt Step 2 Cards (Card A & Card B)
-[ ] Step 6: Update CustomerHomeActivity.kt Search-First UI & Request Suki Funnel
-[ ] Step 7: Integrate In-App Billing (₱99 PRO & ₱299 VIP)
-[ ] Step 8: Perform 14-day Closed Beta Testing & Submit to Play Console
+[x] Step 1: Fix Manifest CAMERA Permission
+[x] Step 2: Implement Account Deletion RPC & UI
+[x] Step 3: Configure build.gradle.kts minification & signing
+[x] Step 4: Apply Database Migrations (Subscriptions, Role Caps & Public Search Index)
+[x] Step 5: Update OnboardingActivity.kt Step 2 Cards (Card A & Card B)
+[x] Step 6: Update CustomerHomeActivity.kt Search-First UI & Request Suki Funnel
+[ ] Step 7: Integrate PayMongo Payment Gateway (GCash, Maya, Cards, QR Ph for ₱99 PRO & ₱299 VIP)
+      * Note: Google Play In-App Billing (IAP) deferred to post-launch phase.
+[ ] Step 8: AI Parser & Search Daily Quotas Enforcement
+[ ] Step 9: Perform Closed Beta Testing & Submit to Play Console
 ```

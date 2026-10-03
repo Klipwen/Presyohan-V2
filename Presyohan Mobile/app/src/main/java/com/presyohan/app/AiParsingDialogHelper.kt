@@ -50,6 +50,34 @@ class AiParsingDialogHelper(
     }
 
     fun show() {
+        val uid = SupabaseAuthService.getCurrentUserId()
+        val userDetails = SubscriptionManager.getCachedSubscriptionDetails(activity)
+        val userTier = userDetails.tierId
+        val tierInfo = userDetails.tierInfo
+        val quotaType = if (imageBytes != null) {
+            SubscriptionManager.DailyQuotaType.PHOTO_SCAN
+        } else {
+            SubscriptionManager.DailyQuotaType.AI_PARSE
+        }
+        val limit = if (quotaType == SubscriptionManager.DailyQuotaType.PHOTO_SCAN) {
+            tierInfo.photoScansQuotaDaily
+        } else {
+            tierInfo.aiQuotaDaily
+        }
+
+        if (!SubscriptionManager.hasQuotaAvailable(activity, uid, quotaType, limit)) {
+            SubscriptionManager.showQuotaExhaustedDialog(
+                activity = activity,
+                quotaType = quotaType,
+                currentTierId = userTier,
+                onBonusGranted = {
+                    show()
+                }
+            )
+            onCancel()
+            return
+        }
+
         dialog = Dialog(activity).apply {
             val view = LayoutInflater.from(activity).inflate(R.layout.dialog_ai_parser, null)
             setContentView(view)
@@ -155,6 +183,19 @@ class AiParsingDialogHelper(
                 
                 withContext(Dispatchers.Main) {
                     dialog?.dismiss()
+                    val uid = SupabaseAuthService.getCurrentUserId()
+                    val userDetails = SubscriptionManager.getCachedSubscriptionDetails(activity)
+                    val quotaType = if (imageBytes != null) {
+                        SubscriptionManager.DailyQuotaType.PHOTO_SCAN
+                    } else {
+                        SubscriptionManager.DailyQuotaType.AI_PARSE
+                    }
+                    val limit = if (quotaType == SubscriptionManager.DailyQuotaType.PHOTO_SCAN) {
+                        userDetails.tierInfo.photoScansQuotaDaily
+                    } else {
+                        userDetails.tierInfo.aiQuotaDaily
+                    }
+                    SubscriptionManager.consumeQuota(activity, uid, quotaType, limit)
                     onSuccess(result)
                 }
             } catch (e: Exception) {

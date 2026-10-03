@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../config/supabaseClient';
 import StoreProductManager from './StoreProductManager';
+import StoreSukisModal from './StoreSukisModal';
 
 export default function StandardPriceStores() {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [managingStore, setManagingStore] = useState(null); // Selected store object for managing products
+  const [viewingSukiStore, setViewingSukiStore] = useState(null); // Selected store object for viewing sukis
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [storeName, setStoreName] = useState('');
   const [storeType, setStoreType] = useState('Grocery');
@@ -25,12 +27,25 @@ export default function StandardPriceStores() {
       setLoading(true);
       const { data, error } = await supabase
         .from('stores')
-        .select('*')
+        .select(`
+          *,
+          suki_relationships (count),
+          products (count),
+          categories (count)
+        `)
         .eq('is_standard_store', true)
         .order('name', { ascending: true });
 
       if (error) throw error;
-      setStores(data || []);
+      
+      const processed = (data || []).map(store => ({
+        ...store,
+        sukiCount: store.suki_relationships?.[0]?.count || 0,
+        productCount: store.products?.[0]?.count || 0,
+        categoryCount: store.categories?.[0]?.count || 0
+      }));
+
+      setStores(processed);
     } catch (err) {
       console.error('Failed to load standard reference stores:', err);
     } finally {
@@ -218,6 +233,7 @@ export default function StandardPriceStores() {
             <tr>
               <th>Store Name & Type</th>
               <th>Status</th>
+              <th>Sukis</th>
               <th>Items</th>
               <th>Actions</th>
             </tr>
@@ -283,6 +299,35 @@ export default function StandardPriceStores() {
                 <td>
                   <button
                     className="admin-btn-action"
+                    style={{
+                      color: '#00bcd4',
+                      borderColor: 'rgba(0, 188, 212, 0.3)',
+                      backgroundColor: 'rgba(0, 188, 212, 0.06)',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      borderRadius: '8px',
+                      padding: '5px 12px',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => setViewingSukiStore(store)}
+                    title={`View and manage ${store.sukiCount} suki customers for ${store.name}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>{store.sukiCount} Suki{store.sukiCount === 1 ? '' : 's'}</span>
+                  </button>
+                </td>
+                <td>
+                  <button
+                    className="admin-btn-action"
                     style={{ color: '#ff8c00', borderColor: 'rgba(255, 140, 0, 0.2)' }}
                     onClick={() => setManagingStore(store)}
                   >
@@ -311,7 +356,7 @@ export default function StandardPriceStores() {
             ))}
             {stores.length === 0 && (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center', color: '#94a3b8', padding: '32px' }}>
+                <td colSpan="5" style={{ textAlign: 'center', color: '#94a3b8', padding: '32px' }}>
                   No standard reference stores defined. Create one to begin cataloging reference prices.
                 </td>
               </tr>
@@ -319,6 +364,16 @@ export default function StandardPriceStores() {
           </tbody>
         </table>
       </div>
+
+      {/* Suki Customer Members Modal */}
+      {viewingSukiStore && (
+        <StoreSukisModal
+          store={viewingSukiStore}
+          isOpen={!!viewingSukiStore}
+          onClose={() => setViewingSukiStore(null)}
+          onSukiCountChanged={loadStandardStores}
+        />
+      )}
 
       {/* Create Modal */}
       {showCreateModal && (

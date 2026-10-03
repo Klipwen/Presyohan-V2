@@ -9,6 +9,7 @@ import StandardPriceStores from '../components/admin/StandardPriceStores.jsx';
 import AppReleases from '../components/admin/AppReleases.jsx';
 import FeedbackSupport from '../components/admin/FeedbackSupport.jsx';
 import SubscriptionManagement from '../components/admin/SubscriptionManagement.jsx';
+import Announcements from '../components/admin/Announcements.jsx';
 import '../styles/AdminDashboard.css';
 
 export default function AdminDashboard() {
