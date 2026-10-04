@@ -15,6 +15,7 @@ import ProfilePage from './pages/ProfilePage.jsx'
 import AdminGatekeeper from './pages/AdminGatekeeper.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import AdminRouteGuard from './components/auth/AdminRouteGuard.jsx'
+import SubscriptionCheckout from './pages/SubscriptionCheckout.jsx'
 
 // Track activity of logged in users on route transitions
 function ActivityTracker({ children }) {
@@ -57,6 +58,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/contact" element={<ContactPage />} />
           {/* Protected profile page */}
           <Route path="/profile" element={<ProfilePage />} />
+          
+          {/* Subscription checkout page */}
+          <Route path="/checkout" element={<SubscriptionCheckout />} />
           
           {/* Admin portal routes */}
           <Route path="/ako-ang-admin" element={<AdminGatekeeper />} />
