@@ -132,17 +132,8 @@ object SubscriptionPaywallDialog {
         }
 
         btnPaywallCta.setOnClickListener {
-            CoroutineScope(Dispatchers.Main).launch {
-                val success = SubscriptionManager.updateUserSubscription(context, selectedTier)
-                if (success) {
-                    val tierInfo = SubscriptionManager.getTierInfo(selectedTier)
-                    Toast.makeText(context, "Welcome to Presyohan ${tierInfo.name}!", Toast.LENGTH_LONG).show()
-                    onSubscribed?.invoke(selectedTier)
-                    dialog.dismiss()
-                } else {
-                    Toast.makeText(context, "Subscription request failed.", Toast.LENGTH_SHORT).show()
-                }
-            }
+            SubscriptionManager.openWebCheckout(context, selectedTier)
+            dialog.dismiss()
         }
 
         CoroutineScope(Dispatchers.Main).launch {

@@ -1194,4 +1194,21 @@ object SubscriptionManager {
             }
         )
     }
+
+    /**
+     * Launches the bespoke Presyohan Web Checkout page for PayMongo payments.
+     */
+    fun openWebCheckout(context: Context, tierId: String = "pro") {
+        val uid = SupabaseAuthService.getCurrentUserId() ?: ""
+        val baseUrl = "https://presyohan.onrender.com/checkout"
+        val checkoutUrl = "$baseUrl?tier=${tierId.lowercase()}&uid=$uid"
+        try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(checkoutUrl))
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            android.widget.Toast.makeText(context, "Could not open checkout browser: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 }

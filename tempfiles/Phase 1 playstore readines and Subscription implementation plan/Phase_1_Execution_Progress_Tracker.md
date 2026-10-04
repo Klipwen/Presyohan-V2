@@ -13,9 +13,9 @@
 | :--- | :---: | :---: | :---: |
 | **Sprint 1: Google Play Store & Technical Blockers** | 5 | 5 | ✅ Completed |
 | **Sprint 2: Customer Search-First UX & Onboarding** | 6 | 6 | ✅ Completed |
-| **Sprint 3: Subscription Engine & Database Tiering** | 7 | 6 | 🟡 In Progress |
+| **Sprint 3: Subscription Engine & Database Tiering** | 7 | 7 | ✅ Completed |
 | **Sprint 4: Google Play Store Launch & Production Pipeline** | 6 | 1 | 🟡 In Progress |
-| **Total** | **24** | **18** | **75% Completed** |
+| **Total** | **24** | **19** | **79% Completed** |
 
 ---
 
@@ -113,16 +113,15 @@
   - **Details:** Enforced soft-lock capacity checks on single item creation, category creation, and bulk draft import. Existing data is preserved unconditionally; creation past tier limit displays standard upgrade dialog without harsh colors or emojis.
   - **Status:** ✅ Completed
 
-- [ ] **Task 3.4: Customized Payment Web Checkout & PayMongo Integration (Priority PH Gateway)**
-  - **Target Location:** Web Frontend ([`SubscriptionCheckout.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/pages/SubscriptionCheckout.jsx)), Mobile ([`SubscriptionPaywallDialog.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallDialog.kt), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt)), Supabase Edge Functions (`create-paymongo-checkout`, `paymongo-webhook`), Database Table (`subscription_payments`)
+- [x] **Task 3.4: Customized Payment Web Checkout & PayMongo Integration (Priority PH Gateway)**
+  - **Target Location:** Web Frontend ([`SubscriptionCheckout.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/pages/SubscriptionCheckout.jsx), [`SubscriptionCheckout.css`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/styles/SubscriptionCheckout.css)), Mobile ([`SubscriptionPaywallDialog.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallDialog.kt), [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt), [`AndroidManifest.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/AndroidManifest.xml)), Supabase Edge Functions (`create-paymongo-checkout`, `paymongo-webhook`), Database Table (`subscription_payments`)
   - **Details:**
     - **Redirect Flow:** Tapping "Pay / Upgrade" in the mobile app redirects the user (via Chrome Custom Tab / secure browser) to a branded, customized Presyohan Web Checkout page (e.g., `https://presyohan.com/checkout?tier=pro&uid=...`).
-    - **Customized Checkout UI:** The custom checkout web page displays branded Presyohan summary, selected tier details (PRO ₱99 / VIP ₱299), active promo badges/discounts, buyer information, and payment options.
+    - **Customized Checkout UI:** Bespoke Neumorphic checkout page styled with Google Fonts (`Balsamiq Sans` & `Radio Canada Big`), 100% dynamic prices & promos from Supabase `subscription_tiers`, buyer form, and Philippine payment selector (GCash, Maya, GrabPay, QR Ph, Card).
     - **Payment Methods:** Powered by PayMongo supporting GCash, Maya, GrabPay, Credit/Debit Cards, and QR Ph.
     - **Secure Webhook Handler:** `paymongo-webhook` Edge Function verifies webhook signatures on `checkout_session.payment.paid` / `payment.paid` to automatically update user's `subscription_tier`, set `subscription_expires_at` (+30 days), and log records in `public.subscription_payments`.
     - **Return to App:** Upon payment completion, the custom checkout page displays a success confirmation with an automated deep link button (`presyohan://subscription/success`) to seamlessly bring the user back into the mobile app with upgraded status.
-    - *(Note: Google Play In-App Billing (IAP) is deferred to future phase/multi-gateway update).*
-  - **Status:** 📋 Ready for Implementation
+  - **Status:** ✅ Completed
 
 - [x] **Task 3.5: Dynamic AI Usage & Internet Search Daily Quota Enforcement**
   - **Target Location:** [`AiParsingDialogHelper.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/AiParsingDialogHelper.kt), [`GeminiParser.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/GeminiParser.kt), [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt), [`activity_subscription_status.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_subscription_status.xml), Supabase DB
@@ -200,6 +199,7 @@
 | 2026-09-30 21:45 | **Task 3.2** | Implemented dynamic store tier resolution (`fetchStoreSubscriptionTier`), feature gating (clone, export) and staff limit checks | `SubscriptionManager.kt`, `StoreActivity.kt`, `ManageStoreActivity.kt`, `ManageMembersActivity.kt` | ✅ Completed | Gradle Compile Build (0 errors) |
 | 2026-09-30 21:45 | **Task 3.3** | Implemented soft-lock capacity enforcement across item/category creation and bulk import with clean reusable dialogs | `AddEditItemDialogHelper.kt`, `ReviewImportActivity.kt`, `CreateStoreDialogHelper.kt` | ✅ Completed | Gradle Compile Build (0 errors) |
 | 2026-09-30 22:50 | **Task 3.2** | Implemented Store Publishing Gating (`allowCustomerPairing`), auto-private store mode on owner downgrade, and updated Publish Store confirmation copy | `ManageStoreActivity.kt`, `SubscriptionManager.kt`, `20260930_000000_enforce_subscription_rules_and_quotas.sql` | ✅ Completed | Gradle AssembleDebug (0 errors) |
+| 2026-10-04 00:30 | **Task 3.4** | Built bespoke Neumorphic Web Checkout UI (`SubscriptionCheckout.jsx`), PayMongo API & Webhook Edge Functions, `subscription_payments` DB migration, and Android App deep-link routing | `SubscriptionCheckout.jsx`, `SubscriptionCheckout.css`, `paymongoService.js`, `20261004_000000_subscription_payments_and_paymongo.sql`, `SubscriptionManager.kt`, `SubscriptionPaywallDialog.kt`, `AndroidManifest.xml` | ✅ Completed | Vite Build & Gradle Compile (0 errors) |
 | 2026-10-03 13:00 | **Task 4.1** | Registered Google Play Developer account (`SpennyWise`), paid $25 fee, verified Android device via Play Console app, and submitted Driver's License & Printed ePhilID for ID verification | Play Console (`8486090963981976962`) | ⏳ In Review | Google Play Console Dashboard |
 
 ---

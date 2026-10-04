@@ -112,7 +112,14 @@
             android:exported="false" />
         <activity
             android:name=".SubscriptionStatusActivity"
-            android:exported="false" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="presyohan" android:host="subscription" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".EditProfileActivity"
             android:exported="false" />
