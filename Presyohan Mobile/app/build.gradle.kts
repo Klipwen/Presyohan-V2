@@ -60,13 +60,16 @@ android {
             val keystoreFile = rootProject.file("release.keystore")
             if (keystoreFile.exists()) {
                 storeFile = keystoreFile
-                storePassword = project.findProperty("KEYSTORE_PASSWORD") as? String 
+                storePassword = localProperties.getProperty("KEYSTORE_PASSWORD") 
+                    ?: project.findProperty("KEYSTORE_PASSWORD") as? String 
                     ?: System.getenv("KEYSTORE_PASSWORD") 
                     ?: ""
-                keyAlias = project.findProperty("KEY_ALIAS") as? String 
+                keyAlias = localProperties.getProperty("KEY_ALIAS") 
+                    ?: project.findProperty("KEY_ALIAS") as? String 
                     ?: System.getenv("KEY_ALIAS") 
                     ?: ""
-                keyPassword = project.findProperty("KEY_PASSWORD") as? String 
+                keyPassword = localProperties.getProperty("KEY_PASSWORD") 
+                    ?: project.findProperty("KEY_PASSWORD") as? String 
                     ?: System.getenv("KEY_PASSWORD") 
                     ?: ""
             }

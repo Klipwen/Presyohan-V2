@@ -8,15 +8,30 @@
     android:background="@drawable/bg_dialog_custom"
     android:gravity="center">
 
-    <TextView
-        android:id="@+id/dialogTitle"
+    <LinearLayout
+        android:id="@+id/layoutDialogTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="@color/presyo_orange"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="12dp"
-        android:gravity="center" />
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="12dp">
+
+        <ImageView
+            android:id="@+id/dialogTitleIcon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_marginEnd="6dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/dialogTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/presyo_orange"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/dialogMessage"

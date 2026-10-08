@@ -125,7 +125,8 @@ object ReusableDialogHelper {
         positiveAction: (() -> Unit)? = null,
         negativeButtonText: String? = null,
         negativeAction: (() -> Unit)? = null,
-        isCancelable: Boolean = true
+        isCancelable: Boolean = true,
+        iconRes: Int? = null
     ): Dialog {
         val dialog = Dialog(context)
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_reusable_template, null)
@@ -133,6 +134,7 @@ object ReusableDialogHelper {
         dialog.setCancelable(isCancelable)
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
+        val imgTitleIcon = view.findViewById<ImageView>(R.id.dialogTitleIcon)
         val tvTitle = view.findViewById<TextView>(R.id.dialogTitle)
         val tvMessage = view.findViewById<TextView>(R.id.dialogMessage)
         val btnPositive = view.findViewById<AppCompatButton>(R.id.btnPositive)
@@ -140,6 +142,20 @@ object ReusableDialogHelper {
 
         tvTitle.text = title
         tvMessage.text = message
+
+        // Title Icon Setup (Show icon_pro or icon_vip for upgrade dialogs)
+        val resolvedIcon = when {
+            iconRes != null -> iconRes
+            title.contains("VIP", ignoreCase = true) -> R.drawable.icon_vip
+            title.contains("PRO", ignoreCase = true) -> R.drawable.icon_pro
+            else -> null
+        }
+        if (resolvedIcon != null) {
+            imgTitleIcon.setImageResource(resolvedIcon)
+            imgTitleIcon.visibility = View.VISIBLE
+        } else {
+            imgTitleIcon.visibility = View.GONE
+        }
 
         // Positive Button Setup
         if (!positiveButtonText.isNullOrEmpty()) {

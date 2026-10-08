@@ -75,13 +75,22 @@
                     android:src="@drawable/ic_radio_unchecked" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:id="@+id/tvExcelTitle"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:layout_marginStart="12dp"
                     android:text="Convert as Excel"
                     android:textColor="@color/presyo_teal"
                     android:textSize="14sp"
                     android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/badgeExcelLock"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/icon_pro"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
@@ -105,13 +114,22 @@
                     android:src="@drawable/ic_radio_unchecked" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:id="@+id/tvNotesTitle"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:layout_marginStart="12dp"
                     android:text="Convert as Notes"
                     android:textColor="@color/presyo_teal"
                     android:textSize="14sp"
                     android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/badgeNotesLock"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/icon_pro"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
@@ -135,13 +153,22 @@
                     android:src="@drawable/ic_radio_unchecked" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:id="@+id/tvPdfTitle"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:layout_marginStart="12dp"
                     android:text="Convert as PDF"
                     android:textColor="@color/presyo_teal"
                     android:textSize="14sp"
                     android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/badgePdfLock"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/icon_pro"
+                    android:visibility="gone" />
 
             </LinearLayout>
 

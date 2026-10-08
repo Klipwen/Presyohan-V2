@@ -587,32 +587,47 @@
         </LinearLayout>
 
         <!-- QR Code -->
-        <LinearLayout
-            android:id="@+id/layoutQRCode"
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:padding="6dp">
-            <ImageView
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:src="@drawable/icon_qr_code"
-                app:tint="@color/presyo_teal" />
-            <TextView
-                android:layout_width="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:id="@+id/layoutQRCode"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="QR Code"
-                android:textColor="@color/presyo_teal"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:layout_marginTop="3dp"
-                android:gravity="center" />
-        </LinearLayout>
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="6dp">
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:src="@drawable/icon_qr_code"
+                    app:tint="@color/presyo_teal" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="QR Code"
+                    android:textColor="@color/presyo_teal"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="3dp"
+                    android:gravity="center" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/imgQrProStar"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/icon_pro"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="10dp"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <!-- Settings -->
         <LinearLayout

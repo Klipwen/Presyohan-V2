@@ -33,8 +33,13 @@
     @kotlinx.serialization.SerialName <fields>;
     @kotlinx.serialization.Serializable <fields>;
 }
--keepclassmembers class * $$serializer {
-    public static final $$serializer INSTANCE;
+-keepclassmembers class *$$serializer {
+    public static final ** INSTANCE;
 }
 -keep class io.github.jan.supabase.** { *; }
--keep class io.ktor.** { *; }
+-keep class io.ktor.** { *; }
+-dontwarn java.lang.management.**
+-dontwarn org.slf4j.**
+-dontwarn javax.annotation.**
+-keep class com.presyohan.app.model.** { *; }
+-keep class com.presyohan.app.** implements kotlinx.serialization.KSerializer { *; }

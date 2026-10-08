@@ -323,6 +323,9 @@ class SubscriptionStatusActivity : AppCompatActivity() {
             }
         }
 
+        // VIP Card Visibility Control
+        findViewById<LinearLayout>(R.id.cardTierVip)?.visibility = if (SubscriptionConfig.IS_VIP_VISIBLE) View.VISIBLE else View.GONE
+
         // 3. Quick Action Buttons on Active Card
         when (details.tierId) {
             "pro" -> {
@@ -332,7 +335,7 @@ class SubscriptionStatusActivity : AppCompatActivity() {
                 params?.marginStart = (12 * resources.displayMetrics.density).toInt()
                 tvActiveTierName.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
-                btnActiveUpgradeAction.visibility = View.VISIBLE
+                btnActiveUpgradeAction.visibility = if (SubscriptionConfig.IS_VIP_VISIBLE) View.VISIBLE else View.GONE
                 btnActiveUpgradeAction.text = "UPGRADE TO VIP"
                 btnActiveUpgradeAction.setBackgroundResource(R.drawable.bg_button_rect_teal)
                 btnActiveUpgradeAction.setTextColor(Color.WHITE)
@@ -431,7 +434,9 @@ class SubscriptionStatusActivity : AppCompatActivity() {
         layoutActiveHeader.layoutParams = params
 
         renderTierFeatures(R.id.featuresPro, "pro", R.drawable.ic_check_circle_orange, Color.parseColor("#374151"))
-        renderTierFeatures(R.id.featuresVip, "vip", R.drawable.ic_check_circle_teal, Color.parseColor("#1E293B"))
+        if (SubscriptionConfig.IS_VIP_VISIBLE) {
+            renderTierFeatures(R.id.featuresVip, "vip", R.drawable.ic_check_circle_teal, Color.parseColor("#1E293B"))
+        }
         renderTierFeatures(R.id.featuresFree, "free", R.drawable.ic_check_circle_grey, Color.parseColor("#4B5563"))
     }
 

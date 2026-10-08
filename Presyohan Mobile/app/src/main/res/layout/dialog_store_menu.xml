@@ -79,32 +79,47 @@
             app:layout_constraintTop_toBottomOf="@+id/divider">
 
             <!-- Clone Prices -->
-            <LinearLayout
-                android:id="@+id/btnClonePrices"
+            <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true">
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:id="@+id/btnClonePrices"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/icon_clone_prices"
+                        app:tint="@color/presyo_orange" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Clone Prices"
+                        android:textColor="@color/presyo_orange"
+                        android:textSize="12sp"
+                        android:textAlignment="center"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
 
                 <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:src="@drawable/icon_clone_prices"
-                    app:tint="@color/presyo_orange" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Clone Prices"
-                    android:textColor="@color/presyo_orange"
-                    android:textSize="12sp"
-                    android:textAlignment="center"
-                    android:layout_marginTop="4dp" />
-            </LinearLayout>
+                    android:id="@+id/imgClonePricesProStar"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/icon_pro"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="8dp"
+                    android:visibility="gone" />
+            </FrameLayout>
 
             <!-- Invite -->
             <LinearLayout

@@ -1,0 +1,278 @@
+@import url('https://fonts.googleapis.com/css2?family=Balsamiq+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Radio+Canada+Big:ital,wght@0,400..700;1,400..700&display=swap');
+
+:root {
+  --font-heading: 'Balsamiq Sans', cursive, sans-serif;
+  --font-body: 'Radio Canada Big', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Presyohan Exact Brand Palette */
+  --presyo-orange: #FB8500;
+  --presyo-orange-warm: #EA580C;
+  --presyo-orange-light: #FFF3E0;
+  --presyo-yellow-atong: #FFD700;
+
+  --presyo-teal: #0891b2;
+  --presyo-cyan-market: #00bcd4;
+  --presyo-teal-light: #E0F2FE;
+
+  --accent-emerald: #10b981;
+  --accent-emerald-light: #ecfdf5;
+  --accent-amber: #f59e0b;
+  --accent-amber-light: #fffbeb;
+
+  --slate-900: #0f172a;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+
+  /* Neumorphic Tokens */
+  --neu-bg: #edf2f7;
+  --neu-surface: #edf2f7;
+  --neu-shadow-dark: #d0d8e4;
+  --neu-shadow-light: #ffffff;
+
+  --neu-flat: 8px 8px 18px var(--neu-shadow-dark), -8px -8px 18px var(--neu-shadow-light);
+  --neu-flat-sm: 4px 4px 8px var(--neu-shadow-dark), -4px -4px 8px var(--neu-shadow-light);
+  --neu-flat-lg: 12px 12px 24px var(--neu-shadow-dark), -12px -12px 24px var(--neu-shadow-light);
+  --neu-pressed: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light);
+}
+
+.privacy-page-body {
+  min-height: 100vh;
+  background-color: var(--neu-bg);
+  color: var(--slate-800);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+.privacy-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* Header */
+.privacy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--slate-300);
+}
+
+.privacy-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.privacy-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  box-shadow: var(--neu-flat-sm);
+}
+
+.privacy-brand-title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--presyo-orange);
+  margin: 0;
+}
+
+.privacy-brand-subtitle {
+  font-size: 12px;
+  color: var(--slate-500);
+  margin: 0;
+}
+
+.privacy-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  background: var(--neu-surface);
+  box-shadow: var(--neu-flat-sm);
+  color: var(--slate-700);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.privacy-back-btn:hover {
+  color: var(--presyo-orange);
+  box-shadow: var(--neu-pressed);
+}
+
+/* Hero Section */
+.privacy-hero-card {
+  background: var(--neu-surface);
+  border-radius: 24px;
+  padding: 36px 32px;
+  box-shadow: var(--neu-flat);
+  margin-bottom: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: var(--presyo-teal-light);
+  color: var(--presyo-teal);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.privacy-hero-title {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--slate-900);
+  margin: 0 0 12px 0;
+  line-height: 1.2;
+}
+
+.privacy-hero-meta {
+  font-size: 14px;
+  color: var(--slate-500);
+  margin: 0;
+}
+
+/* Content Sections */
+.privacy-content-card {
+  background: var(--neu-surface);
+  border-radius: 24px;
+  padding: 36px 32px;
+  box-shadow: var(--neu-flat);
+  margin-bottom: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.privacy-section-title {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--slate-900);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px 0;
+}
+
+.privacy-section-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--presyo-orange-light);
+  color: var(--presyo-orange-warm);
+}
+
+.privacy-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--slate-700);
+  margin: 0 0 16px 0;
+}
+
+.privacy-text:last-child {
+  margin-bottom: 0;
+}
+
+.privacy-list {
+  padding-left: 20px;
+  margin: 0 0 16px 0;
+}
+
+.privacy-list li {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--slate-700);
+  margin-bottom: 8px;
+}
+
+.privacy-list li strong {
+  color: var(--slate-900);
+}
+
+.privacy-highlight-box {
+  background: #f8fafc;
+  border-left: 4px solid var(--presyo-cyan-market);
+  border-radius: 0 12px 12px 0;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+
+.privacy-highlight-box p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--slate-700);
+}
+
+/* Action Links */
+.privacy-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.privacy-link-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: var(--neu-surface);
+  border-radius: 16px;
+  box-shadow: var(--neu-flat-sm);
+  text-decoration: none;
+  color: var(--slate-800);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.privacy-link-card:hover {
+  color: var(--presyo-orange);
+  box-shadow: var(--neu-pressed);
+}
+
+/* Footer */
+.privacy-footer {
+  text-align: center;
+  padding-top: 32px;
+  border-top: 1px solid var(--slate-300);
+  color: var(--slate-500);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .privacy-container {
+    padding: 24px 16px 60px;
+  }
+  .privacy-hero-card,
+  .privacy-content-card {
+    padding: 24px 20px;
+  }
+  .privacy-hero-title {
+    font-size: 24px;
+  }
+}

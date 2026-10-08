@@ -16,6 +16,8 @@ import AdminGatekeeper from './pages/AdminGatekeeper.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import AdminRouteGuard from './components/auth/AdminRouteGuard.jsx'
 import SubscriptionCheckout from './pages/SubscriptionCheckout.jsx'
+import AccountDeletionPage from './pages/AccountDeletionPage.jsx'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx'
 
 // Track activity of logged in users on route transitions
 function ActivityTracker({ children }) {
@@ -61,6 +63,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           
           {/* Subscription checkout page */}
           <Route path="/checkout" element={<SubscriptionCheckout />} />
+          
+          {/* Account deletion pages */}
+          <Route path="/delete-account" element={<AccountDeletionPage />} />
+          <Route path="/account-deletion" element={<AccountDeletionPage />} />
+          
+          {/* Privacy Policy pages */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           
           {/* Admin portal routes */}
           <Route path="/ako-ang-admin" element={<AdminGatekeeper />} />

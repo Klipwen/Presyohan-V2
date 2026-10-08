@@ -2844,8 +2844,6 @@ class CustomerHomeActivity : AppCompatActivity() {
         }
 
         class InternetProductViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
-            val cardProductImage: View = view.findViewById(R.id.cardProductImage)
-            val ivProductImage: ImageView = view.findViewById(R.id.ivProductImage)
             val tvSourceName: TextView = view.findViewById(R.id.tvSourceName)
             val tvProductName: TextView = view.findViewById(R.id.tvProductName)
             val tvProductDescription: TextView = view.findViewById(R.id.tvProductDescription)
@@ -3002,25 +3000,6 @@ class CustomerHomeActivity : AppCompatActivity() {
                     prodHolder.tvProductUnits.text = data.unit ?: ""
                     prodHolder.tvProductUnits.visibility = if (data.unit.isNullOrBlank()) View.GONE else View.VISIBLE
                     prodHolder.tvProductPrice.text = String.format(Locale.US, "₱ %,.2f", data.price)
-
-                    if (!data.imageUrl.isNullOrBlank()) {
-                        prodHolder.cardProductImage.visibility = View.VISIBLE
-                        prodHolder.ivProductImage.load(data.imageUrl) {
-                            crossfade(true)
-                            listener(
-                                onSuccess = { _, _ ->
-                                    prodHolder.cardProductImage.visibility = View.VISIBLE
-                                },
-                                onError = { _, _ ->
-                                    // If image fails to load over network, hide image box completely so text renders full-width
-                                    prodHolder.cardProductImage.visibility = View.GONE
-                                }
-                            )
-                        }
-                    } else {
-                        // No image available: hide image container completely for clean text-only layout
-                        prodHolder.cardProductImage.visibility = View.GONE
-                    }
                 }
                 is SearchItem.LoadMorePrices -> {
                     val lmHolder = holder as LoadMoreViewHolder

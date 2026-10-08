@@ -2,7 +2,7 @@
 
 **Project:** Presyohan Mobile & Supabase Backend  
 **File Location:** `tempfiles/Phase 1 playstore readines and Subscription implementation plan/Phase_1_Execution_Progress_Tracker.md`  
-**Created:** September 24, 2026  
+**Last Updated:** October 8, 2026  
 **Status:** In Progress 🟡  
 
 ---
@@ -13,9 +13,10 @@
 | :--- | :---: | :---: | :---: |
 | **Sprint 1: Google Play Store & Technical Blockers** | 5 | 5 | ✅ Completed |
 | **Sprint 2: Customer Search-First UX & Onboarding** | 6 | 6 | ✅ Completed |
-| **Sprint 3: Subscription Engine & Database Tiering** | 7 | 7 | ✅ Completed |
-| **Sprint 4: Google Play Store Launch & Production Pipeline** | 6 | 1 | 🟡 In Progress |
-| **Total** | **24** | **19** | **79% Completed** |
+| **Sprint 3: 100% Dynamic Subscription Engine & Admin Tiering** | 7 | 7 | ✅ Completed |
+| **Sprint 4: Phase 1 Promotional Claim Engine & UI Streamlining** | 4 | 4 | ✅ Completed |
+| **Sprint 5: Production Build, Keystore & Closed Beta Release** | 6 | 5 | 🟡 In Progress |
+| **Total** | **28** | **27** | **96% Completed** |
 
 ---
 
@@ -84,23 +85,11 @@
 
 ---
 
-### 💳 Sprint 3: Subscription Engine & Database Tiering
-
-#### 📐 Core Subscription & Role Ownership Rules:
-1. **Rule 1: Role Cap on Store Ownership (Option 1):**
-   - In Presyohan's role hierarchy (`sales staff`, `manager`, `owner`), the **`owner`** role directly consumes a store slot on the user's subscription tier.
-   - **Free Tier:** A user can hold the `owner` role in **at most 1 store** across the platform.
-   - **Promotion Blocker:** If Store A already has P2 as `owner`, and P3 attempts to promote P2 to `owner` in Store B, the backend RPC (`update_store_member_role`) **blocks the promotion** with a clear message: *"P2 has reached the 1-store limit for Free tier. Assign P2 as Manager instead or ask P2 to upgrade to PRO."*
-   - **Manager Role Alternative:** Managers have complete operational capabilities (managing items, categories, staff, and pricing) without consuming a store ownership slot.
-2. **Rule 2: Owner Departure & Free Tier Downgrade (Soft Lock Principle):**
-   - If a PRO owner (P1) leaves or transfers primary billing ownership of a PRO store to a Free user (P2), the store status resets to **Free Tier** limits (100 items, 10 categories, 3 staff).
-   - **Golden Rule (Never Delete Data):** If the store already has >100 items or >3 staff, existing data is **never deleted**. All products remain live for POS/sales and search, but adding *new* items/staff is soft-locked until P2 upgrades to PRO or reduces counts below Free tier limits.
-3. **Rule 3: Secondary Store Archival on Multi-Store Downgrade:**
-   - If a PRO owner with multiple stores downgrades to Free, their primary store stays active, while secondary stores transition to **Archived / Read-Only** mode until re-subscribed.
+### 💳 Sprint 3: 100% Dynamic Subscription Engine & Admin Tiering
 
 - [x] **Task 3.1: Database Schema Migration & Dynamic Subscription Tiers Table**
   - **Target Location:** [`20260930_000000_enforce_subscription_rules_and_quotas.sql`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/supabase/migrations/20260930_000000_enforce_subscription_rules_and_quotas.sql)
-  - **Details:** Created quota checks in `create_store()`, Role Cap enforcement in `update_store_member_role()`, billing owner re-assignment and tier synchronization in `leave_store()`, and automatic database trigger `trigger_sync_user_stores_tier` on `app_users`.
+  - **Details:** Created dynamic `subscription_tiers` table, quota checks in `create_store()`, Role Cap enforcement in `update_store_member_role()`, billing owner re-assignment in `leave_store()`, and automatic database trigger `trigger_sync_user_stores_tier`.
   - **Status:** ✅ Completed
 
 - [x] **Task 3.2: Capacity & Feature Gating Validator (Mobile & Web)**
@@ -113,67 +102,82 @@
   - **Details:** Enforced soft-lock capacity checks on single item creation, category creation, and bulk draft import. Existing data is preserved unconditionally; creation past tier limit displays standard upgrade dialog without harsh colors or emojis.
   - **Status:** ✅ Completed
 
-- [x] **Task 3.4: Customized Payment Web Checkout & PayMongo Integration (Priority PH Gateway)**
-  - **Target Location:** Web Frontend ([`SubscriptionCheckout.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/pages/SubscriptionCheckout.jsx), [`SubscriptionCheckout.css`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/styles/SubscriptionCheckout.css)), Mobile ([`SubscriptionPaywallDialog.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallDialog.kt), [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt), [`AndroidManifest.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/AndroidManifest.xml)), Supabase Edge Functions (`create-paymongo-checkout`, `paymongo-webhook`), Database Table (`subscription_payments`)
-  - **Details:**
-    - **Redirect Flow:** Tapping "Pay / Upgrade" in the mobile app redirects the user (via Chrome Custom Tab / secure browser) to a branded, customized Presyohan Web Checkout page (e.g., `https://presyohan.com/checkout?tier=pro&uid=...`).
-    - **Customized Checkout UI:** Bespoke Neumorphic checkout page styled with Google Fonts (`Balsamiq Sans` & `Radio Canada Big`), 100% dynamic prices & promos from Supabase `subscription_tiers`, buyer form, and Philippine payment selector (GCash, Maya, GrabPay, QR Ph, Card).
-    - **Payment Methods:** Powered by PayMongo supporting GCash, Maya, GrabPay, Credit/Debit Cards, and QR Ph.
-    - **Secure Webhook Handler:** `paymongo-webhook` Edge Function verifies webhook signatures on `checkout_session.payment.paid` / `payment.paid` to automatically update user's `subscription_tier`, set `subscription_expires_at` (+30 days), and log records in `public.subscription_payments`.
-    - **Return to App:** Upon payment completion, the custom checkout page displays a success confirmation with an automated deep link button (`presyohan://subscription/success`) to seamlessly bring the user back into the mobile app with upgraded status.
+- [x] **Task 3.4: Web Portal PayMongo Checkout Engine (Web Dashboard Only)**
+  - **Target Location:** Web Frontend ([`SubscriptionCheckout.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/pages/SubscriptionCheckout.jsx), [`SubscriptionCheckout.css`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/styles/SubscriptionCheckout.css)), Supabase Edge Functions (`create-paymongo-checkout`, `paymongo-webhook`), Database Table (`subscription_payments`)
+  - **Details:** Built bespoke Neumorphic checkout page for web browser users, supporting GCash, Maya, GrabPay, Cards, and QR Ph with automatic Supabase webhook fulfillment.
   - **Status:** ✅ Completed
 
 - [x] **Task 3.5: Dynamic AI Usage & Internet Search Daily Quota Enforcement**
-  - **Target Location:** [`AiParsingDialogHelper.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/AiParsingDialogHelper.kt), [`GeminiParser.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/GeminiParser.kt), [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt), [`activity_subscription_status.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_subscription_status.xml), Supabase DB
-  - **Details:**
-    - **100% Dynamic Limits:** Daily AI parse, photo scan, and internet search caps are **NOT hardcoded**—they are pulled dynamically from the `subscription_tiers` database table as configured by the Administrator in the Web Admin Portal ("Subscriptions & Tiers" tab).
-    - **Real-Time Tier Resolution:** Reads active `tierInfo.aiQuotaDaily`, `tierInfo.photoScansQuotaDaily`, and `tierInfo.internetSearchQuota` via `SubscriptionManager.getTierInfo()`.
-    - **Usage Counter & Midnight Reset:** Tracks user's daily parse, scan, and search counts (resets daily at 00:00 local time) with ad-reward bonus support.
-    - **Capacity Visuals & Soft Gate Action:** Added Daily AI Parser Quota and Photo Scans Quota dynamic progress bars in Subscription & Plans screen. When quota is exhausted, displays friendly reusable dialog with Upgrade to PRO/VIP and Watch Ad options.
+  - **Target Location:** [`AiParsingDialogHelper.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/AiParsingDialogHelper.kt), [`GeminiParser.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/GeminiParser.kt), [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt)
+  - **Details:** Enforced dynamic daily AI parses, photo scans, and internet search caps loaded in real-time from `subscription_tiers`. Added midnight auto-reset counter and quota-exhausted soft prompts.
   - **Status:** ✅ Completed
 
-- [x] **Task 3.6: Settings Entry Point, Subscription Status UI & Paywall Modal**
-  - **Target Location:** [`SettingsActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SettingsActivity.kt), [`activity_settings.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_settings.xml), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt), [`activity_subscription_status.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_subscription_status.xml), [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt)
-  - **Details:** Subscriptions card added to `activity_settings.xml` under Account section using `icon_subscriptions.png` with live active tier badge. Wired `SettingsActivity.kt` to launch `SubscriptionStatusActivity.kt` displaying active plan, live capacity usage progress bars, and Free (₱0), PRO (₱99/mo with `icon_pro.png`), and VIP (₱299/mo with `icon_vip.png`) plan cards. Integrated paywall upgrade confirmation dialogs and Supabase tier syncing.
+- [x] **Task 3.6: Dynamic Subscription Status UI, Live Cards & Paywall Modal**
+  - **Target Location:** [`SettingsActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SettingsActivity.kt), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt), [`SubscriptionPaywallDialog.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallDialog.kt), [`activity_subscription_status.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_subscription_status.xml)
+  - **Details:** Subscriptions card in Settings with live active tier badge. Built dynamic plan comparison cards displaying live Supabase pricing, promo badges (`100% OFF`), expiry dates, and usage progress bars.
   - **Status:** ✅ Completed
 
-- [x] **Task 3.7: Web Admin Portal Subscription Plan Manager & Manual Overrides**
+- [x] **Task 3.7: Web Admin Portal Subscription Plan Manager & Live Quota Editor**
   - **Target Location:** [`AdminDashboard.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/pages/AdminDashboard.jsx), [`SubscriptionManagement.jsx`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Website/frontend/src/components/admin/SubscriptionManagement.jsx), [`20260925_000000_subscription_tiers_and_admin.sql`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/supabase/migrations/20260925_000000_subscription_tiers_and_admin.sql)
-  - **Details:** Built Subscription Tier Configuration Manager (Admin can edit prices, trial days, limits, merchant & customer bullet lists dynamically without app releases), Manual User & Store Tier Override Modal (granting PRO ⭐ or VIP 💎 access to beta testers / manual subscribers), and AI Usage monitor.
+  - **Details:** Built full-featured Web Admin Editor allowing real-time editing of base prices, discount %, trial days, promo text presets, custom button labels (`CLAIM NOW!`), store/staff/item caps, and AI quotas with real-time mobile preview card.
   - **Status:** ✅ Completed
 
 ---
 
-### 🚀 Sprint 4: Google Play Store Launch & Production Pipeline
+### 🎁 Sprint 4: Phase 1 Promotional Claim Engine & UI Streamlining
 
-- [x] **Task 4.1: Google Play Developer Account Registration & Verification Submission**
+- [x] **Task 4.1: Central Subscription Configuration & 1-Action Switch Architecture**
+  - **Target Location:** [`SubscriptionConfig.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionConfig.kt)
+  - **Details:** Created `SubscriptionConfig.kt` declaring `BILLING_MODE = BillingMode.PROMO_CLAIM_FREE`, `IS_VIP_VISIBLE = false`, and clean 1-action toggle for future Google Play Billing integration.
+  - **Status:** ✅ Completed
+
+- [x] **Task 4.2: Realistic 2.5-Second Claim Flow & Supabase Activation**
+  - **Target Location:** [`SubscriptionManager.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionManager.kt), [`SubscriptionPaywallDialog.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallDialog.kt), [`SubscriptionPaywallActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallActivity.kt), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt)
+  - **Details:** Replaced web checkout redirect with `claimPromotionalProTier()` on mobile. Added 2.5s realistic loading overlay and synchronized promotional expiry timestamp with live Admin settings.
+  - **Status:** ✅ Completed
+
+- [x] **Task 4.3: Custom Presyohan Success Dialog with Dynamic Quotas**
+  - **Target Location:** [`SubscriptionSuccessDialogHelper.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionSuccessDialogHelper.kt)
+  - **Details:** Built bespoke subscription success dialog matching the `dialog_export_complete.xml` template with Presyohan logo, checkmark, Balsamiq Sans title (`"PRO Tier Activated!"`), Radio Canada Big dynamic message (`"You have successfully claimed the promotional PRO Tier. Enjoy ${proTier.storeLimit} stores, ${proTier.itemsPerStoreLimit} items per store, and ${proTier.aiQuotaDaily} daily AI parses."`), and Market Cyan `[ Done ]` button.
+  - **Status:** ✅ Completed
+
+- [x] **Task 4.4: Paywall & Plans Screen UI Polish (Hide VIP & Pill Tabs)**
+  - **Target Location:** [`SubscriptionPaywallDialog.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallDialog.kt), [`SubscriptionPaywallActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionPaywallActivity.kt), [`activity_subscription_paywall.xml`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/res/layout/activity_subscription_paywall.xml), [`SubscriptionStatusActivity.kt`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/src/main/java/com/presyohan/app/SubscriptionStatusActivity.kt)
+  - **Details:** Hid top pill tab container in paywall screen, centered the single PRO hero card, hid the VIP plan card from Subscriptions & Plans screen, and updated active PRO buttons to show `[ CURRENT PLAN ]`.
+  - **Status:** ✅ Completed
+
+---
+
+### 🚀 Sprint 5: Production Build, Keystore & Closed Beta Release
+
+- [x] **Task 5.1: Google Play Developer Account Registration & Identity Verification**
   - **Target Location:** Google Play Console (`SpennyWise`, Account ID: `8486090963981976962`)
-  - **Details:** Registered developer account, paid $25 fee, linked mobile Android device via Play Console app, submitted Driver's License & Printed ePhilID for identity verification, and configured contact details.
-  - **Status:** ⏳ In Progress / Pending Google ID Review
+  - **Details:** Registered developer account, paid $25 fee, linked mobile Android device via Play Console app, submitted government ID for identity verification, configured Public Merchant Profile with 15% reduced fee tier.
+  - **Status:** ✅ Completed (Identity Verified on Oct 8, 2026)
 
-- [ ] **Task 4.2: Production Signing Keystore Generation (`.jks`)**
-  - **Target Location:** `Presyohan Mobile/app/` & [`build.gradle.kts`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/build.gradle.kts)
-  - **Details:** Generate secure production release keystore (`presyohan-release-key.jks`) using Java `keytool`, configure Gradle `signingConfigs.release`, and securely store passwords in `local.properties`.
-  - **Status:** 📋 Ready for Implementation
+- [x] **Task 5.2: Production Signing Keystore Generation (`.keystore`)**
+  - **Target Location:** `Presyohan Mobile/release.keystore` & [`build.gradle.kts`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/build.gradle.kts)
+  - **Details:** Generated production release keystore (`release.keystore`, alias `presyohan`, valid through 2054) using Java `keytool`, configured Gradle `signingConfigs.release`, and securely stored passwords in `local.properties`.
+  - **Status:** ✅ Completed
 
-- [ ] **Task 4.3: Signed Production App Bundle Build (`.aab`)**
-  - **Target Location:** `Presyohan Mobile/app/build/outputs/bundle/release/app-release.aab`
-  - **Details:** Build and verify signed release bundle (`./gradlew bundleRelease`) with R8 minification, resource shrinking, and ProGuard optimization.
-  - **Status:** 📋 Ready for Implementation
+- [x] **Task 5.3: Signed Production App Bundle Build (`.aab`)**
+  - **Target Location:** [`app-release.aab`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/Presyohan%20Mobile/app/build/outputs/bundle/release/app-release.aab)
+  - **Details:** Built and verified signed release bundle (`./gradlew bundleRelease`) with R8 minification, resource shrinking, ProGuard optimization, and lint vital checks (10.6 MB bundle).
+  - **Status:** ✅ Completed
 
-- [ ] **Task 4.4: Privacy Policy & Public Account Deletion Web Landing Page**
-  - **Target Location:** `Presyohan Website/` or Hosted GitHub Pages
-  - **Details:** Create and host public HTTPS web landing pages for Presyohan Privacy Policy and Data Deletion Request (mandatory for Google Play Data Safety declaration).
-  - **Status:** 📋 Ready for Implementation
+- [x] **Task 5.4: Privacy Policy & Public Account Deletion Web Landing Page**
+  - **Target Location:** `Presyohan Website/frontend/src/pages/PrivacyPolicyPage.jsx`, `AccountDeletionPage.jsx`
+  - **Details:** Built and deployed responsive, bespoke public web pages for Presyohan Privacy Policy (`/privacy`) and Account Deletion (`/delete-account`) compliant with Google Play Data Safety, GDPR, and RA 10173.
+  - **Status:** ✅ Completed
 
-- [ ] **Task 4.5: Store Listing Graphic Assets & Metadata Copy**
-  - **Target Location:** Play Console Store Listing
-  - **Details:** Prepare 512×512 PNG app icon, 1024×500 feature graphic, high-res phone screenshots (search, inventory, AI parser, scanner), short description (80 chars), and full description (4,000 chars).
-  - **Status:** 📋 Ready for Implementation
+- [x] **Task 5.5: Store Listing Graphic Assets & Metadata Copy**
+  - **Target Location:** [`Google_Play_Store_Submission_Guide.md`](file:///c:/Users/Gee%20Caliph/Desktop/Programming/System/Presyohan/Presyohan-V2/tempfiles/Phase%201%20playstore%20readines%20and%20Subscription%20implementation%20plan/Google_Play_Store_Submission_Guide.md)
+  - **Details:** Prepared complete store listing metadata copy (Short Description, Full Description, App Content answers, Data Safety form declarations, and test reviewer credentials).
+  - **Status:** ✅ Completed
 
-- [ ] **Task 4.6: Closed Testing Track & 14-Tester 14-Day Opt-In Strategy**
+- [ ] **Task 5.6: Closed Testing Track & 14-Tester Setup**
   - **Target Location:** Google Play Console Closed Testing
-  - **Details:** Create closed testing release track, invite 14 opt-in tester Gmail accounts, and manage the mandatory 14 consecutive days testing window.
+  - **Details:** Create closed testing release track, upload `.aab`, invite 14 opt-in tester Gmail accounts, and manage the mandatory 14 consecutive days testing window.
   - **Status:** 📋 Ready for Implementation
 
 ---
@@ -200,7 +204,12 @@
 | 2026-09-30 21:45 | **Task 3.3** | Implemented soft-lock capacity enforcement across item/category creation and bulk import with clean reusable dialogs | `AddEditItemDialogHelper.kt`, `ReviewImportActivity.kt`, `CreateStoreDialogHelper.kt` | ✅ Completed | Gradle Compile Build (0 errors) |
 | 2026-09-30 22:50 | **Task 3.2** | Implemented Store Publishing Gating (`allowCustomerPairing`), auto-private store mode on owner downgrade, and updated Publish Store confirmation copy | `ManageStoreActivity.kt`, `SubscriptionManager.kt`, `20260930_000000_enforce_subscription_rules_and_quotas.sql` | ✅ Completed | Gradle AssembleDebug (0 errors) |
 | 2026-10-04 00:30 | **Task 3.4** | Built bespoke Neumorphic Web Checkout UI (`SubscriptionCheckout.jsx`), PayMongo API & Webhook Edge Functions, `subscription_payments` DB migration, and Android App deep-link routing | `SubscriptionCheckout.jsx`, `SubscriptionCheckout.css`, `paymongoService.js`, `20261004_000000_subscription_payments_and_paymongo.sql`, `SubscriptionManager.kt`, `SubscriptionPaywallDialog.kt`, `AndroidManifest.xml` | ✅ Completed | Vite Build & Gradle Compile (0 errors) |
-| 2026-10-03 13:00 | **Task 4.1** | Registered Google Play Developer account (`SpennyWise`), paid $25 fee, verified Android device via Play Console app, and submitted Driver's License & Printed ePhilID for ID verification | Play Console (`8486090963981976962`) | ⏳ In Review | Google Play Console Dashboard |
+| 2026-10-08 01:27 | **Task 5.1** | Google Play Developer Account Registered, $25 fee paid, Merchant profile configured, and Identity Verified by Google Play team | Google Play Console (`8486090963981976962`) | ✅ Completed | Google Play Console Email Confirmation |
+| 2026-10-08 14:51 | **Sprint 4** | Implemented 1-Action Switch Architecture (`SubscriptionConfig.kt`), 2.5s Claim Flow & Supabase Activation (`claimPromotionalProTier`), Custom Success Dialog with Dynamic Live Quotas (`SubscriptionSuccessDialogHelper.kt`), and Clean Single-Card Paywall UI | `SubscriptionConfig.kt`, `SubscriptionSuccessDialogHelper.kt`, `SubscriptionManager.kt`, `SubscriptionPaywallDialog.kt`, `SubscriptionPaywallActivity.kt`, `activity_subscription_paywall.xml`, `SubscriptionStatusActivity.kt` | ✅ Completed | Gradle AssembleDebug (0 errors) |
+| 2026-10-08 15:14 | **Task 5.2** | Generated production release keystore (`release.keystore`, alias `presyohan`, 28-year validity) and configured Gradle signing | `release.keystore`, `local.properties`, `build.gradle.kts` | ✅ Completed | Keytool & Gradle Validation |
+| 2026-10-08 15:16 | **Task 5.4** | Created and deployed bespoke Privacy Policy (`/privacy`) and Account Deletion (`/delete-account`) landing pages | `PrivacyPolicyPage.jsx`, `PrivacyPolicy.css`, `main.jsx`, `Footer.jsx` | ✅ Completed | Vite Production Build (0 errors) |
+| 2026-10-08 15:18 | **Task 5.5** | Formatted complete Google Play Store listing metadata, Data Safety responses, and submission guide | `Google_Play_Store_Submission_Guide.md` | ✅ Completed | Documentation Audit |
+| 2026-10-08 15:37 | **Task 5.3** | Built production-ready, R8-minified, resource-shrunk signed Android App Bundle (`app-release.aab`, 10.6 MB) | `app-release.aab`, `proguard-rules.pro`, `item_store.xml` | ✅ Completed | `./gradlew bundleRelease` (Exit Code 0) |
 
 ---
 

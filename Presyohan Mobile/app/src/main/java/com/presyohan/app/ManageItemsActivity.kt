@@ -80,6 +80,7 @@ class ManageItemsActivity : AppCompatActivity() {
     private lateinit var iconBulkPublish: ImageView
     private lateinit var textBulkPublish: TextView
     private lateinit var btnBulkClone: View
+    private lateinit var imgBulkCloneProStar: ImageView
     private lateinit var btnBulkConvert: View
     private lateinit var btnBulkDelete: View
 
@@ -174,6 +175,7 @@ class ManageItemsActivity : AppCompatActivity() {
         iconBulkPublish = findViewById(R.id.iconBulkPublish)
         textBulkPublish = findViewById(R.id.textBulkPublish)
         btnBulkClone = findViewById(R.id.btnBulkClone)
+        imgBulkCloneProStar = findViewById(R.id.imgBulkCloneProStar)
         btnBulkConvert = findViewById(R.id.btnBulkConvert)
         btnBulkDelete = findViewById(R.id.btnBulkDelete)
 
@@ -443,9 +445,13 @@ class ManageItemsActivity : AppCompatActivity() {
                     android.util.Log.e("ManageItems", "Fetch store details failed: ${e.localizedMessage}")
                 }
 
+                // Fetch tier info for feature gating
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+
                 // Hide Clone & Convert if not owner
                 val isOwner = currentUserRole.lowercase() == "owner"
                 btnBulkClone.visibility = if (isOwner) View.VISIBLE else View.GONE
+                imgBulkCloneProStar.visibility = if (isOwner && !tierInfo.canClonePrices) View.VISIBLE else View.GONE
                 btnBulkConvert.visibility = if (isOwner) View.VISIBLE else View.GONE
 
                 @Serializable
@@ -1172,6 +1178,10 @@ class ManageItemsActivity : AppCompatActivity() {
         val btnBack        = view.findViewById<AppCompatButton>(R.id.btnBack)
         val btnConvert     = view.findViewById<AppCompatButton>(R.id.btnConvert)
 
+        val badgeExcelLock = view.findViewById<View>(R.id.badgeExcelLock)
+        val badgeNotesLock = view.findViewById<View>(R.id.badgeNotesLock)
+        val badgePdfLock   = view.findViewById<View>(R.id.badgePdfLock)
+
         // --- Summary line ---
         val grouped = items.groupBy { it.category.trim() }
         val catCount  = grouped.keys.filter { it.isNotBlank() }.size
@@ -1184,6 +1194,23 @@ class ManageItemsActivity : AppCompatActivity() {
         var selectedMode = 0
         var generatedNoteText = ""
         var selectedPdfSize: PdfPageSize? = null
+        var canExcel = true
+        var canPdf = true
+        var canNotes = true
+
+        val sId = storeId
+        if (sId != null) {
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                canExcel = tierInfo.canExportExcel
+                canPdf = tierInfo.canExportPdf
+                canNotes = tierInfo.canExportNotes
+
+                badgeExcelLock.visibility = if (!canExcel) View.VISIBLE else View.GONE
+                badgePdfLock.visibility   = if (!canPdf) View.VISIBLE else View.GONE
+                badgeNotesLock.visibility = if (!canNotes) View.VISIBLE else View.GONE
+            }
+        }
 
         fun applyPdfSizeSelection(size: PdfPageSize) {
             selectedPdfSize = size
@@ -1245,9 +1272,27 @@ class ManageItemsActivity : AppCompatActivity() {
         }
 
         // --- Click listeners ---
-        cardExcel.setOnClickListener { applySelection(1) }
-        cardNotes.setOnClickListener { applySelection(2) }
-        cardPdf.setOnClickListener   { applySelection(3) }
+        cardExcel.setOnClickListener {
+            if (!canExcel) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageItemsActivity, "Convert to Excel", "pro")
+            } else {
+                applySelection(1)
+            }
+        }
+        cardNotes.setOnClickListener {
+            if (!canNotes) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageItemsActivity, "Convert as Notes", "pro")
+            } else {
+                applySelection(2)
+            }
+        }
+        cardPdf.setOnClickListener {
+            if (!canPdf) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageItemsActivity, "Convert to PDF", "pro")
+            } else {
+                applySelection(3)
+            }
+        }
 
         cardPdfLong.setOnClickListener  { applyPdfSizeSelection(PdfPageSize.LONG_BOND) }
         cardPdfShort.setOnClickListener { applyPdfSizeSelection(PdfPageSize.SHORT_BOND) }
@@ -1265,10 +1310,18 @@ class ManageItemsActivity : AppCompatActivity() {
         btnConvert.setOnClickListener {
             when (selectedMode) {
                 1 -> {
+                    if (!canExcel) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageItemsActivity, "Convert to Excel", "pro")
+                        return@setOnClickListener
+                    }
                     dialog.dismiss()
                     exportToExcel(items)
                 }
                 2 -> {
+                    if (!canNotes) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageItemsActivity, "Convert as Notes", "pro")
+                        return@setOnClickListener
+                    }
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, generatedNoteText)
@@ -1276,6 +1329,10 @@ class ManageItemsActivity : AppCompatActivity() {
                     startActivity(Intent.createChooser(shareIntent, "Share Pricelist via"))
                 }
                 3 -> {
+                    if (!canPdf) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageItemsActivity, "Convert to PDF", "pro")
+                        return@setOnClickListener
+                    }
                     val size = selectedPdfSize
                     if (size == null) {
                         Toast.makeText(this, "Please choose a paper size.", Toast.LENGTH_SHORT).show()
@@ -1475,14 +1532,21 @@ class ManageItemsActivity : AppCompatActivity() {
 
     private fun showClonePricesDialog() {
         val sId = storeId ?: return
-        val selectedItems = adapter.getSelectedItems()
-        val selectedIds = selectedItems.map { it.id }
-        ClonePricesDialogHelper.show(
-            activity = this,
-            storeId = sId,
-            storeName = storeName ?: "",
-            selectedIds = selectedIds
-        )
+        lifecycleScope.launch {
+            val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+            if (!tierInfo.canClonePrices) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageItemsActivity, "Price Cloning", "pro")
+                return@launch
+            }
+            val selectedItems = adapter.getSelectedItems()
+            val selectedIds = selectedItems.map { it.id }
+            ClonePricesDialogHelper.show(
+                activity = this@ManageItemsActivity,
+                storeId = sId,
+                storeName = storeName ?: "",
+                selectedIds = selectedIds
+            )
+        }
     }
 
 

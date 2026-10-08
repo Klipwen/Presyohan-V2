@@ -98,8 +98,22 @@ class AccountSecurityActivity : AppCompatActivity() {
 
         val lblOnlineDeletion = findViewById<View>(R.id.lblOnlineDeletion)
         lblOnlineDeletion.setOnClickListener {
-            val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://presyohan.com/delete-account"))
-            startActivity(browserIntent)
+            val uid = SupabaseAuthService.getCurrentUserId() ?: ""
+            val email = SupabaseProvider.client.auth.currentUserOrNull()?.email ?: ""
+            val encodedEmail = try {
+                java.net.URLEncoder.encode(email, "UTF-8")
+            } catch (_: Exception) {
+                email
+            }
+            val webUrl = "https://presyohan.onrender.com/delete-account?uid=$uid&email=$encodedEmail"
+            try {
+                val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(webUrl))
+                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(browserIntent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this, "Could not open browser: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
 
         btnUpdate.setOnClickListener {

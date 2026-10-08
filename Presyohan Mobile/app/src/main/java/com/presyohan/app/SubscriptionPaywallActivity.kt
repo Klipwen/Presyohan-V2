@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,11 +22,13 @@ import kotlin.math.abs
 class SubscriptionPaywallActivity : AppCompatActivity() {
 
     private lateinit var btnClosePaywall: FrameLayout
+    private lateinit var layoutPaywallTabsContainer: LinearLayout
     private lateinit var btnTabPro: TextView
     private lateinit var btnTabVip: TextView
     private lateinit var viewPagerCards: ViewPager2
     private lateinit var btnPaywallCta: AppCompatButton
     private lateinit var tvPaywallFooterSubtitle: TextView
+    private lateinit var paywallLoadingOverlay: View
 
     private lateinit var adapter: PaywallCardAdapter
     private var selectedTier: String = "pro"
@@ -34,15 +37,16 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_subscription_paywall)
 
-        selectedTier = intent.getStringExtra("INITIAL_TIER")?.lowercase() ?: "pro"
-        if (selectedTier != "vip") selectedTier = "pro"
+        selectedTier = if (SubscriptionConfig.IS_VIP_VISIBLE && intent.getStringExtra("INITIAL_TIER")?.lowercase() == "vip") "vip" else "pro"
 
         btnClosePaywall = findViewById(R.id.btnClosePaywall)
+        layoutPaywallTabsContainer = findViewById(R.id.layoutPaywallTabsContainer)
         btnTabPro = findViewById(R.id.btnTabPro)
         btnTabVip = findViewById(R.id.btnTabVip)
         viewPagerCards = findViewById(R.id.viewPagerCards)
         btnPaywallCta = findViewById(R.id.btnPaywallCta)
         tvPaywallFooterSubtitle = findViewById(R.id.tvPaywallFooterSubtitle)
+        paywallLoadingOverlay = findViewById(R.id.paywallLoadingOverlay)
 
         // Adjust only the close button top margin to safely sit below the phone status bar
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(btnClosePaywall) { view, insets ->
@@ -66,7 +70,9 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
         }
 
         btnTabVip.setOnClickListener {
-            viewPagerCards.setCurrentItem(1, true)
+            if (SubscriptionConfig.IS_VIP_VISIBLE) {
+                viewPagerCards.setCurrentItem(1, true)
+            }
         }
 
         btnPaywallCta.setOnClickListener {
@@ -79,7 +85,8 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
                 SubscriptionManager.fetchLiveTierConfigs()
                 val proTier = SubscriptionManager.getTierInfo("pro")
                 val vipTier = SubscriptionManager.getTierInfo("vip")
-                adapter.updateTiers(listOf(proTier, vipTier))
+                val liveList = if (SubscriptionConfig.IS_VIP_VISIBLE) listOf(proTier, vipTier) else listOf(proTier)
+                adapter.updateTiers(liveList)
                 updateSelectedState(viewPagerCards.currentItem)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -90,7 +97,7 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
     private fun setupCarousel() {
         val proTier = SubscriptionManager.getTierInfo("pro")
         val vipTier = SubscriptionManager.getTierInfo("vip")
-        val tierList = listOf(proTier, vipTier)
+        val tierList = if (SubscriptionConfig.IS_VIP_VISIBLE) listOf(proTier, vipTier) else listOf(proTier)
 
         adapter = PaywallCardAdapter(tierList) { tierId ->
             PlanBenefitsDialog.show(this, tierId)
@@ -98,6 +105,11 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
 
         viewPagerCards.adapter = adapter
         viewPagerCards.offscreenPageLimit = 1
+
+        if (!SubscriptionConfig.IS_VIP_VISIBLE) {
+            layoutPaywallTabsContainer.visibility = View.GONE
+            viewPagerCards.isUserInputEnabled = false
+        }
 
         // Custom Scale Transformer: Selected card 1.0x, inactive side card 0.88x with smooth peek
         viewPagerCards.setPageTransformer { page, position ->
@@ -115,7 +127,7 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
         }
 
         // Set initial selected tab and card position
-        val initialPosition = if (selectedTier == "vip") 1 else 0
+        val initialPosition = if (selectedTier == "vip" && SubscriptionConfig.IS_VIP_VISIBLE) 1 else 0
         viewPagerCards.setCurrentItem(initialPosition, false)
         updateSelectedState(initialPosition)
 
@@ -128,10 +140,10 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
     }
 
     private fun updateSelectedState(position: Int) {
-        selectedTier = if (position == 0) "pro" else "vip"
+        selectedTier = if (position == 0 || !SubscriptionConfig.IS_VIP_VISIBLE) "pro" else "vip"
         val tierInfo = SubscriptionManager.getTierInfo(selectedTier)
 
-        if (position == 0) { // PRO Tier Selected
+        if (position == 0 || !SubscriptionConfig.IS_VIP_VISIBLE) { // PRO Tier Selected
             btnTabPro.setBackgroundResource(R.drawable.bg_paywall_tab_active_orange)
             btnTabPro.setTextColor(ContextCompat.getColor(this, R.color.presyo_orange))
 
@@ -163,25 +175,49 @@ class SubscriptionPaywallActivity : AppCompatActivity() {
     }
 
     private fun handleSubscriptionPurchase() {
-        lifecycleScope.launch {
-            try {
-                val success = SubscriptionManager.updateUserSubscription(this@SubscriptionPaywallActivity, selectedTier)
-                if (success) {
-                    val tierInfo = SubscriptionManager.getTierInfo(selectedTier)
-                    Toast.makeText(
-                        this@SubscriptionPaywallActivity,
-                        "Welcome to Presyohan ${tierInfo.name}!",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    setResult(Activity.RESULT_OK, Intent().putExtra("SUBSCRIBED_TIER", selectedTier))
-                    finish()
-                } else {
-                    Toast.makeText(this@SubscriptionPaywallActivity, "Unable to complete subscription. Please try again.", Toast.LENGTH_SHORT).show()
+        if (SubscriptionConfig.BILLING_MODE == BillingMode.PROMO_CLAIM_FREE) {
+            paywallLoadingOverlay.findViewById<TextView>(R.id.loadingText)?.text = "Activating PRO Tier..."
+            paywallLoadingOverlay.visibility = View.VISIBLE
+            btnPaywallCta.isEnabled = false
+            btnClosePaywall.isEnabled = false
+
+            lifecycleScope.launch {
+                try {
+                    val startTime = System.currentTimeMillis()
+                    val claimResult = SubscriptionManager.claimPromotionalProTier(this@SubscriptionPaywallActivity)
+                    val elapsed = System.currentTimeMillis() - startTime
+                    if (elapsed < 2500L) {
+                        kotlinx.coroutines.delay(2500L - elapsed)
+                    }
+
+                    paywallLoadingOverlay.visibility = View.GONE
+                    btnPaywallCta.isEnabled = true
+                    btnClosePaywall.isEnabled = true
+
+                    if (claimResult.isSuccess) {
+                        val activePro = SubscriptionManager.getTierInfo("pro")
+                        SubscriptionSuccessDialogHelper.showProClaimSuccessDialog(this@SubscriptionPaywallActivity, activePro) {
+                            setResult(Activity.RESULT_OK, Intent().putExtra("SUBSCRIBED_TIER", "pro"))
+                            finish()
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@SubscriptionPaywallActivity,
+                            "Unable to activate PRO Tier. Please check your connection and try again.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) return@launch
+                    paywallLoadingOverlay.visibility = View.GONE
+                    btnPaywallCta.isEnabled = true
+                    btnClosePaywall.isEnabled = true
+                    Toast.makeText(this@SubscriptionPaywallActivity, "Unable to process subscription. Please try again.", Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) return@launch
-                Toast.makeText(this@SubscriptionPaywallActivity, "Unable to process subscription. Please try again.", Toast.LENGTH_SHORT).show()
             }
+        } else {
+            SubscriptionManager.openWebCheckout(this, selectedTier)
+            finish()
         }
     }
 

@@ -150,6 +150,7 @@ data class SubscriptionTierInfo(
 
     val canExportExcel: Boolean get() = allowExcelExport
     val canExportPdf: Boolean get() = allowPdfExport
+    val canExportNotes: Boolean get() = allowNotesExport
     val canClonePrices: Boolean get() = allowPriceCloning
 }
 
@@ -1160,8 +1161,8 @@ object SubscriptionManager {
             positiveAction = {
                 SubscriptionPaywallDialog.show(activity, "pro")
             }
-        } else if (isPro) {
-            // PRO Tier user
+        } else if (isPro && SubscriptionConfig.IS_VIP_VISIBLE) {
+            // PRO Tier user (When VIP is enabled)
             title = "Upgrade to VIP"
             message = "You have used all your daily PRO limit for $typeName. You can watch a short ad to get 1 bonus access for $bonusTypeName right away, or upgrade to VIP for unlimited daily limits."
             positiveBtnText = "UPGRADE"
@@ -1169,7 +1170,7 @@ object SubscriptionManager {
                 SubscriptionPaywallDialog.show(activity, "vip")
             }
         } else {
-            // VIP Tier
+            // VIP Tier or PRO tier when VIP is hidden
             title = "Daily Limit Reached"
             message = "You have reached your daily $typeName limit. You can watch a short ad to get 1 bonus access for $bonusTypeName right away."
             positiveBtnText = "Close"
@@ -1193,6 +1194,75 @@ object SubscriptionManager {
                 onBonusGranted.invoke()
             }
         )
+    }
+
+    /**
+     * Claims the promotional PRO Tier for the current user.
+     * Synchronizes promotional expiration timestamp with the Admin configuration (e.g. promo_end_at or +30 days).
+     */
+    suspend fun claimPromotionalProTier(context: Context): Result<UserSubscriptionDetails> = withContext(Dispatchers.IO) {
+        try {
+            val userId = SupabaseAuthService.getCurrentUserId()
+                ?: return@withContext Result.failure(IllegalStateException("User is not authenticated"))
+
+            // 1. Fetch live tier configs from Supabase
+            val configs = fetchLiveTierConfigs(context)
+            val proConfig = configs["pro"]
+
+            // 2. Resolve dynamic promotional expiration date
+            val promoEndAtIso: String = if (!proConfig?.promo_end_at.isNullOrBlank()) {
+                proConfig!!.promo_end_at!!
+            } else {
+                val expMs = System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000)
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date(expMs))
+            }
+
+            // 3. Update user subscription record in Supabase
+            val updateSuccess = updateUserSubscription(
+                context = context,
+                newTierId = "pro",
+                durationDays = null,
+                isAutoRenew = false
+            )
+
+            // Override explicit promo expiry date if admin configured one
+            if (!proConfig?.promo_end_at.isNullOrBlank()) {
+                try {
+                    val customExpiryPayload = buildJsonObject {
+                        put("subscription_expires_at", promoEndAtIso)
+                    }
+                    SupabaseProvider.client.postgrest["app_users"].update(customExpiryPayload) {
+                        filter { eq("id", userId) }
+                    }
+                    SupabaseProvider.client.postgrest["stores"].update(customExpiryPayload) {
+                        filter { eq("billing_owner_id", userId) }
+                    }
+                } catch (e: Exception) {
+                    Log.w("SubscriptionManager", "Non-critical: Could not set exact promo_end_at timestamp: ${e.message}")
+                }
+            }
+
+            // 4. Log ₱0 promotional payment record
+            try {
+                val paymentPayload = buildJsonObject {
+                    put("user_id", userId)
+                    put("tier_id", "pro")
+                    put("amount", 0.0)
+                    put("currency", "PHP")
+                    put("payment_method", "promotional_claim")
+                    put("status", "paid")
+                }
+                SupabaseProvider.client.postgrest["subscription_payments"].insert(paymentPayload)
+            } catch (e: Exception) {
+                Log.w("SubscriptionManager", "Non-critical: Could not insert promotional record into subscription_payments: ${e.message}")
+            }
+
+            val details = calculateSubscriptionDetails("pro", promoEndAtIso)
+            Result.success(details)
+        } catch (e: Exception) {
+            Log.e("SubscriptionManager", "Error claiming promotional PRO tier", e)
+            Result.failure(e)
+        }
     }
 
     /**

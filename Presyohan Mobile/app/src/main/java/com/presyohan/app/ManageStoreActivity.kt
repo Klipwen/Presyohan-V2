@@ -81,6 +81,11 @@ class ManageStoreActivity : AppCompatActivity() {
     private lateinit var toolEditStore: LinearLayout
     private lateinit var toolDeleteStore: LinearLayout
     private lateinit var ivDeleteStoreIcon: ImageView
+
+    private lateinit var imgPublicProStar: ImageView
+    private lateinit var imgQrProStar: ImageView
+    private lateinit var imgCloneProStar: ImageView
+    private lateinit var imgImportProStar: ImageView
     
     private lateinit var storeCodeTextView: TextView
     private lateinit var storeCodeExpiryView: TextView
@@ -248,6 +253,11 @@ class ManageStoreActivity : AppCompatActivity() {
         shimmerStoreSettings = findViewById(R.id.shimmerStoreSettings)
         layoutStoreCardInner = findViewById(R.id.layoutStoreCardInner)
 
+        imgPublicProStar = findViewById(R.id.imgPublicProStar)
+        imgQrProStar = findViewById(R.id.imgQrProStar)
+        imgCloneProStar = findViewById(R.id.imgCloneProStar)
+        imgImportProStar = findViewById(R.id.imgImportProStar)
+
         // Set Initial Visibility of Collapsible Stats
         layoutCollapsibleStats.visibility = View.GONE
         isStatsExpanded = false
@@ -306,15 +316,7 @@ class ManageStoreActivity : AppCompatActivity() {
 
         // Tool Action: Convert (Export)
         toolConvert.setOnClickListener {
-            val sId = storeId ?: return@setOnClickListener
-            lifecycleScope.launch {
-                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
-                if (!tierInfo.allowExcelExport && !tierInfo.allowPdfExport) {
-                    SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Exporting Pricelist")
-                } else {
-                    exportPricelistToExcel()
-                }
-            }
+            exportPricelistToExcel()
         }
 
         // Tool Action: Clone (Clone Prices)
@@ -555,6 +557,13 @@ class ManageStoreActivity : AppCompatActivity() {
                 } catch (_: Exception) {
                     SubscriptionManager.TIER_FREE
                 }
+
+                // Update Pro feature star indicators (hide if active tier has the feature)
+                imgPublicProStar.visibility = if (tierInfo.allowCustomerPairing) View.GONE else View.VISIBLE
+                imgQrProStar.visibility = if (tierInfo.allowCustomerPairing) View.GONE else View.VISIBLE
+                imgCloneProStar.visibility = if (tierInfo.allowPriceCloning) View.GONE else View.VISIBLE
+                imgImportProStar.visibility = if (tierInfo.id == "free") View.VISIBLE else View.GONE
+
                 if (!tierInfo.allowCustomerPairing && store.is_public) {
                     cbMakeStorePublic.setOnCheckedChangeListener(null)
                     cbMakeStorePublic.isChecked = false
@@ -1058,11 +1067,32 @@ class ManageStoreActivity : AppCompatActivity() {
         val btnBack        = view.findViewById<AppCompatButton>(R.id.btnBack)
         val btnConvert     = view.findViewById<AppCompatButton>(R.id.btnConvert)
 
+        val badgeExcelLock = view.findViewById<View>(R.id.badgeExcelLock)
+        val badgeNotesLock = view.findViewById<View>(R.id.badgeNotesLock)
+        val badgePdfLock   = view.findViewById<View>(R.id.badgePdfLock)
+
         tvSummary.text = "$catCount ${if (catCount == 1) "category" else "categories"} and $itemCount ${if (itemCount == 1) "item" else "items"} to convert"
 
         var selectedMode = 0
         var generatedNoteText = ""
         var selectedPdfSize: PdfPageSize? = null
+        var canExcel = true
+        var canPdf = true
+        var canNotes = true
+
+        val sId = storeId
+        if (sId != null) {
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                canExcel = tierInfo.canExportExcel
+                canPdf = tierInfo.canExportPdf
+                canNotes = tierInfo.canExportNotes
+
+                badgeExcelLock.visibility = if (!canExcel) View.VISIBLE else View.GONE
+                badgePdfLock.visibility   = if (!canPdf) View.VISIBLE else View.GONE
+                badgeNotesLock.visibility = if (!canNotes) View.VISIBLE else View.GONE
+            }
+        }
 
         fun applyPdfSizeSelection(size: PdfPageSize) {
             selectedPdfSize = size
@@ -1109,9 +1139,27 @@ class ManageStoreActivity : AppCompatActivity() {
             }
         }
 
-        cardExcel.setOnClickListener { applySelection(1) }
-        cardNotes.setOnClickListener { applySelection(2) }
-        cardPdf.setOnClickListener   { applySelection(3) }
+        cardExcel.setOnClickListener {
+            if (!canExcel) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Convert to Excel", "pro")
+            } else {
+                applySelection(1)
+            }
+        }
+        cardNotes.setOnClickListener {
+            if (!canNotes) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Convert as Notes", "pro")
+            } else {
+                applySelection(2)
+            }
+        }
+        cardPdf.setOnClickListener {
+            if (!canPdf) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Convert to PDF", "pro")
+            } else {
+                applySelection(3)
+            }
+        }
 
         cardPdfLong.setOnClickListener  { applyPdfSizeSelection(PdfPageSize.LONG_BOND) }
         cardPdfShort.setOnClickListener { applyPdfSizeSelection(PdfPageSize.SHORT_BOND) }
@@ -1123,18 +1171,16 @@ class ManageStoreActivity : AppCompatActivity() {
         btnBack.setOnClickListener { dialog.dismiss() }
 
         btnConvert.setOnClickListener {
-            val sId = storeId ?: return@setOnClickListener
+            val storeId = storeId ?: return@setOnClickListener
             when (selectedMode) {
                 1 -> {
+                    if (!canExcel) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Convert to Excel", "pro")
+                        return@setOnClickListener
+                    }
+                    dialog.dismiss()
+                    LoadingOverlayHelper.show(loadingOverlay)
                     lifecycleScope.launch {
-                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
-                        if (!tierInfo.canExportExcel) {
-                            dialog.dismiss()
-                            SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Excel Export", "pro")
-                            return@launch
-                        }
-                        dialog.dismiss()
-                        LoadingOverlayHelper.show(loadingOverlay)
                         try {
                             performPricelistExport(rows)
                         } finally {
@@ -1143,6 +1189,10 @@ class ManageStoreActivity : AppCompatActivity() {
                     }
                 }
                 2 -> {
+                    if (!canNotes) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Convert as Notes", "pro")
+                        return@setOnClickListener
+                    }
                     if (generatedNoteText.isBlank()) {
                         Toast.makeText(this, "No products available for notes.", Toast.LENGTH_SHORT).show()
                     } else {
@@ -1150,37 +1200,33 @@ class ManageStoreActivity : AppCompatActivity() {
                     }
                 }
                 3 -> {
+                    if (!canPdf) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "Convert to PDF", "pro")
+                        return@setOnClickListener
+                    }
                     val size = selectedPdfSize
                     if (size == null) {
                         Toast.makeText(this, "Please choose a paper size.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    lifecycleScope.launch {
-                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
-                        if (!tierInfo.canExportPdf) {
-                            dialog.dismiss()
-                            SubscriptionManager.showFeatureGatedDialog(this@ManageStoreActivity, "PDF Export", "pro")
-                            return@launch
-                        }
-                        dialog.dismiss()
-                        val pdfItems = rows.map { r ->
-                            PdfPriceItem(
-                                category    = r.category?.trim() ?: "General",
-                                name        = r.name?.trim() ?: "",
-                                price       = r.price ?: 0.0,
-                                unit        = r.units?.trim() ?: "",
-                                description = r.description?.trim() ?: ""
-                            )
-                        }
-                        PdfPreviewDialogHelper.show(
-                            activity    = this@ManageStoreActivity,
-                            items       = pdfItems,
-                            storeName   = storeName ?: "",
-                            branchName  = branchName ?: "",
-                            pageSize    = size,
-                            onBack      = { showExportConfirmationDialog(rows) }
+                    dialog.dismiss()
+                    val pdfItems = rows.map { r ->
+                        PdfPriceItem(
+                            category    = r.category?.trim() ?: "General",
+                            name        = r.name?.trim() ?: "",
+                            price       = r.price ?: 0.0,
+                            unit        = r.units?.trim() ?: "",
+                            description = r.description?.trim() ?: ""
                         )
                     }
+                    PdfPreviewDialogHelper.show(
+                        activity    = this@ManageStoreActivity,
+                        items       = pdfItems,
+                        storeName   = storeName ?: "",
+                        branchName  = branchName ?: "",
+                        pageSize    = size,
+                        onBack      = { showExportConfirmationDialog(rows) }
+                    )
                 }
                 else -> Toast.makeText(this, "Please select a format.", Toast.LENGTH_SHORT).show()
             }

@@ -205,31 +205,46 @@
                         </LinearLayout>
 
                         <!-- Clone -->
-                        <LinearLayout
-                            android:id="@+id/btnBulkClone"
-                            android:layout_width="56dp"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:gravity="center"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:background="?attr/selectableItemBackground">
+                        <FrameLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content">
+
+                            <LinearLayout
+                                android:id="@+id/btnBulkClone"
+                                android:layout_width="56dp"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:gravity="center"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?attr/selectableItemBackground">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/icon_clone_prices"
+                                    app:tint="@color/presyo_orange"
+                                    android:contentDescription="Bulk Clone" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Clone"
+                                    android:textColor="@color/presyo_orange"
+                                    android:textSize="11sp"
+                                    android:layout_marginTop="2dp" />
+                            </LinearLayout>
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:src="@drawable/icon_clone_prices"
-                                app:tint="@color/presyo_orange"
-                                android:contentDescription="Bulk Clone" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Clone"
-                                android:textColor="@color/presyo_orange"
-                                android:textSize="11sp"
-                                android:layout_marginTop="2dp" />
-                        </LinearLayout>
+                                android:id="@+id/imgBulkCloneProStar"
+                                android:layout_width="14dp"
+                                android:layout_height="14dp"
+                                android:src="@drawable/icon_pro"
+                                android:layout_gravity="top|end"
+                                android:layout_marginTop="2dp"
+                                android:layout_marginEnd="6dp"
+                                android:visibility="gone" />
+                        </FrameLayout>
 
                         <!-- Convert -->
                         <LinearLayout
