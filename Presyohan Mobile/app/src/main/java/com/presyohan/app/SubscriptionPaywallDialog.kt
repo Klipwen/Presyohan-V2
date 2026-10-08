@@ -4,8 +4,10 @@ import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.AppCompatButton
@@ -41,22 +43,31 @@ object SubscriptionPaywallDialog {
         }
 
         val btnClose = view.findViewById<FrameLayout>(R.id.btnClosePaywall)
+        val layoutPaywallTabsContainer = view.findViewById<LinearLayout>(R.id.layoutPaywallTabsContainer)
         val btnTabPro = view.findViewById<TextView>(R.id.btnTabPro)
         val btnTabVip = view.findViewById<TextView>(R.id.btnTabVip)
         val viewPagerCards = view.findViewById<ViewPager2>(R.id.viewPagerCards)
         val btnPaywallCta = view.findViewById<AppCompatButton>(R.id.btnPaywallCta)
         val tvPaywallFooterSubtitle = view.findViewById<TextView>(R.id.tvPaywallFooterSubtitle)
+        val paywallLoadingOverlay = view.findViewById<View>(R.id.paywallLoadingOverlay)
 
-        var selectedTier = if (initialTierId.lowercase() == "vip") "vip" else "pro"
+        var selectedTier = if (SubscriptionConfig.IS_VIP_VISIBLE && initialTierId.lowercase() == "vip") "vip" else "pro"
 
         val proTier = SubscriptionManager.getTierInfo("pro")
         val vipTier = SubscriptionManager.getTierInfo("vip")
-        val adapter = PaywallCardAdapter(listOf(proTier, vipTier)) { tierId ->
+        val initialTierList = if (SubscriptionConfig.IS_VIP_VISIBLE) listOf(proTier, vipTier) else listOf(proTier)
+
+        val adapter = PaywallCardAdapter(initialTierList) { tierId ->
             PlanBenefitsDialog.show(context, tierId)
         }
 
         viewPagerCards.adapter = adapter
         viewPagerCards.offscreenPageLimit = 1
+
+        if (!SubscriptionConfig.IS_VIP_VISIBLE) {
+            layoutPaywallTabsContainer.visibility = View.GONE
+            viewPagerCards.isUserInputEnabled = false
+        }
 
         // Custom Scale Transformer: Selected card 1.0x, inactive side card 0.88x with smooth peek
         viewPagerCards.setPageTransformer { page, position ->
@@ -74,10 +85,10 @@ object SubscriptionPaywallDialog {
         }
 
         fun updateSelectedState(position: Int) {
-            selectedTier = if (position == 0) "pro" else "vip"
+            selectedTier = if (position == 0 || !SubscriptionConfig.IS_VIP_VISIBLE) "pro" else "vip"
             val tierInfo = SubscriptionManager.getTierInfo(selectedTier)
 
-            if (position == 0) { // PRO Tier Selected
+            if (position == 0 || !SubscriptionConfig.IS_VIP_VISIBLE) { // PRO Tier Selected
                 btnTabPro.setBackgroundResource(R.drawable.bg_paywall_tab_active_orange)
                 btnTabPro.setTextColor(ContextCompat.getColor(context, R.color.presyo_orange))
 
@@ -108,7 +119,7 @@ object SubscriptionPaywallDialog {
             tvPaywallFooterSubtitle.text = "Cancel Anytime"
         }
 
-        val initialPosition = if (selectedTier == "vip") 1 else 0
+        val initialPosition = if (selectedTier == "vip" && SubscriptionConfig.IS_VIP_VISIBLE) 1 else 0
         viewPagerCards.setCurrentItem(initialPosition, false)
         updateSelectedState(initialPosition)
 
@@ -124,7 +135,9 @@ object SubscriptionPaywallDialog {
         }
 
         btnTabVip.setOnClickListener {
-            viewPagerCards.setCurrentItem(1, true)
+            if (SubscriptionConfig.IS_VIP_VISIBLE) {
+                viewPagerCards.setCurrentItem(1, true)
+            }
         }
 
         btnClose.setOnClickListener {
@@ -132,8 +145,43 @@ object SubscriptionPaywallDialog {
         }
 
         btnPaywallCta.setOnClickListener {
-            SubscriptionManager.openWebCheckout(context, selectedTier)
-            dialog.dismiss()
+            if (SubscriptionConfig.BILLING_MODE == BillingMode.PROMO_CLAIM_FREE) {
+                // Show realistic loading state (2.5 seconds)
+                paywallLoadingOverlay.findViewById<TextView>(R.id.loadingText)?.text = "Activating PRO Tier..."
+                paywallLoadingOverlay.visibility = View.VISIBLE
+                btnPaywallCta.isEnabled = false
+                btnClose.isEnabled = false
+
+                CoroutineScope(Dispatchers.Main).launch {
+                    val startTime = System.currentTimeMillis()
+                    val claimResult = SubscriptionManager.claimPromotionalProTier(context)
+                    val elapsed = System.currentTimeMillis() - startTime
+                    if (elapsed < 2500L) {
+                        kotlinx.coroutines.delay(2500L - elapsed)
+                    }
+
+                    paywallLoadingOverlay.visibility = View.GONE
+                    btnPaywallCta.isEnabled = true
+                    btnClose.isEnabled = true
+
+                    if (claimResult.isSuccess) {
+                        dialog.dismiss()
+                        val activePro = SubscriptionManager.getTierInfo("pro")
+                        SubscriptionSuccessDialogHelper.showProClaimSuccessDialog(context, activePro) {
+                            onSubscribed?.invoke("pro")
+                        }
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Unable to activate PRO Tier. Please check your connection and try again.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } else {
+                SubscriptionManager.openWebCheckout(context, selectedTier)
+                dialog.dismiss()
+            }
         }
 
         CoroutineScope(Dispatchers.Main).launch {
@@ -141,7 +189,8 @@ object SubscriptionPaywallDialog {
                 SubscriptionManager.fetchLiveTierConfigs()
                 val livePro = SubscriptionManager.getTierInfo("pro")
                 val liveVip = SubscriptionManager.getTierInfo("vip")
-                adapter.updateTiers(listOf(livePro, liveVip))
+                val liveList = if (SubscriptionConfig.IS_VIP_VISIBLE) listOf(livePro, liveVip) else listOf(livePro)
+                adapter.updateTiers(liveList)
                 updateSelectedState(viewPagerCards.currentItem)
             } catch (e: Exception) {
                 e.printStackTrace()

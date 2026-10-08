@@ -82,7 +82,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         AI,
         PRESYOHAN
     }
-    private var selectedParserType = ParserType.AI
+    private var selectedParserType = ParserType.PRESYOHAN
 
     // ViewModel
     private lateinit var viewModel: AddMultipleItemsViewModel
@@ -300,6 +300,9 @@ class AddMultipleItemsActivity : AppCompatActivity() {
         imgCheckAi = findViewById(R.id.imgCheckAi)
         imgCheckPresyohan = findViewById(R.id.imgCheckPresyohan)
 
+        // Select Presyohan parser as default
+        selectParser(ParserType.PRESYOHAN)
+
         // Load User Name for greeting
         lifecycleScope.launch {
             try {
@@ -362,6 +365,7 @@ class AddMultipleItemsActivity : AppCompatActivity() {
                 containerSimple.visibility = View.GONE
                 containerFast.visibility = View.VISIBLE
                 layoutStickyHeader.visibility = View.GONE
+                selectParser(ParserType.PRESYOHAN)
             } else {
                 currentMode = EntryMode.SIMPLE
                 btnToggleMode.text = "Smart Mode"

@@ -169,4 +169,9 @@
 
     </LinearLayout>
 
+    <!-- Loading Overlay for 2.5s Claim Process -->
+    <include
+        android:id="@+id/paywallLoadingOverlay"
+        layout="@layout/loading_overlay" />
+
 </RelativeLayout>

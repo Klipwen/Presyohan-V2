@@ -18,13 +18,15 @@ class ManageCategoryAdapter(
     private val onClone: ((String) -> Unit)? = null,
     private val onConvert: ((String) -> Unit)? = null,
     private val onPublicToggle: ((String, Boolean) -> Unit)? = null,
-    private var isOwner: Boolean = true
+    private var isOwner: Boolean = true,
+    private var canClonePrices: Boolean = true
 ) : RecyclerView.Adapter<ManageCategoryAdapter.CategoryViewHolder>() {
 
     inner class CategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val name: TextView = itemView.findViewById(R.id.textCategoryName)
         val itemCount: TextView = itemView.findViewById(R.id.textItemCount)
         val btnClone: View = itemView.findViewById(R.id.btnCloneCategory)
+        val imgCloneProStar: ImageView = itemView.findViewById(R.id.imgCloneCategoryProStar)
         val btnConvert: View = itemView.findViewById(R.id.btnConvertCategory)
         val layoutPublic: View = itemView.findViewById(R.id.layoutPublicContainer)
         val checkboxPublic: ImageView = itemView.findViewById(R.id.checkboxPublic)
@@ -52,6 +54,7 @@ class ManageCategoryAdapter(
         }
 
         holder.btnClone.visibility = if (isOwner) View.VISIBLE else View.GONE
+        holder.imgCloneProStar.visibility = if (isOwner && !canClonePrices) View.VISIBLE else View.GONE
         holder.btnConvert.visibility = if (isOwner) View.VISIBLE else View.GONE
 
         holder.btnClone.setOnClickListener { onClone?.invoke(category) }
@@ -71,12 +74,14 @@ class ManageCategoryAdapter(
         newCategories: List<String>,
         newCounts: Map<String, Int> = itemCounts,
         newPublic: Set<String> = publicCategories,
-        newIsOwner: Boolean = isOwner
+        newIsOwner: Boolean = isOwner,
+        newCanClonePrices: Boolean = canClonePrices
     ) {
         categories = newCategories
         itemCounts = newCounts
         publicCategories = newPublic
         isOwner = newIsOwner
+        canClonePrices = newCanClonePrices
         notifyDataSetChanged()
     }
 }

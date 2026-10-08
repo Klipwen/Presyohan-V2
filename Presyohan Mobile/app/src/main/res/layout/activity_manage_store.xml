@@ -139,13 +139,28 @@
                             android:orientation="vertical"
                             android:layout_marginStart="12dp">
 
-                            <TextView
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Make Store Public"
-                                android:textColor="#374151"
-                                android:textSize="14sp"
-                                android:textStyle="bold" />
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Make Store Public"
+                                    android:textColor="#374151"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold" />
+
+                                <ImageView
+                                    android:id="@+id/imgPublicProStar"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:src="@drawable/icon_pro"
+                                    android:layout_marginStart="6dp"
+                                    android:visibility="gone" />
+                            </LinearLayout>
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -156,17 +171,30 @@
                                 android:layout_marginTop="2dp" />
                         </LinearLayout>
 
-                        <ImageView
-                            android:id="@+id/btnStoreQrCode"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/icon_qr_code"
-                            app:tint="@color/presyo_orange"
-                            android:contentDescription="Store QR Code"
-                            android:padding="4dp"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:background="?attr/selectableItemBackgroundBorderless" />
+                        <FrameLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content">
+
+                            <ImageView
+                                android:id="@+id/btnStoreQrCode"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:src="@drawable/icon_qr_code"
+                                app:tint="@color/presyo_orange"
+                                android:contentDescription="Store QR Code"
+                                android:padding="4dp"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?attr/selectableItemBackgroundBorderless" />
+
+                            <ImageView
+                                android:id="@+id/imgQrProStar"
+                                android:layout_width="14dp"
+                                android:layout_height="14dp"
+                                android:src="@drawable/icon_pro"
+                                android:layout_gravity="top|end"
+                                android:visibility="gone" />
+                        </FrameLayout>
                     </LinearLayout>
 
                     <!-- FrameLayout containing Shimmer skeleton and actual store box -->
@@ -809,6 +837,14 @@
                                 android:textSize="14sp"
                                 android:textStyle="bold"
                                 android:layout_marginStart="8dp" />
+
+                            <ImageView
+                                android:id="@+id/imgCloneProStar"
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:src="@drawable/icon_pro"
+                                android:layout_marginStart="6dp"
+                                android:visibility="gone" />
                         </LinearLayout>
 
                         <!-- Convert Prices -->
@@ -864,6 +900,14 @@
                                 android:textSize="14sp"
                                 android:textStyle="bold"
                                 android:layout_marginStart="8dp" />
+
+                            <ImageView
+                                android:id="@+id/imgImportProStar"
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:src="@drawable/icon_pro"
+                                android:layout_marginStart="6dp"
+                                android:visibility="gone" />
                         </LinearLayout>
                     </LinearLayout>
 

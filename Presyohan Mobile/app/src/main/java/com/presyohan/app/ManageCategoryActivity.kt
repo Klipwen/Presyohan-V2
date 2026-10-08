@@ -75,6 +75,7 @@ class ManageCategoryActivity : AppCompatActivity() {
     private var allProducts = listOf<UserProductRow>()
     private var categoryNameToId = mapOf<String, String>()
     private var currentUserRole: String = "employee"
+    private var canClonePrices: Boolean = true
 
     @Serializable
     data class UserCategoryRow(val category_id: String, val store_id: String, val name: String)
@@ -326,6 +327,9 @@ class ManageCategoryActivity : AppCompatActivity() {
                 }
                 publicCategories = pubCats
 
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                canClonePrices = tierInfo.canClonePrices
+
                 filterCategories()
             } catch (e: Exception) {
                 Toast.makeText(this@ManageCategoryActivity, "Unable to load categories.", Toast.LENGTH_LONG).show()
@@ -383,7 +387,7 @@ class ManageCategoryActivity : AppCompatActivity() {
             }
 
             val isOwner = currentUserRole.lowercase() == "owner"
-            adapter.updateCategories(filtered, allCategoryCounts, publicCategories, isOwner)
+            adapter.updateCategories(filtered, allCategoryCounts, publicCategories, isOwner, canClonePrices)
         }
     }
 
@@ -658,6 +662,10 @@ class ManageCategoryActivity : AppCompatActivity() {
         val btnBack        = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnBack)
         val btnConvert     = view.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btnConvert)
 
+        val badgeExcelLock = view.findViewById<View>(R.id.badgeExcelLock)
+        val badgeNotesLock = view.findViewById<View>(R.id.badgeNotesLock)
+        val badgePdfLock   = view.findViewById<View>(R.id.badgePdfLock)
+
         val catCount = 1
         val itemCount = items.size
         tvSummary.text = "$catCount ${if (catCount == 1) "category" else "categories"} and " +
@@ -666,6 +674,23 @@ class ManageCategoryActivity : AppCompatActivity() {
         var selectedMode = 0
         var generatedNoteText = ""
         var selectedPdfSize: PdfPageSize? = null
+        var canExcel = true
+        var canPdf = true
+        var canNotes = true
+
+        val sId = storeId
+        if (sId != null) {
+            lifecycleScope.launch {
+                val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
+                canExcel = tierInfo.canExportExcel
+                canPdf = tierInfo.canExportPdf
+                canNotes = tierInfo.canExportNotes
+
+                badgeExcelLock.visibility = if (!canExcel) View.VISIBLE else View.GONE
+                badgePdfLock.visibility   = if (!canPdf) View.VISIBLE else View.GONE
+                badgeNotesLock.visibility = if (!canNotes) View.VISIBLE else View.GONE
+            }
+        }
 
         fun applyPdfSizeSelection(size: PdfPageSize) {
             selectedPdfSize = size
@@ -721,9 +746,27 @@ class ManageCategoryActivity : AppCompatActivity() {
             }
         }
 
-        cardExcel.setOnClickListener { applySelection(1) }
-        cardNotes.setOnClickListener { applySelection(2) }
-        cardPdf.setOnClickListener   { applySelection(3) }
+        cardExcel.setOnClickListener {
+            if (!canExcel) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "Convert to Excel", "pro")
+            } else {
+                applySelection(1)
+            }
+        }
+        cardNotes.setOnClickListener {
+            if (!canNotes) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "Convert as Notes", "pro")
+            } else {
+                applySelection(2)
+            }
+        }
+        cardPdf.setOnClickListener {
+            if (!canPdf) {
+                SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "Convert to PDF", "pro")
+            } else {
+                applySelection(3)
+            }
+        }
 
         cardPdfLong.setOnClickListener  { applyPdfSizeSelection(PdfPageSize.LONG_BOND) }
         cardPdfShort.setOnClickListener { applyPdfSizeSelection(PdfPageSize.SHORT_BOND) }
@@ -742,18 +785,18 @@ class ManageCategoryActivity : AppCompatActivity() {
             val sId = storeId ?: return@setOnClickListener
             when (selectedMode) {
                 1 -> {
-                    lifecycleScope.launch {
-                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
-                        if (!tierInfo.canExportExcel) {
-                            dialog.dismiss()
-                            SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "Excel Export", "pro")
-                            return@launch
-                        }
-                        dialog.dismiss()
-                        exportToExcel(items)
+                    if (!canExcel) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "Convert to Excel", "pro")
+                        return@setOnClickListener
                     }
+                    dialog.dismiss()
+                    exportToExcel(items)
                 }
                 2 -> {
+                    if (!canNotes) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "Convert as Notes", "pro")
+                        return@setOnClickListener
+                    }
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_SUBJECT, "Pricelist Note")
@@ -762,37 +805,33 @@ class ManageCategoryActivity : AppCompatActivity() {
                     startActivity(Intent.createChooser(shareIntent, "Share Pricelist via"))
                 }
                 3 -> {
+                    if (!canPdf) {
+                        SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "Convert to PDF", "pro")
+                        return@setOnClickListener
+                    }
                     val size = selectedPdfSize
                     if (size == null) {
                         Toast.makeText(this, "Please choose a paper size.", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
                     }
-                    lifecycleScope.launch {
-                        val tierInfo = SubscriptionManager.fetchStoreSubscriptionTier(sId)
-                        if (!tierInfo.canExportPdf) {
-                            dialog.dismiss()
-                            SubscriptionManager.showFeatureGatedDialog(this@ManageCategoryActivity, "PDF Export", "pro")
-                            return@launch
-                        }
-                        dialog.dismiss()
-                        val pdfItems = items.map { item ->
-                            PdfPriceItem(
-                                category    = item.category.trim().ifBlank { "General" },
-                                name        = item.name.trim(),
-                                price       = item.price,
-                                unit        = item.unit.trim(),
-                                description = item.description.trim()
-                            )
-                        }
-                        PdfPreviewDialogHelper.show(
-                            activity    = this@ManageCategoryActivity,
-                            items       = pdfItems,
-                            storeName   = storeName ?: "",
-                            branchName  = branchName ?: "",
-                            pageSize    = size,
-                            onBack      = { showConvertPricelistDialog(items) }
+                    dialog.dismiss()
+                    val pdfItems = items.map { item ->
+                        PdfPriceItem(
+                            category    = item.category.trim().ifBlank { "General" },
+                            name        = item.name.trim(),
+                            price       = item.price,
+                            unit        = item.unit.trim(),
+                            description = item.description.trim()
                         )
                     }
+                    PdfPreviewDialogHelper.show(
+                        activity    = this@ManageCategoryActivity,
+                        items       = pdfItems,
+                        storeName   = storeName ?: "",
+                        branchName  = branchName ?: "",
+                        pageSize    = size,
+                        onBack      = { showConvertPricelistDialog(items) }
+                    )
                 }
                 else -> Toast.makeText(this, "Please select a format.", Toast.LENGTH_SHORT).show()
             }

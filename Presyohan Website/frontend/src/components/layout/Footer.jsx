@@ -18,11 +18,10 @@ export default function Footer() {
           <Link to="/#download">Go to Download Section</Link>
         </div>
         <div className="footer-section">
-          <h3>Support</h3>
-          <a href="#">Help Center</a>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">FAQ</a>
+          <h3>Support & Legal</h3>
+          <Link to="/privacy">Privacy Policy</Link>
+          <Link to="/delete-account">Delete Account</Link>
+          <Link to="/contact">Contact Support</Link>
         </div>
         <div className="footer-section">
           <h3>Contact Us</h3>
