@@ -16,37 +16,47 @@
 
 ### B. Short Description (Max 80 chars)
 ```text
-Smart Sari-Sari Store POS, Barcode Scanner, AI Digitizer & Price Transparency.
+Centralized Price Management, Role-Based Staff, Suki Pairing & AI Scanner.
 ```
 
 ### C. Full Description (Max 4,000 chars)
 ```text
-Presyohan (Atong Presyohan?) is the all-in-one smart POS, inventory manager, and retail price transparency app built specifically for Filipino sari-sari stores, grocery merchants, and savvy shoppers.
+Presyohan (Atong Presyohan?) is the smart, centralized price management and store coordination platform built specifically for Filipino sari-sari stores, grocery merchants, and neighborhood shoppers.
 
-Whether you run a community store or want to find the best prices in your neighborhood, Presyohan makes managing inventory and checking prices fast, seamless, and accurate.
+Presyohan eliminates pricing confusion across your staff and branches by synchronizing updated product prices across your entire team in real-time.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✨ FOR STORE OWNERS & MERCHANTS:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 Fast Barcode Scanning: Scan product barcodes instantly using your phone's camera. Look up items and check prices in milliseconds without expensive external hardware.
-🤖 AI Receipt & Price List Scanner: Digitize supplier receipts, handwritten price sheets, or wholesale invoices in seconds using built-in Google Gemini AI parsing.
-📊 Multi-Store & Staff Management: Manage multiple store branches, assign Cashier or Manager roles, and track store inventory from a single account.
-📑 Excel & PDF Catalog Export: Export clean, professional price lists and inventory reports directly to your device or share with customers.
-🏷️ Suki Management & Customer Requests: Connect directly with loyal customers (Suki), approve price check requests, and increase neighborhood foot traffic.
+🏷️ Centralized Real-Time Pricing: Update a price once and synchronize it instantly across all your store branches, cashiers, and staff devices. No more mismatched prices or manual tagging errors.
+
+👥 Role-Based Staff Access: Assign Owner, Manager, or Cashier roles with granular permissions. Give cashiers fast price check access while keeping sensitive settings secure.
+
+📦 Fast Barcode Scanning: Scan product barcodes directly with your phone's camera for instant price lookups in milliseconds.
+
+🤖 AI Receipt & Price List Scanner: Digitize supplier receipts, handwritten price sheets, or wholesale invoices in seconds with built-in Google Gemini AI parsing.
+
+📊 Multi-Store Branch Management: Manage multiple store branches and price lists seamlessly from a single unified account.
+
+📑 Excel & PDF Catalog Export: Export clean, professional price catalogs and product sheets directly to your phone to share with customers or print.
+
+🤝 Suki Customer Pairing: Connect directly with loyal customers (Suki), approve price access requests, and keep your community informed of updated prices.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✨ FOR CUSTOMERS & SHOPPERS:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔍 Direct Price Search: Search everyday grocery items (Rice, Canned Goods, Instant Noodles, Beverages, Biscuits) to view updated prices in nearby partnered stores.
-🤝 Suki Connection: Request partnership with your favorite neighborhood stores to stay updated with real-time price changes and exclusive stock updates.
-💡 Community Transparency: Fair, clear, and up-to-date prices right at your fingertips.
+🔍 Direct Price Search: Search everyday grocery items (Rice, Canned Goods, Instant Noodles, Beverages) to view accurate, updated prices from nearby partner stores.
+
+🤝 Suki Connection: Pair with your favorite neighborhood stores to stay updated with real-time price updates and verified product listings.
+
+💡 Community Transparency: Enjoy fair, transparent, and up-to-date neighborhood prices right at your fingertips.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔒 DATA PRIVACY & SECURITY:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Your data is securely stored with enterprise-grade encryption (TLS 1.3 & AES-256) powered by Supabase and hosted in secure Singapore cloud facilities. You have 100% control over your account and data, with instant in-app and web account deletion available anytime.
+Your data is securely stored with enterprise-grade encryption (TLS 1.3 & AES-256) powered by Supabase and hosted in secure cloud facilities. You have 100% control over your account, with instant in-app and web account deletion available anytime.
 
-Download Presyohan today and bring modern, smart inventory power to your sari-sari store!
+Download Presyohan today to modernize your store pricing and connect with your Sukis!
 ```
 
 ---

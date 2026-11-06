@@ -6,3 +6,6 @@ temp files/
 
 # Build artifacts (ensure mobile module already ignores its local build)
 build/
+*.aab
+*.apk
+release/

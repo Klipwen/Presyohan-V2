@@ -14,3 +14,10 @@
 .cxx
 local.properties
 /.gradle-user-home/
+
+# Build and release artifacts
+*.aab
+*.apk
+/app/release/
+release/
+

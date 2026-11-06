@@ -31,7 +31,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnAtongPresyohan: View
     private lateinit var btnSupport: View
     private lateinit var btnContactUs: View
-    private lateinit var btnShareApp: View
     private lateinit var btnLogout: View
     private lateinit var loadingOverlay: View
 
@@ -58,7 +57,6 @@ class SettingsActivity : AppCompatActivity() {
         btnAtongPresyohan = findViewById(R.id.btnAtongPresyohan)
         btnSupport = findViewById(R.id.btnSupport)
         btnContactUs = findViewById(R.id.btnContactUs)
-        btnShareApp = findViewById(R.id.btnShareApp)
         btnLogout = findViewById(R.id.btnLogout)
         btnInternetPriceSearchSetting = findViewById(R.id.btnInternetPriceSearchSetting)
         switchInternetSearch = findViewById(R.id.switchInternetSearch)
@@ -189,11 +187,6 @@ class SettingsActivity : AppCompatActivity() {
         btnContactUs.setOnClickListener {
             val intent = Intent(this, ContactUsActivity::class.java)
             startActivity(intent)
-        }
-
-        // Share App
-        btnShareApp.setOnClickListener {
-            ShareAppHelper.shareApp(this, lifecycleScope)
         }
 
         // Logout action
