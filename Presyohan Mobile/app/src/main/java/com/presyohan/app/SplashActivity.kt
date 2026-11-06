@@ -1,44 +1,21 @@
 package com.presyohan.app
 
+import android.animation.ValueAnimator
 import android.app.Activity
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import android.app.AlertDialog
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.Typeface
-import android.net.Uri
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.ImageView
-import android.animation.ValueAnimator
-import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Order
+import android.widget.TextView
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.buildJsonObject
-
-@kotlinx.serialization.Serializable
-private data class AppReleaseRow(
-    val version_code: Int,
-    val version_name: String,
-    val download_url: String,
-    val whats_new: String,
-    val is_forced: Boolean
-)
 
 class SplashActivity : Activity() {
-    private var isForcedUpdateActive = false
-    private var isCheckingUpdates = true
     private var isNavigating = false
     private var loadingAnimators = mutableListOf<android.animation.Animator>()
 
@@ -64,116 +41,11 @@ class SplashActivity : Activity() {
         }
 
         val getStartedButton = findViewById<Button>(R.id.buttonGetStarted)
-        
-        // Defer click actions until update check completes
-        getStartedButton.isEnabled = false
-        getStartedButton.text = "Checking updates..."
+        setupGetStartedNavigation(getStartedButton)
 
-        // Run update check on launch
-        CoroutineScope(Dispatchers.Main).launch {
-            checkForUpdates(getStartedButton)
-        }
-    }
-
-    private suspend fun checkForUpdates(getStartedButton: Button) {
-        val latestRelease = withContext(Dispatchers.IO) {
-            try {
-                SupabaseProvider.client.postgrest["app_releases"]
-                    .select {
-                        order("version_code", Order.DESCENDING)
-                        limit(1)
-                    }
-                    .decodeList<AppReleaseRow>()
-                    .firstOrNull()
-            } catch (e: Exception) {
-                null
-            }
-        }
-
-        isCheckingUpdates = false
-        getStartedButton.isEnabled = true
-        getStartedButton.text = "Get Started"
-
-        if (latestRelease != null) {
-            val currentVersionCode = try {
-                val pInfo = packageManager.getPackageInfo(packageName, 0)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    pInfo.longVersionCode.toInt()
-                } else {
-                    @Suppress("DEPRECATION")
-                    pInfo.versionCode
-                }
-            } catch (e: Exception) {
-                1
-            }
-
-            if (latestRelease.version_code > currentVersionCode) {
-                if (latestRelease.is_forced) {
-                    // Show Full-Screen Forced Update UI blocker
-                    showForcedUpdateOverlay(latestRelease)
-                    return
-                } else {
-                    // Show Optional Update Dialog
-                    showOptionalUpdateDialog(latestRelease, getStartedButton)
-                    return
-                }
-            }
-        }
-
-        // Configure default button listener if no updates block proceeding
-        // Check for pre-auth maintenance broadcasts (show_before_auth flag)
+        // Check for pre-auth maintenance broadcasts (if any active announcement)
         val uiScope = CoroutineScope(Dispatchers.Main)
         ReusableDialogHelper.checkAndShowMaintenanceBroadcast(this@SplashActivity, uiScope)
-        setupGetStartedNavigation(getStartedButton)
-    }
-
-    private fun showForcedUpdateOverlay(release: AppReleaseRow) {
-        isForcedUpdateActive = true
-
-        val rootLayout = findViewById<ViewGroup>(android.R.id.content)
-        val overlayView = layoutInflater.inflate(R.layout.layout_forced_update, rootLayout, false)
-
-        val tvVersionTag = overlayView.findViewById<TextView>(R.id.tvVersionTag)
-        val tvWhatsNewList = overlayView.findViewById<TextView>(R.id.tvWhatsNewList)
-        val btnUpdateNow = overlayView.findViewById<View>(R.id.btnUpdateNow)
-
-        tvVersionTag.text = "V${release.version_name}"
-
-        tvWhatsNewList.text = ReusableDialogHelper.parseHtml(release.whats_new)
-
-        val svWhatsNew = overlayView.findViewById<android.widget.ScrollView>(R.id.svWhatsNew)
-
-        btnUpdateNow.setOnClickListener {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(release.download_url))
-                startActivity(intent)
-            } catch (_: Exception) {}
-        }
-
-        rootLayout.addView(overlayView)
-    }
-
-    private fun showOptionalUpdateDialog(release: AppReleaseRow, getStartedButton: Button) {
-        val announcement = AnnouncementRow(
-            id = "temp_version_update_id",
-            title = "New Version Available",
-            content = "v${release.version_name}",
-            is_active = true,
-            button_label = "Update Now",
-            created_at = "",
-            template_type = "version_check",
-            template_data = kotlinx.serialization.json.buildJsonObject {
-                put("version_name", release.version_name)
-                put("version_code", release.version_code)
-                put("whats_new", release.whats_new)
-                put("is_forced", false)
-                put("download_url", release.download_url)
-            }
-        )
-        val uiScope = CoroutineScope(Dispatchers.Main)
-        ReusableDialogHelper.showBroadcastDialog(this@SplashActivity, announcement, uiScope) {
-            setupGetStartedNavigation(getStartedButton)
-        }
     }
 
     private fun startDotsAnimation() {
@@ -375,10 +247,7 @@ class SplashActivity : Activity() {
     }
 
     override fun onBackPressed() {
-        if (isForcedUpdateActive) {
-            // In a forced update state, back exits the application completely
-            finishAffinity()
-        } else if (!isCheckingUpdates) {
+        if (!isNavigating) {
             super.onBackPressed()
         }
     }
